@@ -7,9 +7,7 @@ Currently the support for T265 module is removed in the latest versions of ```li
 
 The installation process is adapted directly from [Installation docs](https://github.com/IntelRealSense/librealsense/blob/master/doc/installation.md). This version is to build from source. Installation can also be done via ```dpkg``` format distributions from [here](https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md). But let's prefer to build from source for more control. 
 
-### <span style="color:red">Make sure to disconnect all the realsense devices before proceeding with the installation</span>
-
-
+:warning: $\color{red} \text{Make sure to disconnect all the realsense devices before proceeding with the installation} $
 
 ### A. Installing dependencies
 ```
