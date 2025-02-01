@@ -1,0 +1,17 @@
+# Running the example scripts
+
+## Reset the vision devices
+Run ```lsusb``` to check for the devices connected to the usb ports. Depth camera D4xx series bears the name ```Intel Corp. Intel(R) RealSense(TM) Depth Camera 4xx Intel(R) RealSense(TM) Depth Camera 4xx Intel(R) RealSense(TM) Depth Camera 4xx```
+
+while T265 will have the name ```Intel Myriad VPU [Movidius Neural Compute Stick] Movidius Ltd. Movidius MA2X5X```
+
+### A. Reset a specific device
+```python reset_vision_usb.py --name <device-name>```
+
+device-name ~ ```4xx``` for depth device. Replace 4xx with ```435``` or ```415``` depending on the camera being used.  ```Intel``` for T265
+
+### B. Reset both 4xx and T265
+```
+python reset_vision_usb.py --name_list 4xx, Intel
+```
+
