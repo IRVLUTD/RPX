@@ -39,6 +39,7 @@ while True:
     try:
         frames = pipe.wait_for_frames()
         pose = frames.get_pose_frame()
+        if not pose: continue
         data = pose.get_pose_data()
         fisheye_left = frames.get_fisheye_frame(1).as_video_frame()
         fisheye_right = frames.get_fisheye_frame(2).as_video_frame()
