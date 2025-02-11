@@ -26,8 +26,8 @@ T265_config.enable_stream(rs.stream.pose)
 
 D4xx_config = rs.config()
 D4xx_config.enable_device(D4xx_serial_num)
-D4xx_config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-D4xx_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+D4xx_config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 15)
+D4xx_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
 
 T265_pipeline.start(T265_config)
 D4xx_pipeline.start(D4xx_config)
@@ -37,6 +37,10 @@ align = rs.align(rs.stream.color)
 SYNC_THRESHOLD_MS = 10  # in milliseconds
 define_intrinsics = False
 frequency = 10 
+
+depth_sensor = D4xx_pipeline.get_active_profile().get_device().first_depth_sensor()
+depth_scale = depth_sensor.get_depth_scale()
+print(f"Depth Scale: {depth_scale} meters per unit")
 
 try:
     while True:
@@ -72,7 +76,8 @@ try:
                 position = [pose_data.translation.x, pose_data.translation.y, pose_data.translation.z]
                 orientation = [pose_data.rotation.x, pose_data.rotation.y, pose_data.rotation.z, pose_data.rotation.w]
 
-                depth_image = np.asanyarray(depth_frame.get_data())
+                #TODO: Check this scaling
+                depth_image = (np.asanyarray(depth_frame.get_data()) * depth_scale * 1000).astype(np.uint16)
                 color_image = np.asanyarray(color_frame.get_data())
 
                 # saving rgb - png files
