@@ -49,14 +49,13 @@ try:
         aligned_frames = align.process(D4xx_frames)
         color_frame = aligned_frames.get_color_frame()
         depth_frame = aligned_frames.get_depth_frame()
-        #TODO: get depth scale, save it for actual depth
+
         if not define_intrinsics:
             define_intrinsics = True
-            # Extract color camera intrinsics -- we aligned depth to color., so we need to use color cam instrinsics. 
-            # If reverse, then depth ones
             intrinsics = color_frame.profile.as_video_stream_profile().get_intrinsics()
-            fx, fy = intrinsics.fx, intrinsics.fy  # Focal lengths
-            cx, cy = intrinsics.ppx, intrinsics.ppy  # Principal points
+            fx, fy = intrinsics.fx, intrinsics.fy  
+            cx, cy = intrinsics.ppx, intrinsics.ppy  
+            print(f"Color Camera Intrinsics: fx={fx}, fy={fy}, cx={cx}, cy={cy}")
 
         if pose_frame and color_frame and depth_frame:
             pose_ts = pose_frame.get_timestamp()
