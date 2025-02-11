@@ -1,9 +1,8 @@
-# Reference for alignment 
-# https://github.com/IntelRealSense/librealsense/blob/master/wrappers/python/examples/align-depth2color.py
-
 import pyrealsense2 as rs
 import numpy as np
 import cv2
+import os
+import datetime
 
 from config.serial_nums import T265_serial_num, D4xx_serial_num
 
@@ -24,7 +23,6 @@ D4xx_pipeline = rs.pipeline()
 T265_config = rs.config()
 T265_config.enable_device(T265_serial_num)
 T265_config.enable_stream(rs.stream.pose)
-#TODO: Enable fisheye frames
 
 D4xx_config = rs.config()
 D4xx_config.enable_device(D4xx_serial_num)
@@ -36,9 +34,9 @@ D4xx_pipeline.start(D4xx_config)
 
 align = rs.align(rs.stream.color)
 
-SYNC_THRESHOLD_MS = 20  # in millinsecs
-
+SYNC_THRESHOLD_MS = 10  # in milliseconds
 define_intrinsics = False
+frequency = 10 
 
 try:
     while True:
@@ -65,41 +63,42 @@ try:
             pose_color_diff = abs(pose_ts - color_ts)
             pose_depth_diff = abs(pose_ts - depth_ts)
 
-            print(
-                f"Pose TS: {pose_ts:.2f} ms, Color TS: {color_ts:.2f} ms, Depth TS: {depth_ts:.2f} ms"
-            )
-            print(
-                f"Time Differences -> Pose-Color: {pose_color_diff:.2f} ms, Pose-Depth: {pose_depth_diff:.2f} ms"
-            )
+            print(f"Time Differences -> Pose-Color: {pose_color_diff:.2f} ms, Pose-Depth: {pose_depth_diff:.2f} ms")
 
-            if (
-                pose_color_diff < SYNC_THRESHOLD_MS
-                and pose_depth_diff < SYNC_THRESHOLD_MS
-            ):
+            if pose_color_diff < SYNC_THRESHOLD_MS and pose_depth_diff < SYNC_THRESHOLD_MS:
                 print("Frames are synchronized!")
 
-                # Process pose data
                 pose_data = pose_frame.get_pose_data()
-                position = pose_data.translation
-                orientation = pose_data.rotation
+                position = [pose_data.translation.x, pose_data.translation.y, pose_data.translation.z]
+                orientation = [pose_data.rotation.x, pose_data.rotation.y, pose_data.rotation.z, pose_data.rotation.w]
 
                 depth_image = np.asanyarray(depth_frame.get_data())
                 color_image = np.asanyarray(color_frame.get_data())
 
-                depth_colormap = cv2.applyColorMap(
-                    cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET
-                )
+                # saving rgb - png files
+                rgb_filename = f"{save_dir}/rgb/{file_index:05d}.png"
+                cv2.imwrite(rgb_filename, color_image)
 
+                # saving depth - png files (16-bit png for raw depth values)
+                depth_filename = f"{save_dir}/depth/{file_index:05d}.png"
+                cv2.imwrite(depth_filename, depth_image)
+
+                pose_filename = f"{save_dir}/pose/{file_index:05d}.npz"
+                np.savez(pose_filename, position=position, orientation=orientation)
+
+                print(f"Saved: {rgb_filename}, {depth_filename}, {pose_filename}")
+
+                file_index += 1  
+
+                depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
                 stacked_images = np.hstack((color_image, depth_colormap))
                 cv2.imshow("RGB + Aligned Depth", stacked_images)
 
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(int(1000/frequency))
         if key & 0xFF == ord("q"):
             break
 
 finally:
-    # Stop pipelines
-    # TODO: Add file closings here latereon. Add saving intrinsics.
     T265_pipeline.stop()
     D4xx_pipeline.stop()
     cv2.destroyAllWindows()
