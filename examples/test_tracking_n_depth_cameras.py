@@ -26,15 +26,15 @@ T265_config.enable_stream(rs.stream.pose)
 
 D4xx_config = rs.config()
 D4xx_config.enable_device(D4xx_serial_num)
-D4xx_config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 15)
-D4xx_config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 15)
+D4xx_config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+D4xx_config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 30)
 
 T265_pipeline.start(T265_config)
 D4xx_pipeline.start(D4xx_config)
 
 align = rs.align(rs.stream.color)
 
-SYNC_THRESHOLD_MS = 10  # in milliseconds
+SYNC_THRESHOLD_MS = 30  # in milliseconds
 define_intrinsics = False
 frequency = 10 
 
@@ -77,8 +77,10 @@ try:
                 orientation = [pose_data.rotation.x, pose_data.rotation.y, pose_data.rotation.z, pose_data.rotation.w]
 
                 #TODO: Check this scaling
-                depth_image = (np.asanyarray(depth_frame.get_data()) * depth_scale * 1000).astype(np.uint16)
+                # import pdb;pdb.set_trace()
+                depth_image = (np.asanyarray(depth_frame.get_data()) * depth_scale * 1000.0).astype(np.uint16)
                 color_image = np.asanyarray(color_frame.get_data())
+                # pdb.set_trace()
 
                 # saving rgb - png files
                 rgb_filename = f"{save_dir}/rgb/{file_index:05d}.png"
