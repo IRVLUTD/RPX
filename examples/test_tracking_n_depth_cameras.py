@@ -7,6 +7,17 @@ import cv2
 
 from config.serial_nums import T265_serial_num, D4xx_serial_num
 
+# File system - similar template as of tto and iTeach
+timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+save_dir = f"./data/{timestamp}"
+os.makedirs(save_dir, exist_ok=True)
+os.makedirs(f"{save_dir}/rgb", exist_ok=True)
+os.makedirs(f"{save_dir}/depth", exist_ok=True)
+os.makedirs(f"{save_dir}/pose", exist_ok=True)
+
+
+file_index = 0
+
 T265_pipeline = rs.pipeline()
 D4xx_pipeline = rs.pipeline()
 
