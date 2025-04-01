@@ -26,7 +26,7 @@ python test_t265 --save
 # Main Run 
 run the following script to save the RGB, Depth, Pose, Fisheye 1,2
 ```
-python save_device_data.py
+python save_device_data.py <task/object name> <fps>  <sync_threshold>
 ```
 
 
