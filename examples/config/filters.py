@@ -14,7 +14,7 @@ filters = {
             rs.decimation_filter(): [
                 [rs.option.filter_magnitude, 2]
             ],
-            rs.disparity_transform(True): [],
+            rs.disparity_transform(False): [],
             rs.spatial_filter(): [
                 [rs.option.filter_magnitude, 2],
                 [rs.option.filter_smooth_alpha, 0.5],
