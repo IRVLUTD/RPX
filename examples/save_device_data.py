@@ -9,13 +9,20 @@ import sys
 from config.serial_nums import T265_serial_num, D4xx_serial_num
 from config.filters import filters, presets
 
-frame_interval = 1 / int(sys.argv[1])  # 20fps
-sync_threshold_ms = int(sys.argv[2])  # Sync threshold in milliseconds  #10 - default; 80 - when including fisheye. 
+frame_interval = 1 / int(sys.argv[2])  # 20fps
+sync_threshold_ms = int(sys.argv[3])  # Sync threshold in milliseconds  #10 - default; 80 - when including fisheye. 
+task_name = sys.argv[1]  # name of the task or object
 
 print(f" fps: {1/frame_interval}  sync_threshold: {sync_threshold_ms} ms \n")
 
 timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-save_dir = f"./data/{timestamp}"
+base_dir = f"./data/{task_name}"
+os.makedirs(base_dir, exist_ok=True)
+
+existing_folders = [int(d) for d in os.listdir(base_dir) if d.isdigit() and os.path.isdir(os.path.join(base_dir, d))]
+next_folder_num = max(existing_folders, default=-1)+1
+save_dir = f"{base_dir}/{next_folder_num}"
+
 os.makedirs(save_dir, exist_ok=True)
 os.makedirs(f"{save_dir}/rgb", exist_ok=True)
 os.makedirs(f"{save_dir}/depth", exist_ok=True)
