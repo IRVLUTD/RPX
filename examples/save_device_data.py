@@ -67,7 +67,7 @@ try:
         right_fisheye = T265_frames.get_fisheye_frame(2)
 
 
-        if pose_frame and color_frame and depth_frame:
+        if pose_frame and color_frame and depth_frame and left_fisheye and right_fisheye:
             pose_ts = pose_frame.get_timestamp()
             color_ts = color_frame.get_timestamp()
             depth_ts = depth_frame.get_timestamp()
