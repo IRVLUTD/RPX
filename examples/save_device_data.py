@@ -4,8 +4,15 @@ import cv2
 import os
 import datetime
 import time
+import sys
 
 from config.serial_nums import T265_serial_num, D4xx_serial_num
+from config.filters import filters, presets
+
+frame_interval = 1 / int(sys.argv[1])  # 20fps
+sync_threshold_ms = int(sys.argv[2])  # Sync threshold in milliseconds  #10 - default; 80 - when including fisheye. 
+
+print(f" fps: {1/frame_interval}  sync_threshold: {sync_threshold_ms} ms \n")
 
 timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 save_dir = f"./data/{timestamp}"
@@ -16,6 +23,7 @@ os.makedirs(f"{save_dir}/pose", exist_ok=True)
 os.makedirs(f"{save_dir}/fisheye/left", exist_ok=True)
 os.makedirs(f"{save_dir}/fisheye/right", exist_ok=True)
 
+print(f"data folder created \n")
 
 file_index = 0
 
@@ -26,33 +34,48 @@ T265_config = rs.config()
 T265_config.enable_device(T265_serial_num)
 T265_config.enable_stream(rs.stream.pose)
 # Add fisheye stream
-T265_config.enable_stream(rs.stream.fisheye, 1, 848, 800, rs.format.raw8, 30)
-T265_config.enable_stream(rs.stream.fisheye, 2, 848, 800, rs.format.raw8, 30)
+T265_config.enable_stream(rs.stream.fisheye, 1, 848, 800, rs.format.y8, 30)
+T265_config.enable_stream(rs.stream.fisheye, 2, 848, 800, rs.format.y8, 30)
+print(f" T265 streams enabled \n")
 
 D4xx_config = rs.config()
 D4xx_config.enable_device(D4xx_serial_num)
 D4xx_config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 60)
 D4xx_config.enable_stream(rs.stream.color, 640, 480, rs.format.rgb8, 60) #saving at 60 is reducing latency. check in vieweer as awell
+print(f" D435 streams enabled \n")
+
 
 T265_profile = T265_pipeline.start(T265_config)
+print(f"T265 Pipeline started\n")
 D4xx_profile = D4xx_pipeline.start(D4xx_config)
+print(f"D435 Pipeline started\n")
 
 align = rs.align(rs.stream.color)
 depth_sensor = D4xx_pipeline.get_active_profile().get_device().first_depth_sensor()
 depth_scale = depth_sensor.get_depth_scale()
-
 print(f"Depth Scale: {depth_scale} meters per unit")
 
-frame_interval = 1 / 20  # 20fps
-sync_threshold_ms = 80  # Sync threshold in milliseconds  #10 - default; 80 - when including fisheye. 
+depth_sensor.set_option(rs.option.visual_preset, presets["High Density"])
+print(f"Preset set to  High Density")
+
+# set filters so we can apply tto depth frames after we access it in the synced loop
+for filter_object, options in filters.items():
+    for option, value in options:
+        if value != []:
+            filter_object.set_option(option, value)
+
+print(f"Filter values set\n")
 
 # Discard for 10 seconds after starting. bad data
+print(f"Accessing initial frames for 10 seconds! Please move the cameras around slowly!")
+print(f"NOTE: Data not stored during this phase\n")
 for _ in range(600):
     T265_frames = T265_pipeline.wait_for_frames()
     D4xx_frames = D4xx_pipeline.wait_for_frames()
 
 start_time1 = time.time()  # total pipeline start time
 try:
+    print(f"****** Starting DATA CAPTURE ******\n")
     while True:
         start_time = time.time()  
 
@@ -81,6 +104,10 @@ try:
                 position = [pose_data.translation.x, pose_data.translation.y, pose_data.translation.z]
                 orientation = [pose_data.rotation.x, pose_data.rotation.y, pose_data.rotation.z, pose_data.rotation.w]
 
+                # post processing filters
+                for filter_obj in filters.keys():
+                    depth_frame = filter_obj.process(depth_frame)
+                
                 depth_image = (np.asanyarray(depth_frame.get_data()) * depth_scale * 1000.0).astype(np.uint16)
                 color_image = np.asanyarray(color_frame.get_data())
 
@@ -94,16 +121,17 @@ try:
                 left_fisheye_filename = f"{save_dir}/fisheye/left/{file_index:05d}.png"
                 right_fisheye_filename = f"{save_dir}/fisheye/right/{file_index:05d}.png"
 
-                cv2.imwrite(rgb_filename, color_image)
+                cv2.imwrite(rgb_filename, color_image[:,:,::-1])
                 cv2.imwrite(depth_filename, depth_image)
                 cv2.imwrite(left_fisheye_filename, left_fisheye_image)
                 cv2.imwrite(right_fisheye_filename, right_fisheye_image)
 
                 np.savez(pose_filename, position=position, orientation=orientation)
 
-                print(f"saving {file_index} th data point\n")
-                print(f"Saved: {rgb_filename}, {depth_filename}, {pose_filename}, {left_fisheye_filename}, {right_fisheye_filename}")
-                print(f"Pose-Color Latency: {pose_color_latency:.2f} ms, Pose-Depth Latency: {pose_depth_latency:.2f} ms")
+                # print(f"saving {file_index} th data point\n")
+                print(f"\t\t saving \033[1m{file_index}\033[0m th data point")
+                # print(f"Saved: {rgb_filename}, {depth_filename}, {pose_filename}, {left_fisheye_filename}, {right_fisheye_filename}")
+                # print(f"Pose-Color latency:{pose_color_latency:.2f}ms, Pose-Depth latency:{pose_depth_latency:.2f}ms")
 
                 file_index += 1  
         """
@@ -114,10 +142,11 @@ try:
         # elapsed_time = time.time() - start_time
         # sleep_time = max(0, frame_interval - elapsed_time)
         # time.sleep(sleep_time)
-
+except KeyboardInterrupt:
+    print(f"script STOP requested\n")
 finally:
     final_time1 = time.time()  # Pipeline end time
-    print(-start_time1+final_time1)
+    print(f"Total time taken to save data : {-start_time1+final_time1}\n")
     T265_pipeline.stop()
     D4xx_pipeline.stop()
     print("Streaming stopped.")
