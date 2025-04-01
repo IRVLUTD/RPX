@@ -23,4 +23,10 @@ To test the pose data and fisheye steam from T265. Exlude save argument if you d
 python test_t265 --save
 ```
 
+# Main Run 
+run the following script to save the RGB, Depth, Pose, Fisheye 1,2
+```
+python save_device_data.py
+```
+
 
