@@ -13,6 +13,9 @@ os.makedirs(save_dir, exist_ok=True)
 os.makedirs(f"{save_dir}/rgb", exist_ok=True)
 os.makedirs(f"{save_dir}/depth", exist_ok=True)
 os.makedirs(f"{save_dir}/pose", exist_ok=True)
+os.makedirs(f"{save_dir}/fisheye/left", exist_ok=True)
+os.makedirs(f"{save_dir}/fisheye/right", exist_ok=True)
+
 
 file_index = 0
 
@@ -22,6 +25,9 @@ D4xx_pipeline = rs.pipeline()
 T265_config = rs.config()
 T265_config.enable_device(T265_serial_num)
 T265_config.enable_stream(rs.stream.pose)
+# Add fisheye stream
+T265_config.enable_stream(rs.stream.fisheye, 1, 848, 800, rs.format.raw8, 30)
+T265_config.enable_stream(rs.stream.fisheye, 2, 848, 800, rs.format.raw8, 30)
 
 D4xx_config = rs.config()
 D4xx_config.enable_device(D4xx_serial_num)
@@ -38,7 +44,7 @@ depth_scale = depth_sensor.get_depth_scale()
 print(f"Depth Scale: {depth_scale} meters per unit")
 
 frame_interval = 1 / 20  # 20fps
-sync_threshold_ms = 10  # Sync threshold in milliseconds
+sync_threshold_ms = 80  # Sync threshold in milliseconds  #10 - default; 80 - when including fisheye. 
 
 # Discard for 10 seconds after starting. bad data
 for _ in range(600):
@@ -57,6 +63,9 @@ try:
         color_frame = aligned_frames.get_color_frame()
         depth_frame = aligned_frames.get_depth_frame()
         pose_frame = T265_frames.get_pose_frame()
+        left_fisheye = T265_frames.get_fisheye_frame(1)
+        right_fisheye = T265_frames.get_fisheye_frame(2)
+
 
         if pose_frame and color_frame and depth_frame:
             pose_ts = pose_frame.get_timestamp()
@@ -67,6 +76,7 @@ try:
             pose_depth_latency = abs(pose_ts - depth_ts)  # Pose-to-Depth latency (ms)
 
             if pose_color_latency < sync_threshold_ms and pose_depth_latency < sync_threshold_ms:
+                # for now lets compare only rgb and depth latencies w.r.t pose. ususally if pose is in sync, so does stereo too. --check
                 pose_data = pose_frame.get_pose_data()
                 position = [pose_data.translation.x, pose_data.translation.y, pose_data.translation.z]
                 orientation = [pose_data.rotation.x, pose_data.rotation.y, pose_data.rotation.z, pose_data.rotation.w]
@@ -74,15 +84,25 @@ try:
                 depth_image = (np.asanyarray(depth_frame.get_data()) * depth_scale * 1000.0).astype(np.uint16)
                 color_image = np.asanyarray(color_frame.get_data())
 
+                left_fisheye_image = np.asanyarray(left_fisheye.get_data())
+                right_fisheye_image = np.asanyarray(right_fisheye.get_data())
+
                 rgb_filename = f"{save_dir}/rgb/{file_index:05d}.png"
                 depth_filename = f"{save_dir}/depth/{file_index:05d}.png"
                 pose_filename = f"{save_dir}/pose/{file_index:05d}.npz"
 
+                left_fisheye_filename = f"{save_dir}/fisheye/left/{file_index:05d}.png"
+                right_fisheye_filename = f"{save_dir}/fisheye/right/{file_index:05d}.png"
+
                 cv2.imwrite(rgb_filename, color_image)
                 cv2.imwrite(depth_filename, depth_image)
+                cv2.imwrite(left_fisheye_filename, left_fisheye_image)
+                cv2.imwrite(right_fisheye_filename, right_fisheye_image)
+
                 np.savez(pose_filename, position=position, orientation=orientation)
 
-                print(f"Saved: {rgb_filename}, {depth_filename}, {pose_filename}")
+                print(f"saving {file_index} th data point\n")
+                print(f"Saved: {rgb_filename}, {depth_filename}, {pose_filename}, {left_fisheye_filename}, {right_fisheye_filename}")
                 print(f"Pose-Color Latency: {pose_color_latency:.2f} ms, Pose-Depth Latency: {pose_depth_latency:.2f} ms")
 
                 file_index += 1  
