@@ -11,9 +11,7 @@ presets = {
 } 
 
 filters = {
-            rs.decimation_filter(): [
-                [rs.option.filter_magnitude, 2]
-            ],
+            
             rs.disparity_transform(False): [],
             rs.spatial_filter(): [
                 [rs.option.filter_magnitude, 2],
@@ -26,3 +24,7 @@ filters = {
                 [rs.option.holes_fill, 2]
             ]
 }
+
+# rs.decimation_filter(): [
+#                 [rs.option.filter_magnitude, 2]
+#             ],
