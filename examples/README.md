@@ -29,4 +29,8 @@ run the following script to save the RGB, Depth, Pose, Fisheye 1,2
 python save_device_data.py <task/object name> <fps>  <sync_threshold>
 ```
 
+Plot the T265 poses
+```
+python plot_poses.py <path-to-pose-dir>
+```
 
