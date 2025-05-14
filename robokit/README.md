@@ -31,6 +31,10 @@ python run_sam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/s
 # - After processing, manually verify the outputs inside <scene_dir>/<num>/sam2/contour_masks
 ```
 
+
+https://github.com/user-attachments/assets/0243072b-3f37-4c35-97b0-8744e2873454
+
+
 ## ⚠️ (Experimental) GSAM2-Object Pipeline
 ```shell
 # Note: This pipeline is can be used for easy background scenes.
