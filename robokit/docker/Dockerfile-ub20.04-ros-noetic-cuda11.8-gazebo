@@ -1,0 +1,55 @@
+#----------------------------------------------------------------------------------------------------
+# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
+# Please check the licenses of the respective works utilized here before using this script.
+# 🖋️ Jishnu Jaykumar Padalunkal (2024).
+#----------------------------------------------------------------------------------------------------
+
+# Hosted at https://hub.docker.com/repository/docker/irvlutd/ros-noetic-cuda-gazebo/
+
+# Use the official NVIDIA CUDA base image with Ubuntu 20.04
+# FROM nvidia/cuda:11.8.0-base-ubuntu20.04
+FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
+
+# Set the maintainer label
+LABEL maintainer="jishnu.p@utdallas.edu"
+
+# Set non-interactive mode to avoid user prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Clean up apt cache and update the package list
+RUN rm -rf /var/lib/apt/lists/* \
+    && apt-get clean \
+    && apt-get update \
+    && apt-get install -y \
+    curl \
+    gnupg2 \
+    lsb-release \
+    software-properties-common \
+    build-essential wget gnupg2 ca-certificates
+
+# Set up the ROS repository and keys (no need for sudo)
+RUN curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add -
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+
+# Install ROS Noetic Desktop (includes Gazebo)
+RUN apt-get update && apt-get install -y ros-noetic-desktop-full
+
+# Install Gazebo packages and dependencies for ROS Noetic
+RUN apt-get update && apt-get install -y gazebo11 libgazebo11-dev ros-noetic-gazebo-ros-pkgs ros-noetic-gazebo-ros-control
+
+# Set up the environment for ROS
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+
+# Install additional tools for ROS development
+RUN apt-get update && apt-get install -y \
+    python3-rosdep \
+    python3-rosinstall \
+    python3-rosinstall-generator \
+    python3-wstool \
+    && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && rosdep update
+
+# Set default shell to bash
+CMD ["bash", "-c", "source /opt/ros/noetic/setup.bash && roscore"]
