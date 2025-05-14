@@ -10,31 +10,29 @@ python setup.py install
 ```
 
 ## Download data from Box
-- Download one file
+- Download one file from [obj-1](https://utdallas.box.com/s/3n7l6rbmgycfzsr30rowsvkooyzh1ipv), [obj-n](https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t)
 - unzip it
 - rm the zip file
-- then 1, 2
+- then do the label generation process on 0/1/2
 - zip the results and upload to box
 
-## 1. Prepare data for SAM2
-Convert the pngs to jpgs and rename in reverse manner
+## 📌 Running SAM2 for Ground Truth Mask Generation
 ```shell
-python convert2jpg_in_reverse.py --input_dir /home/jishnu/Projects/sam2-rt/data/scene30.gaming2.JUMBOTRONSTAGE/0
+# Step 1: Download the data from https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t
+
+# Step 2: For each scene directory (e.g., <scene_dir>/0, <scene_dir>/1, <scene_dir>/2), run the following:
+python run_sam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
+
+# Instructions:
+# - A window will pop up showing the last frame; draw the bounding box over the object of interest.
+# - Press 'y' to save the bounding box.
+# - On subsequent runs, the saved bounding box will be displayed.
+#   - Press 'n' to use this saved box for mask propagation.
+# - After processing, manually verify the outputs inside <scene_dir>/<num>/sam2/contour_masks
 ```
 
-### 2. Propogate mask in reverse
+## ⚠️ (Experimental) GSAM2-Object Pipeline
 ```shell
-python test_bbox_prompt_samv2.py --input_dir /home/jishnu/Projects/sam2-rt/data/scene30.gaming2.JUMBOTRONSTAGE/1/jpg
+# Note: This pipeline is can be used for easy background scenes.
+python run_gsam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
 ```
-
-### 3. Filename reverse to match with GT masks
-```shell
-python reverse_rgb_flenames.py --rgb_dir /home/jishnu/Projects/sam2-rt/data/scene30.gaming2.JUMBOTRONSTAGE/1/rgb
-```
-
-### Test model ckpt
-
-
-TODO:
-check which mask corresponds to which; is it first to last or last oto first
-at the end it should correspond to rgb/*.png  sequence
