@@ -417,7 +417,7 @@ def main(scene_dir):
 
     shutil.rmtree(jpg_dir)
     print(f"[🗑️] Deleted JPG directory: {jpg_dir}")
-    # reverse_rgb_filenames(Path(scene_dir) / "rgb")
+    reverse_rgb_filenames(Path(scene_dir) / "rgb")
     print("🎉 Full SAM2 reverse propagation + color + contour pipeline completed!")
 
 
