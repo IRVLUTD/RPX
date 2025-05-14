@@ -11,8 +11,7 @@ The repository for the **Robot Perception X (RPX)** dataset and benchmarking sui
    1.2 [Cloning SDK v2.47.0](#12-cloning-sdk-v2470)  
    1.3 [Installation and Build](#13-installation-and-build)  
    1.4 [Install Python Wrapper](#14-install-python-wrapper)
-2. [Motion Vectors](#2-motion-vectors)
-3. [Setup data labelling]()
+
 
 ---
 
