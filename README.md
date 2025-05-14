@@ -12,6 +12,7 @@ The repository for the **Robot Perception X (RPX)** dataset and benchmarking sui
    1.3 [Installation and Build](#13-installation-and-build)  
    1.4 [Install Python Wrapper](#14-install-python-wrapper)
 2. [Motion Vectors](#2-motion-vectors)
+3. [Setup data labelling]()
 
 ---
 
@@ -59,19 +60,18 @@ pip install pyrealsense2==2.47.0.3313
 
 ---
 
-## 2. Motion Vectors
 
-### 2.1 Convert PNG frames to MP4
-```bash
-ffmpeg -framerate 15 -pattern_type glob -i rgb/"*.png" -c:v libx264 -preset slow -tune animation -crf 18 output264.mp4
-```
+# Run sam2 for gt masks
+```shell
+# Download data from https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t
+# for each scene, run for <0,1,2>
+# first draw bbox on the popped up image
+# then press y to save; next time when ran then this saved bbox prompt will be read (displayed) and used (when n is pressed after display)
+# manually verify the output created on <0,1,2>/sam2/contour_masks
+python run_sam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
 
-### 2.2 Install Motion Vector Extractor
-```bash
-pip install motion-vector-extractor
-```
 
-### 2.3 Extract Motion Vectors
-```bash
-extract_mvs output264.mp4 --preview --verbose --dump
+# for sgam2-obj pipeline; doesn't work
+python run_gsam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
+
 ```
