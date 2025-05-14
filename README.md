@@ -11,8 +11,6 @@ The repository for the **Robot Perception X (RPX)** dataset and benchmarking sui
    1.2 [Cloning SDK v2.47.0](#12-cloning-sdk-v2470)  
    1.3 [Installation and Build](#13-installation-and-build)  
    1.4 [Install Python Wrapper](#14-install-python-wrapper)
-2. [Motion Vectors](#2-motion-vectors)
-3. [Setup data labelling]()
 
 ---
 
@@ -61,17 +59,5 @@ pip install pyrealsense2==2.47.0.3313
 ---
 
 
-# Run sam2 for gt masks
-```shell
-# Download data from https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t
-# for each scene, run for <0,1,2>
-# first draw bbox on the popped up image
-# then press y to save; next time when ran then this saved bbox prompt will be read (displayed) and used (when n is pressed after display)
-# manually verify the output created on <0,1,2>/sam2/contour_masks
-python run_sam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
-
-
-# for sgam2-obj pipeline; doesn't work
-python run_gsam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
-
-```
+## To generate ground truth labels
+ - Segmentation: [robokit](robokit/README.md)
