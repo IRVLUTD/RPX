@@ -164,14 +164,33 @@ def combine_masks(gt_masks):
         raise e
 
 
-def reverse_rgb_filenames(rgb_dir):
-    files = sorted(Path(rgb_dir).glob("*.png"))
+def reverse_filenames(target_dir, ext):
+    files = sorted(Path(target_dir).glob(f"*.{ext}"))
+    # First pass: rename to temporary names
     for i, f in enumerate(files):
-        f.rename(f.parent / f"temp_{i:06d}.png")
-    temp_files = sorted(Path(rgb_dir).glob("temp_*.png"))
+        f.rename(f.parent / f"temp_{i:05d}.{ext}")
+    # Second pass: reverse and rename to final names
+    temp_files = sorted(Path(target_dir).glob(f"temp_*.{ext}"))
     for i, f in enumerate(reversed(temp_files)):
-        f.rename(f.parent / f"{i:06d}.png")
-    print(f"[✓] Reversed PNG filenames in {rgb_dir}")
+        f.rename(f.parent / f"{i:05d}.{ext}")
+    print(f"[✓] Reversed .{ext} filenames in {target_dir}")
+
+def reverse_all_modalities(base_dir):
+    base_dir = Path(base_dir)
+    targets = {
+        "rgb": "png",
+        "depth": "png",
+        "fisheye/left": "png",
+        "fisheye/right": "png",
+        "cam_pose": "npz",
+    }
+
+    for subdir, ext in targets.items():
+        target_path = base_dir / subdir
+        if target_path.exists():
+            reverse_filenames(target_path, ext)
+        else:
+            print(f"[!] Skipping {target_path} (does not exist)")
 
 
 def merge_rgb_with_mask_with_contours(rgb_pil, masks_pil, bg_alpha=0.4, mask_alpha=0.65):
@@ -323,7 +342,7 @@ def main(scene_dir):
 
     shutil.rmtree(jpg_dir)
     print(f"[🗑️] Deleted JPG directory: {jpg_dir}")
-    reverse_rgb_filenames(Path(scene_dir) / "rgb")
+    reverse_all_modalities(Path(scene_dir))
     print("🎉 Full SAM2 reverse propagation + color + contour pipeline completed!")
 
 
