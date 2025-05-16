@@ -31,3 +31,10 @@ python -m maskgen_pipeline.interactive_gsam2 --scene_dir /home/jishnu/Projects/R
 # Draw or resize bounding boxes (left mouse button) as needed.
 # Press q to finalize.
 # SAM2 propagates the bounding boxes backward to generate masks.
+
+# To visualize the content
+python -m maskgen_pipeline.vis_gen_mask --scene_dir /home/jishnu/Projects/RPX/data/test/1
+```
+
+https://github.com/user-attachments/assets/c64415cf-79c2-4e7b-b28a-78bc4a2d51cd
+
