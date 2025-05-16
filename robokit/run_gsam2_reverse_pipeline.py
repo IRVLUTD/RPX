@@ -299,6 +299,83 @@ def apply_nms(bboxes, scores, iou_threshold=0.5):
     # Return only the bounding boxes that survived NMS
     return bboxes[keep_indices], keep_indices
 
+
+# Sort boxes by area and reassign IDs
+import numpy as np
+
+def sort_boxes_by_area(boxes, phrases, scores):
+    """
+    Sort bounding boxes by area in ascending order and reorder corresponding phrases and scores.
+
+    Args:
+        boxes (list or np.ndarray): List or array of boxes in [x1, y1, x2, y2] format.
+        phrases (list): List of associated phrase labels.
+        scores (torch.Tensor or np.ndarray): Array of associated confidence scores.
+
+    Returns:
+        tuple: Sorted (boxes, phrases, scores)
+    """
+    boxes_np = np.array(boxes)
+    areas = (boxes_np[:, 2] - boxes_np[:, 0]) * (boxes_np[:, 3] - boxes_np[:, 1])
+    sorted_indices = np.argsort(areas)  # Ascending order
+    boxes_sorted = boxes_np[sorted_indices]
+    phrases_sorted = [phrases[i] for i in sorted_indices]
+    scores_sorted = scores[sorted_indices]
+    return boxes_sorted.tolist(), phrases_sorted, scores_sorted
+
+
+
+from matplotlib.widgets import RectangleSelector
+import matplotlib.pyplot as plt
+
+
+def interactive_resize_bboxes(image_pil, bboxes):
+    """
+    Interactive function to resize bounding boxes.
+
+    Args:
+        image_pil (PIL.Image): Image on which to draw boxes.
+        bboxes (list): List of [x1, y1, x2, y2] boxes.
+
+    Returns:
+        list: Updated list of resized bounding boxes.
+    """
+    resized_bboxes = []
+
+    print(f"[🔧] Starting interactive resizing of {len(bboxes)} bounding boxes...")
+
+    for i, (x1, y1, x2, y2) in enumerate(bboxes):
+        fig, ax = plt.subplots(figsize=(10, 8))
+        ax.imshow(image_pil)
+        ax.set_title(f"Resize Box {i+1}/{len(bboxes)} — Close the window to confirm")
+        ax.axis("off")
+
+        rect_patch = plt.Rectangle((x1, y1), x2 - x1, y2 - y1,
+                                   edgecolor='lime', facecolor='none', lw=2)
+        ax.add_patch(rect_patch)
+
+        current_box = [x1, y1, x2, y2]
+
+        def on_select(eclick, erelease):
+            cx1, cy1 = eclick.xdata, eclick.ydata
+            cx2, cy2 = erelease.xdata, erelease.ydata
+            current_box[0] = min(cx1, cx2)
+            current_box[1] = min(cy1, cy2)
+            current_box[2] = max(cx1, cx2)
+            current_box[3] = max(cy1, cy2)
+
+        toggle_selector = RectangleSelector(ax, on_select,
+                                            useblit=True,
+                                            button=[1],  # Left mouse
+                                            minspanx=5, minspany=5,
+                                            spancoords='pixels',
+                                            interactive=True)
+        plt.show()
+        resized_bboxes.append(current_box)
+
+    print(f"[✅] Resizing complete. {len(resized_bboxes)} boxes updated.")
+    return resized_bboxes
+
     
 def main(scene_dir):
     palette = load_palette()
@@ -308,30 +385,6 @@ def main(scene_dir):
     sam2_out = Path(scene_dir) / "sam2"
     bbox_file = sam2_out / "usr_bbox_prompts.npy"
     sam2_out.mkdir(parents=True, exist_ok=True)
-
-    # # Step 1: Load or collect bboxes
-    # if bbox_file.exists():
-    #     print(f"[ℹ️] Found existing bbox file: {bbox_file}")
-    #     bbox_data = np.load(bbox_file, allow_pickle=True).item()
-    #     bboxes = bbox_data["xyxy"]
-
-    #     # ✅ Visualize xyxy boxes
-    #     image = Image.open(img_path).convert("RGB")
-    #     fig, ax = plt.subplots()
-    #     ax.imshow(image)
-    #     for box in bboxes:
-    #         x1, y1, x2, y2 = box
-    #         w, h = x2 - x1, y2 - y1
-    #         ax.add_patch(plt.Rectangle((x1, y1), w, h, edgecolor='lime', facecolor='none', lw=2))
-    #     plt.title("Existing Bounding Boxes (XYXY)")
-    #     plt.axis("off")
-    #     plt.show()
-
-    #     use_existing = input("Use existing bounding boxes? (y/n): ").strip().lower()
-    #     if use_existing != 'y':
-    #         bboxes = get_user_bboxes(img_path, bbox_file)
-    # else:
-    #     bboxes = get_user_bboxes(img_path, bbox_file)
 
     # Step 2: Setup output dirs
     mask_out = sam2_out / "masks"
@@ -391,8 +444,182 @@ def main(scene_dir):
     w, h = img_pil.size # Get image width and height 
     image_pil_bboxes = gdino.bbox_to_scaled_xyxy(initial_bboxes, w, h)
 
+    # 🔢 Sort boxes by area (ascending) for easier identification in UI
+    image_pil_bboxes, phrases, gdino_conf = sort_boxes_by_area(image_pil_bboxes, phrases, gdino_conf)
+
+    # 🖼️ Interactive visualization to drop unwanted bboxes and add more
+    import matplotlib.pyplot as plt
+    from matplotlib.widgets import CheckButtons
+
+
+
+    # # 🖼️ Interactive visualization to drop unwanted bboxes
+    # import matplotlib.pyplot as plt
+    # from matplotlib.widgets import CheckButtons
+
+    # fig, ax = plt.subplots(figsize=(10, 8))
+    # ax.imshow(img_pil)
+    # plt.title("Toggle Boxes to Keep (Close to Confirm)")
+    # plt.axis("off")
+
+    # keep_flags = [True] * len(image_pil_bboxes)
+    # patches = []
+
+    # for i, (x1, y1, x2, y2) in enumerate(image_pil_bboxes):
+    #     rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1,
+    #                         edgecolor='lime', facecolor='none', lw=2)
+    #     ax.add_patch(rect)
+    #     patches.append(rect)
+
+    # labels = [f"Box {i}" for i in range(len(image_pil_bboxes))]
+    # rax = plt.axes([0.85, 0.3, 0.13, 0.4])
+    # check = CheckButtons(rax, labels, keep_flags)
+
+    # def toggle(label):
+    #     i = labels.index(label)
+    #     keep_flags[i] = not keep_flags[i]
+    #     patches[i].set_visible(keep_flags[i])
+    #     fig.canvas.draw()
+
+    # check.on_clicked(toggle)
+    # plt.show()
+
+    # # Filter boxes, phrases, and scores
+    # image_pil_bboxes = [box for box, keep in zip(image_pil_bboxes, keep_flags) if keep]
+    # phrases = [p for p, keep in zip(phrases, keep_flags) if keep]
+    # gdino_conf = gdino_conf[[i for i, keep in enumerate(keep_flags) if keep]]
+
+    # print(f"[✅] Keeping {len(image_pil_bboxes)} of {len(keep_flags)} boxes after manual selection.")
+
+    #----------------------------------------------------------------------------------------------------
+
+    import matplotlib.pyplot as plt
+    from matplotlib.widgets import CheckButtons
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.imshow(img_pil)
+    plt.title("Toggle Boxes to Keep + Right Click to Add (Close to Confirm)")
+    plt.axis("off")
+
+    keep_flags = [True] * len(image_pil_bboxes)
+    patches = []
+    new_boxes = []
+
+    import matplotlib.colors as mcolors
+
+    # Supervision-inspired 25-color palette (RGB, 0-255 range)
+    SUPERVISION_INSPIRED_COLORS = [
+        (237, 27, 27),    # Vivid Red (#ED1B1B)
+        (27, 237, 27),    # Bright Green (#1BED1B)
+        (27, 27, 237),    # Deep Blue (#1B1BED)
+        (255, 159, 26),   # Tangerine (#FF9F1A)
+        (186, 109, 211),  # Lavender Purple (#BA6DD3)
+        (255, 209, 102),  # Golden Yellow (#FFD166)
+        (76, 201, 240),   # Sky Blue (#4CC9F0)
+        (237, 76, 103),   # Rose Pink (#ED4C67)
+        (88, 177, 159),   # Teal (#58B19F)
+        (255, 130, 171),  # Bubblegum Pink (#FF82AB)
+        (136, 136, 255),  # Periwinkle (#8888FF)
+        (180, 180, 180),  # Neutral Gray (#B4B4B4)
+        (255, 94, 87),    # Salmon (#FF5E57)
+        (0, 171, 85),     # Forest Green (#00AB55)
+        (90, 200, 250),   # Light Cyan (#5AC8FA)
+        (255, 185, 0),    # Amber (#FFB900)
+        (199, 146, 234),  # Lilac (#C792EA)
+        (255, 245, 105),  # Lemon (#FFF569)
+        (0, 128, 255),    # Electric Blue (#0080FF)
+        (233, 30, 99),    # Magenta (#E91E63)
+        (72, 191, 145),   # Mint (#48B191)
+        (255, 111, 145),  # Flamingo (#FF6F91)
+        (121, 134, 203),  # Slate Blue (#7986CB)
+        (204, 204, 0),    # Olive (#CCCC00)
+        (158, 158, 158),  # Medium Gray (#9E9E9E)
+    ]
+
+    # Normalize to [0, 1] and add alpha channel
+    NORMALIZED_COLORS = [(r/255, g/255, b/255, 1.0) for r, g, b in SUPERVISION_INSPIRED_COLORS]
+
+    # Create ListedColormap
+    SUPERVISION_COLORMAP = mcolors.ListedColormap(NORMALIZED_COLORS, name='supervision_inspired')
+
+    # Display current boxes with unique colors
+    for i, (x1, y1, x2, y2) in enumerate(image_pil_bboxes):
+        color = SUPERVISION_COLORMAP(i % 25)
+        rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1,
+                            edgecolor=color, facecolor='none', lw=3)
+        ax.add_patch(rect)
+        ax.text(x1, y1 - 5, f"Box {i+1}", color=color, fontsize=12, weight="bold")
+        patches.append(rect)
+
+    # Toggle checkboxes
+    labels = [f"Box {i+1}" for i in range(len(image_pil_bboxes))]
+    rax = plt.axes([0.85, 0.3, 0.13, 0.4])
+    check = CheckButtons(rax, labels, keep_flags)
+
+    # 🔵 Match checkbox label colors to box colors
+    for i, text in enumerate(check.labels):
+        color = SUPERVISION_COLORMAP(i % 25)
+        text.set_color(color)
+
+
+
+    def toggle(label):
+        i = labels.index(label)
+        keep_flags[i] = not keep_flags[i]
+        patches[i].set_visible(keep_flags[i])
+        fig.canvas.draw()
+
+    check.on_clicked(toggle)
+
+    # Add new boxes interactively via right-click
+    start = []
+
+    def on_mouse_press(event):
+        if event.button == 3 and event.inaxes == ax:
+            start.clear()
+            start.extend([event.xdata, event.ydata])
+
+    def on_mouse_release(event):
+        if event.button == 3 and event.inaxes == ax and start:
+            x1, y1 = start
+            x2, y2 = event.xdata, event.ydata
+            x1, x2 = min(x1, x2), max(x1, x2)
+            y1, y2 = min(y1, y2), max(y1, y2)
+            idx = len(image_pil_bboxes) + len(new_boxes)
+            color = SUPERVISION_COLORMAP(idx % 25)
+            rect = plt.Rectangle((x1, y1), x2 - x1, y2 - y1,
+                                edgecolor=color, facecolor='none', lw=2)
+            ax.add_patch(rect)
+            ax.text(x1, y1 - 5, f"Box {idx}", color=color, fontsize=10, weight="bold")
+            new_boxes.append([x1, y1, x2, y2])
+            fig.canvas.draw()
+
+    fig.canvas.mpl_connect("button_press_event", on_mouse_press)
+    fig.canvas.mpl_connect("button_release_event", on_mouse_release)
+
+    plt.show()
+
+    # ✅ Apply final filter and merge new boxes
+    image_pil_bboxes = [box for box, keep in zip(image_pil_bboxes, keep_flags) if keep]
+    phrases = [p for p, keep in zip(phrases, keep_flags) if keep]
+    gdino_conf = gdino_conf[[i for i, keep in enumerate(keep_flags) if keep]]
+
+    if new_boxes:
+        image_pil_bboxes.extend(new_boxes)
+        phrases += ["object"] * len(new_boxes)
+        gdino_conf = torch.cat([gdino_conf, torch.ones(len(new_boxes))], dim=0)
+        print(f"[➕] Added {len(new_boxes)} new boxes interactively.")
+
+
+
+    image_pil_bboxes = interactive_resize_bboxes(img_pil, image_pil_bboxes)
+
+    print(f"[✅] Keeping {len(image_pil_bboxes)} boxes after filtering and additions.")
+
+
+
     # Apply overlay and annotations only on first frame
-    bbox_annotated_pil = annotate(img_pil, image_pil_bboxes, gdino_conf, phrases)  # Annotate
+    bbox_annotated_pil = annotate(img_pil, np.array(image_pil_bboxes), gdino_conf, phrases) # Annotate
     bbox_annotated_pil.save(os.path.join(overlay_out, img_name.replace('jpg', 'png')))
 
     bbox_annotated_pil.show()
@@ -430,7 +657,7 @@ def main(scene_dir):
         if i == 0:
             conf = [1.0] * len(image_pil_bboxes)
             phrases = ["object"] * len(image_pil_bboxes)
-            ann_img = annotate(overlay_masks(frame, masks_tensor), image_pil_bboxes, conf, phrases)
+            ann_img = annotate(overlay_masks(frame, masks_tensor), np.array(image_pil_bboxes), conf, phrases)
             ann_img.save(overlay_out / name)
 
 

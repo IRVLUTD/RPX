@@ -476,6 +476,7 @@ class SAM2Predictor(ObjectPredictor):
         """
         try:
             # Load the SAM2 model with the configuration and checkpoint
+            # predictor = build_sam2_video_predictor(self.model_cfg, self.checkpoint_path, vos_optimized=True)
             predictor = build_sam2_video_predictor(self.model_cfg, self.checkpoint_path)
             print("SAM2 video predictor initialized successfully.")
             return predictor

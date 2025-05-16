@@ -21,18 +21,13 @@ python setup.py install
 # Step 1: Download the data from https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t
 
 # Step 2: For each scene directory (e.g., <scene_dir>/0, <scene_dir>/1, <scene_dir>/2), run the following:
-python run_sam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
+python -m maskgen_pipeline.interactive_gsam2 --scene_dir /home/jishnu/Projects/RPX/data/test/1
 
 # Instructions:
-# - A window will pop up showing the last frame; draw the bounding box over the object of interest.
-# - Press 'y' to save the bounding box.
-# - On subsequent runs, the saved bounding box will be displayed.
-#   - Press 'n' to use this saved box for mask propagation.
-# - After processing, manually verify the outputs inside <scene_dir>/<num>/sam2/contour_masks
-```
-
-## ⚠️ (Experimental) GSAM2-Object Pipeline
-```shell
-# Note: This pipeline is can be used for easy background scenes.
-python run_gsam2_reverse_pipeline.py --scene_dir /home/jishnu/Projects/RPX/data/scene1.library.fountain/0
-```
+# A window opens displaying the last frame with pre-generated GroundingDINO bounding boxes.
+# Keep, delete, or add new bounding boxes (right mouse button) around objects of interest.
+# Press q to confirm and close the window.
+# A second window appears to refine bounding box quality.
+# Draw or resize bounding boxes (left mouse button) as needed.
+# Press q to finalize.
+# SAM2 propagates the bounding boxes backward to generate masks.
