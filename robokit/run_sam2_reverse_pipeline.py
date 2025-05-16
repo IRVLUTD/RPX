@@ -37,7 +37,7 @@ def convert_pngs_to_jpgs_reversed(input_dir):
     for i, file in enumerate(pngs):
         with Image.open(file) as im:
             rgb_img = im.convert("RGB")
-            rgb_img.save(jpg_dir / f"{i:06d}.jpg", "JPEG")
+            rgb_img.save(jpg_dir / f"{i:05d}.jpg", "JPEG")
     print(f"[✓] Converted {len(pngs)} PNGs to JPGs in reverse order.")
     return jpg_dir
 

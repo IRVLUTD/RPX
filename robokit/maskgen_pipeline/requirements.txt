@@ -1,0 +1,10 @@
+numpy
+torch
+torchvision
+Pillow
+tqdm
+requests
+matplotlib
+opencv-python
+absl-py
+robokit
