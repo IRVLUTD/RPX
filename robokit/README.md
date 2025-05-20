@@ -40,6 +40,12 @@ python -m maskgen_pipeline.viz.generated_masks --scene_dir /home/jishnu/Projects
 # To viz objects masks on a single frame
 python -m maskgen_pipeline.viz.single_frame_masks \
 /home/jishnu/Projects/RPX/data/scene82.jsom.garden.pot/2/sam2/masks/00000.png
+
+# To convert palette data to mask data (16 bit int labels)
+# This is for already processed data; runs fast
+# If some scene are not processed then no need for this
+python -m maskgen_pipeline.convert_palette_to_int_mask --scene_dir /h
+ome/jishnu/Projects/RPX/data/scene83.jsom.garden.pot/2
 ```
 
 https://github.com/user-attachments/assets/c64415cf-79c2-4e7b-b28a-78bc4a2d51cd
