@@ -1,28 +1,29 @@
-#----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 # Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
 # Please check the licenses of the respective works utilized here before using this script.
 # 🖋️ Jishnu Jaykumar Padalunkal (2025). (with copilot + Grok 3)
-#----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 import argparse
 from pathlib import Path
 from PIL import Image
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.patches import Rectangle
-from .config import logger
+from ..config import logger
+
 
 def vis_prop_masks(scene_dir):
     """
     Visualize RGB images and contour masks frame by frame interactively, with option to toggle faulty frames.
     Press X to mark/unmark a frame as faulty, shown with a red border. Faulty frame numbers are saved to sam2/iter1_faulty.txt.
-    Displays a fault counter in the title.
-    
+    Displays a fault counter in the title. Loads existing faulty frames from iter1_faulty.txt if present.
+
     Args:
         scene_dir (str): Directory containing rgb/ and sam2/contour_gt_masks/ folders.
     """
     # Set TkAgg backend for interactive display
     try:
-        matplotlib.use('TkAgg')
+        matplotlib.use("TkAgg")
     except ImportError:
         logger.warning("TkAgg backend not available, falling back to default.")
 
@@ -48,12 +49,29 @@ def vis_prop_masks(scene_dir):
         raise FileNotFoundError(f"No PNG files found in {contour_dir}")
 
     if len(rgb_files) != len(contour_files):
-        logger.warning(f"Mismatch: {len(rgb_files)} RGB files, {len(contour_files)} contour files")
+        logger.warning(
+            f"Mismatch: {len(rgb_files)} RGB files, {len(contour_files)} contour files"
+        )
 
     # Set to store faulty contour mask paths
     faulty_frames = set()
     # Fault counter
     fault_count = [0]
+
+    # Load existing faulty frames from iter1_faulty.txt if it exists
+    if faulty_file.exists():
+        try:
+            with open(faulty_file, "r") as f:
+                for line in f:
+                    frame_number = line.strip()
+                    # Construct the full path to the contour file
+                    contour_path = str(contour_dir / f"{frame_number}.png")
+                    if Path(contour_path).exists():
+                        faulty_frames.add(contour_path)
+                        fault_count[0] += 1
+            logger.info(f"Loaded {len(faulty_frames)} faulty frames from {faulty_file}")
+        except Exception as e:
+            logger.error(f"Failed to load faulty frames from {faulty_file}: {e}")
 
     # Initialize figure
     fig, (ax_rgb, ax_contour) = plt.subplots(1, 2, figsize=(12, 6))
@@ -90,17 +108,35 @@ def vis_prop_masks(scene_dir):
             # Get image dimensions
             img_width, img_height = rgb_img.size
             # Add border around RGB
-            rgb_border = Rectangle((-0.5, -0.5), img_width, img_height, 
-                                 edgecolor='red', facecolor='none', lw=3, linestyle='--')
+            rgb_border = Rectangle(
+                (-0.5, -0.5),
+                img_width,
+                img_height,
+                edgecolor="red",
+                facecolor="none",
+                lw=10,
+                linestyle="-",
+            )  # Increased linewidth, continuous line
             ax_rgb.add_patch(rgb_border)
             # Add border around contour
-            contour_border = Rectangle((-0.5, -0.5), img_width, img_height, 
-                                     edgecolor='red', facecolor='none', lw=3, linestyle='--')
+            contour_border = Rectangle(
+                (-0.5, -0.5),
+                img_width,
+                img_height,
+                edgecolor="red",
+                facecolor="none",
+                lw=10,
+                linestyle="-",
+            )  # Increased linewidth, continuous line
             ax_contour.add_patch(contour_border)
 
         # Update figure title with fault counter
-        status = "Faulty" if str(contour_files[frame_idx]) in faulty_frames else "Normal"
-        fig.suptitle(f"Frame {frame_idx + 1}/{len(rgb_files)} ({status}) | Faulty Frames: {fault_count[0]}")
+        status = (
+            "Faulty" if str(contour_files[frame_idx]) in faulty_frames else "Normal"
+        )
+        fig.suptitle(
+            f"Frame {frame_idx + 1}/{len(rgb_files)} ({status}) | Faulty Frames: {fault_count[0]}"
+        )
         plt.draw()
 
     def on_key(event):
@@ -135,7 +171,9 @@ def vis_prop_masks(scene_dir):
                     for contour_path in sorted(faulty_frames):
                         frame_number = Path(contour_path).stem
                         f.write(f"{frame_number}\n")
-                logger.info(f"Saved {len(faulty_frames)} faulty frames to {faulty_file}")
+                logger.info(
+                    f"Saved {len(faulty_frames)} faulty frames to {faulty_file}"
+                )
             except Exception as e:
                 logger.error(f"Failed to save faulty frames to {faulty_file}: {e}")
         else:
@@ -149,11 +187,21 @@ def vis_prop_masks(scene_dir):
     update_display()
 
     # Show plot
-    logger.info("Starting interactive visualization. Use Right/Left Arrow to navigate, X to toggle faulty, Q to quit.")
+    logger.info(
+        "Starting interactive visualization. Use Right/Left Arrow to navigate, X to toggle faulty, Q to quit."
+    )
     plt.show()
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Visualize RGB and contour masks frame by frame, with faulty frame toggling and counter.")
-    parser.add_argument("--scene_dir", type=str, required=True, help="Scene directory containing rgb/ and sam2/")
+    parser = argparse.ArgumentParser(
+        description="Visualize RGB and contour masks frame by frame, with faulty frame toggling and counter."
+    )
+    parser.add_argument(
+        "--scene_dir",
+        type=str,
+        required=True,
+        help="Scene directory containing rgb/ and sam2/",
+    )
     args = parser.parse_args()
     vis_prop_masks(args.scene_dir)
