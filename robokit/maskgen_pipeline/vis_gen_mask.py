@@ -1,6 +1,6 @@
 #----------------------------------------------------------------------------------------------------
 # Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
-# Please check the licenses of the respective works utilized here before using this script.
+# Please check if you have the licenses of the respective works utilized here before using this script.
 # 🖋️ Jishnu Jaykumar Padalunkal (2025). (with copilot + Grok 3)
 #----------------------------------------------------------------------------------------------------
 import argparse
@@ -15,7 +15,8 @@ def vis_prop_masks(scene_dir):
     """
     Visualize RGB images and contour masks frame by frame interactively, with option to toggle faulty frames.
     Press X to mark/unmark a frame as faulty, shown with a red border. Faulty frame numbers are saved to sam2/iter1_faulty.txt.
-    Displays a fault counter in the title.
+    Displays a fault counter in the title. Loads existing faulty frames from iter1_faulty.txt if present.
+    Title indicates if faulty file is present (green if present, red if not).
     
     Args:
         scene_dir (str): Directory containing rgb/ and sam2/contour_gt_masks/ folders.
@@ -54,6 +55,22 @@ def vis_prop_masks(scene_dir):
     faulty_frames = set()
     # Fault counter
     fault_count = [0]
+    # Check if faulty file exists
+    faulty_file_exists = faulty_file.exists()
+
+    # Load existing faulty frames if iter1_faulty.txt exists
+    if faulty_file_exists:
+        try:
+            with open(faulty_file, "r") as f:
+                faulty_frame_numbers = {line.strip() for line in f if line.strip()}
+            # Map frame numbers to full contour file paths
+            for contour_file in contour_files:
+                if contour_file.stem in faulty_frame_numbers:
+                    faulty_frames.add(str(contour_file))
+                    fault_count[0] += 1
+            logger.info(f"Loaded {len(faulty_frames)} faulty frames from {faulty_file}")
+        except Exception as e:
+            logger.error(f"Failed to load faulty frames from {faulty_file}: {e}")
 
     # Initialize figure
     fig, (ax_rgb, ax_contour) = plt.subplots(1, 2, figsize=(12, 6))
@@ -91,16 +108,18 @@ def vis_prop_masks(scene_dir):
             img_width, img_height = rgb_img.size
             # Add border around RGB
             rgb_border = Rectangle((-0.5, -0.5), img_width, img_height, 
-                                 edgecolor='red', facecolor='none', lw=3, linestyle='--')
+                                    edgecolor='red', facecolor='none', lw=8, linestyle='--')
             ax_rgb.add_patch(rgb_border)
             # Add border around contour
             contour_border = Rectangle((-0.5, -0.5), img_width, img_height, 
-                                     edgecolor='red', facecolor='none', lw=3, linestyle='--')
+                                        edgecolor='red', facecolor='none', lw=8, linestyle='--')
             ax_contour.add_patch(contour_border)
 
-        # Update figure title with fault counter
+        # Update figure title with fault counter and faulty file status
         status = "Faulty" if str(contour_files[frame_idx]) in faulty_frames else "Normal"
-        fig.suptitle(f"Frame {frame_idx + 1}/{len(rgb_files)} ({status}) | Faulty Frames: {fault_count[0]}")
+        faulty_status = "Faulty File Present" if faulty_file_exists else "No Faulty File"
+        # Note: faulty_status should appear green if faulty_file_exists, red otherwise
+        fig.suptitle(f"Frame {frame_idx + 1}/{len(rgb_files)} ({status}) | Faulty Frames: {fault_count[0]} | {faulty_status}")
         plt.draw()
 
     def on_key(event):
@@ -128,14 +147,17 @@ def vis_prop_masks(scene_dir):
             plt.close()
 
     def on_close(event):
-        """Save faulty frame numbers to text file when window is closed."""
+        """Save faulty frame numbers to text file when window is closed, ensuring no duplicates."""
         if faulty_frames:
             try:
+                # Ensure parent directory exists
+                faulty_file.parent.mkdir(parents=True, exist_ok=True)
                 with open(faulty_file, "w") as f:
-                    for contour_path in sorted(faulty_frames):
-                        frame_number = Path(contour_path).stem
+                    # Write unique frame numbers in sorted order
+                    frame_numbers = sorted({Path(contour_path).stem for contour_path in faulty_frames})
+                    for frame_number in frame_numbers:
                         f.write(f"{frame_number}\n")
-                logger.info(f"Saved {len(faulty_frames)} faulty frames to {faulty_file}")
+                logger.info(f"Saved {len(frame_numbers)} faulty frames to {faulty_file}")
             except Exception as e:
                 logger.error(f"Failed to save faulty frames to {faulty_file}: {e}")
         else:
