@@ -585,6 +585,47 @@ class SAM2Predictor(ObjectPredictor):
             raise  # Re-raise the exception to propagate it up
 
 
+    def predict_mask_in_image_using_point_prompts(self, image_pil, prompt_points, point_labels):
+        """
+        Predict the mask for the given image using the provided bounding boxes.
+
+        Args:
+            image_pil (PIL.Image): The input image in PIL format.
+            prompt_points (np.array): [N,2] A list of point prompts boxes to be used as the prompt for mask prediction.
+
+        Returns:
+            tuple: Contains the following elements:
+                - masks (torch.Tensor): The predicted masks.
+                - scores (torch.Tensor): The predicted scores.
+                - logits (torch.Tensor): The predicted logits.
+        """
+        try:
+            logging.info("Starting mask prediction.")
+
+            # Convert image to numpy array
+            image = np.array(image_pil.convert("RGB"))
+            logging.debug("Image converted to numpy array.")
+
+            # Set image for prediction
+            self.img_predictor.set_image(image)
+            logging.debug("Image set for predictor.")
+
+            # Predict masks, scores, and logits
+            masks, scores, logits = self.img_predictor.predict(
+                point_coords=prompt_points,
+                point_labels=point_labels,
+                box=None,
+                multimask_output=False,
+            )
+            logging.info("Mask prediction completed.")
+
+            return masks, scores, logits
+
+        except Exception as e:
+            logging.error(f"An error occurred during mask prediction: {e}")
+            raise  # Re-raise the exception to propagate it up
+
+
     def propagate_point_prompt_masks_and_save(self, video_dir, point_prompts):
         """
         Propagate the segmentation mask across the entire video and optionally save the frames with masks to a subdirectory.
@@ -747,6 +788,7 @@ class SAM2Predictor(ObjectPredictor):
             inference_state = self.video_predictor.init_state(video_path=video_dir)
             self.video_predictor.reset_state(inference_state)
             
+
             # Get all frames from the directory
             frame_names = self.load_frames_from_directory(video_dir)
             

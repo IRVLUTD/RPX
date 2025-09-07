@@ -10,7 +10,7 @@
 version: '3'
 services:
   rpx:
-    image: irvlutd/hrt1-rpx:latest
+    image: irvlutd/rpx:latest 
     container_name: rpx
     runtime: nvidia  # Add this line to specify NVIDIA runtime
     network_mode: host

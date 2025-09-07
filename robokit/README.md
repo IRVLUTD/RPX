@@ -9,6 +9,8 @@ conda install pytorch torchvision torchaudio pytorch-cuda -c pytorch -c nvidia
 python setup.py install
 ```
 
+TODO (jishnu): Add install instructions for RDD if it works
+
 ## Download data from Box
 - Download one file from [obj-1](https://utdallas.box.com/s/3n7l6rbmgycfzsr30rowsvkooyzh1ipv), [obj-n](https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t)
 - unzip it
@@ -21,8 +23,6 @@ python setup.py install
 # Step 1: Download the data from https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t
 
 # Step 2: For each scene directory (e.g., <scene_dir>/0, <scene_dir>/1, <scene_dir>/2), run the following:
-python -m maskgen_pipeline.interactive_gsam2 --scene_dir /home/jishnu/Projects/RPX/data/test/1
-
 # Instructions:
 # A window opens displaying the last frame with pre-generated GroundingDINO bounding boxes.
 # Keep, delete, or add new bounding boxes (right mouse button) around objects of interest.
@@ -35,7 +35,10 @@ python -m maskgen_pipeline.interactive_gsam2 --scene_dir /home/jishnu/Projects/R
 # To visualize the content and mark faulty samples
 # These faulty samples will be refined later
 # (TODO) Need a more concrete multi stage pipeline
-python -m maskgen_pipeline.viz.generated_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1
+python -m maskgen_pipeline.vis_gen_mask --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 1
+
+# to refine using iter1_faulty.txt
+python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 1
 
 # To viz objects masks on a single frame
 python -m maskgen_pipeline.viz.single_frame_masks \
