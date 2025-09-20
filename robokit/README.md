@@ -18,7 +18,7 @@ python setup.py install
 - rm the zip file
 - then do the label refining for 0/1/2
 - then do the object -> mask mapping on the base dir
-- zip the results and upload to box
+- zip the results and upload to box in this folder [maskgen-iter-2-out](https://utdallas.app.box.com/folder/342100579130)
 
 ## 📌 Running SAM2 for Ground Truth Mask Generation
 ```shell
@@ -45,3 +45,9 @@ python visual_grounding_gt/mask_to_object.py --scene_dir /home/jishnu/Projects/R
 # Step 4: Finally, zip the scene and upload to the correct folder in the box folder:
 Upload them here: [here](https://utdallas.app.box.com/folder/342100579130)
 ```
+
+## Quick demo of the process for 1 scene directory + the correspondance
+
+https://github.com/user-attachments/assets/66527b18-e7ba-4d12-a5b5-82b5858dbeb5
+- Sorry for the low quality, size was too big lol
+
