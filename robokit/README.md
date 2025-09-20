@@ -43,6 +43,3 @@ python visual_grounding_gt/mask_to_object.py --scene_dir /home/jishnu/Projects/R
 
 
 ```
-
-https://github.com/user-attachments/assets/c64415cf-79c2-4e7b-b28a-78bc4a2d51cd
-
