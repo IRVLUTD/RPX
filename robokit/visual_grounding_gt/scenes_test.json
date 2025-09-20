@@ -1,0 +1,3502 @@
+[
+    {
+        "scene_id": 1,
+        "location": "plinth",
+        "background": "bg01-out-plinth_area-fountain_stairs.jpeg",
+        "objects": [
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            }
+        ]
+    },
+    {
+        "scene_id": 2,
+        "location": "plinth",
+        "background": "bg01-out-plinth_area-fountain_stairs.jpeg",
+        "objects": [
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            }
+        ]
+    },
+    {
+        "scene_id": 3,
+        "location": "plinth",
+        "background": "bg01-out-plinth_area-fountain_stairs.jpeg",
+        "objects": [
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            }
+        ]
+    },
+    {
+        "scene_id": 4,
+        "location": "plinth",
+        "background": "bg01-out-plinth_area-fountain_stairs.jpeg",
+        "objects": [
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 5,
+        "location": "plinth",
+        "background": "bg01-out-plinth_area-fountain_stairs.jpeg",
+        "objects": [
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 6,
+        "location": "ecss4",
+        "background": "bg02-in-ecss4-round_table.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 7,
+        "location": "ecss4",
+        "background": "bg02-in-ecss4-round_table.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 8,
+        "location": "ecss4",
+        "background": "bg02-in-ecss4-round_table.jpeg",
+        "objects": [
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            }
+        ]
+    },
+    {
+        "scene_id": 9,
+        "location": "ecss4",
+        "background": "bg02-in-ecss4-round_table.jpeg",
+        "objects": [
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            }
+        ]
+    },
+    {
+        "scene_id": 10,
+        "location": "ecss4",
+        "background": "bg02-in-ecss4-round_table.jpeg",
+        "objects": [
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            }
+        ]
+    },
+    {
+        "scene_id": 11,
+        "location": "ecss4",
+        "background": "bg03-in-ecss4-sofa.jpeg",
+        "objects": [
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            }
+        ]
+    },
+    {
+        "scene_id": 12,
+        "location": "ecss4",
+        "background": "bg03-in-ecss4-sofa.jpeg",
+        "objects": [
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            }
+        ]
+    },
+    {
+        "scene_id": 13,
+        "location": "ecss4",
+        "background": "bg03-in-ecss4-sofa.jpeg",
+        "objects": [
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            }
+        ]
+    },
+    {
+        "scene_id": 14,
+        "location": "ecss4",
+        "background": "bg03-in-ecss4-sofa.jpeg",
+        "objects": [
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            }
+        ]
+    },
+    {
+        "scene_id": 15,
+        "location": "ecss4",
+        "background": "bg03-in-ecss4-sofa.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            }
+        ]
+    },
+    {
+        "scene_id": 16,
+        "location": "su2",
+        "background": "bg04-in-su2-dining_table.jpeg",
+        "objects": [
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            }
+        ]
+    },
+    {
+        "scene_id": 17,
+        "location": "su2",
+        "background": "bg04-in-su2-dining_table.jpeg",
+        "objects": [
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 18,
+        "location": "su2",
+        "background": "bg04-in-su2-dining_table.jpeg",
+        "objects": [
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            }
+        ]
+    },
+    {
+        "scene_id": 19,
+        "location": "su2",
+        "background": "bg04-in-su2-dining_table.jpeg",
+        "objects": [
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            }
+        ]
+    },
+    {
+        "scene_id": 20,
+        "location": "su2",
+        "background": "bg04-in-su2-dining_table.jpeg",
+        "objects": [
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            }
+        ]
+    },
+    {
+        "scene_id": 21,
+        "location": "jo4",
+        "background": "bg05-in-jo4-small_stairs.jpeg",
+        "objects": [
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            }
+        ]
+    },
+    {
+        "scene_id": 22,
+        "location": "jo4",
+        "background": "bg05-in-jo4-small_stairs.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            }
+        ]
+    },
+    {
+        "scene_id": 23,
+        "location": "jo4",
+        "background": "bg05-in-jo4-small_stairs.jpeg",
+        "objects": [
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            }
+        ]
+    },
+    {
+        "scene_id": 24,
+        "location": "jo4",
+        "background": "bg05-in-jo4-small_stairs.jpeg",
+        "objects": [
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            }
+        ]
+    },
+    {
+        "scene_id": 25,
+        "location": "jo4",
+        "background": "bg05-in-jo4-small_stairs.jpeg",
+        "objects": [
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            }
+        ]
+    },
+    {
+        "scene_id": 26,
+        "location": "su",
+        "background": "bg06-out-su_gaming_center-square_table_with_umbrella.jpeg",
+        "objects": [
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            }
+        ]
+    },
+    {
+        "scene_id": 27,
+        "location": "su",
+        "background": "bg06-out-su_gaming_center-square_table_with_umbrella.jpeg",
+        "objects": [
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            }
+        ]
+    },
+    {
+        "scene_id": 28,
+        "location": "su",
+        "background": "bg06-out-su_gaming_center-square_table_with_umbrella.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            }
+        ]
+    },
+    {
+        "scene_id": 29,
+        "location": "su",
+        "background": "bg06-out-su_gaming_center-square_table_with_umbrella.jpeg",
+        "objects": [
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            }
+        ]
+    },
+    {
+        "scene_id": 30,
+        "location": "su",
+        "background": "bg06-out-su_gaming_center-square_table_with_umbrella.jpeg",
+        "objects": [
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            }
+        ]
+    },
+    {
+        "scene_id": 31,
+        "location": "ecss3",
+        "background": "bg07-in-ecss3-sitting_area.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            }
+        ]
+    },
+    {
+        "scene_id": 32,
+        "location": "ecss3",
+        "background": "bg07-in-ecss3-sitting_area.jpeg",
+        "objects": [
+            {
+                "id": "88.2",
+                "name": "mug"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 33,
+        "location": "ecss3",
+        "background": "bg07-in-ecss3-sitting_area.jpeg",
+        "objects": [
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            }
+        ]
+    },
+    {
+        "scene_id": 34,
+        "location": "ecss3",
+        "background": "bg07-in-ecss3-sitting_area.jpeg",
+        "objects": [
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 35,
+        "location": "ecss3",
+        "background": "bg07-in-ecss3-sitting_area.jpeg",
+        "objects": [
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 36,
+        "location": "jo4",
+        "background": "bg08-in-jo4-lecture_hall.jpeg",
+        "objects": [
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 37,
+        "location": "jo4",
+        "background": "bg08-in-jo4-lecture_hall.jpeg",
+        "objects": [
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            }
+        ]
+    },
+    {
+        "scene_id": 38,
+        "location": "jo4",
+        "background": "bg08-in-jo4-lecture_hall.jpeg",
+        "objects": [
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            }
+        ]
+    },
+    {
+        "scene_id": 39,
+        "location": "jo4",
+        "background": "bg08-in-jo4-lecture_hall.jpeg",
+        "objects": [
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            }
+        ]
+    },
+    {
+        "scene_id": 40,
+        "location": "jo4",
+        "background": "bg08-in-jo4-lecture_hall.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            }
+        ]
+    },
+    {
+        "scene_id": 41,
+        "location": "gr",
+        "background": "bg09-out-gr-green_diningbench.jpeg",
+        "objects": [
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            }
+        ]
+    },
+    {
+        "scene_id": 42,
+        "location": "gr",
+        "background": "bg09-out-gr-green_diningbench.jpeg",
+        "objects": [
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 43,
+        "location": "gr",
+        "background": "bg09-out-gr-green_diningbench.jpeg",
+        "objects": [
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            }
+        ]
+    },
+    {
+        "scene_id": 44,
+        "location": "gr",
+        "background": "bg09-out-gr-green_diningbench.jpeg",
+        "objects": [
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            }
+        ]
+    },
+    {
+        "scene_id": 45,
+        "location": "gr",
+        "background": "bg09-out-gr-green_diningbench.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            }
+        ]
+    },
+    {
+        "scene_id": 46,
+        "location": "ecss",
+        "background": "bg10-out-ecss-circle_area_with_shade.jpeg",
+        "objects": [
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            }
+        ]
+    },
+    {
+        "scene_id": 47,
+        "location": "ecss",
+        "background": "bg10-out-ecss-circle_area_with_shade.jpeg",
+        "objects": [
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            }
+        ]
+    },
+    {
+        "scene_id": 48,
+        "location": "ecss",
+        "background": "bg10-out-ecss-circle_area_with_shade.jpeg",
+        "objects": [
+            {
+                "id": "144.2",
+                "name": "towel"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            }
+        ]
+    },
+    {
+        "scene_id": 49,
+        "location": "ecss",
+        "background": "bg10-out-ecss-circle_area_with_shade.jpeg",
+        "objects": [
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            }
+        ]
+    },
+    {
+        "scene_id": 50,
+        "location": "ecss",
+        "background": "bg10-out-ecss-circle_area_with_shade.jpeg",
+        "objects": [
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 51,
+        "location": "tennis",
+        "background": "bg11-out-tennis_courts-green_and_blue.jpeg",
+        "objects": [
+            {
+                "id": "88.2",
+                "name": "mug"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            }
+        ]
+    },
+    {
+        "scene_id": 52,
+        "location": "tennis",
+        "background": "bg11-out-tennis_courts-green_and_blue.jpeg",
+        "objects": [
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            }
+        ]
+    },
+    {
+        "scene_id": 53,
+        "location": "tennis",
+        "background": "bg11-out-tennis_courts-green_and_blue.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            }
+        ]
+    },
+    {
+        "scene_id": 54,
+        "location": "tennis",
+        "background": "bg11-out-tennis_courts-green_and_blue.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            }
+        ]
+    },
+    {
+        "scene_id": 55,
+        "location": "tennis",
+        "background": "bg11-out-tennis_courts-green_and_blue.jpeg",
+        "objects": [
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            }
+        ]
+    },
+    {
+        "scene_id": 56,
+        "location": "ac",
+        "background": "bg12-in-ac-pool_benches.jpeg",
+        "objects": [
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 57,
+        "location": "ac",
+        "background": "bg12-in-ac-pool_benches.jpeg",
+        "objects": [
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            }
+        ]
+    },
+    {
+        "scene_id": 58,
+        "location": "ac",
+        "background": "bg12-in-ac-pool_benches.jpeg",
+        "objects": [
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            }
+        ]
+    },
+    {
+        "scene_id": 59,
+        "location": "ac",
+        "background": "bg12-in-ac-pool_benches.jpeg",
+        "objects": [
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            }
+        ]
+    },
+    {
+        "scene_id": 60,
+        "location": "ac",
+        "background": "bg12-in-ac-pool_benches.jpeg",
+        "objects": [
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            }
+        ]
+    },
+    {
+        "scene_id": 61,
+        "location": "ecsw1",
+        "background": "bg13-in-ecsw1-heart_chair.jpeg",
+        "objects": [
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            }
+        ]
+    },
+    {
+        "scene_id": 62,
+        "location": "ecsw1",
+        "background": "bg13-in-ecsw1-heart_chair.jpeg",
+        "objects": [
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            }
+        ]
+    },
+    {
+        "scene_id": 63,
+        "location": "ecsw1",
+        "background": "bg13-in-ecsw1-heart_chair.jpeg",
+        "objects": [
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            }
+        ]
+    },
+    {
+        "scene_id": 64,
+        "location": "ecsw1",
+        "background": "bg13-in-ecsw1-heart_chair.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            }
+        ]
+    },
+    {
+        "scene_id": 65,
+        "location": "ecsw1",
+        "background": "bg13-in-ecsw1-heart_chair.jpeg",
+        "objects": [
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            }
+        ]
+    },
+    {
+        "scene_id": 66,
+        "location": "ecsw3",
+        "background": "bg14-in-ecsw3-tall_white_table.jpeg",
+        "objects": [
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            }
+        ]
+    },
+    {
+        "scene_id": 67,
+        "location": "ecsw3",
+        "background": "bg14-in-ecsw3-tall_white_table.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            }
+        ]
+    },
+    {
+        "scene_id": 68,
+        "location": "ecsw3",
+        "background": "bg14-in-ecsw3-tall_white_table.jpeg",
+        "objects": [
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            }
+        ]
+    },
+    {
+        "scene_id": 69,
+        "location": "ecsw3",
+        "background": "bg14-in-ecsw3-tall_white_table.jpeg",
+        "objects": [
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            }
+        ]
+    },
+    {
+        "scene_id": 70,
+        "location": "ecsw3",
+        "background": "bg14-in-ecsw3-tall_white_table.jpeg",
+        "objects": [
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            }
+        ]
+    },
+    {
+        "scene_id": 71,
+        "location": "ecsw1",
+        "background": "bg15-in-ecsw1-stairs.jpeg",
+        "objects": [
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            }
+        ]
+    },
+    {
+        "scene_id": 72,
+        "location": "ecsw1",
+        "background": "bg15-in-ecsw1-stairs.jpeg",
+        "objects": [
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 73,
+        "location": "ecsw1",
+        "background": "bg15-in-ecsw1-stairs.jpeg",
+        "objects": [
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            }
+        ]
+    },
+    {
+        "scene_id": 74,
+        "location": "ecsw1",
+        "background": "bg15-in-ecsw1-stairs.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 75,
+        "location": "ecsw1",
+        "background": "bg15-in-ecsw1-stairs.jpeg",
+        "objects": [
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            }
+        ]
+    },
+    {
+        "scene_id": 76,
+        "location": "su",
+        "background": "bg16-in-su_gaming_center2-round_table.jpeg",
+        "objects": [
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            }
+        ]
+    },
+    {
+        "scene_id": 77,
+        "location": "su",
+        "background": "bg16-in-su_gaming_center2-round_table.jpeg",
+        "objects": [
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            }
+        ]
+    },
+    {
+        "scene_id": 78,
+        "location": "su",
+        "background": "bg16-in-su_gaming_center2-round_table.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            }
+        ]
+    },
+    {
+        "scene_id": 79,
+        "location": "su",
+        "background": "bg16-in-su_gaming_center2-round_table.jpeg",
+        "objects": [
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            }
+        ]
+    },
+    {
+        "scene_id": 80,
+        "location": "su",
+        "background": "bg16-in-su_gaming_center2-round_table.jpeg",
+        "objects": [
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 81,
+        "location": "jsom",
+        "background": "bg17-out-jsom-plant_pot.jpeg",
+        "objects": [
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            }
+        ]
+    },
+    {
+        "scene_id": 82,
+        "location": "jsom",
+        "background": "bg17-out-jsom-plant_pot.jpeg",
+        "objects": [
+            {
+                "id": "66.1",
+                "name": "hat"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            }
+        ]
+    },
+    {
+        "scene_id": 83,
+        "location": "jsom",
+        "background": "bg17-out-jsom-plant_pot.jpeg",
+        "objects": [
+            {
+                "id": "88.2",
+                "name": "mug"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            }
+        ]
+    },
+    {
+        "scene_id": 84,
+        "location": "jsom",
+        "background": "bg17-out-jsom-plant_pot.jpeg",
+        "objects": [
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 85,
+        "location": "jsom",
+        "background": "bg17-out-jsom-plant_pot.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            }
+        ]
+    },
+    {
+        "scene_id": 86,
+        "location": "jsom1",
+        "background": "bg18-in-jsom1-circle_area_bench.jpeg",
+        "objects": [
+            {
+                "id": "14.1",
+                "name": "bear"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            }
+        ]
+    },
+    {
+        "scene_id": 87,
+        "location": "jsom1",
+        "background": "bg18-in-jsom1-circle_area_bench.jpeg",
+        "objects": [
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            }
+        ]
+    },
+    {
+        "scene_id": 88,
+        "location": "jsom1",
+        "background": "bg18-in-jsom1-circle_area_bench.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 89,
+        "location": "jsom1",
+        "background": "bg18-in-jsom1-circle_area_bench.jpeg",
+        "objects": [
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            }
+        ]
+    },
+    {
+        "scene_id": 90,
+        "location": "jsom1",
+        "background": "bg18-in-jsom1-circle_area_bench.jpeg",
+        "objects": [
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "40.1",
+                "name": "cup"
+            }
+        ]
+    },
+    {
+        "scene_id": 91,
+        "location": "ad",
+        "background": "bg19-out-ad-stonebench.jpeg",
+        "objects": [
+            {
+                "id": "82.2",
+                "name": "lion"
+            },
+            {
+                "id": "57.2",
+                "name": "glove"
+            },
+            {
+                "id": "120.3",
+                "name": "soda_can"
+            },
+            {
+                "id": "124.2",
+                "name": "spatula"
+            },
+            {
+                "id": "55",
+                "name": "game_controller"
+            },
+            {
+                "id": "105.2",
+                "name": "pump_bottle"
+            },
+            {
+                "id": "95",
+                "name": "pear"
+            }
+        ]
+    },
+    {
+        "scene_id": 92,
+        "location": "ad",
+        "background": "bg19-out-ad-stonebench.jpeg",
+        "objects": [
+            {
+                "id": "50",
+                "name": "food_bag"
+            },
+            {
+                "id": "67",
+                "name": "headphone"
+            },
+            {
+                "id": "85.1",
+                "name": "milk_box"
+            },
+            {
+                "id": "18.2",
+                "name": "boot"
+            },
+            {
+                "id": "77.1",
+                "name": "knife"
+            },
+            {
+                "id": "68",
+                "name": "helmet"
+            },
+            {
+                "id": "66.1",
+                "name": "hat"
+            }
+        ]
+    },
+    {
+        "scene_id": 93,
+        "location": "ad",
+        "background": "bg19-out-ad-stonebench.jpeg",
+        "objects": [
+            {
+                "id": "5",
+                "name": "apple"
+            },
+            {
+                "id": "133.2",
+                "name": "t-handle"
+            },
+            {
+                "id": "3",
+                "name": "alarm_clock"
+            },
+            {
+                "id": "144.2",
+                "name": "towel"
+            },
+            {
+                "id": "62",
+                "name": "hair_brush"
+            },
+            {
+                "id": "87.3",
+                "name": "mouse"
+            },
+            {
+                "id": "103.2",
+                "name": "pringles_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 94,
+        "location": "ad",
+        "background": "bg19-out-ad-stonebench.jpeg",
+        "objects": [
+            {
+                "id": "71",
+                "name": "jar"
+            },
+            {
+                "id": "9",
+                "name": "banana"
+            },
+            {
+                "id": "74",
+                "name": "kettle"
+            },
+            {
+                "id": "114",
+                "name": "shampoo_bottle"
+            },
+            {
+                "id": "89.3",
+                "name": "mustard_bottle"
+            },
+            {
+                "id": "142",
+                "name": "toothpaste"
+            },
+            {
+                "id": "14.1",
+                "name": "bear"
+            }
+        ]
+    },
+    {
+        "scene_id": 95,
+        "location": "ad",
+        "background": "bg19-out-ad-stonebench.jpeg",
+        "objects": [
+            {
+                "id": "127.2",
+                "name": "spray_bottle"
+            },
+            {
+                "id": "141",
+                "name": "tong"
+            },
+            {
+                "id": "11.1",
+                "name": "basting_brush"
+            },
+            {
+                "id": "135",
+                "name": "tape_measure"
+            },
+            {
+                "id": "17.3",
+                "name": "book"
+            },
+            {
+                "id": "88.2",
+                "name": "mug"
+            },
+            {
+                "id": "147",
+                "name": "umbrella"
+            }
+        ]
+    },
+    {
+        "scene_id": 96,
+        "location": "jsom",
+        "background": "bg20-out-jsom-rocks.jpeg",
+        "objects": [
+            {
+                "id": "109",
+                "name": "root_beer_bottle"
+            },
+            {
+                "id": "20.1",
+                "name": "bowl"
+            },
+            {
+                "id": "13.2",
+                "name": "beanie"
+            },
+            {
+                "id": "49.1",
+                "name": "fry_pan"
+            },
+            {
+                "id": "63.2",
+                "name": "hammer"
+            },
+            {
+                "id": "73.2",
+                "name": "juice_pouch"
+            },
+            {
+                "id": "107",
+                "name": "remote_controller"
+            }
+        ]
+    },
+    {
+        "scene_id": 97,
+        "location": "jsom",
+        "background": "bg20-out-jsom-rocks.jpeg",
+        "objects": [
+            {
+                "id": "121",
+                "name": "soft_scrub_cleanser_bottle"
+            },
+            {
+                "id": "125",
+                "name": "sponge"
+            },
+            {
+                "id": "25.1",
+                "name": "candy_bar"
+            },
+            {
+                "id": "96.2",
+                "name": "peeler"
+            },
+            {
+                "id": "84",
+                "name": "meat_can"
+            },
+            {
+                "id": "37.1",
+                "name": "coffee_can"
+            },
+            {
+                "id": "1",
+                "name": "air_duster_can"
+            }
+        ]
+    },
+    {
+        "scene_id": 98,
+        "location": "jsom",
+        "background": "bg20-out-jsom-rocks.jpeg",
+        "objects": [
+            {
+                "id": "70",
+                "name": "instant_noodle_packet"
+            },
+            {
+                "id": "34",
+                "name": "cleaning_brush"
+            },
+            {
+                "id": "72.1",
+                "name": "jello_box"
+            },
+            {
+                "id": "65",
+                "name": "handy_pot"
+            },
+            {
+                "id": "122.1",
+                "name": "soup_can"
+            },
+            {
+                "id": "58.1",
+                "name": "glue_bottle"
+            },
+            {
+                "id": "38",
+                "name": "cracker_box"
+            }
+        ]
+    },
+    {
+        "scene_id": 99,
+        "location": "jsom",
+        "background": "bg20-out-jsom-rocks.jpeg",
+        "objects": [
+            {
+                "id": "40.1",
+                "name": "cup"
+            },
+            {
+                "id": "36",
+                "name": "coffee_bottle"
+            },
+            {
+                "id": "117.1",
+                "name": "shoe"
+            },
+            {
+                "id": "23",
+                "name": "cable"
+            },
+            {
+                "id": "43.1",
+                "name": "doll"
+            },
+            {
+                "id": "137",
+                "name": "teapot"
+            },
+            {
+                "id": "78",
+                "name": "ladle"
+            }
+        ]
+    },
+    {
+        "scene_id": 100,
+        "location": "jsom",
+        "background": "bg20-out-jsom-rocks.jpeg",
+        "objects": [
+            {
+                "id": "113.1",
+                "name": "scissors"
+            },
+            {
+                "id": "10",
+                "name": "baseball_ball"
+            },
+            {
+                "id": "148.2",
+                "name": "water_bottle"
+            },
+            {
+                "id": "83.5",
+                "name": "marker"
+            },
+            {
+                "id": "102",
+                "name": "power_drill"
+            },
+            {
+                "id": "86",
+                "name": "milk_jug"
+            },
+            {
+                "id": "7.1",
+                "name": "baking_tray"
+            }
+        ]
+    }
+]
