@@ -25,9 +25,7 @@ python setup.py install
 
 # Step 2: For each scene directory (e.g., <scene_dir>/0, <scene_dir>/1, <scene_dir>/2), run the following:
 
-# NOTE: This may not work if the folder doesn't have an iter1.text file, this is because of a fault from the previous iteration, if this is the case then you may have to re-run the visualization script from the previous iteration, and perform that before this portion: to do that, run the following script and do the same as was done in iter1:
-
-python -m maskgen_pipeline.vis_gen_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 1
+# NOTE: This may not give an error if the folder doesn't have an existing iter1.text file, this is because the portion of the scene simply has no faulty frames, in this case please disregard the folder and move on to the next one (i.e. from 0->1->2). Make sure to complete step 3 regardless of the ability to perform step 2.
 
 # Instructions:
 # This portion is fully automatic, so there are no instructions for this one.
@@ -35,7 +33,8 @@ python -m maskgen_pipeline.vis_gen_masks --scene_dir /home/jishnu/Projects/RPX/d
 python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1
 
 # the --iter portion refers to the latest iteration this will be, since this process can occur multiple times, make sure to let the program know which iteration this will be put into.
-# Since this is the second iteration, --iter 2 is what will be given 
+# Since this is the second iteration, --iter 2 is what will be given
+
 python -m maskgen_pipeline.vis_gen_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 2
 
 # Step 3: For each scene (e.g. <scene_dir>/) run the following:
