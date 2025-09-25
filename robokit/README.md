@@ -42,7 +42,7 @@ python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/da
 
 # For this script, please mark the CORRECTLY masked frames, this will be quicker as the faulty frames are already marked. 
 
-python -m maskgen_pipeline.vis_gen_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 2
+python -m maskgen_pipeline.vis_gen_mask --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 2
 
 # Step 3: For each scene (e.g. <scene_dir>/) run the following:
 
