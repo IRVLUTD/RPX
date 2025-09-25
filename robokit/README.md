@@ -34,7 +34,7 @@ python setup.py install
 # This portion is fully automatic, so there are no instructions for this one.
 # The --iter refers to the latest iteration this will be
 
-python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter n
+python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter n (starting at n=1)
 
 # The --iter portion refers to the latest iteration this will be, since this process can occur multiple times,
 # make sure to let the program know which iteration this will be put into.
@@ -42,7 +42,9 @@ python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/da
 
 # For this script, please mark the CORRECTLY masked frames, this will be quicker as the faulty frames are already marked. 
 
-python -m maskgen_pipeline.vis_gen_mask --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter 2
+python -m maskgen_pipeline.vis_gen_mask --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter n+1
+
+# If need be, repeat step 2 until masks are sufficiently good.
 
 # Step 3: For each scene (e.g. <scene_dir>/) run the following:
 
