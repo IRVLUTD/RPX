@@ -48,7 +48,7 @@ python -m maskgen_pipeline.vis_gen_mask --scene_dir /home/jishnu/Projects/RPX/da
 
 # To connect objects ids to masks, run the following script:
 # You simply click the number which has the correct object number for the mask that is highlighted
-python -m visual_grounding_gt.mask_to_object --scene_dir /home/jishnu/Projects/RPX/data/test/1 --json
+python -m visual_grounding_gt.mask_to_object --scene_dir /home/jishnu/Projects/RPX/data/test --json
 \\ visual_grounding_gt/scenes_test.json 
 
 # Step 4: Finally, zip the scene and upload to the correct folder in the box folder:
