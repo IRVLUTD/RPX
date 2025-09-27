@@ -34,7 +34,7 @@ python setup.py install
 # This portion is fully automatic, so there are no instructions for this one.
 # The --iter refers to the latest iteration this will be
 
-python -m maskgen_pipeline.refine_masks --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter n (starting at n=1)
+python -m maskgen_pipeline.refine_masks_flow --scene_dir /home/jishnu/Projects/RPX/data/test/1 --iter n (starting at n=1)
 
 # The --iter portion refers to the latest iteration this will be, since this process can occur multiple times,
 # make sure to let the program know which iteration this will be put into.
