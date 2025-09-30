@@ -314,7 +314,7 @@ def main(args):
     rgb_dir   = scene_dir / "rgb"
     sam2_dir  = scene_dir / "sam2"
     mask_dir  = sam2_dir / "masks"
-    faulty_fp = sam2_dir / "iter1_faulty.txt"  # keep exactly as in your best-working version
+    faulty_fp = sam2_dir / f"iter{args.iter}_faulty.txt"
 
     try:
         faulty = read_faulty_list(faulty_fp)
