@@ -53,3 +53,66 @@ ome/jishnu/Projects/RPX/data/scene83.jsom.garden.pot/2
 
 https://github.com/user-attachments/assets/c64415cf-79c2-4e7b-b28a-78bc4a2d51cd
 
+## Finalizing sample frames
+After generating labels/masks, you may want to **subsample frames** from each scene (0/1/2) to avoid redundancy while keeping viewpoint diversity.  
+
+We provide `pds_frames_filter.py` for **order-preserving Poisson Disk Sampling** based on pose distance:  
+
+$$
+d = \sqrt{ \| \Delta t \|^2 + (\lambda_{\text{rot}} \cdot \theta)^2 }
+$$
+
+where  
+
+- **Δt** = translation difference between two poses  
+  $$
+  \Delta t = t_i - t_j, \quad \| \Delta t \| = \sqrt{(x_i - x_j)^2 + (y_i - y_j)^2 + (z_i - z_j)^2}
+  $$  
+
+- **θ** = geodesic rotation angle between two quaternions  
+  $$
+  \theta = 2 \cdot \arccos(|q_i \cdot q_j|)
+  $$  
+  where $q_i \cdot q_j = q_{xi}q_{xj} + q_{yi}q_{yj} + q_{zi}q_{zj} + q_{wi}q_{wj}$  
+
+- **λ<sub>rot</sub>** = weighting factor (meters per radian) that balances translation and rotation contributions  
+
+- First & last frames are always kept.  
+- Sequence order is preserved.  
+- Outputs neat filename lists per subdir.  
+- Uses **Numba JIT** for speed.
+
+### Usage
+```shell
+# Fixed radius (meters in pose space)
+python pds_frames_filter.py \
+  --scene-dir ./scene \
+  --r 0.25 \
+  --lambda-rot 0.3
+
+# Target count per subdir (solves radius automatically)
+python pds_frames_filter.py \
+  --scene-dir ./scene \
+  --k 100 \
+  --lambda-rot 0.3
+```
+
+Example output:
+```
+# Subdir 0
+./scene/0/cam_pose/00000.npz
+./scene/0/cam_pose/00042.npz
+...
+
+# Subdir 1
+./scene/1/cam_pose/00000.npz
+./scene/1/cam_pose/00038.npz
+...
+```
+
+Programmatic use:
+```python
+from pds_frames_filter import run_per_subdir
+results = run_per_subdir("./scene", r=0.25, lambda_rot=0.3)
+print(results["0"][:5])
+```
