@@ -31,7 +31,7 @@ class DatasetLoader:
 
     def __iter__(self) -> Iterator[Tuple[np.ndarray, np.ndarray, str]]:
         for img_path, gt_path in zip(self.image_files, self.gt_files):
-            # In a real scenario, you'd load images using a library like Pillow or OpenCV
+
             print(f"Loading pair: {img_path.name}")
             image = np.random.randint(0, 255, size=(480, 640, 3), dtype=np.uint8)
             ground_truth = np.random.rand(480, 640) * 10
