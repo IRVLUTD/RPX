@@ -13,6 +13,7 @@ Features:
   - Left-Click & Drag on image to draw new boxes.
   - Right-Click inside a box to delete it.
   - Absolute Frame Counter and Clean ID tracking (Scene#/Part/Frame).
+  - --no_prop flag to completely hide/skip propagated frames from the queue.
 """
 
 import argparse
@@ -205,14 +206,19 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx):
     full_id = get_clean_id(npz_path)
     part_name = npz_path.parent.name
     
-    # --- Check for previously verified data to load instead ---
+    # --- Check for previously verified or propagated data to load instead ---
     scene_dir = npz_path.parent.parent.parent
     verified_npz_path = scene_dir / "bboxes_verified" / part_name / npz_path.name
+    propagated_npz_path = scene_dir / "bboxes_propagated" / part_name / npz_path.name
     
     if verified_npz_path.exists():
         load_path = verified_npz_path
         status_text = "[VERIFIED]"
         status_color = (0, 255, 0) # Green
+    elif propagated_npz_path.exists():
+        load_path = propagated_npz_path
+        status_text = "[PROPAGATED]"
+        status_color = (0, 255, 255) # Yellow
     else:
         load_path = npz_path
         status_text = "[UNVERIFIED]"
@@ -317,7 +323,8 @@ def find_pairs(base_dir):
         if "bboxes" not in str(npz.parent.parent.name) and "bboxes" not in str(npz.parent.name):
             continue
         # We NO LONGER skip verified folders here because we want to keep them in the master list
-        if "bboxes_verified" in str(npz):
+        # Ignore our verified and staging folders when building the base list
+        if "bboxes_verified" in str(npz) or "bboxes_propagated" in str(npz):
             continue
 
         try:
@@ -338,11 +345,26 @@ def find_pairs(base_dir):
 def main():
     parser = argparse.ArgumentParser(description="Interactive Review Tool")
     parser.add_argument("--base_dir", type=str, required=True, help="Root output directory")
+    parser.add_argument("--no_prop", action="store_true", help="Only show strictly unverified frames (skips propagated)")
     args = parser.parse_args()
 
     print(f"Scanning {args.base_dir}...")
     all_pairs = find_pairs(args.base_dir)
     verified_set = get_verified_frames(args.base_dir)
+    
+    # --- NO_PROP FILTER ---
+    if args.no_prop:
+        print("Filtering out propagated frames (--no_prop enabled)...")
+        filtered_pairs = []
+        for img, npz in all_pairs:
+            part_name = npz.parent.name
+            scene_dir = npz.parent.parent.parent
+            prop_path = scene_dir / "bboxes_propagated" / part_name / npz.name
+            
+            # If the frame hasn't been propagated, keep it in our queue
+            if not prop_path.exists():
+                filtered_pairs.append((img, npz))
+        all_pairs = filtered_pairs
 
     if not all_pairs:
         print("No frames found to review! Check your directory structure.")
