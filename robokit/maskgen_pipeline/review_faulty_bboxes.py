@@ -36,7 +36,7 @@ class Style:
     
     # Publication Mode Style
     PUB_LINE_WIDTH = 3
-    PUB_FONT_SIZE = 18
+    PUB_FONT_SIZE = 15
     
     # Dimensions
     BOTTOM_PANEL_H = 160
@@ -326,7 +326,7 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx, window_
             
             # Label
             label = f"{b['id']}: {b.get('phrase', '')}" if b.get('phrase') else str(b['id'])
-            font_size = Style.PUB_FONT_SIZE if pub_mode else 14
+            font_size = Style.PUB_FONT_SIZE if pub_mode else 11
             
             try:
                 font = ImageFont.truetype(Style.FONT_PATH, font_size)
@@ -369,14 +369,14 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx, window_
             pil_draw_text(draw, nav_text, (Style.BTN_PAD, final_h - 22), 12, status_color)
             
             # Hint
-            hint_text = "Arrows: Nav | S: Save | P: Pub | Q: Save+Exit | ESC: Exit"
+            hint_text = "Arrows/A-D: Nav | S: Save | P: Pub | Q: Save+Exit | ESC: Exit"
             pil_draw_text(draw, hint_text, (img_w - Style.BTN_PAD, final_h - 22), 11, Style.TEXT_SECONDARY, anchor="ra")
             
             # Thorough Marker Badge (Bottom Center)
             if is_thorough:
                 badge_text = " MANDATORY THOROUGH REVIEW "
                 try:
-                    font_badge = ImageFont.truetype(Style.FONT_PATH, 24)
+                    font_badge = ImageFont.truetype(Style.FONT_PATH, 18)
                 except:
                     font_badge = ImageFont.load_default()
                 l, t, r, b_badge = draw.textbbox((0, 0), badge_text, font=font_badge)
@@ -400,9 +400,9 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx, window_
             return 'quit'
         elif key == 27: # ESC
             return 'quit'
-        elif key in (65361, 2424832, 2):
+        elif key in (65361, 2424832, 2, ord('a')):
             return 'prev'
-        elif key in (65363, 2555904, 3, 32): 
+        elif key in (65363, 2555904, 3, 32, ord('d')): 
             return 'next'
         elif key == ord('p'):
             pub_mode = not pub_mode
