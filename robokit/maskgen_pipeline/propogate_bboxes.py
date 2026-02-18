@@ -6,13 +6,14 @@ Batch processes sequences of frames using Lucas-Kanade Optical Flow.
 It finds manually verified anchors in `bboxes_verified` and propagates 
 those boxes to adjacent unverified frames.
 
-Crucially, it saves these guesses into a staging folder called `bboxes_propagated`
-so it does not overwrite or pollute your actual verified data.
+Crucially, it sweeps and deletes old `bboxes_propagated` folders on every run 
+to ensure all estimates are perfectly fresh based on the latest anchors.
 """
 
 import argparse
 import numpy as np
 import cv2
+import shutil
 from pathlib import Path
 
 def get_points_in_bbox(bbox, gray_img, max_corners=100):
@@ -94,7 +95,18 @@ def main():
     args = parser.parse_args()
 
     base_dir = Path(args.base_dir)
-    print(f"Scanning {base_dir} for frames and verified anchors...")
+    
+    # --- CLEANUP STEP: Remove all old propagated data ---
+    print(f"Sweeping {base_dir} to clear old propagated estimates...")
+    cleaned_count = 0
+    for prop_dir in base_dir.rglob("bboxes_propagated"):
+        if prop_dir.is_dir():
+            shutil.rmtree(prop_dir)
+            cleaned_count += 1
+    print(f"Cleared {cleaned_count} old staging folders. Starting fresh!\n")
+    # ----------------------------------------------------
+
+    print(f"Scanning for frames and verified anchors...")
 
     parts = {}
     for npz_path in base_dir.rglob("*.npz"):
@@ -160,7 +172,7 @@ def main():
                     print(f"  [Backward] Propagated -> {f_id}")
                     next_img = curr_img
 
-    print("\n[Finished] Optical Flow propagation complete! Saved to `bboxes_propagated` folders.")
+    print("\n[Finished] Optical Flow propagation complete! Saved to fresh `bboxes_propagated` folders.")
 
 if __name__ == "__main__":
     main()
