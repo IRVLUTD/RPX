@@ -4,30 +4,26 @@ review_faulty_masks.py
 
 Interactive review tool for SAM2 Contour Masks.
 Features:
-  - Resizable OpenCV window, initially large (1600x1000).
-  - High-quality PIL-based UI with iOS-style dark theme and rounded buttons.
-  - ONLY extracts pure SAM2 colors by reading the unblended `palette` images.
-  - Bottom panel with clickable buttons to HIDE/UNHIDE specific masks.
-  - Hiding a mask dilates the bounds to completely erase white contour lines.
-  - Left/Right arrow keys to skip/traverse frames WITHOUT saving.
+  - Natural File Sorting guarantees frames are ALWAYS displayed in sequential order.
+  - 'T' (Toggle Contours): Instantly strips white borders to show only the pure, semi-transparent mask.
   - 'S' (Save & Next) and 'Q' (Save & Exit) are the primary triggers for saving.
   - 'X' (Unverify) removes the frame from verified status and reloads it.
   - 'P' (Publication Mode) toggles off the UI panel and borders for pure screenshots.
+  - Bottom panel with clickable buttons to HIDE/UNHIDE specific masks.
+  - Left/Right arrow keys to skip/traverse frames WITHOUT saving.
   - 'ESC' exits WITHOUT saving changes to the current frame.
-  - Saves your hidden states directly to `verified_masks.txt`.
-  - Dynamic Navigation: --no_verified proactively skips verified frames on every keystroke.
 """
 
 import argparse
 import numpy as np
 import cv2
 import requests
+import re
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 # --- Style & Theme ---
 class Style:
-    # Industry-standard Dark Theme Palette
     PANEL_BG = (0, 0, 0)          
     BTN_BG = (28, 28, 30)         
     ACCENT = (10, 132, 255)       
@@ -49,6 +45,7 @@ masks_data = []
 OFFICIAL_PALETTE = set()
 verified_dict = {}  
 pub_mode = False
+show_contours = True  # Tracks the visual toggle state
 
 def pil_draw_text(draw, text, pos, font_size, color, anchor="la"):
     font = None
@@ -72,11 +69,22 @@ def load_bgr_palette():
         print(f"[WARN] Failed to fetch official palette: {e}")
         return set()
 
-def save_verified_mask(display_img_bgr, verified_dest_path, base_dir, full_id):
+def save_verified_mask(orig_contour_img, orig_palette_img, rgb_img_bgr, verified_dest_path, base_dir, full_id):
+    """Strictly saves the contour version of the image, even if visual toggle is off."""
     global masks_data, verified_dict
     
+    # Rebuild the final save image by erasing hidden masks from the contour original
+    save_img = orig_contour_img.copy()
+    kernel = np.ones((5, 5), np.uint8)
+    
+    for m in masks_data:
+        if m['hidden']:
+            color_mask = np.all(orig_palette_img == m['color'], axis=-1).astype(np.uint8)
+            dilated_mask = cv2.dilate(color_mask, kernel, iterations=1)
+            save_img[dilated_mask == 1] = rgb_img_bgr[dilated_mask == 1]
+
     verified_dest_path.parent.mkdir(parents=True, exist_ok=True)
-    cv2.imwrite(str(verified_dest_path), display_img_bgr)
+    cv2.imwrite(str(verified_dest_path), save_img)
 
     hidden_ids = [m['id'] for m in masks_data if m['hidden']]
     verified_dict[full_id] = hidden_ids
@@ -144,7 +152,6 @@ def draw_bottom_panel(draw, img_w, img_h, full_id):
         bx = Style.BTN_PAD + col * (Style.BTN_W + Style.BTN_PAD)
         by = img_h + 45 + row * (Style.BTN_H + Style.BTN_PAD)
         
-        # Convert BGR (from OpenCV) to RGB for PIL drawing
         c_bgr = m['color']
         c_rgb = (c_bgr[2], c_bgr[1], c_bgr[0])
         
@@ -164,7 +171,7 @@ def draw_bottom_panel(draw, img_w, img_h, full_id):
         pil_draw_text(draw, txt, (bx + Style.BTN_H, by + 16), 13, text_color, anchor="lm")
 
 def review_frame(rgb_path, contour_path, palette_path, verified_dest_path, full_id, base_dir, total_pairs, current_idx, window_name):
-    global masks_data, img_w, img_h, OFFICIAL_PALETTE, verified_dict, pub_mode
+    global masks_data, img_w, img_h, OFFICIAL_PALETTE, verified_dict, pub_mode, show_contours
 
     if not OFFICIAL_PALETTE:
         OFFICIAL_PALETTE = load_bgr_palette()
@@ -209,13 +216,26 @@ def review_frame(rgb_path, contour_path, palette_path, verified_dest_path, full_
         if cv2.getWindowProperty(window_name, cv2.WND_PROP_VISIBLE) < 1:
             return 'quit'
 
-        # 1. Composite the Image using OpenCV (Mask Erasure)
-        display_img_bgr = orig_contour_img.copy()
-        for m in masks_data:
-            if m['hidden']:
-                color_mask = np.all(orig_palette_img == m['color'], axis=-1).astype(np.uint8)
-                dilated_mask = cv2.dilate(color_mask, kernel, iterations=1)
-                display_img_bgr[dilated_mask == 1] = rgb_img_bgr[dilated_mask == 1]
+        # 1. Composite the Image using OpenCV based on Toggle Mode
+        if show_contours:
+            # Mode A: Standard view with dark background and white contours
+            display_img_bgr = orig_contour_img.copy()
+            for m in masks_data:
+                if m['hidden']:
+                    color_mask = np.all(orig_palette_img == m['color'], axis=-1).astype(np.uint8)
+                    dilated_mask = cv2.dilate(color_mask, kernel, iterations=1)
+                    display_img_bgr[dilated_mask == 1] = rgb_img_bgr[dilated_mask == 1]
+        else:
+            # Mode B: Clean view with raw RGB and semi-transparent colored masks
+            display_img_bgr = rgb_img_bgr.copy()
+            for m in masks_data:
+                if not m['hidden']:
+                    color_mask = np.all(orig_palette_img == m['color'], axis=-1)
+                    # Blend 60% mask color over the background for visibility
+                    mask_pixels = display_img_bgr[color_mask].astype(np.float64)
+                    color_array = np.array(m['color'], dtype=np.float64)
+                    blended = (mask_pixels * 0.4 + color_array * 0.6).astype(np.uint8)
+                    display_img_bgr[color_mask] = blended
 
         # 2. Convert to PIL for High-Quality UI Drawing
         display_img_rgb = cv2.cvtColor(display_img_bgr, cv2.COLOR_BGR2RGB)
@@ -228,15 +248,13 @@ def review_frame(rgb_path, contour_path, palette_path, verified_dest_path, full_
 
         # 3. Draw UI
         if not pub_mode:
-            # Main Border
             draw.rectangle([0, 0, img_w-1, final_h-1], outline=status_color, width=4)
-            
             draw_bottom_panel(draw, img_w, img_h, full_id)
             
             nav_text = f"FRAME {current_idx} / {total_pairs} • {status_text}"
             pil_draw_text(draw, nav_text, (Style.BTN_PAD, final_h - 22), 12, status_color)
             
-            hint_text = "Arrows: Nav | S: Save | X: Unverify | P: Pub | Q: Save+Exit | ESC: Exit"
+            hint_text = "Arrows: Nav | S: Save | X: Unv | C: Toggle Contours | P: Pub | Q: Exit | ESC"
             pil_draw_text(draw, hint_text, (img_w - Style.BTN_PAD, final_h - 22), 11, Style.TEXT_SECONDARY, anchor="ra")
 
         # 4. Display
@@ -245,11 +263,13 @@ def review_frame(rgb_path, contour_path, palette_path, verified_dest_path, full_
         key = cv2.waitKeyEx(20)
         
         if key == ord('s') or key == ord('S'):
-            save_verified_mask(display_img_bgr, verified_dest_path, base_dir, full_id)
+            save_verified_mask(orig_contour_img, orig_palette_img, rgb_img_bgr, verified_dest_path, base_dir, full_id)
             return 'next'
         elif key == ord('q') or key == ord('Q'):
-            save_verified_mask(display_img_bgr, verified_dest_path, base_dir, full_id)
+            save_verified_mask(orig_contour_img, orig_palette_img, rgb_img_bgr, verified_dest_path, base_dir, full_id)
             return 'quit'
+        elif key == ord('t') or key == ord('T'):
+            show_contours = not show_contours
         elif key == ord('x') or key == ord('X'):
             unverify_mask(verified_dest_path, base_dir, full_id)
             return 'reload' 
@@ -276,6 +296,10 @@ def get_dynamic_target_idx(curr_idx, direction, all_pairs, args):
         return idx
         
     return -1
+
+def natural_sort_key(s):
+    """Sorts strings naturally by treating internal numbers as integers."""
+    return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', s)]
 
 def find_pairs(base_dir):
     pairs = []
@@ -305,6 +329,9 @@ def find_pairs(base_dir):
                     pairs.append((rgb_path, contour_path, palette_path, verified_dest, full_id))
             except Exception:
                 continue
+                
+    # Sort naturally based on the full_id string (index 4)
+    pairs.sort(key=lambda x: natural_sort_key(x[4]))
     return pairs
 
 def main():
