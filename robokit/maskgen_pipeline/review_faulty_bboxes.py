@@ -70,7 +70,7 @@ img_w, img_h = 0, 0
 
 # View Toggles
 pub_mode = False
-show_labels = False  # Set to False to hide text by default
+show_labels = True  # Set to False to hide text by default
 
 # Store boxes as dicts to maintain ID and Color when others are deleted
 boxes_data = []
@@ -276,7 +276,7 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx, window_
             'bbox': box,
             'color': COLORS[i % len(COLORS)],
             'conf': conf,
-            'phrase': phrase
+            'phrase': '' #phrase
         })
     next_id = len(raw_bboxes)
     temp_bbox = None
@@ -304,6 +304,29 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx, window_
         
         if not pub_mode:
             draw.rectangle([0, 0, img_w-1, final_h-1], outline=status_color, width=4)
+            
+            # BBox Count Badge (Bottom Center) - Enlarged
+            count_text = f" BBOXES: {len(boxes_data)} "
+            count_font_size = 22 # Larger font for better visibility
+            try:
+                font_count = ImageFont.truetype(Style.FONT_PATH, count_font_size)
+            except:
+                font_count = ImageFont.load_default()
+            
+            cl, ct, cr, cb = draw.textbbox((0, 0), count_text, font=font_count)
+            cw, ch = cr - cl, cb - ct
+            cpad_h, cpad_v = 10, 5 # Increased padding
+            
+            bx = (img_w - (cw + cpad_h * 2)) // 2
+            by = img_h - (ch + cpad_v * 2) - 15 # Lifted a bit more from the edge
+            
+            # Use Red warning color if boxes < 7, otherwise use status color
+            badge_bg = (255, 59, 48) if len(boxes_data) < 7 else status_color
+            
+            draw.rectangle([bx, by, bx + cw + (cpad_h * 2), by + ch + (cpad_v * 2)], fill=badge_bg)
+            cbrightness = sum(badge_bg) / 3
+            ctext_color = (0, 0, 0) if cbrightness > 128 else (255, 255, 255)
+            draw.text((bx + cpad_h, by + cpad_v), count_text, fill=ctext_color, font=font_count)
         
         for b in boxes_data:
             color = b['color']
@@ -353,7 +376,8 @@ def review_frame(img_path, npz_path, base_dir, total_pairs, current_idx, window_
             pil_draw_text(draw, hint_text, (img_w - Style.BTN_PAD, final_h - 22), 11, Style.TEXT_SECONDARY, anchor="ra")
             
             if is_thorough:
-                badge_text = " MANDATORY THOROUGH REVIEW "
+                # badge_text = " MANDATORY THOROUGH REVIEW "
+                badge_text = ""
                 try:
                     font_badge = ImageFont.truetype(Style.FONT_PATH, 18)
                 except:
@@ -428,6 +452,7 @@ def main():
     parser.add_argument("--base_dir", type=str, required=True, help="Root output directory")
     parser.add_argument("--no_prop", action="store_true", help="Show all frames, but fallback to unverified original bboxes instead of propagated ones.")
     parser.add_argument("--no_verified", action="store_true", help="Hide previously verified frames (UNLESS they are mandatory thorough review frames).")
+    parser.add_argument("--unverified_only", action="store_true", help="Strictly hide all previously verified frames, ignoring mandatory status.")
     parser.add_argument("--mandatory_only", action="store_true", help="Only show mandatory thorough review frames.")
     parser.add_argument("--index_frame", type=int, default=5, help="Interval for thorough annotation (e.g. 5 means 0, 4, 9...)")
     args = parser.parse_args()
@@ -463,6 +488,9 @@ def main():
             keep = False
             
         if args.no_verified and (npz.name in verified_set) and not is_mandatory:
+            keep = False
+            
+        if args.unverified_only and (npz.name in verified_set):
             keep = False
             
         if keep:
