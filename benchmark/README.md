@@ -222,24 +222,45 @@ letterbox pattern).
 
 ## Available tasks
 
-| Task | Primary metric | Modalities | Status |
-|---|---|---|---|
-| `monocular_depth` | AbsRel (↓) | rgb, depth | ✅ Runnable |
-| `object_segmentation` | mIoU (↑) | rgb, mask | ✅ Runnable |
-| `object_detection` | F1 (↑) | rgb, boxes | 🟡 Metrics only |
-| `open_vocab_detection` | F1 (↑) | rgb, boxes, questionnaires | 🟡 Metrics only |
-| `object_tracking` | MOTA (↑) | rgb, tracklets | 🟡 Metrics only |
-| `visual_grounding` | grounding_acc (↑) | rgb, spatial_qa | 🟡 Metrics only |
-| `relative_camera_pose` | rotation_err (↓) | rgb (pair), pose | 🟡 Metrics only |
-| `sparse_depth` | sparse_absrel (↓) | rgb, depth, sparse samples | 🟡 Metrics only |
-| `novel_view_synthesis` | psnr (↑) | rgb (src+tgt), depth, pose | 🟡 Metrics only |
-| `keypoint_matching` | keypoint_acc (↑) | rgb (pair), keypoints | 🟡 Metrics only |
+Every task ships the full stack: **dataset + split slicing, metrics,
+loaders, numpy adapter, CLI subcommand**. The only thing you bring
+is the model.
 
-"Runnable" = full CLI pipeline (`rpx bench <task>`). "Metrics only" =
-the metric calculators + ground-truth loaders are in place and tested;
-the task runner is a 1-file clone away.
+| Task | Primary metric | Modalities | BYO-model fast path | Status |
+|---|---|---|---|---|
+| `monocular_depth` | AbsRel (↓) | rgb, depth | `make_numpy_depth_model` + `make_hf_depth_model` | ✅ Runnable |
+| `object_segmentation` | mIoU (↑) | rgb, mask | `make_numpy_mask_model` + `make_hf_instance_seg_model` | ✅ Runnable |
+| `object_detection` | F1 (↑) | rgb, boxes | `make_numpy_detection_model` | ✅ Runnable |
+| `open_vocab_detection` | F1 (↑) | rgb, boxes, questionnaires | `make_numpy_detection_model(..., task=OPEN_VOCAB_DETECTION)` | ✅ Runnable |
+| `visual_grounding` | grounding_acc (↑) | rgb, spatial_qa | `make_numpy_grounding_model` | ✅ Runnable |
+| `relative_camera_pose` | rotation_err (↓) | rgb (pair), pose | `make_numpy_pose_model` | ✅ Runnable |
+| `keypoint_matching` | keypoint_acc (↑) | rgb (pair), keypoints | `make_numpy_keypoint_model` | ✅ Runnable |
+| `sparse_depth` | sparse_absrel (↓) | rgb, depth, sparse samples | `make_numpy_sparse_depth_model` | ✅ Runnable |
+| `novel_view_synthesis` | psnr (↑) | rgb (src+tgt), depth, pose | `make_numpy_nvs_model` | ✅ Runnable |
+| `object_tracking` | MOTA (↑) | rgb, tracklets | — | ⚠ Deferred (sequence protocol) |
 
-Run `rpx ls` for the live list.
+**9 of 10 tasks are runnable end-to-end.** Tracking is deferred
+because the sample contract (sequence-per-sample vs per-frame) needs
+a protocol decision before a task runner can be cloned. Every other
+task has a full CLI subcommand (`rpx bench <task> …`), a numpy
+fast-path factory for zero-ceremony BYO-model evaluation, and end-
+to-end tests against a synthetic dataset fixture.
+
+Run `rpx ls` for the live list; `rpx bench --help` for all nine
+subcommands the CLI auto-generates from the task registry.
+
+### BYO-model callable signatures
+
+| Task | Callable signature | Returns |
+|---|---|---|
+| `monocular_depth` | `fn(rgb_uint8)` | `(H, W) float` metric depth (metres) |
+| `object_segmentation` | `fn(rgb_uint8)` | `(H, W) int` instance mask |
+| `object_detection` | `fn(rgb_uint8)` | `{"boxes", "scores", "labels"}` or `(boxes, scores, labels)` |
+| `visual_grounding` | `fn(rgb_uint8, text)` | `{"boxes", "scores"}` or `(boxes, scores)` |
+| `relative_camera_pose` | `fn(rgb_a, rgb_b)` | `{"rotation", "translation"}` |
+| `keypoint_matching` | `fn(rgb_a, rgb_b)` | `(points0, points1[, scores])` |
+| `sparse_depth` | `fn(rgb_uint8, coords)` | `(N,) float` depths at the provided coordinates |
+| `novel_view_synthesis` | `fn(rgb_src, target_pose_4x4)` | `(H, W, 3) uint8` synthesised RGB |
 
 ---
 

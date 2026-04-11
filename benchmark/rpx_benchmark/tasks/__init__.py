@@ -1,21 +1,63 @@
 """Task-level entrypoints for RPX benchmark pipelines.
 
-Importing this package triggers :mod:`monocular_depth` (and in the
-future, other task modules) which self-register their
-:class:`TaskSpec` with :mod:`rpx_benchmark.tasks.registry`. After
-import, :func:`available_tasks` lists everything the CLI can run.
+Importing this package triggers every task module below, which in
+turn self-register their :class:`TaskSpec` with
+:mod:`rpx_benchmark.tasks.registry`. After import,
+:func:`available_tasks` lists everything the CLI can run.
+
+Task coverage status:
+
+- Runnable end-to-end: monocular_depth, object_segmentation,
+  object_detection + open_vocab_detection, visual_grounding,
+  relative_camera_pose, keypoint_matching, sparse_depth,
+  novel_view_synthesis.
+- Deferred: object_tracking (needs a sequence-per-sample protocol
+  decision).
 """
 
 from .monocular_depth import (
     MonocularDepthRunConfig,
-    run_monocular_depth,
     TASK_SPEC as MONOCULAR_DEPTH_SPEC,
+    run_monocular_depth,
 )
 from .segmentation import (
     SegmentationRunConfig,
-    run_segmentation,
     TASK_SPEC as SEGMENTATION_SPEC,
+    run_segmentation,
 )
+from .detection import (
+    ObjectDetectionRunConfig,
+    OPEN_VOCAB_TASK_SPEC,
+    TASK_SPEC as OBJECT_DETECTION_SPEC,
+    run_object_detection,
+    run_open_vocab_detection,
+)
+from .visual_grounding import (
+    TASK_SPEC as VISUAL_GROUNDING_SPEC,
+    VisualGroundingRunConfig,
+    run_visual_grounding,
+)
+from .relative_pose import (
+    RelativePoseRunConfig,
+    TASK_SPEC as RELATIVE_POSE_SPEC,
+    run_relative_pose,
+)
+from .keypoint_matching import (
+    KeypointMatchingRunConfig,
+    TASK_SPEC as KEYPOINT_MATCHING_SPEC,
+    run_keypoint_matching,
+)
+from .sparse_depth import (
+    SparseDepthRunConfig,
+    TASK_SPEC as SPARSE_DEPTH_SPEC,
+    run_sparse_depth,
+)
+from .novel_view_synthesis import (
+    NovelViewSynthesisRunConfig,
+    TASK_SPEC as NOVEL_VIEW_SYNTHESIS_SPEC,
+    run_novel_view_synthesis,
+)
+from ._pipeline import PipelineResult, TaskRunConfig, run_pipeline
 from .registry import (
     TaskRunResult,
     TaskSpec,
@@ -27,13 +69,39 @@ from .registry import (
 )
 
 __all__ = [
-    # Task runners
+    # Task runners — configs
     "MonocularDepthRunConfig",
-    "run_monocular_depth",
-    "MONOCULAR_DEPTH_SPEC",
     "SegmentationRunConfig",
+    "ObjectDetectionRunConfig",
+    "VisualGroundingRunConfig",
+    "RelativePoseRunConfig",
+    "KeypointMatchingRunConfig",
+    "SparseDepthRunConfig",
+    "NovelViewSynthesisRunConfig",
+    # Task runners — entry-points
+    "run_monocular_depth",
     "run_segmentation",
+    "run_object_detection",
+    "run_open_vocab_detection",
+    "run_visual_grounding",
+    "run_relative_pose",
+    "run_keypoint_matching",
+    "run_sparse_depth",
+    "run_novel_view_synthesis",
+    # Task specs (exposed so callers can introspect)
+    "MONOCULAR_DEPTH_SPEC",
     "SEGMENTATION_SPEC",
+    "OBJECT_DETECTION_SPEC",
+    "OPEN_VOCAB_TASK_SPEC",
+    "VISUAL_GROUNDING_SPEC",
+    "RELATIVE_POSE_SPEC",
+    "KEYPOINT_MATCHING_SPEC",
+    "SPARSE_DEPTH_SPEC",
+    "NOVEL_VIEW_SYNTHESIS_SPEC",
+    # Shared helpers
+    "TaskRunConfig",
+    "PipelineResult",
+    "run_pipeline",
     # Registry
     "TaskSpec",
     "TaskRunResult",
