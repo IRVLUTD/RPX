@@ -83,33 +83,39 @@ def test_prepared_input_payload_context_shape():
 # --------------------------------------------------------------------------- #
 # HF output adapter: signature introspection must handle both DA-v2 (target_sizes
 # only) and ZoeDepth (target_sizes + source_sizes). We mock the processor so the
-# test runs without torch/transformers installed.
+# test runs without transformers installed.
+#
+# NOTE: torch is imported lazily inside the test function. The base test suite
+# does not install torch (`.[dev]` = pytest + ruff), so a module-level `import
+# torch` would break collection on the lean CI matrix. `pytest.importorskip`
+# makes this test skip cleanly on CI while still running locally + on any
+# environment that has torch available.
 # --------------------------------------------------------------------------- #
 
-import torch  # noqa: E402 — the test runs under the torch-enabled env for real-model paths
-
-from rpx_benchmark.adapters.depth_hf import HFDepthOutputAdapter  # noqa: E402
-
-
-class _FakeProcessorDAv2Like:
-    """post_process_depth_estimation(outputs, target_sizes=None)."""
-
-    def post_process_depth_estimation(self, outputs, target_sizes=None):
-        h, w = target_sizes[0]
-        return [{"predicted_depth": torch.full((h, w), 1.5)}]
-
-
-class _FakeProcessorZoeDepthLike:
-    """post_process_depth_estimation(outputs, target_sizes=None, source_sizes=None)."""
-
-    def post_process_depth_estimation(self, outputs, target_sizes=None, source_sizes=None):
-        assert source_sizes is not None, "ZoeDepth-like processor requires source_sizes"
-        h, w = target_sizes[0]
-        return [{"predicted_depth": torch.full((h, w), 2.5)}]
-
-
 def test_hf_output_adapter_forwards_only_accepted_kwargs():
-    """Adapter must introspect the processor and forward source_sizes only when accepted."""
+    """Adapter must introspect the processor and forward source_sizes only when accepted.
+
+    Skipped on environments without torch installed; on dev machines +
+    the real-model CI path it runs and locks the contract in.
+    """
+    torch = pytest.importorskip("torch")
+    from rpx_benchmark.adapters.depth_hf import HFDepthOutputAdapter
+
+    class _FakeProcessorDAv2Like:
+        """post_process_depth_estimation(outputs, target_sizes=None)."""
+
+        def post_process_depth_estimation(self, outputs, target_sizes=None):
+            h, w = target_sizes[0]
+            return [{"predicted_depth": torch.full((h, w), 1.5)}]
+
+    class _FakeProcessorZoeDepthLike:
+        """post_process_depth_estimation(outputs, target_sizes=None, source_sizes=None)."""
+
+        def post_process_depth_estimation(self, outputs, target_sizes=None, source_sizes=None):
+            assert source_sizes is not None, "ZoeDepth-like processor requires source_sizes"
+            h, w = target_sizes[0]
+            return [{"predicted_depth": torch.full((h, w), 2.5)}]
+
     sample = _fake_sample(h=48, w=64)
     ctx = {"target_hw": (48, 64)}
 
