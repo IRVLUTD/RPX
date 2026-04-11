@@ -1,0 +1,85 @@
+name: docs
+
+# Build the MkDocs site for the benchmark toolkit and publish it to
+# GitHub Pages. Triggered on every push to main that touches docs or
+# the benchmark package, plus manual dispatch from the Actions tab.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "benchmark/**"
+      - ".github/workflows/docs.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmark/docs/**"
+      - "benchmark/mkdocs.yml"
+      - "benchmark/rpx_benchmark/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+# Pages deploy needs these permissions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Cancel superseded runs so an in-flight build doesn't deploy a stale site.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: benchmark
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install toolkit + docs extras
+        run: |
+          python -m pip install --upgrade pip
+          # Install the library itself in editable mode so mkdocstrings
+          # can introspect the actual modules via `import rpx_benchmark`.
+          python -m pip install -e '.[docs]'
+
+      - name: Build site
+        env:
+          # Surface mkdocs warnings loudly, but do not fail the build on
+          # the "ambiguous re-export" warnings mkdocstrings emits for
+          # symbols exposed at both module and package level.
+          MKDOCS_STRICT: "false"
+        run: |
+          mkdocs build --clean
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: benchmark/site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Only deploy on push to main, not on PRs.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
