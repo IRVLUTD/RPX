@@ -1,0 +1,149 @@
+site_name: RPX Benchmark
+site_description: >-
+  Choose and rank perception models for robot learning on real-world RGB-D
+  data. Bring your model — we bring the dataset, splits, metrics, and tables.
+site_url: https://irvlutd.github.io/RPX/
+repo_url: https://github.com/IRVLUTD/RPX
+repo_name: IRVLUTD/RPX
+edit_uri: edit/main/benchmark/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.expand
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+    - search.share
+  palette:
+    # Auto light/dark scheme based on OS preference
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/robot
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            group_by_category: true
+            heading_level: 2
+            merge_init_into_class: true
+            docstring_section_style: table
+            filters:
+              - "!^_"          # hide private _names
+              - "!^__"         # hide dunder except where explicit
+              - "__init__"
+              - "__post_init__"
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Bring Your Own Model: getting-started/bring-your-own-model.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Adapters: architecture/adapters.md
+      - Registries: architecture/registries.md
+      - Pipeline: architecture/pipeline.md
+  - Guides:
+      - Adding a Task: guides/adding-a-task.md
+      - Adding a Metric: guides/adding-a-metric.md
+      - Adding a Model: guides/adding-a-model.md
+      - Extending the Loader: guides/extending-the-loader.md
+  - API Reference:
+      - Top-level package: api/package.md
+      - Core types (api.py): api/core.md
+      - Adapters: api/adapters.md
+      - Metrics: api/metrics.md
+      - Tasks: api/tasks.md
+      - Runner: api/runner.md
+      - Loader: api/loader.md
+      - Hub: api/hub.md
+      - Exceptions: api/exceptions.md
+      - Logging: api/logging.md
+      - Reports: api/reports.md
+      - Deployment metrics: api/deployment.md
+      - Models registry: api/models.md
+      - Profiler: api/profiler.md
+      - UI: api/ui.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/IRVLUTD/RPX
+    - icon: fontawesome/solid/robot
+      link: https://irvl.utdallas.edu/
+
+copyright: >-
+  Copyright &copy; 2026 IRVL-UTD —
+  <a href="https://github.com/IRVLUTD/RPX/blob/main/LICENSE">MIT License</a>

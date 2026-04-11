@@ -1,0 +1,75 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "benchmark/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "benchmark/**"
+      - ".github/workflows/tests.yml"
+  workflow_dispatch:
+
+# Run every Python change against the full offline test suite.
+# No torch, no HuggingFace network — 120 tests in under a second.
+
+jobs:
+  test:
+    name: pytest (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: benchmark
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install toolkit with dev extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+
+      - name: Run pytest
+        run: |
+          pytest tests/ -q --strict-markers
+
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: benchmark
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ruff
+        run: python -m pip install 'ruff>=0.4'
+
+      - name: Ruff check
+        run: |
+          # Fail the job on unused imports, undefined names, and syntax errors;
+          # keep style-only warnings advisory until we agree a style.
+          ruff check rpx_benchmark tests scripts \
+            --select E9,F63,F7,F82,F401 \
+            --ignore E402
