@@ -9,9 +9,21 @@ once `1.0.0` is cut.
 
 ### Added
 - `rpx` CLI with auto-discovered task subcommands (`rpx bench <task>`).
+- **Nine end-to-end task pipelines**: monocular_depth,
+  object_segmentation, object_detection, open_vocab_detection,
+  visual_grounding, relative_camera_pose, keypoint_matching,
+  sparse_depth, novel_view_synthesis. Every one plugs through a
+  shared :func:`rpx_benchmark.tasks._pipeline.run_pipeline` helper
+  so new tasks are a ~100-line subclass + model resolver + TaskSpec.
 - `BenchmarkableModel` adapter framework (`InputAdapter` /
   `OutputAdapter` / `PreparedInput` / default invoker).
-- Numpy fast-paths: `make_numpy_depth_model`, `make_numpy_mask_model`.
+- **Numpy fast paths for every task**: `make_numpy_depth_model`,
+  `make_numpy_mask_model`, `make_numpy_detection_model`,
+  `make_numpy_grounding_model`, `make_numpy_pose_model`,
+  `make_numpy_keypoint_model`, `make_numpy_sparse_depth_model`,
+  `make_numpy_nvs_model`. Each normalises dict-or-tuple return
+  values and raises :class:`AdapterError` with a `hint` on shape
+  mismatches.
 - HuggingFace fast-paths: `make_hf_depth_model`,
   `make_hf_instance_seg_model`.
 - Native-package adapters: `make_unidepth_v2_model`,

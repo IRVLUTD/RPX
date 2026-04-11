@@ -20,7 +20,13 @@ from .base import (
     PreparedInput,
     default_invoker,
     make_numpy_depth_model,
+    make_numpy_detection_model,
+    make_numpy_grounding_model,
+    make_numpy_keypoint_model,
     make_numpy_mask_model,
+    make_numpy_nvs_model,
+    make_numpy_pose_model,
+    make_numpy_sparse_depth_model,
 )
 
 __all__ = [
@@ -30,6 +36,13 @@ __all__ = [
     "OutputAdapter",
     "PreparedInput",
     "default_invoker",
+    # Per-task numpy fast paths
     "make_numpy_depth_model",
+    "make_numpy_detection_model",
+    "make_numpy_grounding_model",
+    "make_numpy_keypoint_model",
     "make_numpy_mask_model",
+    "make_numpy_nvs_model",
+    "make_numpy_pose_model",
+    "make_numpy_sparse_depth_model",
 ]

@@ -1,8 +1,26 @@
+<div align="center">
+
 # RPX Benchmark Toolkit
 
+**Choose and rank perception models for robot learning** — on real-world RGB-D data, under embodied deployment conditions, with ESD-stratified difficulty splits and deployment-readiness scoring.
+
+[![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=main&label=tests&logo=github&style=flat-square)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
+[![docs](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/docs.yml?branch=main&label=docs&logo=materialformkdocs&style=flat-square)](https://irvlutd.github.io/RPX/)
+[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue?logo=python&logoColor=white&style=flat-square)](https://pypi.org/project/rpx-benchmark/)
+[![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+[![ruff](https://img.shields.io/badge/lint-ruff-000000?logo=ruff&style=flat-square)](https://github.com/astral-sh/ruff)
+[![tests passing](https://img.shields.io/badge/tests-138%20passing-brightgreen?style=flat-square)](tests/)
+[![tasks](https://img.shields.io/badge/runnable%20tasks-9%20%2F%2010-brightgreen?style=flat-square)](#-available-tasks)
+[![robot learning](https://img.shields.io/badge/scope-robot%20learning-6366f1?style=flat-square)](https://github.com/IRVLUTD/RPX)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=flat-square)](#-contributing)
+
+[**Quickstart**](#-60-second-quickstart) · [**Bring Your Own Model**](#-bring-your-own-model--three-paths) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Tasks**](#-available-tasks) · [**Models**](#-available-models) · [**Paper**](#-citation)
+
+</div>
+
+---
+
 > **Bring your model. We bring the dataset, the splits, the metrics, and the tables.**
->
-> **RPX enables you to choose and rank perception models for robot learning** — on real-world RGB-D data, under embodied deployment conditions, with ESD-stratified difficulty splits and deployment-readiness scoring.
 
 `rpx-benchmark` is the reference toolkit for [RPX — Robot Perception
 X](https://github.com/IRVLUTD/RPX), a unified real-world RGB-D
@@ -26,29 +44,103 @@ references (via HuggingFace), load the model, run inference with a
 live progress bar, print an ESD-weighted phase-score table, measure
 FLOPs and median latency, and write `result.json` + `summary.md`.
 
-No Python code required.
+**No Python code required.**
+
+## ✨ At a glance
+
+| | |
+|---|---|
+| 🎯 **9 of 10 tasks** | runnable end-to-end (only `object_tracking` deferred) |
+| 🔌 **3 BYO-model paths** | zero-code HF checkpoint · plain numpy callable · custom adapter stack |
+| 📊 **10 metric calculators** | AbsRel, mIoU, F1, MOTA, PSNR/SSIM, geodesic pose error, keypoint accuracy, … |
+| 🧩 **Plugin registries** | adding a task / metric / model is a **one-file** change |
+| 🏎️ **Deployment-readiness** | ESD-weighted phase score, STR, temporal stability, FLOPs, median latency |
+| 🧪 **138-test suite** | runs in ~1 s offline (no torch, no HF, no GPU required) |
+| 🚫 **Strict exception hygiene** | every failure is an `RPXError` subclass with a `hint` |
+| 🎨 **Claude-Code-style UI** | rich gradient banner, live progress, coloured tables |
+| 📚 **Auto-generated docs** | MkDocs + mkdocstrings reads numpydoc; zero separate rewrite |
+| ⚙️ **Full CI** | pytest matrix on 3.10/3.11/3.12 + ruff + docs deploy to GitHub Pages |
+
+<details>
+<summary><b>Terminal preview</b> — every <code>rpx</code> command opens with a Claude-Code-style banner</summary>
+
+```text
+┏━ ◆ RPX Benchmark ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                                                              ┃
+┃   ██████╗ ██████╗ ██╗  ██╗                                                   ┃
+┃   ██╔══██╗██╔══██╗╚██╗██╔╝                                                   ┃
+┃   ██████╔╝██████╔╝ ╚███╔╝                                                    ┃
+┃   ██╔══██╗██╔═══╝  ██╔██╗                                                    ┃
+┃   ██║  ██║██║     ██╔╝ ██╗                                                   ┃
+┃   ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝                                                   ┃
+┃                                                                              ┃
+┃   🤖 Robot Perception X    v0.1.0   MIT                                      ┃
+┃   ✨ Choose and rank perception models for robot learning                    ┃
+┃      Bring your model — we bring the dataset, splits, metrics, and tables.   ┃
+┃      ⚡ rpx bench monocular_depth                                            ┃
+┃                                                                              ┃
+┃   📖 docs    https://irvlutd.github.io/RPX/                                  ┃
+┃   ⭐ source  https://github.com/IRVLUTD/RPX                                  ┃
+┃                                                                              ┃
+┃       TASK  monocular_depth    SPLIT  hard    DEVICE  cuda                   ┃
+┃                                                                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ · robot perception · benchmarked · ━┛
+```
+
+In a real terminal the logo is rendered in a true-colour gradient
+from electric cyan to coral, with coloured pill badges for the
+context line. Fallback to plain ASCII when `rich` is unavailable.
+
+</details>
+
+## 👥 Who this is for
+
+- **Robot-learning researchers** comparing vision backbones (Depth Anything V2, UniDepth, Metric3D, Depth Pro, ZoeDepth, SAM2, Mask2Former, …) on the same dataset under identical conditions.
+- **Perception model authors** who want a production-grade evaluation harness that "just works" on real-world RGB-D data instead of writing yet another hand-rolled loader.
+- **Teams standing up a new benchmark** — RPX's plugin architecture is a clean reference for datasets, splits, metrics, adapters, and deployment-readiness scoring.
+
+## 📚 Table of contents
+
+<table>
+<tr>
+<td valign="top">
+
+**Getting started**
+- [✨ At a glance](#-at-a-glance)
+- [👥 Who this is for](#-who-this-is-for)
+- [🧠 What RPX is](#-what-rpx-is)
+- [⚡ 60-second quickstart](#-60-second-quickstart)
+- [📦 Installation](#-installation)
+
+**Using the toolkit**
+- [🔌 Bring your own model](#-bring-your-own-model--three-paths)
+- [🎯 Available tasks](#-available-tasks)
+- [🤖 Available models](#-available-models)
+- [💾 Dataset access](#-dataset-access)
+- [📈 What a run produces](#-what-a-run-produces)
+
+</td>
+<td valign="top">
+
+**Reference**
+- [🧩 Extending the toolkit](#-extending-the-toolkit)
+- [🛠️ CLI reference](#-cli-reference)
+- [🎨 Terminal banner](#-terminal-banner)
+- [🩹 Troubleshooting](#-troubleshooting)
+- [📖 Documentation site](#-documentation-site)
+
+**Community**
+- [🧪 Contributing](#-contributing)
+- [📄 Citation](#-citation)
+- [⚖️ License](#-license)
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Table of contents
-
-- [What RPX is](#what-rpx-is)
-- [60-second quickstart](#60-second-quickstart)
-- [Installation](#installation)
-- [Bring your own model — three paths](#bring-your-own-model--three-paths)
-- [Available tasks](#available-tasks)
-- [Available models](#available-models)
-- [Dataset access](#dataset-access)
-- [What a run produces](#what-a-run-produces)
-- [Extending the toolkit](#extending-the-toolkit)
-- [CLI reference](#cli-reference)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
-- [Citation](#citation)
-
----
-
-## What RPX is
+## 🧠 What RPX is
 
 - **75,000 frames** across 100 indoor scenes, captured with an Intel
   RealSense D435 (RGB-D) + T265 (6-DoF VIO) rig.
@@ -68,7 +160,7 @@ No Python code required.
 
 ---
 
-## 60-second quickstart
+## ⚡ 60-second quickstart
 
 ```bash
 # 1. Install (core + dataset download + depth slate + pretty terminal)
@@ -96,7 +188,7 @@ Output lives in `./rpx_results/<model>/<split>/{result.json, summary.md}`.
 
 ---
 
-## Installation
+## 📦 Installation
 
 ### Stable
 
@@ -135,7 +227,7 @@ pip install 'unidepth @ git+https://github.com/lpiccinelli-eth/UniDepth.git'
 
 ---
 
-## Bring your own model — three paths
+## 🔌 Bring your own model — three paths
 
 The toolkit is built around **two adapters and a model**:
 
@@ -220,30 +312,51 @@ letterbox pattern).
 
 ---
 
-## Available tasks
+## 🎯 Available tasks
 
-| Task | Primary metric | Modalities | Status |
-|---|---|---|---|
-| `monocular_depth` | AbsRel (↓) | rgb, depth | ✅ Runnable |
-| `object_segmentation` | mIoU (↑) | rgb, mask | ✅ Runnable |
-| `object_detection` | F1 (↑) | rgb, boxes | 🟡 Metrics only |
-| `open_vocab_detection` | F1 (↑) | rgb, boxes, questionnaires | 🟡 Metrics only |
-| `object_tracking` | MOTA (↑) | rgb, tracklets | 🟡 Metrics only |
-| `visual_grounding` | grounding_acc (↑) | rgb, spatial_qa | 🟡 Metrics only |
-| `relative_camera_pose` | rotation_err (↓) | rgb (pair), pose | 🟡 Metrics only |
-| `sparse_depth` | sparse_absrel (↓) | rgb, depth, sparse samples | 🟡 Metrics only |
-| `novel_view_synthesis` | psnr (↑) | rgb (src+tgt), depth, pose | 🟡 Metrics only |
-| `keypoint_matching` | keypoint_acc (↑) | rgb (pair), keypoints | 🟡 Metrics only |
+Every task ships the full stack: **dataset + split slicing, metrics,
+loaders, numpy adapter, CLI subcommand**. The only thing you bring
+is the model.
 
-"Runnable" = full CLI pipeline (`rpx bench <task>`). "Metrics only" =
-the metric calculators + ground-truth loaders are in place and tested;
-the task runner is a 1-file clone away.
+| Task | Primary metric | Modalities | BYO-model fast path | Status |
+|---|---|---|---|---|
+| `monocular_depth` | AbsRel (↓) | rgb, depth | `make_numpy_depth_model` + `make_hf_depth_model` | ✅ Runnable |
+| `object_segmentation` | mIoU (↑) | rgb, mask | `make_numpy_mask_model` + `make_hf_instance_seg_model` | ✅ Runnable |
+| `object_detection` | F1 (↑) | rgb, boxes | `make_numpy_detection_model` | ✅ Runnable |
+| `open_vocab_detection` | F1 (↑) | rgb, boxes, questionnaires | `make_numpy_detection_model(..., task=OPEN_VOCAB_DETECTION)` | ✅ Runnable |
+| `visual_grounding` | grounding_acc (↑) | rgb, spatial_qa | `make_numpy_grounding_model` | ✅ Runnable |
+| `relative_camera_pose` | rotation_err (↓) | rgb (pair), pose | `make_numpy_pose_model` | ✅ Runnable |
+| `keypoint_matching` | keypoint_acc (↑) | rgb (pair), keypoints | `make_numpy_keypoint_model` | ✅ Runnable |
+| `sparse_depth` | sparse_absrel (↓) | rgb, depth, sparse samples | `make_numpy_sparse_depth_model` | ✅ Runnable |
+| `novel_view_synthesis` | psnr (↑) | rgb (src+tgt), depth, pose | `make_numpy_nvs_model` | ✅ Runnable |
+| `object_tracking` | MOTA (↑) | rgb, tracklets | — | ⚠ Deferred (sequence protocol) |
 
-Run `rpx ls` for the live list.
+**9 of 10 tasks are runnable end-to-end.** Tracking is deferred
+because the sample contract (sequence-per-sample vs per-frame) needs
+a protocol decision before a task runner can be cloned. Every other
+task has a full CLI subcommand (`rpx bench <task> …`), a numpy
+fast-path factory for zero-ceremony BYO-model evaluation, and end-
+to-end tests against a synthetic dataset fixture.
+
+Run `rpx ls` for the live list; `rpx bench --help` for all nine
+subcommands the CLI auto-generates from the task registry.
+
+### BYO-model callable signatures
+
+| Task | Callable signature | Returns |
+|---|---|---|
+| `monocular_depth` | `fn(rgb_uint8)` | `(H, W) float` metric depth (metres) |
+| `object_segmentation` | `fn(rgb_uint8)` | `(H, W) int` instance mask |
+| `object_detection` | `fn(rgb_uint8)` | `{"boxes", "scores", "labels"}` or `(boxes, scores, labels)` |
+| `visual_grounding` | `fn(rgb_uint8, text)` | `{"boxes", "scores"}` or `(boxes, scores)` |
+| `relative_camera_pose` | `fn(rgb_a, rgb_b)` | `{"rotation", "translation"}` |
+| `keypoint_matching` | `fn(rgb_a, rgb_b)` | `(points0, points1[, scores])` |
+| `sparse_depth` | `fn(rgb_uint8, coords)` | `(N,) float` depths at the provided coordinates |
+| `novel_view_synthesis` | `fn(rgb_src, target_pose_4x4)` | `(H, W, 3) uint8` synthesised RGB |
 
 ---
 
-## Available models
+## 🤖 Available models
 
 First-round slate scoped to robot-learning backbones. Run `rpx models`
 to see the live state.
@@ -278,7 +391,7 @@ kwargs it accepts.
 
 ---
 
-## Dataset access
+## 💾 Dataset access
 
 The toolkit pulls dataset slices from HuggingFace on demand. The
 downloader is **task-aware**: it only fetches the modalities your
@@ -332,7 +445,7 @@ byte-for-byte file as in Easy. Nothing is duplicated server-side.
 
 ---
 
-## What a run produces
+## 📈 What a run produces
 
 Every `rpx bench <task>` invocation writes two files under
 `./rpx_results/<model>/<split>/`:
@@ -362,7 +475,7 @@ CI logs, plain ssh, etc.).
 
 ---
 
-## Extending the toolkit
+## 🧩 Extending the toolkit
 
 The toolkit is built around **three plugin registries**: models,
 metrics, tasks. Adding a new entry to any of them is a **one-file
@@ -447,7 +560,7 @@ example.
 
 ---
 
-## CLI reference
+## 🛠️ CLI reference
 
 ```text
 rpx [--verbose/--quiet] <command> [flags]
@@ -478,7 +591,7 @@ telling the user exactly what to fix.
 
 ---
 
-## Terminal banner
+## 🎨 Terminal banner
 
 Every long-running RPX operation (CLI subcommands and the data-prep
 scripts under [`scripts/`](scripts/)) prints a Claude-Code-style
@@ -529,7 +642,7 @@ codes.
 
 ---
 
-## Troubleshooting
+## 🩹 Troubleshooting
 
 **`CUDA requested but torch.cuda.is_available() is False`**
 The CLI auto-falls-back to CPU with a warning. If you want strict
@@ -557,7 +670,7 @@ Pass `--plain` to `rpx bench` or set `TERM=dumb`.
 
 ---
 
-## Documentation site
+## 📖 Documentation site
 
 The full API reference is generated automatically from the docstrings
 in the source tree — no separate rewrite needed.
@@ -587,18 +700,18 @@ To enable it once:
 
 The tests workflow at
 [`.github/workflows/tests.yml`](../.github/workflows/tests.yml) runs
-the 120-test offline suite on Python 3.10 / 3.11 / 3.12 and a ruff
+the 138-test offline suite on Python 3.10 / 3.11 / 3.12 and a ruff
 check on every push and pull request.
 
 ---
 
-## Contributing
+## 🧪 Contributing
 
 ```bash
 git clone https://github.com/IRVLUTD/RPX.git
 cd RPX/benchmark
 pip install -e '.[depth,dev,docs]'
-pytest tests/                      # 128 tests in ~1 s
+pytest tests/                      # 138 tests in ~1 s
 ```
 
 ### ⚠ Always use an editable install while developing
@@ -637,7 +750,7 @@ verification in a disposable virtualenv.
 
 ---
 
-## Citation
+## 📄 Citation
 
 If you use this toolkit or the RPX dataset in your work, please cite
 the accompanying NeurIPS 2026 Datasets and Benchmarks paper. The full
@@ -646,7 +759,7 @@ released.
 
 ---
 
-## License
+## ⚖️ License
 
 - Benchmark toolkit (this repository): **MIT**
 - RPX dataset: **CC BY 4.0**

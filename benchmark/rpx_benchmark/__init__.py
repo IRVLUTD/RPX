@@ -84,13 +84,32 @@ from .adapters import (
     OutputAdapter,
     PreparedInput,
     make_numpy_depth_model,
+    make_numpy_detection_model,
+    make_numpy_grounding_model,
+    make_numpy_keypoint_model,
     make_numpy_mask_model,
+    make_numpy_nvs_model,
+    make_numpy_pose_model,
+    make_numpy_sparse_depth_model,
 )
 from .adapters.depth_hf import make_hf_depth_model
 from .adapters.seg_hf import make_hf_instance_seg_model
 from .models.registry import available_models, get_factory, resolve
 from .tasks.monocular_depth import MonocularDepthRunConfig, run_monocular_depth
 from .tasks.segmentation import SegmentationRunConfig, run_segmentation
+from .tasks.detection import (
+    ObjectDetectionRunConfig,
+    run_object_detection,
+    run_open_vocab_detection,
+)
+from .tasks.visual_grounding import VisualGroundingRunConfig, run_visual_grounding
+from .tasks.relative_pose import RelativePoseRunConfig, run_relative_pose
+from .tasks.keypoint_matching import KeypointMatchingRunConfig, run_keypoint_matching
+from .tasks.sparse_depth import SparseDepthRunConfig, run_sparse_depth
+from .tasks.novel_view_synthesis import (
+    NovelViewSynthesisRunConfig,
+    run_novel_view_synthesis,
+)
 from .reports import format_markdown_summary, write_json
 
 __all__ = [
@@ -159,7 +178,13 @@ __all__ = [
     "OutputAdapter",
     "PreparedInput",
     "make_numpy_depth_model",
+    "make_numpy_detection_model",
+    "make_numpy_grounding_model",
+    "make_numpy_keypoint_model",
     "make_numpy_mask_model",
+    "make_numpy_nvs_model",
+    "make_numpy_pose_model",
+    "make_numpy_sparse_depth_model",
     "make_hf_depth_model",
     "make_hf_instance_seg_model",
     "available_models",
@@ -170,6 +195,19 @@ __all__ = [
     "run_monocular_depth",
     "SegmentationRunConfig",
     "run_segmentation",
+    "ObjectDetectionRunConfig",
+    "run_object_detection",
+    "run_open_vocab_detection",
+    "VisualGroundingRunConfig",
+    "run_visual_grounding",
+    "RelativePoseRunConfig",
+    "run_relative_pose",
+    "KeypointMatchingRunConfig",
+    "run_keypoint_matching",
+    "SparseDepthRunConfig",
+    "run_sparse_depth",
+    "NovelViewSynthesisRunConfig",
+    "run_novel_view_synthesis",
     "format_markdown_summary",
     "write_json",
     # Exceptions
