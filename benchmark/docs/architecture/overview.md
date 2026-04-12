@@ -4,6 +4,15 @@ The toolkit separates **what stays fixed** (the benchmark itself) from
 **what varies** (the model under test). This page is the map of the
 moving parts.
 
+!!! info "Framework vs reference"
+    The framework surface (loader, schemas, adapter protocols, metric
+    and task registries, runner, profiler) lives in the top-level
+    `rpx_benchmark` namespace. Concrete adapters and model factories
+    for popular backbones live under `rpx_benchmark.reference.{adapters,
+    models}` and depend on heavy optional extras (torch, transformers,
+    UniDepth, Metric3D). The separation makes the "bring your model,
+    we bring the harness" contract explicit.
+
 ## Layers
 
 ```text
@@ -25,7 +34,10 @@ moving parts.
 │  Runner  (rpx_benchmark.runner.BenchmarkRunner)             │
 │  ├── iterates the dataset                                   │
 │  ├── wraps first batch in FlopCounterMode for FLOPs         │
-│  ├── records per-sample latency (median, skip warmup)       │
+│  ├── latency percentiles (p50/p95/p99) via LatencyProfiler  │
+│  ├── peak memory (CPU/CUDA/MPS) via MemoryProfiler          │
+│  ├── dispatches temporal-stability / geometric-coherence    │
+│  │   via TaskSpec hooks (no task-branching in the runner)   │
 │  ├── attaches per-sample metadata (id/phase/difficulty)     │
 │  └── builds DeploymentReadinessReport                       │
 └─────────────────────────────────────────────────────────────┘
@@ -36,6 +48,53 @@ moving parts.
 │   framework)    │  │   calculators)      │  │   + HF download) │
 └─────────────────┘  └─────────────────────┘  └──────────────────┘
 ```
+
+## Manifest validation
+
+Manifests are loaded through two tiers:
+
+| Tier | Module | Speed | Errors |
+|---|---|---|---|
+| Default | `rpx_benchmark.loader` | Fastest; tolerant | Coarse: `ManifestError` with a single message |
+| Strict (opt-in) | `rpx_benchmark.schemas` | ~5ms per 1k samples; requires `pydantic` | Field-level: `error.details["pydantic_errors"]` with `loc` tuples |
+
+Opt into strict mode with `RPXDataset.from_manifest(..., validate=True)`
+or by calling `schemas.validate_manifest(...)` directly. The schema
+module also exports `schemas.dump_json_schema(task?)` for third-party
+tooling. See [`api/schemas`](../api/schemas.md) for the full surface.
+
+## Deployment-readiness hooks
+
+The runner computes Temporal Stability (TS) and Stack Geometric
+Coherence (SGC) by looking up two optional callables on the active
+`TaskSpec`:
+
+| Hook | Signature | Who ships a default |
+|---|---|---|
+| `TaskSpec.temporal_stability_fn` | `(predictions, samples, camera_poses) -> TemporalStabilityResult \| None` | `monocular_depth`, `object_segmentation` |
+| `TaskSpec.geometric_coherence_fn` | `(predictions, samples) -> StackGeometricCoherenceResult \| None` | `object_segmentation` |
+
+Tasks that don't register a hook skip the corresponding computation —
+the runner never branches on task identity. To add a new
+deployment-readiness metric for your task, set the callable on your
+`TaskSpec` at construction time; no runner change needed.
+
+## Profiling
+
+Two hardware-agnostic profilers are instantiated per
+`run_with_deployment_readiness` call:
+
+- `LatencyProfiler(warmup=1)` — accumulates per-sample timings and
+  reports `p50`, `p95`, `p99`, and `mean` in milliseconds, trimming
+  warmup samples.
+- `MemoryProfiler()` — samples CPU RSS (via `psutil` or POSIX
+  `resource`), CUDA peak allocated memory (`torch.cuda`), and MPS
+  current allocated memory (`torch.mps`). Each backend returns
+  `None` when the corresponding runtime is unavailable; nothing is
+  required to be installed.
+
+Both profilers feed into `EfficiencyMetadata` and the
+`DeploymentReadinessReport` alongside parameter count and FLOPs.
 
 ## Plugin registries
 

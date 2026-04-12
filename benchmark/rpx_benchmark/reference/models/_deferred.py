@@ -11,7 +11,7 @@ constraints are addressed.
 
 from __future__ import annotations
 
-from ..adapters import BenchmarkableModel
+from ...adapters import BenchmarkableModel
 
 
 def _deferred(name: str, reason: str) -> BenchmarkableModel:

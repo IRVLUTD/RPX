@@ -12,7 +12,7 @@ from typing import Optional
 
 import numpy as np
 
-from ..adapters import BenchmarkableModel
+from ...adapters import BenchmarkableModel
 from ..adapters.depth_unidepth import make_unidepth_v2_model
 
 

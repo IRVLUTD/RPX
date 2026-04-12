@@ -10,9 +10,9 @@ Task coverage status:
 - Runnable end-to-end: monocular_depth, object_segmentation,
   object_detection + open_vocab_detection, visual_grounding,
   relative_camera_pose, keypoint_matching, sparse_depth,
-  novel_view_synthesis.
-- Deferred: object_tracking (needs a sequence-per-sample protocol
-  decision).
+  novel_view_synthesis, object_tracking (per-frame MOTA+IDF1).
+- Scene-level HOTA for object_tracking lands once the M3
+  temporal-metric generalisation is in.
 """
 
 from .monocular_depth import (
@@ -57,6 +57,11 @@ from .novel_view_synthesis import (
     TASK_SPEC as NOVEL_VIEW_SYNTHESIS_SPEC,
     run_novel_view_synthesis,
 )
+from .tracking import (
+    ObjectTrackingRunConfig,
+    TASK_SPEC as OBJECT_TRACKING_SPEC,
+    run_object_tracking,
+)
 from ._pipeline import PipelineResult, TaskRunConfig, run_pipeline
 from .registry import (
     TaskRunResult,
@@ -78,6 +83,7 @@ __all__ = [
     "KeypointMatchingRunConfig",
     "SparseDepthRunConfig",
     "NovelViewSynthesisRunConfig",
+    "ObjectTrackingRunConfig",
     # Task runners — entry-points
     "run_monocular_depth",
     "run_segmentation",
@@ -88,6 +94,7 @@ __all__ = [
     "run_keypoint_matching",
     "run_sparse_depth",
     "run_novel_view_synthesis",
+    "run_object_tracking",
     # Task specs (exposed so callers can introspect)
     "MONOCULAR_DEPTH_SPEC",
     "SEGMENTATION_SPEC",
@@ -98,6 +105,7 @@ __all__ = [
     "KEYPOINT_MATCHING_SPEC",
     "SPARSE_DEPTH_SPEC",
     "NOVEL_VIEW_SYNTHESIS_SPEC",
+    "OBJECT_TRACKING_SPEC",
     # Shared helpers
     "TaskRunConfig",
     "PipelineResult",

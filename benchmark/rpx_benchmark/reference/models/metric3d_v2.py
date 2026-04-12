@@ -6,7 +6,7 @@ All variants use the same canonical-focal letterbox pipeline; only the
 
 from __future__ import annotations
 
-from ..adapters import BenchmarkableModel
+from ...adapters import BenchmarkableModel
 from ..adapters.depth_metric3d import make_metric3d_v2_model
 
 

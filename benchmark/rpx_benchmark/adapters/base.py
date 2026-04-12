@@ -34,6 +34,8 @@ from ..api import (
     SegmentationPrediction,
     SparseDepthPrediction,
     TaskType,
+    Tracklet,
+    TrackletPrediction,
     VisualGroundingPrediction,
 )
 from ..exceptions import AdapterError
@@ -133,7 +135,7 @@ class BenchmarkableModel(BenchmarkModel):
 
     Example — wrap a HuggingFace depth model::
 
-        from rpx_benchmark.adapters.depth_hf import make_hf_depth_model
+        from rpx_benchmark.reference.adapters.depth_hf import make_hf_depth_model
         bm = make_hf_depth_model(
             "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf",
             device="cuda",
@@ -863,5 +865,131 @@ def make_numpy_keypoint_model(
         model=fn,
         output_adapter=_NumpyKeypointOutput(),
         invoker=_keypoint_invoker,
+        name=name,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Object tracking — fn(rgb) -> [{track_id, boxes, scores?}, ...]
+# --------------------------------------------------------------------------- #
+
+class _NumpyTrackingInput:
+    """Tracking input: a single RGB frame per step.
+
+    Per-frame tracking protocol: the model is handed one frame and
+    must return the *currently active* tracks with a persistent
+    ``track_id`` per track. The surrounding benchmark pipeline is
+    responsible for accumulating tracks into a full :class:`Tracklet`
+    set at scene boundaries.
+    """
+
+    def prepare(self, sample: Sample) -> PreparedInput:
+        rgb = np.asarray(sample.rgb, dtype=np.uint8)
+        return PreparedInput(
+            payload={"rgb": rgb},
+            context={"target_hw": rgb.shape[:2], "sample_id": sample.id},
+        )
+
+
+class _NumpyTrackingOutput:
+    def finalize(
+        self,
+        model_output: Any,
+        context: Dict[str, Any],
+        sample: Sample,
+    ) -> TrackletPrediction:
+        tracks = _coerce_tracking_output(model_output)
+        return TrackletPrediction(tracks=tracks)
+
+
+def _coerce_tracking_output(model_output: Any) -> list[Tracklet]:
+    """Accept a variety of tracking return shapes; normalise to Tracklets.
+
+    Supported shapes:
+        * ``TrackletPrediction(tracks=[...])`` — returned verbatim.
+        * ``[Tracklet, ...]`` — returned verbatim.
+        * ``[{"track_id": str, "boxes": (T, 4), "scores"?: (T,)}, ...]``
+        * ``{"tracks": [as above]}`` — unwrapped.
+    """
+    if isinstance(model_output, TrackletPrediction):
+        return list(model_output.tracks)
+    if isinstance(model_output, dict) and "tracks" in model_output:
+        model_output = model_output["tracks"]
+    if not isinstance(model_output, Sequence):
+        raise AdapterError(
+            "Tracking model must return a sequence of tracks or a "
+            "TrackletPrediction.",
+            hint="Return either [Tracklet, ...] or "
+                 "[{'track_id': str, 'boxes': (T,4) array, ...}, ...].",
+        )
+    tracks: list[Tracklet] = []
+    for item in model_output:
+        if isinstance(item, Tracklet):
+            tracks.append(item)
+            continue
+        if not isinstance(item, dict):
+            raise AdapterError(
+                f"Tracking output entries must be Tracklet or dict, got "
+                f"{type(item).__name__}.",
+            )
+        try:
+            boxes = np.asarray(item["boxes"], dtype=np.float32).reshape(-1, 4)
+        except (KeyError, ValueError) as e:
+            raise AdapterError(
+                f"Tracklet dict is missing / malformed 'boxes': {e}",
+                hint="Boxes must be a (T, 4) array of [x1,y1,x2,y2] floats.",
+            ) from e
+        scores_raw = item.get("scores")
+        scores = (
+            np.asarray(scores_raw, dtype=np.float32).reshape(-1)
+            if scores_raw is not None else None
+        )
+        tracks.append(
+            Tracklet(
+                track_id=str(item.get("track_id", f"t{len(tracks)}")),
+                boxes=boxes,
+                scores=scores,
+            )
+        )
+    return tracks
+
+
+def _tracking_invoker(model: Any, payload: Dict[str, Any]) -> Any:
+    return model(payload["rgb"])
+
+
+def make_numpy_tracking_model(
+    fn: Callable[[np.ndarray], Any],
+    *,
+    name: str = "numpy_tracking_model",
+) -> BenchmarkableModel:
+    """Wrap a per-frame tracking callable as a :class:`BenchmarkableModel`.
+
+    The callable takes a single ``rgb`` ``H×W×3 uint8`` frame and
+    returns the active tracks. Accepted return shapes (see
+    :func:`_coerce_tracking_output`):
+
+    - ``TrackletPrediction``
+    - list of :class:`Tracklet`
+    - list of ``{"track_id": str, "boxes": (T, 4), "scores"?: (T,)}``
+    - ``{"tracks": [as above]}``
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import rpx_benchmark as rpx
+    >>> def my_tracker(rgb):
+    ...     return [{
+    ...         "track_id": "obj_0",
+    ...         "boxes": np.array([[10, 10, 50, 50]], dtype=np.float32),
+    ...     }]
+    >>> bm = rpx.make_numpy_tracking_model(my_tracker)
+    """
+    return BenchmarkableModel(
+        task=TaskType.OBJECT_TRACKING,
+        input_adapter=_NumpyTrackingInput(),
+        model=fn,
+        output_adapter=_NumpyTrackingOutput(),
+        invoker=_tracking_invoker,
         name=name,
     )

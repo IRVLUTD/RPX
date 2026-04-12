@@ -74,10 +74,20 @@ FLOPs and median latency, and writes `result.json` + `summary.md`.
   performance deltas mean something.
 - **Effort-Stratified Difficulty (ESD) splits** per `(scene, phase)` —
   Easy / Medium / Hard derived from real annotation effort.
-- **Ten benchmark tasks** on identical scenes: monocular absolute
-  depth, object segmentation, object tracking, object detection,
-  open-vocab detection, visual grounding, sparse depth, relative
-  camera pose, novel view synthesis, keypoint matching.
+- **Ten benchmark tasks** on identical scenes:
+
+    | Task | Primary metric | Numpy fast path | HF extra |
+    |---|---|---|---|
+    | Monocular depth | RMSE | `make_numpy_depth_model` | `[depth-hf]` |
+    | Object segmentation | mIoU | `make_numpy_mask_model` | `[depth-hf]` |
+    | Object detection | mAP | `make_numpy_detection_model` | — |
+    | Open-vocab detection | mAP | `make_numpy_detection_model` | — |
+    | Object tracking | MOTA / IDF1 | `make_numpy_tracking_model` | — |
+    | Visual grounding | grounding acc. | `make_numpy_grounding_model` | — |
+    | Relative camera pose | rot. / trans. err. | `make_numpy_pose_model` | — |
+    | Sparse depth | RMSE | `make_numpy_sparse_depth_model` | — |
+    | Novel view synthesis | PSNR / SSIM | `make_numpy_nvs_model` | — |
+    | Keypoint matching | acc. @ 3 px | `make_numpy_keypoint_model` | — |
 - **Scoped first-class around models used as backbones in robot
   learning**, not generic perception SOTA.
 

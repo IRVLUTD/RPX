@@ -109,6 +109,7 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
+      - Load the Dataset: getting-started/load-the-dataset.md
       - Bring Your Own Model: getting-started/bring-your-own-model.md
   - Architecture:
       - Overview: architecture/overview.md
@@ -120,6 +121,13 @@ nav:
       - Adding a Metric: guides/adding-a-metric.md
       - Adding a Model: guides/adding-a-model.md
       - Extending the Loader: guides/extending-the-loader.md
+      - Contributing: guides/contributing.md
+  - Reference Models:
+      - Overview: reference/index.md
+      - HF depth adapter: reference/adapters-depth-hf.md
+      - UniDepth V2 adapter: reference/adapters-depth-unidepth.md
+      - Metric3D V2 adapter: reference/adapters-depth-metric3d.md
+      - HF segmentation adapter: reference/adapters-seg-hf.md
   - API Reference:
       - Top-level package: api/package.md
       - Core types (api.py): api/core.md
@@ -128,6 +136,7 @@ nav:
       - Tasks: api/tasks.md
       - Runner: api/runner.md
       - Loader: api/loader.md
+      - Schemas: api/schemas.md
       - Hub: api/hub.md
       - Exceptions: api/exceptions.md
       - Logging: api/logging.md
@@ -135,6 +144,7 @@ nav:
       - Deployment metrics: api/deployment.md
       - Models registry: api/models.md
       - Profiler: api/profiler.md
+      - Determinism: api/determinism.md
       - UI: api/ui.md
 
 extra:

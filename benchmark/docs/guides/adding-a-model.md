@@ -11,7 +11,7 @@ The shortest possible factory:
 
 ```python
 # rpx_benchmark/models/my_depth.py
-from ..adapters.depth_hf import make_hf_depth_model
+from ..reference.adapters.depth_hf import make_hf_depth_model
 
 
 def my_depth_large(*, device="cuda", **kwargs):
@@ -36,7 +36,7 @@ my_depth_large`, and `rpx models` lists the new entry.
 ## Case 2 — Another HuggingFace segmentation checkpoint
 
 ```python
-from ..adapters.seg_hf import make_hf_instance_seg_model
+from ..reference.adapters.seg_hf import make_hf_instance_seg_model
 
 
 def my_segmentor(*, device="cuda", **kwargs):

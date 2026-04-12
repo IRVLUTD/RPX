@@ -117,7 +117,12 @@ class RPXDataset:
     batch_size: int = 1
 
     @classmethod
-    def from_manifest(cls, manifest_path: str | Path, batch_size: int = 1) -> "RPXDataset":
+    def from_manifest(
+        cls,
+        manifest_path: str | Path,
+        batch_size: int = 1,
+        validate: bool = False,
+    ) -> "RPXDataset":
         """Load a manifest JSON file from disk and return a dataset.
 
         Parameters
@@ -128,6 +133,12 @@ class RPXDataset:
             upload script.
         batch_size : int
             Number of samples per iteration. Default 1.
+        validate : bool, optional
+            When ``True``, validate the manifest against the strict
+            Pydantic schema in :mod:`rpx_benchmark.schemas` before
+            constructing the dataset. Requires the ``schemas`` extra
+            (``pip install 'rpx-benchmark[schemas]'``). Default
+            ``False`` preserves historical, tolerant behaviour.
 
         Returns
         -------
@@ -136,8 +147,9 @@ class RPXDataset:
         Raises
         ------
         ManifestError
-            If the manifest file is missing, not valid JSON, or is
-            missing required top-level fields.
+            If the manifest file is missing, not valid JSON, is missing
+            required top-level fields, or (when ``validate=True``)
+            fails strict schema validation.
         """
         manifest_path = Path(manifest_path)
         if not manifest_path.is_file():
@@ -154,7 +166,10 @@ class RPXDataset:
                 f"Manifest at {manifest_path} is not valid JSON: {e}",
             ) from e
         return cls.from_dict(
-            manifest, batch_size=batch_size, default_root=manifest_path.parent
+            manifest,
+            batch_size=batch_size,
+            default_root=manifest_path.parent,
+            validate=validate,
         )
 
     @classmethod
@@ -163,6 +178,7 @@ class RPXDataset:
         manifest: Dict[str, Any],
         batch_size: int = 1,
         default_root: str | Path | None = None,
+        validate: bool = False,
     ) -> "RPXDataset":
         """Build a dataset from an already-parsed manifest dict.
 
@@ -170,8 +186,18 @@ class RPXDataset:
         ------
         ManifestError
             If ``task`` is missing or unknown, or if ``samples`` is
-            missing.
+            missing. When ``validate=True``, any Pydantic validation
+            error is also surfaced as :class:`ManifestError`.
         """
+        if validate:
+            # Opt-in strict validation via rpx_benchmark.schemas. Kept
+            # lazy so users who don't install the ``schemas`` extra
+            # don't hit pydantic import at module load time.
+            from .schemas import validate_manifest  # noqa: PLC0415 — lazy import
+
+            model = validate_manifest(manifest)
+            manifest = model.model_dump(exclude_none=True)
+
         if "task" not in manifest:
             raise ManifestError(
                 "Manifest is missing required field 'task'.",
@@ -201,6 +227,56 @@ class RPXDataset:
         log.debug("loaded manifest: task=%s root=%s samples=%d",
                   task.value, root, len(samples))
         return cls(samples=samples, task=task, root=root, batch_size=batch_size)
+
+    @classmethod
+    def from_hf(
+        cls,
+        hf_dataset: Any,
+        task: TaskType | str | None = None,
+        batch_size: int = 1,
+    ) -> Any:
+        """Wrap a ``datasets.Dataset`` as an iterable RPX source.
+
+        Returns a :class:`rpx_benchmark.data.hf_bridge.RPXHFBridge`
+        which is interchangeable with :class:`RPXDataset` at the
+        runner's consumer interface (``__len__`` + ``__iter__`` over
+        ``list[Sample]``).
+
+        Parameters
+        ----------
+        hf_dataset : datasets.Dataset
+            Dataset whose columns match
+            :func:`rpx_benchmark.data.features.features_for_task`.
+        task : TaskType or str, optional
+            Task this dataset serves. If omitted, we try to infer it
+            from ``hf_dataset.info.description`` (where
+            :func:`rpx_benchmark.data.load_hf` stamps it).
+        batch_size : int, default 1
+
+        Returns
+        -------
+        RPXHFBridge
+
+        Raises
+        ------
+        ManifestError
+            If ``task`` is neither provided nor discoverable on the
+            dataset metadata.
+        """
+        from .data.hf_bridge import RPXHFBridge  # noqa: PLC0415 — lazy
+
+        if task is None:
+            info = getattr(hf_dataset, "info", None)
+            config = getattr(info, "config_name", None) if info is not None else None
+            if config is None:
+                raise ManifestError(
+                    "Could not infer task from the HF dataset; pass "
+                    "task=TaskType.* explicitly.",
+                )
+            task = TaskType(config)
+        if isinstance(task, str):
+            task = TaskType(task)
+        return RPXHFBridge(hf_dataset=hf_dataset, task=task, batch_size=batch_size)
 
     def __len__(self) -> int:
         return len(self.samples)

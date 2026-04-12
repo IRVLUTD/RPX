@@ -62,6 +62,20 @@ BuildConfigFn = Callable[[argparse.Namespace], Any]
 RunFn = Callable[[Any], TaskRunResult]
 AddCliArgsFn = Callable[[argparse.ArgumentParser], None]
 
+# Deployment-readiness hook signatures. Both accept the full list of
+# predictions / samples collected by the runner and return either a
+# result object or None (when the hook decides the computation does
+# not apply to this slice, e.g. SGC when no depth is available).
+#
+# Kept generic (``Any``) because the return types live under
+# :mod:`rpx_benchmark.deployment` and importing them here would create
+# a circular dependency (``deployment → api`` is fine; ``registry →
+# deployment → ... → registry`` must be avoided).
+TemporalStabilityFn = Callable[[List[Any], List[Any], List[Any]], Any]
+"""Signature: ``(predictions, samples, camera_poses) -> TemporalStabilityResult | None``."""
+GeometricCoherenceFn = Callable[[List[Any], List[Any]], Any]
+"""Signature: ``(predictions, samples) -> StackGeometricCoherenceResult | None``."""
+
 
 @dataclass
 class TaskSpec:
@@ -108,6 +122,23 @@ class TaskSpec:
     add_cli_arguments: AddCliArgsFn
     higher_is_better: bool = False
     description: str = ""
+    temporal_stability_fn: Optional[TemporalStabilityFn] = None
+    """Optional deployment-readiness hook: compute Temporal Stability.
+
+    When set, the benchmark runner invokes this callable with the full
+    per-sample ``(predictions, samples, camera_poses)`` lists after the
+    prediction loop. Returning ``None`` is equivalent to "not
+    applicable for this run" (e.g. < 2 samples). Depth and
+    segmentation task modules ship defaults; new tasks can add their
+    own without touching :mod:`rpx_benchmark.runner`.
+    """
+    geometric_coherence_fn: Optional[GeometricCoherenceFn] = None
+    """Optional deployment-readiness hook: compute Stack Geometric Coherence.
+
+    Symmetric to :attr:`temporal_stability_fn` — the runner calls it
+    with ``(predictions, samples)`` and expects a
+    :class:`StackGeometricCoherenceResult` or ``None``.
+    """
 
 
 _TASK_REGISTRY: Dict[TaskType, TaskSpec] = {}

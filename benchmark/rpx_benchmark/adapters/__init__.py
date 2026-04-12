@@ -27,6 +27,7 @@ from .base import (
     make_numpy_nvs_model,
     make_numpy_pose_model,
     make_numpy_sparse_depth_model,
+    make_numpy_tracking_model,
 )
 
 __all__ = [
@@ -45,4 +46,5 @@ __all__ = [
     "make_numpy_nvs_model",
     "make_numpy_pose_model",
     "make_numpy_sparse_depth_model",
+    "make_numpy_tracking_model",
 ]

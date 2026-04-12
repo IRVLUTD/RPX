@@ -284,7 +284,7 @@ where `fn(rgb) → int32 mask`.
 ```python
 from transformers import AutoImageProcessor, AutoModelForDepthEstimation
 import rpx_benchmark as rpx
-from rpx_benchmark.adapters.depth_hf import (
+from rpx_benchmark.reference.adapters.depth_hf import (
     HFDepthInputAdapter, HFDepthOutputAdapter,
 )
 
@@ -538,7 +538,7 @@ Write a factory that returns a `BenchmarkableModel`:
 
 ```python
 from rpx_benchmark.adapters import BenchmarkableModel
-from rpx_benchmark.adapters.depth_hf import make_hf_depth_model
+from rpx_benchmark.reference.adapters.depth_hf import make_hf_depth_model
 from rpx_benchmark.models.registry import register
 
 def my_new_depth_factory(*, device="cuda", **kwargs):
