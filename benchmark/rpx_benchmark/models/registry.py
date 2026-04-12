@@ -102,7 +102,16 @@ def get_factory(name: str) -> Callable[..., BenchmarkableModel]:
             ),
         )
     module_suffix, factory_name = MODEL_REGISTRY[name]
-    module = importlib.import_module(f"rpx_benchmark.models.{module_suffix}")
+    # Reference model factories live under ``rpx_benchmark.reference.models``.
+    # Third-party registrations using an absolute module path (containing a
+    # dot) are imported verbatim so callers can register factories in any
+    # package they control.
+    if "." in module_suffix:
+        module = importlib.import_module(module_suffix)
+    else:
+        module = importlib.import_module(
+            f"rpx_benchmark.reference.models.{module_suffix}"
+        )
     return getattr(module, factory_name)
 
 

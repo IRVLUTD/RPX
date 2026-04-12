@@ -58,7 +58,7 @@ def _resolve_model(cfg: SegmentationRunConfig) -> BenchmarkableModel:
         from ..models.registry import resolve
         log.info("resolving segmentation model %r from registry", cfg.model_name)
         return resolve(cfg.model_name, device=cfg.device, **cfg.model_kwargs)
-    from ..adapters.seg_hf import make_hf_instance_seg_model
+    from ..reference.adapters.seg_hf import make_hf_instance_seg_model
     log.info("resolving HF segmentation checkpoint %r", cfg.hf_checkpoint)
     return make_hf_instance_seg_model(
         cfg.hf_checkpoint, device=cfg.device, **cfg.model_kwargs,
@@ -125,6 +125,44 @@ def _build_config(args: argparse.Namespace) -> SegmentationRunConfig:
     )
 
 
+def _temporal_stability_hook(predictions, samples, camera_poses):
+    """Segmentation Temporal Stability hook.
+
+    Uses predicted instance masks; compatible with any segmentation
+    model whose ``finalize`` step returns a single-channel int mask.
+    """
+    from ..deployment import compute_temporal_stability_seg
+    masks = [p.mask for p in predictions]
+    return compute_temporal_stability_seg(masks, camera_poses)
+
+
+def _geometric_coherence_hook(predictions, samples):
+    """Stack Geometric Coherence hook for segmentation runs.
+
+    SGC requires paired mask + depth. We pull depth from
+    ``sample.metadata['depth_map']`` (the loader stashes it there when
+    the manifest's segmentation entry also references depth). Returns
+    ``None`` when fewer than one sample carries depth — the runner
+    interprets that as "not applicable".
+    """
+    import numpy as np
+
+    from ..deployment import compute_sgc
+
+    depth_maps = [
+        s.metadata.get("depth_map") if s.metadata else None
+        for s in samples
+    ]
+    valid = [
+        (p.mask, d) for p, d in zip(predictions, depth_maps) if d is not None
+    ]
+    if not valid:
+        return None
+    masks_sgc = [v[0] for v in valid]
+    depths_sgc = [np.asarray(v[1], dtype=np.float32) for v in valid]
+    return compute_sgc(masks_sgc, depths_sgc)
+
+
 TASK_SPEC = TaskSpec(
     task=TaskType.OBJECT_SEGMENTATION,
     display_name="Object Segmentation",
@@ -139,6 +177,8 @@ TASK_SPEC = TaskSpec(
     build_config=_build_config,
     run=run_segmentation,
     add_cli_arguments=_add_cli_arguments,
+    temporal_stability_fn=_temporal_stability_hook,
+    geometric_coherence_fn=_geometric_coherence_hook,
 )
 
 register_task(TASK_SPEC)

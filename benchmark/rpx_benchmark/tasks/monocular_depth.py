@@ -87,7 +87,7 @@ def _resolve_model(cfg: MonocularDepthRunConfig) -> BenchmarkableModel:
         from ..models.registry import resolve
         log.info("resolving model %r from registry", cfg.model_name)
         return resolve(cfg.model_name, device=cfg.device, **cfg.model_kwargs)
-    from ..adapters.depth_hf import make_hf_depth_model
+    from ..reference.adapters.depth_hf import make_hf_depth_model
     log.info("resolving HF checkpoint %r", cfg.hf_checkpoint)
     return make_hf_depth_model(
         cfg.hf_checkpoint, device=cfg.device, **cfg.model_kwargs,
@@ -184,6 +184,17 @@ def _build_config(args: argparse.Namespace) -> MonocularDepthRunConfig:
 # Self-registration
 # --------------------------------------------------------------------------- #
 
+def _temporal_stability_hook(predictions, samples, camera_poses):
+    """Depth-specific Temporal Stability hook registered on the TaskSpec.
+
+    Extracted so the benchmark runner can call it uniformly across
+    tasks without branching on task identity.
+    """
+    from ..deployment import compute_temporal_stability_depth
+    depths = [p.depth_map for p in predictions]
+    return compute_temporal_stability_depth(depths, camera_poses)
+
+
 TASK_SPEC = TaskSpec(
     task=TaskType.MONOCULAR_DEPTH,
     display_name="Monocular Absolute Depth",
@@ -197,6 +208,7 @@ TASK_SPEC = TaskSpec(
     build_config=_build_config,
     run=run_monocular_depth,
     add_cli_arguments=_add_cli_arguments,
+    temporal_stability_fn=_temporal_stability_hook,
 )
 
 register_task(TASK_SPEC)

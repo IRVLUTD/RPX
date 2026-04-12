@@ -55,7 +55,13 @@ from .deployment import (
     compute_temporal_stability_seg,
     compute_weighted_phase_score,
 )
-from .profiler import EfficiencyMetadata, profile_model, count_parameters
+from .profiler import (
+    EfficiencyMetadata,
+    LatencyProfiler,
+    MemoryProfiler,
+    count_parameters,
+    profile_model,
+)
 from . import hub
 from .hub import (
     DEFAULT_REPO_ID,
@@ -77,7 +83,16 @@ from .exceptions import (
     RPXError,
 )
 from .banner import show_banner
+from .determinism import deterministic, seed_all
 from .logging_utils import configure_logging, get_logger
+# Strict manifest validation is opt-in — we re-export a thin lazy
+# facade so ``import rpx_benchmark`` doesn't force a pydantic install
+# for users who only want the default tolerant loader.
+from . import _schemas_lazy as schemas  # noqa: F401
+# HuggingFace `datasets` integration is also opt-in for the same
+# reason: pulling pyarrow/datasets at package import is a ~100MB hit
+# we avoid for users on the huggingface_hub snapshot path.
+from . import _data_lazy as data  # noqa: F401
 from .adapters import (
     BenchmarkableModel,
     InputAdapter,
@@ -91,10 +106,11 @@ from .adapters import (
     make_numpy_nvs_model,
     make_numpy_pose_model,
     make_numpy_sparse_depth_model,
+    make_numpy_tracking_model,
 )
-from .adapters.depth_hf import make_hf_depth_model
-from .adapters.seg_hf import make_hf_instance_seg_model
 from .models.registry import available_models, get_factory, resolve
+from .reference.adapters.depth_hf import make_hf_depth_model
+from .reference.adapters.seg_hf import make_hf_instance_seg_model
 from .tasks.monocular_depth import MonocularDepthRunConfig, run_monocular_depth
 from .tasks.segmentation import SegmentationRunConfig, run_segmentation
 from .tasks.detection import (
@@ -110,6 +126,7 @@ from .tasks.novel_view_synthesis import (
     NovelViewSynthesisRunConfig,
     run_novel_view_synthesis,
 )
+from .tasks.tracking import ObjectTrackingRunConfig, run_object_tracking
 from .reports import format_markdown_summary, write_json
 
 __all__ = [
@@ -161,6 +178,8 @@ __all__ = [
     "compute_weighted_phase_score",
     # Profiler
     "EfficiencyMetadata",
+    "LatencyProfiler",
+    "MemoryProfiler",
     "profile_model",
     "count_parameters",
     # Hub
@@ -185,6 +204,7 @@ __all__ = [
     "make_numpy_nvs_model",
     "make_numpy_pose_model",
     "make_numpy_sparse_depth_model",
+    "make_numpy_tracking_model",
     "make_hf_depth_model",
     "make_hf_instance_seg_model",
     "available_models",
@@ -208,6 +228,8 @@ __all__ = [
     "run_sparse_depth",
     "NovelViewSynthesisRunConfig",
     "run_novel_view_synthesis",
+    "ObjectTrackingRunConfig",
+    "run_object_tracking",
     "format_markdown_summary",
     "write_json",
     # Exceptions
@@ -226,6 +248,13 @@ __all__ = [
     "configure_logging",
     # Terminal banner
     "show_banner",
+    # Determinism
+    "seed_all",
+    "deterministic",
     # Metric plugin system
     "metrics",
+    # Strict manifest validation (optional, requires `schemas` extra)
+    "schemas",
+    # HuggingFace `datasets` integration (optional, requires `hf-datasets` extra)
+    "data",
 ]

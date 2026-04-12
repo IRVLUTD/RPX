@@ -12,17 +12,14 @@ from .deployment import (
     DeploymentReadinessReport,
     StackGeometricCoherenceResult,
     TemporalStabilityResult,
-    compute_sgc,
     compute_str,
-    compute_temporal_stability_depth,
-    compute_temporal_stability_seg,
     compute_weighted_phase_score,
 )
 from .evaluators import BenchmarkResult, MetricSuite
 from .exceptions import ModelError
 from .loader import RPXDataset
 from .logging_utils import get_logger
-from .profiler import EfficiencyMetadata
+from .profiler import EfficiencyMetadata, LatencyProfiler, MemoryProfiler
 
 log = get_logger(__name__)
 
@@ -119,6 +116,21 @@ class BenchmarkRunner:
         self.call_setup = call_setup
         self._validate_task_alignment()
 
+    def _task_spec_or_none(self):
+        """Fetch the TaskSpec for the current model, or None if unregistered.
+
+        The runner supports ad-hoc models whose task is not wired into
+        the pluggable task registry (e.g. user-defined custom tasks in
+        a notebook). In that case deployment-readiness hooks simply
+        don't fire and the caller gets back a report without TS / SGC
+        populated.
+        """
+        try:
+            from .tasks.registry import get_task_spec  # noqa: PLC0415 — lazy
+            return get_task_spec(self.model.task)
+        except Exception:
+            return None
+
     def _validate_task_alignment(self) -> None:
         if not isinstance(self.model.task, TaskType):
             raise ModelError(
@@ -201,9 +213,11 @@ class BenchmarkRunner:
         all_predictions: List[Any] = []
         all_samples: List[Any] = []
 
-        # Per-sample wall-clock inference time (seconds). First batch is
-        # recorded separately so callers can discard warmup from the median.
-        per_sample_seconds: List[float] = []
+        # Latency + memory profiling. Both backends skip gracefully on
+        # devices / libraries that don't support them, so this adds no
+        # hard dependency to the runner.
+        latency = LatencyProfiler(warmup=1)
+        memory = MemoryProfiler().reset()
         first_batch_flops_g: Optional[float] = None
 
         if progress:
@@ -227,7 +241,7 @@ class BenchmarkRunner:
                     f"a batch of {len(batch)} samples — must return one "
                     "prediction per sample.",
                 )
-            per_sample_seconds.extend([batch_seconds / len(batch)] * len(batch))
+            latency.add_batch_seconds(batch_seconds, len(batch))
 
             for sample, pred in zip(batch, predictions):
                 validate_prediction(self.model.task, pred, sample)
@@ -244,11 +258,9 @@ class BenchmarkRunner:
 
         result = self.metric_suite.build_result(per_sample_metrics)
 
-        # Compute latency median after skipping the first batch (warmup).
-        latency_ms: Optional[float] = None
-        if per_sample_seconds:
-            warm = per_sample_seconds[1:] if len(per_sample_seconds) > 1 else per_sample_seconds
-            latency_ms = round(1000.0 * float(np.median(warm)), 3)
+        latency_percentiles = latency.percentiles()
+        latency_ms = latency_percentiles["p50_ms"]  # back-compat: median
+        memory_peaks = memory.peaks()
 
         # --- Weighted Phase Score + STR ---
         wps = compute_weighted_phase_score(
@@ -264,38 +276,47 @@ class BenchmarkRunner:
             Phase.CLEAN: wps.s_clean,
         })
 
-        # --- Temporal Stability ---
+        # --- Deployment-readiness hooks dispatched via TaskSpec ---
+        # The runner no longer branches on task identity. Each task
+        # that wants Temporal Stability or Stack Geometric Coherence
+        # registers its own implementation on its TaskSpec; tasks
+        # without a registered hook silently skip the computation.
+        spec = self._task_spec_or_none()
+
         ts_result: TemporalStabilityResult | None = None
-        if compute_ts and len(all_predictions) >= 2:
-            task = self.model.task
-            if task == TaskType.OBJECT_SEGMENTATION:
-                masks = [p.mask for p in all_predictions]
-                ts_result = compute_temporal_stability_seg(masks, per_sample_poses)
-            elif task == TaskType.MONOCULAR_DEPTH:
-                depths = [p.depth_map for p in all_predictions]
-                ts_result = compute_temporal_stability_depth(depths, per_sample_poses)
+        if (
+            compute_ts
+            and len(all_predictions) >= 2
+            and spec is not None
+            and spec.temporal_stability_fn is not None
+        ):
+            ts_result = spec.temporal_stability_fn(
+                all_predictions, all_samples, per_sample_poses,
+            )
 
-        # --- Stack-Level Geometric Coherence (requires seg + depth in metadata) ---
         sgc_result: StackGeometricCoherenceResult | None = None
-        if compute_sgc_flag:
-            # SGC requires both mask and depth predictions in the same run.
-            # When running segmentation, check if depth maps are in sample metadata.
-            if self.model.task == TaskType.OBJECT_SEGMENTATION:
-                depth_maps = [
-                    s.metadata.get("depth_map") if s.metadata else None
-                    for s in all_samples
-                ]
-                if any(d is not None for d in depth_maps):
-                    valid = [(p.mask, d) for p, d in zip(all_predictions, depth_maps)
-                             if d is not None]
-                    masks_sgc = [v[0] for v in valid]
-                    depths_sgc = [np.asarray(v[1], dtype=np.float32) for v in valid]
-                    sgc_result = compute_sgc(masks_sgc, depths_sgc)
+        if (
+            compute_sgc_flag
+            and spec is not None
+            and spec.geometric_coherence_fn is not None
+        ):
+            sgc_result = spec.geometric_coherence_fn(all_predictions, all_samples)
 
-        # Merge counted FLOPs + measured latency into the passed-in
-        # efficiency object (caller usually pre-computed params_m).
-        flops_g = (efficiency.flops_g if efficiency and efficiency.flops_g else
-                   first_batch_flops_g)
+        # Merge counted FLOPs + measured latency + memory into the
+        # passed-in efficiency object (caller usually pre-computed
+        # params_m). A fresh object is created when the caller did not
+        # provide one so downstream reporting always has a target to
+        # write measured values onto.
+        eff = efficiency or EfficiencyMetadata()
+        eff.flops_g = eff.flops_g or first_batch_flops_g
+        eff.latency_ms_per_sample = latency_ms
+        eff.latency_p50_ms = latency_percentiles["p50_ms"]
+        eff.latency_p95_ms = latency_percentiles["p95_ms"]
+        eff.latency_p99_ms = latency_percentiles["p99_ms"]
+        eff.peak_cpu_mb = memory_peaks["cpu_mb"]
+        eff.peak_cuda_mb = memory_peaks["cuda_mb"]
+        eff.peak_mps_mb = memory_peaks["mps_mb"]
+
         report = DeploymentReadinessReport(
             task=self.model.task.value,
             model_name=model_name,
@@ -303,10 +324,10 @@ class BenchmarkRunner:
             temporal_stability=ts_result,
             state_transition=str_result,
             geometric_coherence=sgc_result,
-            params_m=efficiency.params_m if efficiency else None,
-            flops_g=flops_g,
-            actmem_gb_fp16=efficiency.actmem_gb_fp16 if efficiency else None,
-            latency_ms_per_sample=latency_ms,
+            params_m=eff.params_m,
+            flops_g=eff.flops_g,
+            actmem_gb_fp16=eff.actmem_gb_fp16,
+            latency_ms_per_sample=eff.latency_ms_per_sample,
         )
 
         return result, report

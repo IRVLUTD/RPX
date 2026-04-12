@@ -5,7 +5,7 @@ Loaded via the ``apple/DepthPro-hf`` transformers port.
 
 from __future__ import annotations
 
-from ..adapters import BenchmarkableModel
+from ...adapters import BenchmarkableModel
 from ..adapters.depth_hf import make_hf_depth_model
 
 

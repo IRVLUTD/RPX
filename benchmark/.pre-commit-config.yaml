@@ -1,0 +1,42 @@
+# Pre-commit hooks for rpx-benchmark.
+#
+# Install locally with::
+#
+#     pip install 'rpx-benchmark[dev]'
+#     pre-commit install
+#
+# Hooks mirror the lint/format/type checks CI enforces (see
+# `.github/workflows/` once M5 lands). Keep this file minimal — heavy
+# hooks slow down iteration and teach contributors to skip them.
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        # Scoped to strict modules; the full-package mypy run is a
+        # CI job (will land in M5) so local commits stay fast.
+        files: "^rpx_benchmark/(api|schemas|_schemas_lazy|exceptions)\\.py$"
+        additional_dependencies: ["pydantic>=2.5"]

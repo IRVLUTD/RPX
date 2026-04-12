@@ -1,147 +1,232 @@
 # Bring Your Own Model
 
-The toolkit is built so **the only variable is the model**. Datasets,
-splits, metrics, reports, and deployment-readiness scoring are
-fixed. Users touch only the model — input and output adapters are
-already shipped for the two common families.
+The only variable in RPX is **your model**. The toolkit supplies:
+
+- the dataset (via `datasets.load_dataset` or
+  `huggingface_hub.snapshot_download`),
+- per-task dataloaders yielding `Sample` batches,
+- per-task metric calculators,
+- hardware-agnostic latency and memory profiling,
+- ESD-weighted phase scoring and deployment-readiness reports.
+
+You supply a `BenchmarkModel` (usually composed via an `InputAdapter` +
+model callable + `OutputAdapter`). This page shows the four paths
+we support, from zero-code to fully custom.
 
 ## Adapter framework at a glance
 
 ```text
-Sample ───► InputAdapter.prepare ───► PreparedInput(payload, context)
-                                              │
-                                              ▼
-                                       model(payload)
-                                              │
-                                              ▼
-Sample, context, model_output ───► OutputAdapter.finalize ───► Prediction
+  dataset row ──► RPXDataset (or load_hf)
+                           │
+                           ▼
+                   rpx_benchmark.Sample   (id, rgb, ground_truth, phase, …)
+                           │
+       ┌───────────────────┴───────────────────┐
+       ▼                                       │
+ InputAdapter.prepare(sample)                  │
+       │                                       │
+       ▼                                       │
+ PreparedInput(payload, context)               │
+       │                                       │
+       ▼                                       │
+ model(**payload)  or  model(payload)          │
+       │                                       │
+       ▼                                       │
+ OutputAdapter.finalize(output, context, sample)
+       │                                       │
+       ▼                                       ▼
+ Prediction ─────► MetricCalculator (per-task registry)
 ```
 
-A [`BenchmarkableModel`][rpx_benchmark.adapters.base.BenchmarkableModel]
-composes three things: an input adapter, a model callable (anything
-that responds to `(payload)` or `(**payload)`), and an output
-adapter. All three together satisfy the
-[`BenchmarkModel`][rpx_benchmark.api.BenchmarkModel] ABC that the
-runner consumes.
+`BenchmarkableModel` composes the three pieces into the
+`BenchmarkModel` ABC that the runner consumes.
 
-## Three fast paths
+## Load data once, run any path below
 
-=== "Zero code — any HF checkpoint"
+```python
+from rpx_benchmark.data import load_hf
+
+ds = load_hf("monocular_depth", split="hard")
+```
+
+Every code sample on this page consumes this `ds` — see
+[Load the Dataset](load-the-dataset.md) for the full data-loading
+surface (bulk snapshot, streaming, pinned revisions).
+
+## Four paths
+
+=== "1. Zero-code CLI"
 
     ```bash
+    pip install 'rpx-benchmark[depth-hf,hf-datasets]'
+
     rpx bench monocular_depth \
-        --hf-checkpoint my-org/my-depth-model \
+        --hf-checkpoint depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf \
         --split hard
     ```
 
-    Works with any checkpoint loadable via
-    `transformers.AutoModelForDepthEstimation`. The shipped
-    [`HFDepthInputAdapter`][rpx_benchmark.adapters.depth_hf.HFDepthInputAdapter] /
-    [`HFDepthOutputAdapter`][rpx_benchmark.adapters.depth_hf.HFDepthOutputAdapter]
-    pair handles preprocessing, postprocessing, and resize-back-to-GT.
+    Works for every task that has a shipped reference adapter today —
+    monocular depth and object segmentation. Other tasks route through
+    paths 2 / 3 / 4 until their reference adapters land.
 
-    The output adapter **introspects the processor signature** at
-    setup time so it correctly handles checkpoints with different
-    post-process kwargs (DA-v2 takes `target_sizes` only; ZoeDepth
-    also requires `source_sizes`; PromptDA takes an optional
-    `prompt_depth`).
+=== "2. Plain numpy callable"
 
-=== "Plain numpy callable"
+    One `make_numpy_*_model` per task — point it at your function and
+    you're benchmarkable. No protocol implementation required:
 
     ```python
     import numpy as np
     import rpx_benchmark as rpx
 
     def my_depth(rgb: np.ndarray) -> np.ndarray:
-        """rgb: H x W x 3 uint8 → returns H x W float32 in metres."""
+        """rgb: H×W×3 uint8 → H×W float32 (metres)."""
         ...
-        return depth_map
 
-    bm = rpx.make_numpy_depth_model(my_depth, name="my_numpy_depth")
-
+    bm  = rpx.make_numpy_depth_model(my_depth, name="my_depth")
     cfg = rpx.MonocularDepthRunConfig(model=bm, split="hard", device="cpu")
     result, report, paths = rpx.run_monocular_depth(cfg)
-
-    print(result.aggregated)                     # absrel, rmse, delta1..3
-    print(report.weighted_phase_score.to_dict()) # phase-stratified scores
     ```
 
-    For segmentation the symmetric helper is
-    [`rpx.make_numpy_mask_model(fn)`][rpx_benchmark.adapters.base.make_numpy_mask_model]
-    where `fn(rgb) → int32 mask`.
+    Ten factories cover every task:
+    `make_numpy_depth_model`, `make_numpy_mask_model`,
+    `make_numpy_detection_model`, `make_numpy_grounding_model`,
+    `make_numpy_pose_model`, `make_numpy_sparse_depth_model`,
+    `make_numpy_nvs_model`, `make_numpy_keypoint_model`, and
+    `make_numpy_tracking_model`.
 
-=== "Custom torch / transformers stack"
+=== "3. Custom adapter stack"
+
+    When you need fine-grained control over preprocessing, batching,
+    or output post-processing, implement the two protocols
+    directly.
+
+    The protocols are minimal:
 
     ```python
-    from transformers import AutoImageProcessor, AutoModelForDepthEstimation
-    import rpx_benchmark as rpx
-    from rpx_benchmark.adapters.depth_hf import (
-        HFDepthInputAdapter, HFDepthOutputAdapter,
+    from rpx_benchmark.adapters import (
+        BenchmarkableModel, InputAdapter, OutputAdapter, PreparedInput,
     )
+    from rpx_benchmark.api import DepthPrediction, Sample, TaskType
 
-    processor = AutoImageProcessor.from_pretrained("my-org/my-model")
-    model = (
-        AutoModelForDepthEstimation
-        .from_pretrained("my-org/my-model")
-        .to("cuda").eval()
-    )
 
-    bm = rpx.BenchmarkableModel(
-        task=rpx.TaskType.MONOCULAR_DEPTH,
-        input_adapter=HFDepthInputAdapter(processor=processor, device="cuda"),
-        model=model,
-        output_adapter=HFDepthOutputAdapter(processor=processor),
-        name="my_model",
-    )
+    class MyInputAdapter(InputAdapter):
+        def setup(self) -> None: ...             # optional one-time init
 
-    rpx.run_monocular_depth(
-        rpx.MonocularDepthRunConfig(model=bm, split="hard")
+        def prepare(self, sample: Sample) -> PreparedInput:
+            # Return whatever your model wants plus any context you
+            # need later for post-processing.
+            return PreparedInput(
+                payload={"pixel_values": some_tensor},
+                context={"target_hw": sample.rgb.shape[:2]},
+            )
+
+
+    class MyOutputAdapter(OutputAdapter):
+        def setup(self) -> None: ...
+
+        def finalize(self, model_output, context, sample) -> DepthPrediction:
+            # Task-specific post-processing; return one of the task's
+            # Prediction dataclasses (DepthPrediction in this case).
+            return DepthPrediction(depth_map=...)
+
+
+    bm = BenchmarkableModel(
+        task=TaskType.MONOCULAR_DEPTH,
+        input_adapter=MyInputAdapter(),
+        model=my_model_object,                   # any callable or nn.Module
+        output_adapter=MyOutputAdapter(),
+        name="my_custom_model",
     )
     ```
 
-    For non-HuggingFace model families, clone
-    `rpx_benchmark/adapters/depth_unidepth.py` (UniDepth pattern) or
-    `rpx_benchmark/adapters/depth_metric3d.py` (torch.hub + letterbox
-    pattern).
+    The default invoker calls `model(**payload)` when the payload is
+    a dict, otherwise `model(payload)`. Pass `invoker=` to override
+    (e.g. for a model that exposes `.infer(...)` instead of `.forward(...)`).
 
-## Writing your own input / output adapter
+    For a real reference implementation of this path, see the shipped
+    adapters in [`rpx_benchmark.reference.adapters`](../reference/index.md)
+    — they're examples you can copy, not framework API.
 
-The protocols are minimal:
+=== "4. API / cloud model"
 
-```python
-from typing import Any, Dict
-from rpx_benchmark.adapters import (
-    BenchmarkableModel, InputAdapter, OutputAdapter, PreparedInput,
-)
-from rpx_benchmark.api import DepthPrediction, Sample, TaskType
+    Wrap a remote inference service in the same adapter pattern —
+    `InputAdapter.prepare` serialises the sample, `OutputAdapter.finalize`
+    parses the response. Build-in profiler reports the round-trip
+    latency; `EfficiencyMetadata(model_type="api")` suppresses
+    params / FLOPs / peak-memory (displayed as `N/A (API)`).
 
-class MyInputAdapter(InputAdapter):
-    def setup(self) -> None: ...           # optional one-time init
-    def prepare(self, sample: Sample) -> PreparedInput:
-        # Return whatever your model wants plus any context you need
-        # later for post-processing.
-        return PreparedInput(
-            payload={"pixel_values": some_tensor},
-            context={"target_hw": sample.rgb.shape[:2]},
-        )
+    ```python
+    import base64
+    import io
 
-class MyOutputAdapter(OutputAdapter):
-    def setup(self) -> None: ...
-    def finalize(self, model_output: Any, context: Dict[str, Any],
-                 sample: Sample) -> DepthPrediction:
-        # Run your post-processing and return a task Prediction dataclass.
-        return DepthPrediction(depth_map=...)
+    import numpy as np
+    from PIL import Image
 
-bm = BenchmarkableModel(
-    task=TaskType.MONOCULAR_DEPTH,
-    input_adapter=MyInputAdapter(),
-    model=my_model_object,                 # any callable or nn.Module
-    output_adapter=MyOutputAdapter(),
-    name="my_custom_model",
-)
-```
+    import rpx_benchmark as rpx
+    from rpx_benchmark.adapters import (
+        BenchmarkableModel, InputAdapter, OutputAdapter, PreparedInput,
+    )
+    from rpx_benchmark.api import DepthPrediction, Sample, TaskType
 
-The default invoker calls `model(**payload)` when the payload is a
-dict, otherwise `model(payload)`. Override with `invoker=` if your
-model needs a different calling convention (see how
-`make_unidepth_v2_model` uses a custom invoker to call `.infer(...)`).
+
+    class CloudDepthInput(InputAdapter):
+        def setup(self) -> None: ...
+
+        def prepare(self, sample: Sample) -> PreparedInput:
+            buf = io.BytesIO()
+            Image.fromarray(sample.rgb).save(buf, format="PNG")
+            return PreparedInput(
+                payload={"image_b64": base64.b64encode(buf.getvalue()).decode()},
+                context={"target_hw": sample.rgb.shape[:2]},
+            )
+
+
+    class CloudDepthOutput(OutputAdapter):
+        def setup(self) -> None: ...
+
+        def finalize(self, response, context, sample) -> DepthPrediction:
+            # response is whatever your client returns.
+            depth = np.asarray(response["depth_meters"], dtype=np.float32)
+            return DepthPrediction(depth_map=depth)
+
+
+    def my_cloud_model(image_b64: str) -> dict:
+        # Your HTTPS call — replace with requests / httpx / SDK.
+        return {"depth_meters": [[...]]}
+
+
+    bm = BenchmarkableModel(
+        task=TaskType.MONOCULAR_DEPTH,
+        input_adapter=CloudDepthInput(),
+        model=my_cloud_model,
+        output_adapter=CloudDepthOutput(),
+        name="my_cloud_depth",
+    )
+
+    # Mark this as an API model so efficiency columns read "N/A (API)".
+    from rpx_benchmark.profiler import EfficiencyMetadata
+    cfg = rpx.MonocularDepthRunConfig(
+        model=bm, split="hard", device="cpu",
+        efficiency=EfficiencyMetadata(model_type="api"),
+    )
+    result, report, paths = rpx.run_monocular_depth(cfg)
+    ```
+
+    Cost / rate-limit handling is outside the toolkit's concern —
+    put retries and throttling in the model callable itself so the
+    adapter stays stateless and testable.
+
+## After your run
+
+Every path produces the same three outputs:
+
+1. `BenchmarkResult` — per-sample + aggregated metrics from the
+   task's registered calculators.
+2. `DeploymentReadinessReport` — ESD-weighted phase score, Temporal
+   Stability, Stack Geometric Coherence (where the task registers
+   hooks), and `EfficiencyMetadata` (params, FLOPs, latency
+   percentiles, peak CPU/CUDA/MPS memory).
+3. A `{json, markdown}` dict pointing at written report files.
+
+Hand the `BenchmarkResult` / `DeploymentReadinessReport` to your own
+aggregation code, or keep the written files as the canonical record.

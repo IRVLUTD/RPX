@@ -14,7 +14,8 @@ on:
   workflow_dispatch:
 
 # Run every Python change against the full offline test suite.
-# No torch, no HuggingFace network — 120 tests in under a second.
+# No torch, no HuggingFace network — the suite runs in a few seconds
+# across the matrix.
 
 jobs:
   test:
@@ -38,17 +39,30 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install toolkit with dev extras
+      - name: Install toolkit with dev + optional extras
+        # Pull the `schemas` and `hf-datasets` extras so the matching
+        # test modules don't silently importorskip out of CI.
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
+          python -m pip install -e '.[dev,schemas,hf-datasets]'
 
-      - name: Run pytest
+      - name: Run pytest with coverage
         run: |
-          pytest tests/ -q --strict-markers
+          pytest tests/ -q --strict-markers \
+            --cov=rpx_benchmark \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=70
+
+      - name: Upload coverage artifact
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: benchmark/coverage.xml
 
   lint:
-    name: ruff
+    name: ruff (lint + format)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,13 +77,43 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install ruff
-        run: python -m pip install 'ruff>=0.4'
+      - name: Install ruff + black
+        run: python -m pip install 'ruff>=0.4' 'black>=24.8'
 
-      - name: Ruff check
+      - name: Ruff check (pyproject-configured rules)
+        run: ruff check rpx_benchmark tests scripts
+
+      - name: Ruff format check
+        run: ruff format --check rpx_benchmark tests scripts
+        continue-on-error: true   # advisory until we run `ruff format` across the tree
+
+      - name: Black format check
+        run: black --check rpx_benchmark tests scripts
+        continue-on-error: true   # advisory — same reason as above
+
+  typecheck:
+    name: mypy (strict modules)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: benchmark
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install toolkit + mypy
         run: |
-          # Fail the job on unused imports, undefined names, and syntax errors;
-          # keep style-only warnings advisory until we agree a style.
-          ruff check rpx_benchmark tests scripts \
-            --select E9,F63,F7,F82,F401 \
-            --ignore E402
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev,schemas,hf-datasets]'
+
+      - name: Mypy (uses [tool.mypy] overrides in pyproject.toml)
+        # The strict overlay is scoped in pyproject.toml; running mypy
+        # on the whole package picks up the override block for the
+        # stable-surface modules.
+        run: mypy rpx_benchmark
