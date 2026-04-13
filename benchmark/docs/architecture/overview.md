@@ -66,13 +66,38 @@ The runner never branches on task identity.
 Every `run_with_deployment_readiness` call instantiates:
 
 - `LatencyProfiler(warmup=1)` — `p50`, `p95`, `p99`, `mean` in ms
-  (trimming warmup).
+  (trimming warmup). **Per-sample** ms values are also attached
+  directly to each row of `BenchmarkResult.per_sample` under
+  `latency_ms`.
 - `MemoryProfiler()` — CPU RSS (`psutil`/`resource`), CUDA peak
   (`torch.cuda`), MPS current (`torch.mps`). Each backend returns
   `None` when its runtime is unavailable.
 
 Results feed into `EfficiencyMetadata` on the deployment report
-alongside parameter count and FLOPs.
+alongside parameter count and FLOPs. The worst-case device memory
+across the three backends is surfaced on the report as
+`peak_memory_mb`.
+
+## Embodied Readiness Score (ERS)
+
+`DeploymentReadinessReport.embodied_readiness` is a single composite
+in `[0, 1]` that folds five hardware-agnostic axes into one number —
+so teams can rank candidate models without squinting at six separate
+tables.
+
+| Component | What it measures | Default weight |
+|---|---|---|
+| `accuracy`   | Weighted Phase Score, direction-corrected against `TaskSpec.higher_is_better` | 0.40 |
+| `robustness` | Mean of Temporal Stability and `1 − \|STR drop\|` | 0.20 |
+| `latency`    | `1 − p50_latency / latency_budget` (clipped) | 0.20 |
+| `memory`     | `1 − peak_memory / memory_budget` (clipped) | 0.10 |
+| `compute`    | `1 − flops / flops_budget` (clipped) | 0.10 |
+
+Defaults target an edge robot (`100ms`, `8 GB`, `500 GFLOPs`); pass
+custom `weights` + `budgets` to `compute_embodied_readiness(...)` for
+your own platform. Missing components (e.g. no GPU → no CUDA peak)
+drop out and the remaining weights re-normalise — the score is
+well-defined as long as at least accuracy is available.
 
 ## Plugin registries
 

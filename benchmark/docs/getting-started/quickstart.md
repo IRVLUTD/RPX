@@ -32,6 +32,7 @@ result, report, paths = rpx.run_monocular_depth(cfg)
 
 print(result.aggregated)                   # absrel, rmse, delta1..3
 print(report.weighted_phase_score)         # ESD-weighted phase score
+print(report.embodied_readiness.score)     # single [0, 1] deployment rank
 print(paths["json"], paths["markdown"])    # written report files
 ```
 
@@ -67,11 +68,12 @@ templates including an API/cloud-model example.
 Every run writes two files under `./rpx_results/<model>/<split>/`:
 
 - **`result.json`** — machine-readable. Contains
-  `aggregated` metrics, `per_sample` rows with
-  `id` / `phase` / `difficulty`, and the full
+  `aggregated` metrics, `per_sample` rows with `id` / `phase` /
+  `difficulty` **and per-sample `latency_ms`**, and the full
   `deployment_readiness` report (Weighted Phase Score,
   State-Transition Robustness, Temporal Stability, FLOPs, latency
-  percentiles, peak CPU/CUDA/MPS memory, parameter count).
+  percentiles, peak CPU/CUDA/MPS memory, parameter count, **Embodied
+  Readiness Score** composite with per-component breakdown).
 - **`summary.md`** — human-readable tables rendered from the same
   numbers.
 

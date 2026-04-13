@@ -7,6 +7,35 @@ once `1.0.0` is cut.
 
 ## [Unreleased]
 
+### Added
+- **Embodied Readiness Score (ERS)** — a single hardware-agnostic
+  composite in `[0, 1]` that folds accuracy, robustness, latency,
+  memory, and compute cost into one deploy-ready rank. New dataclass
+  `rpx_benchmark.EmbodiedReadinessScore` reports the composite plus
+  the five component scores; new function
+  `compute_embodied_readiness(report, ...)` computes it from a
+  `DeploymentReadinessReport`. Default weights and budgets are edge-
+  robot-friendly (100 ms / 8 GB / 500 GFLOPs); both are overridable.
+  The runner now attaches the result to every
+  `DeploymentReadinessReport.embodied_readiness` automatically.
+  Constants `DEFAULT_ERS_WEIGHTS` / `DEFAULT_ERS_BUDGETS` exposed at
+  the top level.
+- **Per-sample latency in the metric rows.** Every entry in
+  `BenchmarkResult.per_sample` now carries a `latency_ms` field
+  alongside the metric values, so downstream analysis can correlate
+  slow samples with their phase / difficulty / scene without
+  re-running the benchmark.
+- `DeploymentReadinessReport.peak_memory_mb` — worst-case device
+  memory across CPU / CUDA / MPS backends; feeds into the ERS memory
+  component.
+- Report-writer additions: markdown summary now renders an
+  **Embodied Readiness Score** table (composite + per-component
+  breakdown + weights + budgets) and a peak-memory row in the
+  efficiency table; JSON report gains `embodied_readiness` +
+  `peak_memory_mb` keys.
+- Docs: ERS section in `architecture/overview.md`; quickstart
+  mentions `report.embodied_readiness.score`.
+
 ## [0.3.0] - 2026-04-13
 
 "Bring your own model" for real: the toolkit no longer ships any

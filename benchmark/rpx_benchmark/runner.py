@@ -12,6 +12,7 @@ from .deployment import (
     DeploymentReadinessReport,
     StackGeometricCoherenceResult,
     TemporalStabilityResult,
+    compute_embodied_readiness,
     compute_str,
     compute_weighted_phase_score,
 )
@@ -256,6 +257,14 @@ class BenchmarkRunner:
                 if progress:
                     progress(len(per_sample_metrics), total, "predict")
 
+        # Attach per-sample latency_ms so downstream analysis can group
+        # timings with the metric values. LatencyProfiler.samples_ms()
+        # produces one entry per sample (batch timing amortised evenly
+        # across the batch's samples).
+        per_sample_latencies = latency.samples_ms()
+        for row, lat_ms in zip(per_sample_metrics, per_sample_latencies):
+            row["latency_ms"] = float(lat_ms)
+
         result = self.metric_suite.build_result(per_sample_metrics)
 
         latency_percentiles = latency.percentiles()
@@ -317,6 +326,13 @@ class BenchmarkRunner:
         eff.peak_cuda_mb = memory_peaks["cuda_mb"]
         eff.peak_mps_mb = memory_peaks["mps_mb"]
 
+        # Peak resident memory across the three possible backends
+        # (CPU / CUDA / MPS). We pick the max so the ERS has a single
+        # "worst-case device memory" number regardless of where the
+        # model actually ran.
+        peak_mb_vals = [v for v in memory_peaks.values() if v is not None]
+        peak_memory_mb = max(peak_mb_vals) if peak_mb_vals else None
+
         report = DeploymentReadinessReport(
             task=self.model.task.value,
             model_name=model_name,
@@ -328,6 +344,20 @@ class BenchmarkRunner:
             flops_g=eff.flops_g,
             actmem_gb_fp16=eff.actmem_gb_fp16,
             latency_ms_per_sample=eff.latency_ms_per_sample,
+            peak_memory_mb=peak_memory_mb,
         )
+
+        # Compose the Embodied Readiness Score. Look up the TaskSpec to
+        # know whether the primary metric is higher-is-better — the ERS
+        # normalisation flips direction on that.
+        higher_is_better = bool(getattr(spec, "higher_is_better", True))
+        try:
+            report.embodied_readiness = compute_embodied_readiness(
+                report, higher_is_better=higher_is_better,
+            )
+        except ValueError:
+            # All ERS components were None — rare, but don't block the
+            # run on a composite we can't compute.
+            pass
 
         return result, report

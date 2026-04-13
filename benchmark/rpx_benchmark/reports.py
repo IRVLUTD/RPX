@@ -184,8 +184,33 @@ def format_markdown_summary(
             eff_rows.append(
                 ("latency (ms/sample)", f"{dr_report.latency_ms_per_sample:.1f}")
             )
+        if dr_report.peak_memory_mb is not None:
+            eff_rows.append(("peak memory (MB)", f"{dr_report.peak_memory_mb:.1f}"))
         if eff_rows:
             lines += ["", "## Efficiency", "", "| metric | value |", "|---|---|"]
             for k, v in eff_rows:
                 lines.append(f"| {k} | {v} |")
+
+    if dr_report is not None and dr_report.embodied_readiness is not None:
+        ers = dr_report.embodied_readiness
+        lines += [
+            "",
+            "## Embodied Readiness Score",
+            "",
+            f"**ERS: {ers.score:.4f}** (higher = more deploy-ready)",
+            "",
+            "| component | score |",
+            "|---|---|",
+            f"| accuracy   | {ers.accuracy:.4f} |",
+        ]
+        for k in ("robustness", "latency", "memory", "compute"):
+            v = getattr(ers, k)
+            lines.append(f"| {k:<10} | {'—' if v is None else f'{v:.4f}'} |")
+        lines += [
+            "",
+            f"_weights_: {ers.weights}",
+            "",
+            f"_budgets_: {ers.budgets}",
+        ]
+
     return "\n".join(lines) + "\n"

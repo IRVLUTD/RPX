@@ -143,6 +143,63 @@ class WeightedPhaseScore:
 
 
 @dataclass
+class EmbodiedReadinessScore:
+    """Single-number rank for deployment on an embodied platform.
+
+    Composes accuracy + robustness + latency + memory + compute cost
+    into one scalar in ``[0, 1]`` (higher = more deploy-ready). The
+    five components are reported alongside the composite so users can
+    see exactly which axis a model fails on.
+
+    All component scores are in ``[0, 1]`` with 1 = best. Missing
+    components (``None``) are dropped and the remaining weights are
+    re-normalised.
+    """
+
+    score: float                                # composite ERS in [0, 1]
+    accuracy: float                             # task accuracy in [0, 1]
+    robustness: float | None = None             # TS + STR mean in [0, 1]
+    latency: float | None = None                # 1 − p50_lat / budget, clipped
+    memory: float | None = None                 # 1 − peak_mem / budget, clipped
+    compute: float | None = None                # 1 − flops / budget, clipped
+    weights: Dict[str, float] = field(default_factory=dict)
+    budgets: Dict[str, float] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "score": self.score,
+            "accuracy": self.accuracy,
+            "robustness": self.robustness,
+            "latency": self.latency,
+            "memory": self.memory,
+            "compute": self.compute,
+            "weights": dict(self.weights),
+            "budgets": dict(self.budgets),
+        }
+
+
+#: Default weights for :func:`compute_embodied_readiness`. Sum to 1.0.
+DEFAULT_ERS_WEIGHTS: Dict[str, float] = {
+    "accuracy":   0.40,
+    "robustness": 0.20,
+    "latency":    0.20,
+    "memory":     0.10,
+    "compute":    0.10,
+}
+
+#: Default embodied-robot budgets — tune for your platform.
+#:
+#: - ``latency_ms``: 100 ms = 10 Hz control loop.
+#: - ``memory_mb``: 8 GB — roughly an Orin-class SoM or a laptop GPU.
+#: - ``flops_g``:   500 GFLOPs — order-of-magnitude edge-inference budget.
+DEFAULT_ERS_BUDGETS: Dict[str, float] = {
+    "latency_ms":  100.0,
+    "memory_mb":  8000.0,
+    "flops_g":     500.0,
+}
+
+
+@dataclass
 class DeploymentReadinessReport:
     """Aggregated deployment-readiness report for a model on a task."""
     task: str
@@ -152,10 +209,13 @@ class DeploymentReadinessReport:
     state_transition: StateTransitionRobustnessResult | None = None
     geometric_coherence: StackGeometricCoherenceResult | None = None
     # Hardware-agnostic efficiency metadata
-    params_m: float | None = None     # parameter count in millions
-    flops_g: float | None = None      # FLOPs in giga-ops (batch=1, standard resolution)
-    actmem_gb_fp16: float | None = None  # optional activation memory at FP16
-    latency_ms_per_sample: float | None = None  # wall-clock inference latency
+    params_m: float | None = None                # parameter count in millions
+    flops_g: float | None = None                 # FLOPs in giga-ops (batch=1)
+    actmem_gb_fp16: float | None = None          # optional activation memory at FP16
+    latency_ms_per_sample: float | None = None   # wall-clock inference latency (p50)
+    peak_memory_mb: float | None = None          # peak resident memory (device-agnostic)
+    # Composite
+    embodied_readiness: EmbodiedReadinessScore | None = None
 
     def summary(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {"task": self.task, "model": self.model_name}
@@ -174,7 +234,135 @@ class DeploymentReadinessReport:
             out["flops_g"] = self.flops_g
         if self.latency_ms_per_sample is not None:
             out["latency_ms_per_sample"] = self.latency_ms_per_sample
+        if self.peak_memory_mb is not None:
+            out["peak_memory_mb"] = self.peak_memory_mb
+        if self.embodied_readiness is not None:
+            out["embodied_readiness_score"] = self.embodied_readiness.score
         return out
+
+
+def _default_accuracy(wps_overall: float, higher_is_better: bool) -> float:
+    """Map a weighted phase score onto ``[0, 1]`` given a metric direction.
+
+    - ``higher_is_better`` (mIoU, PSNR, accuracy, MOTA): clip to [0, 1].
+    - lower is better (AbsRel, RMSE, rotation error): ``exp(-wps)`` —
+      smooth decay, hits ``1`` at zero error and ~0.37 at error=1.
+
+    Callers who want a task-specific normalisation (e.g. "depth is
+    useful under 10% relative error") should pass ``accuracy=`` to
+    :func:`compute_embodied_readiness` directly.
+    """
+    if higher_is_better:
+        return float(np.clip(wps_overall, 0.0, 1.0))
+    return float(np.exp(-max(wps_overall, 0.0)))
+
+
+def _budget_component(value: float | None, budget: float) -> float | None:
+    """Return ``1 − value/budget`` clipped to ``[0, 1]``, or ``None``."""
+    if value is None or budget <= 0:
+        return None
+    return float(np.clip(1.0 - value / budget, 0.0, 1.0))
+
+
+def compute_embodied_readiness(
+    report: DeploymentReadinessReport,
+    *,
+    higher_is_better: bool = True,
+    weights: Dict[str, float] | None = None,
+    budgets: Dict[str, float] | None = None,
+    accuracy: float | None = None,
+) -> EmbodiedReadinessScore:
+    """Fold a :class:`DeploymentReadinessReport` into a single ERS.
+
+    Parameters
+    ----------
+    report : DeploymentReadinessReport
+        Report whose fields we score. Missing components (``None``)
+        drop out of the average; remaining weights are re-normalised.
+    higher_is_better : bool, default True
+        Whether the task's primary metric is higher-is-better. Only
+        consulted when ``accuracy`` isn't passed explicitly.
+    weights : dict, optional
+        Per-component weights (keys: ``accuracy``, ``robustness``,
+        ``latency``, ``memory``, ``compute``). Defaults to
+        :data:`DEFAULT_ERS_WEIGHTS`.
+    budgets : dict, optional
+        Hardware budgets (keys: ``latency_ms``, ``memory_mb``,
+        ``flops_g``). Defaults to :data:`DEFAULT_ERS_BUDGETS`.
+    accuracy : float, optional
+        Pre-computed accuracy in ``[0, 1]``. When ``None``, falls back
+        to :func:`_default_accuracy` against
+        ``report.weighted_phase_score.s_overall``.
+
+    Returns
+    -------
+    EmbodiedReadinessScore
+    """
+    w = dict(DEFAULT_ERS_WEIGHTS)
+    if weights:
+        w.update(weights)
+    b = dict(DEFAULT_ERS_BUDGETS)
+    if budgets:
+        b.update(budgets)
+
+    if accuracy is None:
+        wps = report.weighted_phase_score
+        accuracy = _default_accuracy(
+            wps.s_overall if wps is not None else 0.0,
+            higher_is_better=higher_is_better,
+        )
+
+    ts = report.temporal_stability.ts_score if report.temporal_stability else None
+    str_drop = (
+        -report.state_transition.str_c_to_i if report.state_transition else None
+    )  # Drop is negative → invert so larger number = worse → clip separately below.
+    if ts is not None and str_drop is not None:
+        # STR drop ∈ (-∞, +∞); convert to "robustness-ok" via 1 - |drop|, clipped.
+        str_ok = float(np.clip(1.0 - abs(str_drop), 0.0, 1.0))
+        robustness: float | None = float(np.clip((ts + str_ok) / 2.0, 0.0, 1.0))
+    elif ts is not None:
+        robustness = float(np.clip(ts, 0.0, 1.0))
+    elif str_drop is not None:
+        robustness = float(np.clip(1.0 - abs(str_drop), 0.0, 1.0))
+    else:
+        robustness = None
+
+    latency = _budget_component(report.latency_ms_per_sample, b["latency_ms"])
+    memory  = _budget_component(report.peak_memory_mb,        b["memory_mb"])
+    compute = _budget_component(report.flops_g,               b["flops_g"])
+
+    components: Dict[str, float | None] = {
+        "accuracy":   accuracy,
+        "robustness": robustness,
+        "latency":    latency,
+        "memory":     memory,
+        "compute":    compute,
+    }
+    active = {k: v for k, v in components.items() if v is not None}
+    if not active:
+        from .exceptions import MetricError  # noqa: PLC0415 — lazy to avoid cycle
+
+        raise MetricError(
+            "Embodied Readiness Score has no active components — the "
+            "deployment report is empty.",
+            hint="Run `BenchmarkRunner.run_with_deployment_readiness` "
+                 "to populate accuracy / robustness / efficiency fields "
+                 "before calling compute_embodied_readiness.",
+        )
+
+    total_weight = sum(w[k] for k in active)
+    score = sum(w[k] * active[k] for k in active) / total_weight
+
+    return EmbodiedReadinessScore(
+        score=float(np.clip(score, 0.0, 1.0)),
+        accuracy=accuracy,
+        robustness=robustness,
+        latency=latency,
+        memory=memory,
+        compute=compute,
+        weights=w,
+        budgets=b,
+    )
 
 
 # ------------------------------------------------------------------ #
