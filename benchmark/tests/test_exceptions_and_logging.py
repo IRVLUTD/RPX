@@ -45,19 +45,8 @@ def test_all_exceptions_reexported_from_package():
     assert rpx.ModelError is ModelError
 
 
-def test_monocular_depth_config_raises_config_error_on_multiple_models():
-    import numpy as np
-    import rpx_benchmark as rpx
-
-    bm = rpx.make_numpy_depth_model(
-        lambda rgb: np.zeros(rgb.shape[:2], dtype=np.float32)
-    )
-    with pytest.raises(ConfigError, match="exactly one of"):
-        rpx.MonocularDepthRunConfig(model=bm, model_name="depth_pro", split="hard")
-
-
 def test_monocular_depth_config_raises_config_error_on_no_model():
-    with pytest.raises(ConfigError, match="exactly one of"):
+    with pytest.raises(ConfigError, match="model is required"):
         rpx.MonocularDepthRunConfig(split="hard")
 
 
@@ -66,7 +55,7 @@ def test_monocular_depth_config_rejects_bad_split():
     bm = rpx.make_numpy_depth_model(
         lambda rgb: np.zeros(rgb.shape[:2], dtype=np.float32)
     )
-    with pytest.raises(ConfigError, match="Unknown difficulty"):
+    with pytest.raises(ConfigError, match="Unknown split"):
         rpx.MonocularDepthRunConfig(model=bm, split="super-hard")
 
 

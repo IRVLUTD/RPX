@@ -7,6 +7,64 @@ once `1.0.0` is cut.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-13
+
+"Bring your own model" for real: the toolkit no longer ships any
+models, no reference adapters, no model registry, and no CLI. The
+split is now crisp — we provide the dataset, per-task dataloaders,
+metric calculators, and hardware-agnostic profiling; you bring a
+`BenchmarkableModel`. Roughly 3,000 lines of shipped-model / CLI /
+reference-adapter code deleted; 215 tests passing; coverage ↑ to
+77.3%.
+
+### Removed
+- **Entire `rpx_benchmark.reference` subpackage** — all reference
+  adapters (`depth_hf`, `depth_unidepth`, `depth_metric3d`, `seg_hf`)
+  and all reference model factories (`depth_anything_v2`, `depth_pro`,
+  `zoedepth`, `unidepth_v2`, `metric3d_v2`, `_deferred`).
+- **Entire `rpx_benchmark.models` subpackage** (name registry, factory
+  dispatcher). There is no model registry any more.
+- **CLI (`rpx_benchmark.cli`, `banner`, `ui`)** and the `rpx` console
+  script. The toolkit is a library; benchmarks are run from Python.
+- **Back-compat adapter shims** at the old `rpx_benchmark.adapters.{depth_hf,
+  depth_unidepth, depth_metric3d, seg_hf}` paths.
+- **Lazy facades** (`_schemas_lazy.py`, `_data_lazy.py`) — `import
+  rpx_benchmark` now best-effort-imports `schemas` and `data` with a
+  plain `try: import`.
+- Install extras `depth`, `depth-hf`, `depth-unidepth`, `depth-metric3d`,
+  `depth-all`, `ui` (all tied to the removed reference / CLI code).
+- Docs: the whole `docs/reference/` section, `docs/api/models.md`,
+  `docs/api/ui.md`, `docs/guides/adding-a-model.md`.
+- Tests covering the removed features: `test_reference_relocation.py`,
+  `test_registry.py` (model registry), `test_cli.py`, `test_banner.py`.
+
+### Changed
+- **`TaskSpec` slimmed**: dropped `build_config` and
+  `add_cli_arguments` (CLI-only). A spec now carries identification,
+  metric, modalities, `run`, and the two optional deployment-readiness
+  hooks.
+- **`TaskRunConfig` slimmed**: `model` is the only selector (required);
+  `model_name`, `hf_checkpoint`, and `model_kwargs` are gone. Every
+  task module shrank to ~30 lines.
+- **Package layout** consolidated: the top-level `__init__.py` no
+  longer re-exports any reference / CLI / registry symbols; only
+  stable framework surface remains.
+- Docs top-to-bottom rewrite to match the new simpler surface: README,
+  index, quickstart, installation, BYO-model, architecture (overview /
+  adapters / pipeline / registries), guides (adding-a-task,
+  contributing).
+
+### Kept
+- Every data contract (`TaskType`, `Sample`, all GT / Prediction
+  dataclasses, `BenchmarkModel` ABC).
+- The nine `make_numpy_<task>_model(fn)` framework factories.
+- Pydantic manifest schemas, HF `datasets` integration (`load_hf`,
+  `RPXHFBridge`, `row_to_sample`), HF hub snapshot downloads.
+- Runner with TaskSpec-dispatched deployment hooks, LatencyProfiler,
+  MemoryProfiler, EfficiencyMetadata.
+- Determinism helpers, pre-commit, mypy strict overlay, ruff + black
+  config, CI matrix + release automation workflows.
+
 ## [0.2.0] - 2026-04-12
 
 Full M0 → M5 production-grade refactor: Pydantic manifest schemas,

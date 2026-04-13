@@ -92,44 +92,6 @@ def test_prepared_input_payload_context_shape():
 # environment that has torch available.
 # --------------------------------------------------------------------------- #
 
-def test_hf_output_adapter_forwards_only_accepted_kwargs():
-    """Adapter must introspect the processor and forward source_sizes only when accepted.
-
-    Skipped on environments without torch installed; on dev machines +
-    the real-model CI path it runs and locks the contract in.
-    """
-    torch = pytest.importorskip("torch")
-    from rpx_benchmark.adapters.depth_hf import HFDepthOutputAdapter
-
-    class _FakeProcessorDAv2Like:
-        """post_process_depth_estimation(outputs, target_sizes=None)."""
-
-        def post_process_depth_estimation(self, outputs, target_sizes=None):
-            h, w = target_sizes[0]
-            return [{"predicted_depth": torch.full((h, w), 1.5)}]
-
-    class _FakeProcessorZoeDepthLike:
-        """post_process_depth_estimation(outputs, target_sizes=None, source_sizes=None)."""
-
-        def post_process_depth_estimation(self, outputs, target_sizes=None, source_sizes=None):
-            assert source_sizes is not None, "ZoeDepth-like processor requires source_sizes"
-            h, w = target_sizes[0]
-            return [{"predicted_depth": torch.full((h, w), 2.5)}]
-
-    sample = _fake_sample(h=48, w=64)
-    ctx = {"target_hw": (48, 64)}
-
-    # DA-v2-like: target_sizes only. source_sizes must NOT be forwarded.
-    adapter = HFDepthOutputAdapter(processor=_FakeProcessorDAv2Like())
-    adapter.setup()
-    pred = adapter.finalize(model_output=None, context=ctx, sample=sample)
-    assert pred.depth_map.shape == (48, 64)
-    assert float(pred.depth_map[0, 0]) == 1.5
-
-    # ZoeDepth-like: assertion inside the fake processor ensures source_sizes
-    # was forwarded; passes only if introspection worked.
-    adapter = HFDepthOutputAdapter(processor=_FakeProcessorZoeDepthLike())
-    adapter.setup()
-    pred = adapter.finalize(model_output=None, context=ctx, sample=sample)
-    assert pred.depth_map.shape == (48, 64)
-    assert float(pred.depth_map[0, 0]) == 2.5
+# HF-specific adapter test removed with the reference adapter deletion
+# in v0.3.0. The adapter protocol itself is exercised by the numpy
+# factories + the custom-adapter smoke tests elsewhere in this file.

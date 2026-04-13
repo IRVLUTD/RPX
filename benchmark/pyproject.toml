@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rpx-benchmark"
-version = "0.2.0"
-description = "RPX — choose and rank perception models for robot learning on real-world RGB-D data"
+version = "0.3.0"
+description = "RPX — benchmark harness for evaluating robot-perception models on real-world RGB-D data"
 authors = [{name = "RPX Team"}]
 maintainers = [{name = "RPX Team"}]
 readme = "README.md"
@@ -16,8 +16,6 @@ keywords = [
   "perception",
   "rgb-d",
   "benchmark",
-  "monocular-depth",
-  "segmentation",
   "robotics",
   "embodied-ai",
   "huggingface",
@@ -47,55 +45,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# HuggingFace Hub snapshot downloads (modality-aware bulk fetch).
 hub = [
   "huggingface_hub[hf_xet]>=0.26",
 ]
-# Native HuggingFace `datasets` integration: one-line
-# `load_dataset("IRVLUTD/rpx-benchmark", "<task>")` support, PyTorch
-# DataLoader bridge, and the shared Features schema.
+# One-line `datasets.load_dataset(...)` + PyTorch DataLoader bridge.
 hf-datasets = [
   "datasets>=2.18",
   "huggingface_hub>=0.22",
 ]
-# Strict, typed manifest validation via rpx_benchmark.schemas.
-# Not required for basic dataset loading — the loader's hand-rolled
-# checks run without it — but recommended for CI, release automation,
-# and third-party tooling that consumes the JSON Schema.
+# Strict manifest validation.
 schemas = [
   "pydantic>=2.5",
-]
-ui = [
-  "rich>=13.7",
-]
-depth-hf = [
-  "torch>=2.1",
-  "torchvision>=0.16",
-  "transformers>=4.45",
-  "accelerate>=0.30",
-]
-# UniDepth ships via GitHub, not PyPI. The dependency list below covers
-# its transitive needs; the `unidepth` package itself must be installed
-# with: pip install 'unidepth @ git+https://github.com/lpiccinelli-eth/UniDepth.git'
-depth-unidepth = [
-  "rpx-benchmark[depth-hf]",
-  "einops>=0.7",
-  "timm>=1.0",
-  "huggingface_hub>=0.22",
-]
-# Metric3D needs mmcv (or mmcv-lite for CPU-only installs) + mmengine
-# + timm. Note: Metric3D *inference* hardcodes device='cuda' in the
-# decoder, so a CUDA-capable host is required at run time.
-depth-metric3d = [
-  "rpx-benchmark[depth-hf]",
-  "timm>=1.0",
-  "mmcv-lite>=2.1",
-  "mmengine>=0.10",
-]
-depth = [
-  "rpx-benchmark[depth-hf,ui]",
-]
-depth-all = [
-  "rpx-benchmark[depth-hf,ui,depth-unidepth,depth-metric3d]",
 ]
 dev = [
   "pytest>=7",
@@ -104,7 +65,6 @@ dev = [
   "black>=24.8",
   "mypy>=1.11",
   "pre-commit>=3.8",
-  # Pulled in so mypy type-checks schemas cleanly in dev envs.
   "pydantic>=2.5",
 ]
 docs = [
@@ -113,9 +73,6 @@ docs = [
   "mkdocstrings[python]>=0.26",
   "pymdown-extensions>=10.8",
 ]
-
-[project.scripts]
-rpx = "rpx_benchmark.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/IRVLUTD/RPX"
@@ -127,31 +84,17 @@ Changelog = "https://github.com/IRVLUTD/RPX/blob/main/benchmark/CHANGELOG.md"
 [tool.setuptools.packages.find]
 include = ["rpx_benchmark*"]
 
-# Ship inline type information (PEP 561). Without this marker,
-# downstream ``mypy`` / ``pyright`` runs treat rpx_benchmark as
-# untyped and silently accept everything.
 [tool.setuptools.package-data]
 rpx_benchmark = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
-filterwarnings = [
-  "ignore::DeprecationWarning",
-]
+filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
 source = ["rpx_benchmark"]
 branch = true
-omit = [
-  # Heavy reference backends aren't exercised in the offline test
-  # suite (they require torch + network). Their tests land once a
-  # CUDA-capable CI runner is wired; until then excluding them keeps
-  # the coverage floor meaningful rather than depressed by
-  # untested-by-design code.
-  "rpx_benchmark/reference/adapters/*",
-  "rpx_benchmark/reference/models/*",
-]
 
 [tool.coverage.report]
 show_missing = true
@@ -175,10 +118,10 @@ select = [
   "F82",  # undefined names
   "F401", # unused imports
   "I",    # isort: import sorting
-  "B",    # bugbear: likely bugs and bad practices
+  "B",    # bugbear: likely bugs
 ]
 ignore = [
-  "E402", # module-level import not at top (we allow this in __init__ files)
+  "E402", # module-level import not at top
   "B008", # function calls in default args (fine for dataclasses)
 ]
 
@@ -188,18 +131,7 @@ known-first-party = ["rpx_benchmark"]
 [tool.black]
 line-length = 100
 target-version = ["py310", "py311", "py312"]
-# Black and ruff disagree on some trivial formatting; ruff's
-# ``format`` subcommand is a drop-in so we configure both to the
-# same line length and let CI run either.
 
-# ---------------------------------------------------------------------------
-# mypy — strict on the new stable-surface modules, tolerant elsewhere for now.
-#
-# The ``strict`` slate will expand module-by-module as M1..M5 land. Today:
-#   * api.py, schemas.py, _schemas_lazy.py are strict
-#   * the rest of the package runs with default permissive settings
-# so we don't gate CI on pre-existing type holes.
-# ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.10"
 namespace_packages = true
@@ -210,17 +142,14 @@ warn_unreachable = true
 show_error_codes = true
 show_column_numbers = true
 pretty = true
-
-# Don't fail when optional model backends (torch, transformers,
-# huggingface_hub, pydantic) aren't present in the dev env.
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
   "rpx_benchmark.api",
   "rpx_benchmark.schemas",
-  "rpx_benchmark._schemas_lazy",
   "rpx_benchmark.exceptions",
+  "rpx_benchmark.determinism",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

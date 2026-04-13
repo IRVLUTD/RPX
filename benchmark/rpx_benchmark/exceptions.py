@@ -91,11 +91,9 @@ class ConfigError(RPXError):
 
     Examples
     --------
-    * ``MonocularDepthRunConfig`` built with both ``model`` and
-      ``hf_checkpoint`` set.
-    * CLI given ``--device cuda`` on a CPU-only host with
-      ``--strict-device`` enabled.
+    * ``MonocularDepthRunConfig`` built without a ``model``.
     * Unknown difficulty split.
+    * ``batch_size < 1``.
     """
 
 

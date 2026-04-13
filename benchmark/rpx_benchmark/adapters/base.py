@@ -133,14 +133,16 @@ class BenchmarkableModel(BenchmarkModel):
     model-family-specific logic lives in the adapters so the harness
     stays task-agnostic.
 
-    Example — wrap a HuggingFace depth model::
+    Example — wrap a plain numpy depth callable::
 
-        from rpx_benchmark.reference.adapters.depth_hf import make_hf_depth_model
-        bm = make_hf_depth_model(
-            "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf",
-            device="cuda",
-        )
-        # Hand `bm` to the benchmark runner or the task entrypoint.
+        import numpy as np
+        import rpx_benchmark as rpx
+
+        def my_depth(rgb: np.ndarray) -> np.ndarray:
+            return ...           # H x W float32, metres
+
+        bm = rpx.make_numpy_depth_model(my_depth, name="my_model")
+        # Hand `bm` to a task runner or the BenchmarkRunner directly.
 
     Example — wrap a plain numpy callable::
 

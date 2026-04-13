@@ -388,21 +388,6 @@ def test_all_new_tasks_registered():
         assert t in registered, f"{t} is not in the task registry"
 
 
-def test_cli_auto_discovers_every_new_task_subcommand(capsys):
-    from rpx_benchmark import cli
-    with pytest.raises(SystemExit) as exc:
-        cli.main(["bench", "--help"])
-    assert exc.value.code == 0
-    out = capsys.readouterr().out
-    for t in (
-        "monocular_depth",
-        "object_segmentation",
-        "object_detection",
-        "open_vocab_detection",
-        "visual_grounding",
-        "relative_camera_pose",
-        "keypoint_matching",
-        "sparse_depth",
-        "novel_view_synthesis",
-    ):
-        assert t in out, f"{t} subcommand missing from `rpx bench --help`"
+# CLI subcommand discovery test removed with the CLI deletion in
+# v0.3.0 — the task-registry discovery it was exercising is covered
+# by ``test_new_tasks_have_specs`` above.

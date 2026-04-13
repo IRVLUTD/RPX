@@ -202,15 +202,4 @@ def test_segmentation_task_is_registered():
     assert spec.higher_is_better is True
     assert "rgb" in spec.required_modalities
     assert "mask" in spec.required_modalities
-    assert callable(spec.build_config)
     assert callable(spec.run)
-    assert callable(spec.add_cli_arguments)
-
-
-def test_segmentation_subcommand_in_cli(capsys):
-    from rpx_benchmark import cli
-    with pytest.raises(SystemExit) as exc:
-        cli.main(["bench", "--help"])
-    assert exc.value.code == 0
-    out = capsys.readouterr().out
-    assert "object_segmentation" in out
