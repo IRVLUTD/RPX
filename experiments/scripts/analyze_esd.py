@@ -54,8 +54,8 @@ Usage
 
     pip install pandas scikit-learn scipy matplotlib seaborn  # one-time
     python analyze_esd.py \\
-        --features experiments/neurips-2026/splits/phase_esd_splits.csv \\
-        --out-dir  experiments/neurips-2026/splits/analysis
+        --features experiments/splits/phase_esd_splits.csv \\
+        --out-dir  experiments/splits/analysis
 """
 
 from __future__ import annotations
@@ -87,7 +87,7 @@ except ImportError as e:
     ) from e
 
 # Repo path bootstrap so ``rpx_benchmark`` is importable without install.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 _BENCHMARK_DIR = _REPO_ROOT / "benchmark"
 if (_BENCHMARK_DIR / "rpx_benchmark").is_dir():
     sys.path.insert(0, str(_BENCHMARK_DIR))
@@ -577,7 +577,7 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument(
         "--out-dir", type=Path,
         default=Path(__file__).resolve().parents[1] / "splits" / "analysis",
-        help="output directory (default: experiments/neurips-2026/splits/analysis)",
+        help="output directory (default: experiments/splits/analysis)",
     )
     parser.add_argument("--seed", type=int, default=0,
                         help="seed for k-means / GMM")

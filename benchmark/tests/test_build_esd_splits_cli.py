@@ -1,9 +1,9 @@
 """CI smoke test for the build_esd_splits.py CLI driver.
 
-The CLI lives outside the package (under ``experiments/neurips-2026/scripts/``)
-so it isn't covered by normal package tests. This file imports it via
-sys.path injection and exercises the happy path + a failure path against a
-tiny synthetic dataset built in ``tmp_path``.
+The CLI lives outside the package (under ``experiments/scripts/``) so it
+isn't covered by normal package tests. This file imports it via sys.path
+injection and exercises the happy path + a failure path against a tiny
+synthetic dataset built in ``tmp_path``.
 
 The intent is regression-detection, not exhaustive scenario coverage —
 per-feature math is tested in ``test_esd.py``.
@@ -20,9 +20,9 @@ import pytest
 from PIL import Image
 
 # Make the script importable. Repo layout: <repo>/benchmark/tests/<this file>
-# and <repo>/experiments/neurips-2026/scripts/build_esd_splits.py.
+# and <repo>/experiments/scripts/build_esd_splits.py.
 _REPO_ROOT   = Path(__file__).resolve().parents[2]
-_SCRIPTS_DIR = _REPO_ROOT / "experiments" / "neurips-2026" / "scripts"
+_SCRIPTS_DIR = _REPO_ROOT / "experiments" / "scripts"
 if not (_SCRIPTS_DIR / "build_esd_splits.py").is_file():
     pytest.skip(f"CLI script not at expected path: {_SCRIPTS_DIR}",
                 allow_module_level=True)

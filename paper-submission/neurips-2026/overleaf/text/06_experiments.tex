@@ -1,0 +1,154 @@
+\section{Experiments}\label{sec:experiments}
+
+\subsection{Setup}
+
+All models are evaluated \textbf{zero-shot}---no fine-tuning or adaptation to \coolname{} objects or scenes.
+For detection/grounding, text prompts are crowd-sourced object descriptions from questionnaires (\S\ref{sec:dataset}); visual prompts are reference images from single-object scenes.
+For tracking, SAM2 is initialised with GT first-frame masks, isolating tracking from detection.
+For QA, questions are generated from questionnaire attributes (D4) and bounding-box spatial layout (D5); answers are verified against per-frame annotations.
+Evaluations run on \todo{hardware}.
+For each model we report parameter count (M), FLOPs (G) from a single forward pass at $640\!\times\!480$, peak GPU memory (GB), and median per-sample latency.
+All accuracy metrics are reported as mean $\pm$ standard deviation across test scenes; latency is reported with 95\% confidence intervals---enabling both statistical and hardware-agnostic comparison across backbones.
+
+\subsection{Main Results}
+
+Table~\ref{tab:main-results} reports primary results across all five decisions.
+
+% ── TODO(results): fill from experiment JSONs ──
+\begin{table}[t]
+\centering
+\caption{Main \coolname{} results.
+$S_\text{ov}$: ESD-weighted overall score ($S_\text{overall}$, \S\ref{sec:eds}).
+$\Delta_\text{int}$: interaction drop.
+$\Delta_\text{rec}$: recovery.
+TS: temporal stability (clutter/clean phases only; excluded from EDS).
+Mem: peak GPU memory.
+Lat: avg.\ per-sample latency (95\% CI).
+\textbf{Bold}: best per task. \underline{Underline}: second.}
+\label{tab:main-results}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llcccccccc}
+\toprule
+\textbf{Decision} & \textbf{Model} & $S_\text{ov}$ & $\Delta_\text{int}$ & $\Delta_\text{rec}$ & \textbf{TS}$^\dagger$ & \textbf{Params} & \textbf{FLOPs} & \textbf{Mem} & \textbf{Lat} \\
+\midrule
+\multirow{6}{*}{\shortstack[l]{D1: Depth\\(AbsRel$\downarrow$)}}
+ & DA-V2 Large          & \todo{X} & \todo{X} & \todo{X} & \todo{X} & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & Video Depth Anything  & \todo{X} & \todo{X} & \todo{X} & \todo{X} & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & Depth Pro            & \todo{X} & \todo{X} & \todo{X} & \todo{X} & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & UniDepth V2          & \todo{X} & \todo{X} & \todo{X} & \todo{X} & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & Metric3D V2          & \todo{X} & \todo{X} & \todo{X} & \todo{X} & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & ZoeDepth             & \todo{X} & \todo{X} & \todo{X} & \todo{X} & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+\midrule
+\multirow{4}{*}{\shortstack[l]{D2: Det/Ground\\(AP$_{50}\uparrow$)}}
+ & GroundingDINO (text)  & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & OWL-ViT v2 (text)    & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & DE-ViT (visual)      & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & NIDS-Net (visual)    & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+\midrule
+\multirow{2}{*}{\shortstack[l]{D3: Tracking\\(MOTA$\uparrow$)}}
+ & SAM2 video           & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & Cutie                & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+\midrule
+\multirow{5}{*}{\shortstack[l]{D4: Scene QA\\(Acc$\uparrow$)}}
+ & GPT-4o               & \todo{X} & \todo{X} & \todo{X} & -- & N/A & N/A & N/A & \todo{ms} \\
+ & Qwen2-VL             & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & LLaVA                & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & Molmo 2              & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & PaliGemma            & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+\midrule
+\multirow{5}{*}{\shortstack[l]{D5: Spatial QA\\(Acc$\uparrow$)}}
+ & GPT-4o               & \todo{X} & \todo{X} & \todo{X} & -- & N/A & N/A & N/A & \todo{ms} \\
+ & Qwen2-VL             & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & LLaVA                & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & Molmo 2              & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+ & PaliGemma            & \todo{X} & \todo{X} & \todo{X} & -- & \todo{M} & \todo{G} & \todo{GB} & \todo{ms} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+
+\subsection{Does Static Accuracy Predict Deployment Robustness?}
+\label{sec:robustness-inversion}
+
+% ── TODO(results): centrepiece figure ──
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\linewidth}{\centering\vspace{1.2em}\textcolor{red}{TODO: STR scatter.}\\
+    (a) Standard accuracy vs.\ $S_\text{ov}$. (b) Standard accuracy vs.\ STR$_{\text{clu} \to \text{int}}$.\\
+    Spearman $\rho$ on each.\vspace{1.2em}}}
+    \caption{Standard accuracy vs.\ \coolname{} deployment robustness. $\rho = \todo{X}$: static rankings are \todo{poor} predictors of deployment performance.}
+    \label{fig:str-scatter}
+\end{figure}
+
+\todo{REPLACE: 3--4 sentences naming specific models.}
+
+
+\subsection{Text vs.\ Visual Prompting}
+
+% ── TODO(results) ──
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\linewidth}{\centering\vspace{1.2em}\textcolor{red}{TODO: Text vs visual prompt.}\\
+    Grouped bars: text AP vs visual AP, per phase.\vspace{1.2em}}}
+    \caption{Text vs.\ image-prompted detection across three phases.}
+    \label{fig:text-vs-visual}
+\end{figure}
+
+\todo{REPLACE: Which mode degrades less? Key implications for pipeline design.}
+
+
+\subsection{VLM Scene Understanding Across Phases}
+
+% ── TODO(results): D4 + D5 analysis ──
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\linewidth}{\centering\vspace{1.2em}\textcolor{red}{TODO: QA accuracy by phase.}\\
+    Left: General QA (D4) per phase. Right: Spatial QA (D5) per phase.\\
+    Show whether spatial QA drops more than general QA during interaction.\vspace{1.2em}}}
+    \caption{VLM QA accuracy across three phases. Spatial QA (D5) \todo{drops more / less} than general QA (D4) during interaction, indicating \todo{describe implication for VLA backbone robustness}.}
+    \label{fig:qa-phases}
+\end{figure}
+
+\todo{REPLACE: Key findings on VLM robustness. Name which VLM is most/least robust. Connect to VLA implications: ``if PaliGemma's spatial QA drops by X\% during interaction, $\pi_0$'s spatial instruction following is degraded by the same margin.''}
+
+
+\subsection{ESD Difficulty and Phase-Transition Analysis}
+
+% ── TODO(results) ──
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\linewidth}{\centering\vspace{1.2em}\textcolor{red}{TODO: ESD violins + phase heatmap.}\\
+    Left: per-task violins. Right: models $\times$ phases heatmap.\vspace{1.2em}}}
+    \caption{ESD separates models; phase transitions reveal robustness profiles.}
+    \label{fig:esd-phase}
+\end{figure}
+
+\todo{REPLACE: ESD ranking divergence ($\tau$), phase-transition patterns, named models.}
+Extended per-task breakdowns in Appendix~\ref{sec:appendix-per-task}.
+
+
+\subsection{Downstream Validation: Does EDS Predict Grasp Success?}
+\label{sec:downstream}
+
+% ── TODO(results): the so-what experiment ──
+A deployment-readiness score is useful only if it predicts downstream task success.
+The central validation question: \textit{does a model's EDS rank predict its contribution to manipulation success?}
+We test this by running all \todo{N} evaluated depth models (ranked by EDS) through a grasping pipeline on \coolname{} scenes and measuring rank-order correlation between EDS and grasp success rate.
+A positive result validates EDS as a deployment-relevant metric; a negative result would indicate that the proposed metrics do not capture what matters for manipulation.
+
+\begin{figure}[t]
+    \centering
+    \fbox{\parbox{0.95\linewidth}{\centering\vspace{1.2em}\textcolor{red}{TODO: EDS vs.~grasp success.}\\
+    x-axis: EDS rank. y-axis: grasp success rate.\\
+    Spearman $\rho$ between EDS and grasp success.\vspace{1.2em}}}
+    \caption{EDS predicts downstream grasp success. Models ranked higher by \coolname{}'s deployment-readiness score achieve higher grasp success rates, validating EDS as a deployment-relevant metric.}
+    \label{fig:downstream}
+\end{figure}
+
+\todo{REPLACE: Describe pipeline (e.g.~Contact-GraspNet on RPX depth predictions), number of trials, result. Key number: Spearman $\rho$ between EDS and grasp success rate. Even a small experiment (5--10 trials per model) validates the entire scoring framework.}
+
+\paragraph{Independent validation: ranking divergence.}
+As a complementary check, we compare \coolname{} depth rankings with published NYU Depth V2 and KITTI rankings.
+Because the evaluation images, metrics, and protocols differ, rank divergence does not prove standard benchmarks are ``wrong''---but systematic disagreement supports the claim that standard benchmarks alone are insufficient for deployment-specific model selection.
+\todo{REPLACE: Show Kendall $\tau$ between RPX and NYU/KITTI rankings. Characterise which models change rank most.}

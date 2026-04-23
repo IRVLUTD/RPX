@@ -1,0 +1,20 @@
+\begin{abstract}
+Pretrained perception models---depth estimators, object detectors, trackers, and vision-language models---are now standard components in robot learning systems, yet the choice of which model to deploy is made without evidence from the conditions robots actually face.
+Standard benchmarks use curated internet images; robots see the world through low-resolution Intel RealSense sensors under clutter, hand occlusion, motion blur, and challenging surfaces.
+We introduce \coolname{}, a real-world evaluation methodology and benchmark that quantifies the \textit{deployment readiness} of pretrained perception models for embodied robotics.
+%
+A human carrying the same sensor rig a mobile robot would use (D435 RGB-D + T265 tracking + GoPro egocentric) captures 100 scenes spanning indoor and outdoor environments, daylight and night, reflective and transparent surfaces, across ${\sim}$70 object categories and 75{,}000 frames.
+%
+Each scene is captured in three phases that mirror the robot manipulation cycle:
+\textbf{clutter} (the scene as a robot naturally finds it),
+\textbf{interaction} (a human manipulates objects---the data that learning-from-humans pipelines train on), and
+\textbf{clean} (the scene reorganised---the condition models are designed for).
+%
+The gap between clean-scene and clutter/interaction performance \textit{is} the deployment readiness gap, and no existing benchmark measures it.
+%
+\coolname{} evaluates \todo{N} models across \todo{M} perception tasks on the \textit{same} physical scenes and objects, using deployment-readiness metrics---State-Transition Robustness, Geometric Coherence, and Effort-Stratified Difficulty---that capture properties invisible to static accuracy and compose into an Embodied Deployment Score (EDS).
+%
+\todo{HEADLINE FINDING.}
+%
+\coolname{} is released as a pip-installable, bring-your-own-model toolkit at \url{\webpage}.
+\end{abstract}

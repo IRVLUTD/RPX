@@ -23,7 +23,7 @@ Usage
 
     python build_esd_splits.py \\
         --data-root /path/to/test_dataset_aggregated \\
-        --output    experiments/neurips-2026/splits/phase_esd_splits.json \\
+        --output    experiments/splits/phase_esd_splits.json \\
         --workers   8 \\
         --log-file  build_esd_splits.log
 """
@@ -48,7 +48,7 @@ import numpy as np
 
 # Allow running this script without installing the package by adding the
 # repo's ``benchmark`` directory to sys.path.
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+_REPO_ROOT = Path(__file__).resolve().parents[2]
 _BENCHMARK_DIR = _REPO_ROOT / "benchmark"
 if (_BENCHMARK_DIR / "rpx_benchmark").is_dir():
     sys.path.insert(0, str(_BENCHMARK_DIR))
@@ -324,7 +324,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--output", type=Path,
         default=Path(__file__).resolve().parents[1] / "splits" / "phase_esd_splits.json",
-        help="output JSON path (default: experiments/neurips-2026/splits/phase_esd_splits.json)",
+        help="output JSON path (default: experiments/splits/phase_esd_splits.json)",
     )
     # Workers default to all available cores: the streaming extractor
     # holds ~tens of MB per worker, so memory is not the binding constraint.

@@ -1,0 +1,145 @@
+\section{Related Work}\label{sec:related}
+
+\coolname{} addresses a gap at the intersection of six bodies of work: foundation models in robot learning stacks, vision-language-action (VLA) models and world models, robot perception datasets, embodied benchmarks, robustness and difficulty stratification, and in-context visual prompting for robotics.
+Table~\ref{tab:dataset-comparison} provides a systematic comparison across 14 dimensions.
+
+%% ── 1. Foundation models in robot perception ──
+\paragraph{Foundation models as perception substrates for robot learning.}
+Large pretrained vision models now occupy three distinct roles in robot manipulation.
+%
+\textit{As frozen visual backbones for policy learning}, DINOv2~\citep{oquab2023dinov2} and SigLIP~\citep{zhai2023siglip} provide the visual features that VLA models (OpenVLA~\citep{kim2024openvla}, $\pi_0$~\citep{black2024pi0}, GR00T~N1~\citep{bjorck2025gr00t}) consume to predict actions.
+The choice of visual encoder strongly shapes what the policy ``sees,'' yet it is typically inherited from the underlying VLM (e.g., PaliGemma $\to$ SigLIP in $\pi_0$) without independent evaluation on robot-relevant scenes.
+%
+\textit{As perception preprocessors in modular systems}, GroundingDINO~\citep{liu2024groundingDINO}, SAM2~\citep{ravi2024sam2}, and monocular depth models feed signals into grasp planners, object trackers, and navigation stacks.
+OK-Robot~\citep{liu2024okrobot} is a paradigmatic example: it chains Lang-SAM, AnyGrasp, and a navigation planner for zero-shot pick-and-place in 10 real homes.
+Its analysis reveals that \textit{perception quality is the primary bottleneck}: success drops from 82\% in clean environments to 59\% in cluttered ones, with perception failures (missed detections, poor segmentation) identified as the dominant cause~\citep{liu2024okrobot}---yet neither OK-Robot nor any other deployed system systematically compares the available perception backbones.
+%
+\textit{As pseudo-ground-truth generators}, ZoeDepth~\citep{bhat2023zoedepth} creates the 3D point clouds that 3D Diffusion Policy~\citep{ze2024dp3} trains on; ZoeDepth is also used to augment GR-1/GR00T fine-tuning with synthetic depth for embodiments lacking depth sensors.
+Inaccuracies in these pseudo-labels can propagate into the learned policy.
+
+SceneReplica~\citep{scenereplica} benchmarks real-world pick-and-place with swappable perception modules and confirms that perception dominates end-to-end success, but evaluates only 20 tabletop scenes without temporal dynamics or multi-task coverage.
+Open-X Embodiment~\citep{open_x_embodiment_rt_x_2023} aggregates demonstration data at scale but focuses on action learning, not perception ranking.
+\coolname{} is, to our knowledge, the first benchmark whose explicit purpose is to rank perception backbones across multiple tasks on the same real-world scenes.
+
+%% ── 2. VLAs and world models ──
+\paragraph{VLAs, world models, and the backbone selection problem.}
+The recent surge in VLA models---from RT-1/RT-2~\citep{brohan2023rt2} through Octo~\citep{ghosh2024octo} to $\pi_0$~\citep{black2024pi0}, OpenVLA~\citep{kim2024openvla}, and GR00T~\citep{bjorck2025gr00t}---and embodied world models~\citep{zhen2025tesseract} has made the visual backbone choice more consequential than ever.
+Li~et~al.~\citep{li2025robovlms} directly study this in ``What matters in building VLAs for generalist robots'' (Nature Machine Intelligence): they systematically compare DINOv2, SigLIP, CLIP, and fusion strategies as VLA backbones and find that \textit{backbone choice is the dominant factor in policy success}---more important than architecture or training recipe.
+However, their evaluation is conducted entirely in simulation (SimplerEnv, CALVIN), where the structured-light depth noise, motion blur, specular reflections, and hand occlusion dynamics of real deployment are absent.
+Crucially, because they evaluate end-to-end policy success, they \textit{cannot decompose} whether a failure is due to perception or policy---a confound that perception-level evaluation resolves.
+
+Embodied world models (TesserAct~\citep{zhen2025tesseract}, GWM~\citep{lu2025gwm}) predict future RGB, depth, and normal frames conditioned on actions.
+Reward models increasingly rely on visual perception: VIP~\citep{ma2023vip} pre-trains visual reward functions from human video; ReWiND~\citep{zhang2025rewind} uses language-conditioned VLM rewards for task adaptation; Robometer~\citep{liang2026robometer} scales reward models across 1M+ trajectories with video-language understanding.
+These models consume perception signals (depth, segmentation) as training inputs and generate them as outputs; their quality is bounded by the fidelity of the underlying perception.
+Yet no existing benchmark evaluates whether these perception signals are \textit{robust enough} under the deployment conditions the downstream systems will encounter.
+\coolname{} provides exactly this evaluation: if ZoeDepth's metric accuracy degrades by $X$\% during human interaction (as measured by STR), any world model or policy trained on ZoeDepth pseudo-labels inherits that degradation.
+
+%% ── 3. Robot perception datasets ──
+\paragraph{Robot perception datasets.}
+Existing datasets each cover a fragment of the evaluation space \coolname{} targets.
+\textbf{Object pose:} YCB-Video~\citep{xiang2018posecnn} and BOP~\citep{hodan2024bop} provide 6-DoF pose for known objects with static cameras; SenseShift6D~\citep{han2025senseshift6d} adds sensor-variation robustness but covers only 5 objects.
+\textbf{Segmentation:} OCID~\citep{suchi2019ocid} captures cluttered tabletops but has no temporal dynamics or camera pose; RISeg~\citep{qian2024riseg} uses robot interaction for segmentation without comparative backbone evaluation.
+\textbf{Reconstruction:} ScanNet~\citep{dai2017scannet}, HM3D~\citep{ramakrishnan2021hm3d}, and EmbodiedScan~\citep{wang2024embodiedscan} provide multi-modal 3D data but target reconstruction/navigation, not manipulation perception, and have no phase structure.
+\textbf{Human activity:} EPIC-Kitchens~\citep{damen2018epic} and RH20T~\citep{fang2023rh20t} contain interaction video but lack the instance masks, metric depth, and camera pose required for perception evaluation.
+\textbf{Robot-relevant objects:} FewSOL~\citep{padalunkal2023fewsol} and NIDS-Net~\citep{lu2025nidsnet} study recognition on daily objects but not multi-task evaluation.
+\textbf{Large-scale robot data:} DROID~\citep{khazatsky2024droid} aggregates 76K real-world manipulation trajectories across 564 scenes with multi-camera views, but targets policy learning rather than perception ranking---it provides no per-frame perception ground truth (depth, masks) or deployment-readiness metrics.
+
+\textit{No prior dataset evaluates multiple perception tasks on the same scenes and the same objects}---the confound that prevents per-task leaderboards from composing into a deployment recommendation.
+
+%% ── 4. Embodied and multi-task benchmarks ──
+\paragraph{Embodied and multi-task benchmarks.}
+AI2-THOR~\citep{kolve2017ai2thor}, Habitat~\citep{savva2019habitat}, HomeRobot~\citep{yenamandra2023homerobot}, BEHAVIOR-1K~\citep{li2023behavior1k}, and BEHAVIOR Vision Suite~\citep{ge2024behavior} enable multi-task evaluation in simulation---the latter with customisable scene generation---but cannot replicate real-world sensing (structured-light noise, specular reflections, motion blur).
+EmbodiedBench~\citep{yang2025embodiedbench} benchmarks MLLMs as embodied agents but in simulation with action-level evaluation.
+RoboSense~\citep{kong2025robosense} tests sensor robustness for driving/navigation, not manipulation.
+WildCross~\citep{knights2026wildcross} benchmarks outdoor depth and place recognition, complementary to \coolname{}'s indoor manipulation focus.
+SQA3D~\citep{ma2022sqa3d} and 3D-VisTA~\citep{zhu20233dvista} benchmark situated spatial reasoning on curated static 3D scenes but without phase transitions or embodied sensor dynamics.
+RoboVQA~\citep{sermanet2023robovqa} asks long-horizon reasoning questions on robot-relevant real images but evaluates VLMs as planners, not as perception backbones---and does not measure robustness to scene-state changes.
+\coolname{} jointly evaluates multiple manipulation-relevant perception tasks under controlled phase-transition conditions on real-world scenes---a combination not provided by any benchmark in Table~\ref{tab:dataset-comparison}.
+
+%% ── 5. Robustness and difficulty ──
+\paragraph{Robustness and difficulty stratification.}
+Vision robustness benchmarks~\citep{hendrycks2019benchmarking, taori2020measuring} evaluate distributional corruptions but not the scene-state shifts that embodied manipulation induces.
+\textit{Temporal consistency} has emerged as a model-level concern (Video Depth Anything~\citep{yang2025videodepthanything}, ChronoDepth~\citep{shao2025chronodepth}, PTC-Depth~\citep{li2026ptcdepth}), but these are model contributions, not benchmark contributions comparing across models.
+On the benchmark side, Spring~\citep{mehl2023spring} provides high-resolution real-world sequences for depth and flow evaluation, and MOSE~\citep{ding2023mose} stress-tests video object segmentation under complex occlusion dynamics---the closest tracking benchmark to \coolname{}'s interaction phase.
+However, neither provides the controlled phase structure or deployment-readiness metrics that \coolname{} introduces.
+\textit{Difficulty} has been stratified by object size~\citep{lin2014coco}, occlusion~\citep{hodan2024bop}, or viewpoint~\citep{xiang2018posecnn}---post-hoc geometric splits.
+\coolname{}'s ESD derives difficulty from \textit{annotation-refinement effort}, grounding the split in perceptual ambiguity rather than geometry.
+
+\textit{Depth benchmarks.}
+The dominant depth benchmarks---NYU Depth V2 and KITTI---use static indoor/driving imagery with canonical viewpoints and no scene-state variation.
+VOID~\citep{wong2020void} adds camera motion (visual-inertial odometry) to depth evaluation but targets depth completion, not monocular estimation for manipulation.
+\coolname{} evaluates monocular depth under the motion and occlusion dynamics of robot manipulation, with metrics (TS, SGC) that existing depth benchmarks do not compute.
+
+%% ── 6. In-context visual prompting ──
+\paragraph{In-context visual prompting for robot perception.}
+A growing body of work uses \textit{visual exemplars} rather than text to prompt perception models.
+DE-ViT~\citep{zhang2024devit} performs few-shot detection from reference images without fine-tuning---``a basic skill for a robot in open environments.''
+NIDS-Net~\citep{lu2025nidsnet} detects and segments novel instances from a few examples.
+DetPO~\citep{detpo2026} optimises in-context detection prompts for MLLMs.
+KUDA~\citep{kuda2025} unifies visual prompting with keypoint-based manipulation.
+In VLA research, RICL~\citep{sridhar2025ricl} injects in-context adaptability into VLAs post-training.
+\coolname{} supports this evaluation mode because it contains the \textit{same objects} in both isolated single-object scenes (suitable as reference images) and cluttered multi-object scenes (the query).
+This enables a direct comparison: \textit{does a text prompt (``red plastic bottle'') or a visual prompt (a reference photo of the bottle) produce more robust detection under clutter and interaction?}
+We are not aware of any benchmark that provides paired isolated/cluttered images of the same objects with shared annotations.
+
+%% ── 7. The gap ──
+\paragraph{The gap \coolname{} fills.}
+Six properties jointly distinguish \coolname{} from all prior work:
+\textbf{(i)}~the same physical scenes across three controlled phase transitions;
+\textbf{(ii)}~the same daily objects evaluated across all perception tasks simultaneously;
+\textbf{(iii)}~6-DoF hardware camera pose for temporal stability and phase-transition metrics;
+\textbf{(iv)}~human interaction as a first-class experimental condition;
+\textbf{(v)}~deployment-readiness metrics (TS, STR, SGC) and difficulty stratification (ESD) that go beyond accuracy; and
+\textbf{(vi)}~paired single-object/multi-object scenes enabling in-context visual prompting evaluation.
+No existing benchmark provides all six (Table~\ref{tab:dataset-comparison}).
+
+%% ── Comparison table ──
+\begin{table}[t]
+\centering
+\caption{Systematic comparison of \coolname{} with related datasets and benchmarks.
+{\cmark}~= supported; {\pmark}~= partial; {\xmark}~= not supported.
+Rows above the mid-rule are \textit{dataset properties}; rows below are \textit{evaluation methodology} features---a distinction we maintain to avoid conflating data contributions with measurement contributions.
+$^\dagger$Core datasets or task categories (not spatial scenes). $^\ddagger$Sequences or trials (not frames). $^\S$RoboVLMs is a methods paper, not a dataset; included for positioning only. DROID~\citep{khazatsky2024droid} is a policy-learning dataset, not a perception benchmark, but included as the closest large-scale real-world comparison.}
+\label{tab:dataset-comparison}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{l c cccccccccccccc}
+\toprule
+ & \rotatebox{70}{\textbf{\coolname{}}}
+ & \rotatebox{70}{RoboVLMs$^\S$}
+ & \rotatebox{70}{DROID}
+ & \rotatebox{70}{ScanNet}
+ & \rotatebox{70}{YCB-V}
+ & \rotatebox{70}{BOP}
+ & \rotatebox{70}{OCID}
+ & \rotatebox{70}{RH20T}
+ & \rotatebox{70}{FewSOL}
+ & \rotatebox{70}{EmbodiedScan}
+ & \rotatebox{70}{OK-Robot}
+ & \rotatebox{70}{SceneReplica}
+ & \rotatebox{70}{HomeRobot}
+ & \rotatebox{70}{EPIC-K}
+ & \rotatebox{70}{WildCross} \\
+\midrule
+Real-world capture                 & \cmark & \xmark         & \cmark & \cmark & \cmark & \cmark & \cmark & \cmark & \cmark & \cmark & \cmark & \cmark & \xmark & \cmark & \cmark \\
+Phase structure (3-phase)          & \cmark & \xmark         & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark \\
+Multi-task GT on shared scenes     & \cmark & \xmark         & \xmark & \pmark & \xmark & \xmark & \xmark & \pmark & \xmark & \pmark & \xmark & \xmark & \xmark & \xmark & \pmark \\
+Same objects across all tasks      & \cmark & \xmark         & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark \\
+Instance masks                     & \cmark & \xmark         & \xmark & \pmark & \cmark & \cmark & \cmark & \xmark & \cmark & \cmark & \xmark & \xmark & \xmark & \xmark & \xmark \\
+Metric depth GT                    & \cmark & \xmark         & \pmark & \cmark & \cmark & \cmark & \cmark & \cmark & \xmark & \cmark & \xmark & \pmark & \xmark & \xmark & \cmark \\
+6-DoF camera pose GT               & \cmark & \xmark         & \cmark & \cmark & \pmark & \xmark & \xmark & \cmark & \xmark & \cmark & \xmark & \xmark & \xmark & \xmark & \cmark \\
+Language / grounding GT            & \cmark & \pmark    & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \cmark & \cmark & \cmark & \xmark & \xmark & \pmark & \xmark \\
+Human interaction phase            & \cmark & \xmark         & \cmark & \xmark & \xmark & \xmark & \xmark & \cmark & \xmark & \xmark & \xmark & \xmark & \xmark & \cmark & \xmark \\
+Mobile-robot view (human proxy)     & \cmark & \xmark         & \cmark & \cmark & \xmark & \xmark & \xmark & \pmark & \xmark & \cmark & \xmark & \xmark & \xmark & \cmark & \cmark \\
+Deployment-readiness metrics       & \cmark & \xmark         & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark \\
+In-context visual prompt eval      & \cmark & \xmark         & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \pmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark \\
+Paired isolated / cluttered obj    & \cmark & \xmark         & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \pmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark \\
+Community-extensible toolkit       & \cmark & \cmark & \pmark & \xmark & \pmark & \pmark & \xmark & \xmark & \xmark & \xmark & \pmark & \pmark & \pmark & \pmark & \xmark \\
+Perception-level backbone ranking  & \cmark & \pmark    & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \xmark & \pmark & \xmark & \xmark & \xmark \\
+\midrule
+\# Scenes     & 100    & ---     & 564 & 1.5K   & 92   & 7$^\dagger$  & 96   & 147$^\dagger$  & 336  & 5K   & 10   & 20   & sim   & 45 & 19 \\
+\# Frames     & 75K    & ---     & 350K & 2.5M   & 134K & var. & 2.4K & 110K$^\ddagger$  & 3K   & 1M   & 171$^\ddagger$  & 100$^\ddagger$  & sim   & 20M & 476K \\
+Eval.\ focus & \textit{deploy.} & \textit{policy} & imit. & recon. & pose & pose & seg. & imit. & recog. & 3D & manip. & manip. & manip. & activity & depth \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
