@@ -45,9 +45,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# HuggingFace Hub snapshot downloads (modality-aware bulk fetch).
+# HuggingFace Hub snapshot downloads (modality-aware bulk fetch),
+# packing capture trees into per-modality tar shards, and writing the
+# per-frame Parquet manifest the dataset hub ships.
 hub = [
   "huggingface_hub[hf_xet]>=0.26",
+  "pyarrow>=14",
 ]
 # One-line `datasets.load_dataset(...)` + PyTorch DataLoader bridge.
 hf-datasets = [

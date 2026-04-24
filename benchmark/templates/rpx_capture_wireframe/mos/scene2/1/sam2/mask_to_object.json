@@ -1,0 +1,5 @@
+{
+  "_doc": "Maps in-frame mask integer to canonical object id (= SOS scene dir name).",
+  "1": "coffee_mug",
+  "2": "water_bottle"
+}

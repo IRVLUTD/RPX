@@ -1,0 +1,5 @@
+# One filename per line, listing frames whose masks have been hand-verified.
+# Frames absent from this file have unverified (auto-generated) masks.
+00000.png
+00001.png
+00002.png
