@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from .croissant import CroissantPatch, stage_croissant
 from .dataset_card import CardSpec, write_dataset_card
 from .downloader import download_for_task
 from .manifest import build_frame_manifest
@@ -290,6 +291,20 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------- #
+# `stage-croissant`
+# --------------------------------------------------------------------- #
+
+def _cmd_stage_croissant(args: argparse.Namespace) -> int:
+    src = Path(args.src) if args.src else None
+    patch = CroissantPatch(repo_id=args.repo_id, version=args.version,
+                            cite_as=args.cite_as)
+    out = stage_croissant(staging_root=Path(args.staging),
+                            src=src, patch=patch, overwrite=args.overwrite)
+    print(f"[stage-croissant] wrote {out} ({out.stat().st_size:,} bytes)")
+    return 0
+
+
+# --------------------------------------------------------------------- #
 # `download`
 # --------------------------------------------------------------------- #
 
@@ -429,6 +444,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_dc.add_argument("--overwrite", action="store_true",
                        help="Overwrite an existing README.md.")
     p_dc.set_defaults(func=_cmd_dataset_card)
+
+    p_cr = sub.add_parser("stage-croissant",
+                            help="Copy + patch the Croissant JSON.")
+    p_cr.add_argument("--staging", required=True,
+                       help="Staging dir; lands at <staging>/rpx_croissant.json.")
+    p_cr.add_argument("--src", default=None,
+                       help="Source JSON path (default: paper-submission/.../rpx_croissant.json).")
+    p_cr.add_argument("--repo-id", default=DEFAULT_REPO_ID,
+                       help=f"HF dataset repo id for url field (default: {DEFAULT_REPO_ID}).")
+    p_cr.add_argument("--version", default="1.0.0",
+                       help="Dataset version string (default: 1.0.0).")
+    p_cr.add_argument("--cite-as", default=None,
+                       help="Replace the citeAs field (e.g. a bibtex string).")
+    p_cr.add_argument("--overwrite", action="store_true",
+                       help="Overwrite an existing rpx_croissant.json.")
+    p_cr.set_defaults(func=_cmd_stage_croissant)
 
     return parser
 

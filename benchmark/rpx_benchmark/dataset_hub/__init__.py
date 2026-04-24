@@ -23,6 +23,10 @@ End-to-end usage::
 
 from __future__ import annotations
 
+from .croissant import (
+    CroissantPatch,
+    stage_croissant,
+)
 from .dataset_card import (
     CardSpec,
     write_dataset_card,
@@ -110,6 +114,9 @@ __all__ = [
     "UploadResult",
     "upload_paths",
     "upload_staging",
+    # croissant
+    "CroissantPatch",
+    "stage_croissant",
     # dataset card
     "CardSpec",
     "write_dataset_card",
