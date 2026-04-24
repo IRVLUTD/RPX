@@ -23,6 +23,10 @@ End-to-end usage::
 
 from __future__ import annotations
 
+from .dataset_card import (
+    CardSpec,
+    write_dataset_card,
+)
 from .downloader import (
     DownloadResult,
     download_for_task,
@@ -106,6 +110,9 @@ __all__ = [
     "UploadResult",
     "upload_paths",
     "upload_staging",
+    # dataset card
+    "CardSpec",
+    "write_dataset_card",
     # downloader
     "DownloadResult",
     "download_for_task",

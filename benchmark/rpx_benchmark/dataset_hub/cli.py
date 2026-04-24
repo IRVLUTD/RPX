@@ -20,11 +20,12 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from .dataset_card import CardSpec, write_dataset_card
 from .downloader import download_for_task
 from .manifest import build_frame_manifest
 from .mock import MockSpec, generate_mock, measure_tree
 from .packer import PackPlan, pack_capture_tree, pack_objects_meta
-from .staging import stage_splits
+from .staging import load_scene_splits, stage_splits
 from .recipes import DEFAULT_REPO_ID, SceneType
 from .scanner import scan_capture_root
 from .uploader import UploadPlan, upload_staging
@@ -256,6 +257,39 @@ def _cmd_stage_splits(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------- #
+# `dataset-card`
+# --------------------------------------------------------------------- #
+
+def _cmd_dataset_card(args: argparse.Namespace) -> int:
+    src = Path(args.src)
+    staging = Path(args.staging)
+    scan = scan_capture_root(src)
+
+    splits = None
+    if (staging / "splits" / "scene_splits.json").is_file():
+        try:
+            splits = load_scene_splits(staging)
+        except Exception as e:
+            print(f"[dataset-card] WARN: could not load scene splits: {e}",
+                   file=sys.stderr)
+
+    label_versions = None
+    cur_path = staging / "manifest" / "current.json"
+    if cur_path.is_file():
+        label_versions = json.loads(cur_path.read_text("utf-8")).get(
+            "label_versions",
+        )
+
+    spec = CardSpec(repo_id=args.repo_id)
+    out = write_dataset_card(staging, scan, spec=spec,
+                              splits=splits,
+                              label_versions=label_versions,
+                              overwrite=args.overwrite)
+    print(f"[dataset-card] wrote {out} ({out.stat().st_size:,} bytes)")
+    return 0
+
+
+# --------------------------------------------------------------------- #
 # `download`
 # --------------------------------------------------------------------- #
 
@@ -383,6 +417,18 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Don't raise if some expected splits files are "
                             "absent in the source dir.")
     p_st.set_defaults(func=_cmd_stage_splits)
+
+    p_dc = sub.add_parser("dataset-card",
+                            help="Generate <staging>/README.md (HF dataset card).")
+    p_dc.add_argument("--src", required=True,
+                       help="Capture-tree root (used for scan totals).")
+    p_dc.add_argument("--staging", required=True,
+                       help="Staging dir; the README lands at <staging>/README.md.")
+    p_dc.add_argument("--repo-id", default=DEFAULT_REPO_ID,
+                       help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).")
+    p_dc.add_argument("--overwrite", action="store_true",
+                       help="Overwrite an existing README.md.")
+    p_dc.set_defaults(func=_cmd_dataset_card)
 
     return parser
 
