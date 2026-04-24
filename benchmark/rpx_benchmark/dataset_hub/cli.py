@@ -24,6 +24,7 @@ from .downloader import download_for_task
 from .manifest import build_frame_manifest
 from .mock import MockSpec, generate_mock, measure_tree
 from .packer import PackPlan, pack_capture_tree, pack_objects_meta
+from .staging import stage_splits
 from .recipes import DEFAULT_REPO_ID, SceneType
 from .scanner import scan_capture_root
 from .uploader import UploadPlan, upload_staging
@@ -237,6 +238,24 @@ def _cmd_upload(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------- #
+# `stage-splits`
+# --------------------------------------------------------------------- #
+
+def _cmd_stage_splits(args: argparse.Namespace) -> int:
+    src = Path(args.splits_src) if args.splits_src else None
+    staged = stage_splits(
+        staging_root=Path(args.staging),
+        splits_src=src, overwrite=args.overwrite,
+        require_all=not args.allow_missing,
+    )
+    print(f"[stage-splits] copied {len(staged)} files into "
+           f"{args.staging}/splits/")
+    for s in staged:
+        print(f"               {s.repo_path}  ({_human_bytes(s.bytes_)})")
+    return 0
+
+
+# --------------------------------------------------------------------- #
 # `download`
 # --------------------------------------------------------------------- #
 
@@ -350,6 +369,20 @@ def build_parser() -> argparse.ArgumentParser:
                        metavar="KEY=VALUE",
                        help="Override a label modality version (repeatable).")
     p_dl.set_defaults(func=_cmd_download)
+
+    p_st = sub.add_parser("stage-splits",
+                            help="Copy splits/* into a staging dir.")
+    p_st.add_argument("--staging", required=True,
+                       help="Staging dir (the upload target).")
+    p_st.add_argument("--splits-src", default=None,
+                       help="Source dir holding scene_splits.json + tier "
+                            "txts (default: benchmark/data/splits/).")
+    p_st.add_argument("--overwrite", action="store_true",
+                       help="Overwrite existing files in <staging>/splits/.")
+    p_st.add_argument("--allow-missing", action="store_true",
+                       help="Don't raise if some expected splits files are "
+                            "absent in the source dir.")
+    p_st.set_defaults(func=_cmd_stage_splits)
 
     return parser
 

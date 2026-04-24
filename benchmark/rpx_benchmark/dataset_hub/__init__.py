@@ -57,6 +57,14 @@ from .scanner import (
     ScanResult,
     scan_capture_root,
 )
+from .staging import (
+    SPLIT_TIER_FILES,
+    SCENE_SPLITS_JSON,
+    StagedFile,
+    load_scene_splits,
+    stage_paths,
+    stage_splits,
+)
 from .uploader import (
     DEFAULT_IGNORE_PATTERNS,
     UploadPlan,
@@ -101,4 +109,11 @@ __all__ = [
     # downloader
     "DownloadResult",
     "download_for_task",
+    # staging
+    "SPLIT_TIER_FILES",
+    "SCENE_SPLITS_JSON",
+    "StagedFile",
+    "load_scene_splits",
+    "stage_paths",
+    "stage_splits",
 ]
