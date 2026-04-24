@@ -42,7 +42,7 @@ import struct
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 
 # --------------------------------------------------------------------- #
@@ -121,21 +121,67 @@ def generate_mock(out_root: Path, spec: MockSpec | None = None) -> Path:
     (out_root / "mos").mkdir(exist_ok=True)
     (out_root / "sos").mkdir(exist_ok=True)
 
-    for i in range(1, spec.multi_object_scenes + 1):
-        scene_dir = out_root / "mos" / f"scene{i}"
-        for phase in range(spec.phases_per_multi):
-            _emit_phase(scene_dir / str(phase), spec, salt=i * 100 + phase)
-
+    # SOS first so MOS scenes can reference real SOS object names.
+    sos_object_names: list[str] = []
     for i in range(1, spec.single_object_scenes + 1):
         # SOS scene dir name = the bare object name (no "object" prefix).
-        obj_dir = out_root / "sos" / f"mock_obj_{i:02d}"
-        _emit_phase(obj_dir / "0", spec, salt=10_000 + i)
+        name = f"mock_obj_{i:02d}"
+        sos_object_names.append(name)
+        obj_dir = out_root / "sos" / name
+        _emit_phase(obj_dir / "0", spec, salt=10_000 + i,
+                     mask_to_object={"1": name})
+        # FewSOL-style questionnaire at the SOS scene root.
+        (obj_dir / "questionnaire.txt").write_text(
+            _mock_questionnaire(name), encoding="utf-8",
+        )
+
+    # MOS scenes — reference SOS objects in mask_to_object.json so the
+    # questionnaire-dedup layer has something real to look up.
+    for i in range(1, spec.multi_object_scenes + 1):
+        scene_dir = out_root / "mos" / f"scene{i}"
+        # Pick up to 3 of the SOS objects to populate this scene with.
+        if sos_object_names:
+            picked = sos_object_names[(i - 1) % len(sos_object_names)
+                                       :(i - 1) % len(sos_object_names) + 3]
+            if not picked:
+                picked = sos_object_names[:3]
+        else:
+            picked = []
+        m2o = {str(idx + 1): name for idx, name in enumerate(picked)}
+        for phase in range(spec.phases_per_multi):
+            _emit_phase(scene_dir / str(phase), spec, salt=i * 100 + phase,
+                         mask_to_object=m2o or None)
 
     return out_root
 
 
-def _emit_phase(phase_dir: Path, spec: MockSpec, salt: int) -> None:
-    """Write all modality subdirs for one (scene, phase)."""
+def _mock_questionnaire(object_name: str) -> str:
+    """Tiny FewSOL-style template so packer/loader tests have real text."""
+    return (
+        f"1. What is the name of the object in these images?\n"
+        f"{object_name}, mock_alias_a, mock_alias_b\n\n"
+        f"2. What is the category of the object in these images?\n"
+        f"mock_category\n\n"
+        f"3. What is the object in these images made of?\n"
+        f"mock_material\n\n"
+        f"4. What can be the object in these images used for?\n"
+        f"mock_use_a, mock_use_b\n\n"
+        f"5. What is the color of the object in these images?\n"
+        f"mock_color_a, mock_color_b\n"
+    )
+
+
+def _emit_phase(
+    phase_dir: Path, spec: MockSpec, salt: int,
+    mask_to_object: Optional[dict[str, str]] = None,
+) -> None:
+    """Write all modality subdirs for one (scene, phase).
+
+    ``mask_to_object`` overrides the synthetic ``sam2/mask_to_object.json``
+    with a caller-supplied mapping. Used by :func:`generate_mock` so MOS
+    scenes reference real SOS object names (the dedup key for the
+    objects_meta/ layer).
+    """
     rgb_dir      = phase_dir / "rgb";       rgb_dir.mkdir(parents=True, exist_ok=True)
     depth_dir    = phase_dir / "depth";     depth_dir.mkdir(exist_ok=True)
     fisheye_dir  = phase_dir / "fisheye";   fisheye_dir.mkdir(exist_ok=True)
@@ -166,9 +212,9 @@ def _emit_phase(phase_dir: Path, spec: MockSpec, salt: int) -> None:
         )
 
     # SAM2 metadata files.
+    m2o = mask_to_object or {str(i): f"mock_object_{i}" for i in range(1, 6)}
     (sam2_dir / "mask_to_object.json").write_text(
-        json.dumps({str(i): f"mock_object_{i}" for i in range(1, 6)}),
-        encoding="utf-8",
+        json.dumps(m2o, sort_keys=True), encoding="utf-8",
     )
     (sam2_dir / "verified_masks.txt").write_text(
         "\n".join(f"{k:05d}.png" for k in range(n)) + "\n",

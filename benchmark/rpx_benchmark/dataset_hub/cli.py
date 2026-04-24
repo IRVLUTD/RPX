@@ -23,7 +23,7 @@ from typing import List, Optional
 from .downloader import download_for_task
 from .manifest import build_frame_manifest
 from .mock import MockSpec, generate_mock, measure_tree
-from .packer import PackPlan, pack_capture_tree
+from .packer import PackPlan, pack_capture_tree, pack_objects_meta
 from .recipes import DEFAULT_REPO_ID, SceneType
 from .scanner import scan_capture_root
 from .uploader import UploadPlan, upload_staging
@@ -136,6 +136,9 @@ def _cmd_pack(args: argparse.Namespace) -> int:
     if res.skipped_keys:
         print(f"[pack] skipped {len(res.skipped_keys)} unknown modality keys "
                f"(first 3: {res.skipped_keys[:3]})")
+    artefacts = pack_objects_meta(plan, scan)
+    print(f"[pack] wrote {len(artefacts)} per-object questionnaires under "
+           f"{staging}/objects_meta/")
     return 0
 
 

@@ -32,8 +32,10 @@ def test_multi_object_scene_has_three_phases(tmp_path: Path):
 def test_single_object_scene_has_only_phase_zero(tmp_path: Path):
     out = generate_mock(tmp_path / "ds")
     obj = next((out / "sos").iterdir())
-    phases = sorted(p.name for p in obj.iterdir())
+    phases = sorted(p.name for p in obj.iterdir() if p.is_dir())
     assert phases == ["0"]
+    # Questionnaire lives at the scene root (sibling to phase dir).
+    assert (obj / "questionnaire.txt").is_file()
 
 
 def test_phase_dir_has_all_modality_subdirs(tmp_path: Path):

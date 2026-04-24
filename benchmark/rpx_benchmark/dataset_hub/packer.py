@@ -44,7 +44,9 @@ content-addressed cache to deduplicate across re-runs.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import re
 import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,6 +60,7 @@ from .recipes import (
     FISHEYE,
     MASKS,
     MASKS_AUX,
+    QUESTIONNAIRE,
     RGB,
     SceneType,
 )
@@ -300,3 +303,119 @@ def pack_capture_tree(plan: PackPlan, scan: ScanResult) -> PackResult:
                           repo_path, fc, bs)
 
     return PackResult(shards=shards, skipped_keys=skipped)
+
+
+# --------------------------------------------------------------------- #
+# Per-object shared artefacts (objects_meta/) — questionnaire dedup
+# --------------------------------------------------------------------- #
+
+# FewSOL questionnaire is "<n>. <question>" then a comma-separated answer
+# block on the following non-blank line. This regex captures one Q-A pair.
+_QUESTION_RE = re.compile(r"^\s*\d+\.\s*(?P<q>.+\?)\s*$", re.MULTILINE)
+
+
+@dataclass(frozen=True)
+class SharedArtefact:
+    """One file written under ``objects_meta/<object_id>/``."""
+
+    object_id:   str
+    repo_path:   str
+    total_bytes: int
+
+
+def _parse_questionnaire(text: str) -> Dict[str, list[str]]:
+    """Parse the FewSOL-style questionnaire into a structured dict.
+
+    The text shape is::
+
+        # comments are ignored
+        1. What is the name of the object in these images?
+        tape and tape holder, tape, support and adhesive tape
+
+        2. What is the category of the object in these images?
+        ...
+
+    Returns ``{question_text: [answer1, answer2, ...]}`` with answers
+    split on commas. Questions are kept verbatim (warts and all) so the
+    schema survives changes to the answer-template wording.
+    """
+    out: Dict[str, list[str]] = {}
+    lines = [ln for ln in text.splitlines()
+              if not ln.lstrip().startswith("#")]
+    cleaned = "\n".join(lines)
+    matches = list(_QUESTION_RE.finditer(cleaned))
+    for i, m in enumerate(matches):
+        q = m.group("q").strip()
+        start = m.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(cleaned)
+        body = cleaned[start:end].strip()
+        # Take the first non-blank line as the answer block.
+        first_line = next(
+            (ln.strip() for ln in body.splitlines() if ln.strip()),
+            "",
+        )
+        answers = [a.strip() for a in first_line.split(",") if a.strip()]
+        out[q] = answers
+    return out
+
+
+def pack_objects_meta(plan: PackPlan, scan: ScanResult) -> List[SharedArtefact]:
+    """Build the ``objects_meta/`` layer.
+
+    For every SOS scene with a ``questionnaire.txt`` at its scene root,
+    parse the file and write a normalised
+    ``objects_meta/<object_id>/questionnaire.json`` under the staging
+    dir. ``object_id`` is exactly the SOS scene directory name (the
+    canonical key MOS scenes use in ``mask_to_object.json``).
+
+    Also write ``objects_meta/_index.json``: a small lookup table
+    listing every known object_id. The downloader uses this to verify
+    that mask_to_object references resolve.
+    """
+    out: List[SharedArtefact] = []
+    objects_meta = plan.staging_root / "objects_meta"
+    objects_meta.mkdir(parents=True, exist_ok=True)
+
+    object_ids: list[str] = []
+    for scene in scan.scenes:
+        if scene.scene_type is not SceneType.SINGLE_OBJECT:
+            continue
+        sos_root = (plan.src_root / "sos" / scene.scene_id)
+        questionnaire_src = sos_root / "questionnaire.txt"
+        if not questionnaire_src.is_file():
+            log.warning("SOS scene %s has no questionnaire.txt; skipping",
+                         scene.scene_id)
+            continue
+
+        parsed = _parse_questionnaire(
+            questionnaire_src.read_text(encoding="utf-8"),
+        )
+        payload = {
+            "object_id": scene.scene_id,
+            "source": "sos/" + scene.scene_id + "/questionnaire.txt",
+            "questions": parsed,
+        }
+        repo_path = f"objects_meta/{scene.scene_id}/questionnaire.json"
+        out_path = plan.staging_root / repo_path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        if out_path.exists() and not plan.overwrite:
+            raise DatasetError(
+                f"refusing to overwrite existing object meta: {out_path}",
+                hint="Pass overwrite=True or remove the staging dir.",
+            )
+        rendered = json.dumps(payload, indent=2, sort_keys=True)
+        out_path.write_text(rendered, encoding="utf-8")
+        out.append(SharedArtefact(
+            object_id=scene.scene_id, repo_path=repo_path,
+            total_bytes=out_path.stat().st_size,
+        ))
+        object_ids.append(scene.scene_id)
+        log.info("wrote %s (%d questions)", repo_path, len(parsed))
+
+    index_path = objects_meta / "_index.json"
+    index_path.write_text(
+        json.dumps({"object_ids": sorted(object_ids)}, indent=2,
+                    sort_keys=True),
+        encoding="utf-8",
+    )
+    return out

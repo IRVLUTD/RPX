@@ -37,6 +37,7 @@ from ..logging_utils import get_logger
 from .manifest import SCHEMA_VERSION
 from .recipes import (
     DEFAULT_REPO_ID,
+    QUESTIONNAIRE,
     SceneType,
     TaskRecipe,
     resolve_recipe,
@@ -51,6 +52,12 @@ log = get_logger(__name__)
 
 # Modalities the packer treats as raw — no version suffix in the repo path.
 _RAW_MODALITIES = frozenset({"rgb", "depth", "fisheye", "cam_pose"})
+
+# Modalities that live OUTSIDE the per-(scene, phase) tar shards, under
+# the shared ``objects_meta/<object_id>/`` directory. Their pull patterns
+# are derived from the per-scene mask_to_object lookups, not from
+# scene-rooted globs.
+_SHARED_MODALITIES = frozenset({QUESTIONNAIRE})
 
 
 @dataclass(frozen=True)
@@ -154,16 +161,36 @@ def _build_allow_patterns(
     current: Mapping[str, Any],
     label_versions: Mapping[str, str],
 ) -> List[str]:
-    """One glob per (scene, modality)."""
+    """One glob per (scene, modality). Shared modalities (questionnaire)
+    are *not* expanded here — see :func:`_shared_artefact_patterns` for
+    the per-object dedup pull.
+    """
     root = _scene_root_for(scene_type)
     patterns: List[str] = []
     for scene in sorted(matched_scenes):
         for m in sorted(modalities):
+            if m in _SHARED_MODALITIES:
+                continue   # handled by _shared_artefact_patterns
             if m in _RAW_MODALITIES:
                 patterns.append(f"{root}/{scene}/*/{m}.tar")
             else:
                 v = _resolve_label_version(m, current, label_versions)
                 patterns.append(f"{root}/{scene}/*/labels/{m}/{v}.tar")
+    return patterns
+
+
+def _shared_artefact_patterns(modalities: Iterable[str]) -> List[str]:
+    """Build allow_patterns for the ``objects_meta/`` layer.
+
+    For now we pull *all* per-object questionnaires when a recipe asks
+    for ``questionnaire`` — they are tiny (~220 small JSON files). A
+    future optimisation would resolve the exact set of object IDs from
+    the matched scenes' ``mask_to_object.json`` files (already in the
+    sam2_meta tars), but the saving is negligible.
+    """
+    patterns: List[str] = []
+    if QUESTIONNAIRE in modalities:
+        patterns.append("objects_meta/*/questionnaire.json")
     return patterns
 
 
@@ -252,6 +279,7 @@ def download_for_task(
     patterns = _build_allow_patterns(
         matched_scenes, recipe.scene_type, modalities, current, explicit,
     )
+    patterns.extend(_shared_artefact_patterns(modalities))
 
     log.info("download plan: task=%s split=%s scenes=%d modalities=%s "
               "patterns=%d", task, split, len(matched_scenes),

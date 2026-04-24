@@ -38,7 +38,9 @@ from .packer import (
     PackPlan,
     PackResult,
     PackedShard,
+    SharedArtefact,
     pack_capture_tree,
+    pack_objects_meta,
 )
 from .recipes import (
     DEFAULT_REPO_ID,
@@ -82,7 +84,9 @@ __all__ = [
     "PackPlan",
     "PackResult",
     "PackedShard",
+    "SharedArtefact",
     "pack_capture_tree",
+    "pack_objects_meta",
     # manifest
     "SCHEMA_VERSION",
     "ManifestPaths",
