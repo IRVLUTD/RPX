@@ -55,7 +55,7 @@ from .recipes import (
     MASKS_AUX,
     RGB,
     SceneType,
-)
+)  # noqa: F401  CAM_POSE used in default label_versions
 from .scanner import ScanResult
 
 log = get_logger(__name__)
@@ -152,7 +152,8 @@ def build_frame_manifest(
     pa, pq = _arrow()
     splits = dict(splits or {})
     label_versions = dict(label_versions or {
-        MASKS: "v1", MASKS_AUX: "v1", "sam2_meta": "v1",
+        MASKS: "v1", MASKS_AUX: "v1",
+        "sam2_meta": "v1", CAM_POSE: "v1",
     })
     out_dir = Path(out_dir)
     (out_dir / "manifest").mkdir(parents=True, exist_ok=True)

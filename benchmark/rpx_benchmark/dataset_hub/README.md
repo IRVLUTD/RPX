@@ -141,8 +141,8 @@ IRVLUTD/RPX/
 │   ├── scene_splits.json
 │   ├── easy.txt  medium.txt  hard.txt
 ├── scenes/<scene_id>/<phase>/
-│   ├── rgb.tar  depth.tar  fisheye.tar  cam_pose.tar
-│   └── labels/{masks,masks_aux,sam2_meta,vqa}/v1.tar
+│   ├── rgb.tar  depth.tar  fisheye.tar
+│   └── labels/{cam_pose,masks,masks_aux,sam2_meta,vqa}/v1.tar
 ├── objects/<object_id>/0/
 │   └── (same modality tars)
 ├── objects_meta/

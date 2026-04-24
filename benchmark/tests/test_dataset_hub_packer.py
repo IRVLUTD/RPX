@@ -45,7 +45,8 @@ def test_raw_modalities_at_phase_root_label_modalities_under_labels(packed):
     assert (sample_phase / "rgb.tar").is_file()
     assert (sample_phase / "depth.tar").is_file()
     assert (sample_phase / "fisheye.tar").is_file()
-    assert (sample_phase / "cam_pose.tar").is_file()
+    # cam_pose is a versioned label (planned for re-release), not raw.
+    assert (sample_phase / "labels" / "cam_pose" / "v1.tar").is_file()
     assert (sample_phase / "labels" / "masks" / "v1.tar").is_file()
     assert (sample_phase / "labels" / "masks_aux" / "v1.tar").is_file()
     assert (sample_phase / "labels" / "sam2_meta" / "v1.tar").is_file()

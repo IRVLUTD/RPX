@@ -51,7 +51,8 @@ log = get_logger(__name__)
 
 
 # Modalities the packer treats as raw — no version suffix in the repo path.
-_RAW_MODALITIES = frozenset({"rgb", "depth", "fisheye", "cam_pose"})
+# Must stay in sync with packer.RAW_MODALITIES.
+_RAW_MODALITIES = frozenset({"rgb", "depth", "fisheye"})
 
 # Modalities that live OUTSIDE the per-(scene, phase) tar shards, under
 # the shared ``objects_meta/<object_id>/`` directory. Their pull patterns

@@ -22,11 +22,11 @@ Output layout (under the staging directory)::
     staging/
     ├── scenes/                                # multi-object captures
     │   └── <scene_id>/<phase>/
-    │       ├── rgb.tar
-    │       ├── depth.tar
-    │       ├── fisheye.tar
-    │       ├── cam_pose.tar              # treated as raw (sensor pipeline output)
+    │       ├── rgb.tar                   # raw (sealed once)
+    │       ├── depth.tar                 # raw
+    │       ├── fisheye.tar               # raw
     │       └── labels/
+    │           ├── cam_pose/v1.tar       # versioned: SLAM may be re-run
     │           ├── masks/v1.tar
     │           ├── masks_aux/v1.tar
     │           └── sam2_meta/v1.tar
@@ -71,7 +71,11 @@ log = get_logger(__name__)
 
 
 # Modalities considered "raw" (immutable, no version embedded in path).
-RAW_MODALITIES = frozenset({RGB, DEPTH, FISHEYE, CAM_POSE})
+# rgb/depth/fisheye are sealed once captured — never re-released.
+# cam_pose is *versioned* (treated as a label) because the SLAM pipeline
+# may be re-run; that version bump should not invalidate the rest of the
+# user's cache.
+RAW_MODALITIES = frozenset({RGB, DEPTH, FISHEYE})
 
 # Mapping from scanner modality keys → packer output modality + label flag.
 # Scanner keys come straight from the on-disk dir names, with sam2/ split
@@ -81,7 +85,7 @@ _MODALITY_PLAN: Dict[str, tuple[str, bool]] = {
     "rgb":                         (RGB,           False),
     "depth":                       (DEPTH,         False),
     "fisheye":                     (FISHEYE,       False),
-    "cam_pose":                    (CAM_POSE,      False),
+    "cam_pose":                    (CAM_POSE,      True),    # versioned label
     "sam2/masks":                  (MASKS,         True),
     "sam2/_meta":                  ("sam2_meta",   True),
     # The remaining sam2/* aux directories all collapse into masks_aux.

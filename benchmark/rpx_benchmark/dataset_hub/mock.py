@@ -182,12 +182,15 @@ def _emit_phase(
     scenes reference real SOS object names (the dedup key for the
     objects_meta/ layer).
     """
-    rgb_dir      = phase_dir / "rgb";       rgb_dir.mkdir(parents=True, exist_ok=True)
-    depth_dir    = phase_dir / "depth";     depth_dir.mkdir(exist_ok=True)
-    fisheye_dir  = phase_dir / "fisheye";   fisheye_dir.mkdir(exist_ok=True)
-    cam_pose_dir = phase_dir / "cam_pose";  cam_pose_dir.mkdir(exist_ok=True)
-    sam2_dir     = phase_dir / "sam2";      sam2_dir.mkdir(exist_ok=True)
-    masks_dir    = sam2_dir / "masks";      masks_dir.mkdir(exist_ok=True)
+    rgb_dir       = phase_dir / "rgb";       rgb_dir.mkdir(parents=True, exist_ok=True)
+    depth_dir     = phase_dir / "depth";     depth_dir.mkdir(exist_ok=True)
+    # Fisheye is the T265 stereo pair: two subdirs with synced filenames.
+    fisheye_root  = phase_dir / "fisheye";   fisheye_root.mkdir(exist_ok=True)
+    fisheye_left  = fisheye_root / "left";   fisheye_left.mkdir(exist_ok=True)
+    fisheye_right = fisheye_root / "right";  fisheye_right.mkdir(exist_ok=True)
+    cam_pose_dir  = phase_dir / "cam_pose";  cam_pose_dir.mkdir(exist_ok=True)
+    sam2_dir      = phase_dir / "sam2";      sam2_dir.mkdir(exist_ok=True)
+    masks_dir     = sam2_dir / "masks";      masks_dir.mkdir(exist_ok=True)
     aux_dirs = {name: (sam2_dir / name) for name in spec.sam2_aux_subdirs}
     for d in aux_dirs.values():
         d.mkdir(exist_ok=True)
@@ -196,10 +199,12 @@ def _emit_phase(
     for k in range(n):
         stem = f"{k:05d}.png"
         v = (salt + k) & 0xFF
-        (rgb_dir      / stem).write_bytes(_rgb8_png(sz, sz, v, (v + 50) & 0xFF, (v + 100) & 0xFF))
-        (depth_dir    / stem).write_bytes(_grayscale16_png(sz, sz, ((salt + k) * 37) & 0xFFFF))
-        (fisheye_dir  / stem).write_bytes(_grayscale8_png(sz, sz, (255 - v) & 0xFF))
-        (masks_dir    / stem).write_bytes(_grayscale8_png(sz, sz, (k % 5) + 1))
+        (rgb_dir       / stem).write_bytes(_rgb8_png(sz, sz, v, (v + 50) & 0xFF, (v + 100) & 0xFF))
+        (depth_dir     / stem).write_bytes(_grayscale16_png(sz, sz, ((salt + k) * 37) & 0xFFFF))
+        # Synced filenames: same stem in both fisheye/left/ and fisheye/right/
+        (fisheye_left  / stem).write_bytes(_grayscale8_png(sz, sz, (255 - v) & 0xFF))
+        (fisheye_right / stem).write_bytes(_grayscale8_png(sz, sz, v))
+        (masks_dir     / stem).write_bytes(_grayscale8_png(sz, sz, (k % 5) + 1))
         for d in aux_dirs.values():
             (d / stem).write_bytes(_grayscale8_png(sz, sz, v))
         (cam_pose_dir / f"{k:05d}.json").write_text(
