@@ -1,377 +1,328 @@
-# RPX Dataset Hub — team workflow + TODOs
+# RPX Dataset Hub — team guide
 
-This subpackage turns the on-disk RPX captures (`test_dataset_aggregated/`)
-into the HuggingFace dataset at
-[`IRVLUTD/RPX`](https://huggingface.co/datasets/IRVLUTD/RPX). It implements
-selective task-based downloads with cache-aware delta reuse, and is
-the upload path the team runs from the system that holds the real
-~890 GB of captures.
+This subpackage uploads the RPX captures to
+[`IRVLUTD/RPX`](https://huggingface.co/datasets/IRVLUTD/RPX) on
+HuggingFace, and lets users download just the slice they need
+(by task and split) without pulling the full ~890 GB.
 
-**Current status**: end-to-end pipeline works on synthetic data
-(mock → pack → manifest → upload dry-run → download). 400 tests green.
-What's left before v1 ships to HF is the file-staging work (splits,
-dataset card, preview) and one real run on the target system — see
-[TODOs](#todos) below.
+> **Status**: end-to-end pipeline works on synthetic data. 435 tests
+> green. Real upload pending the team arranging the captures into the
+> wireframe layout (see §3) on the target system.
 
 ---
 
-## 0. Pre-reqs
+## 1. The 5-minute version
 
 ```bash
-pip install -e 'benchmark[hub]'          # huggingface_hub + pyarrow
-hf auth login                            # push access to IRVLUTD org
-```
-
-Verify:
-```bash
-hf whoami                                # → your HF username
-cd benchmark && pytest -q tests/test_dataset_hub_*.py      # → 80+ green
-```
-
----
-
-## 1. The pipeline in one minute
-
-```
-              ┌─────────┐                 ┌──────────┐
-capture tree  │         │  tar shards     │          │  HF repo
-(test_dataset │  pack   │  + manifest +   │  upload  │  IRVLUTD/RPX
-_aggregated/) │         │  objects_meta/  │          │
-              └─────────┘                 └──────────┘
-                  ↑                            │
-                  │ reads                      │ snapshot_download
-              ┌─────────┐                      ↓
-              │  scan   │                 ┌──────────┐
-              └─────────┘                 │ download │  local cache,
-                                          │ --task   │  just the
-                                          │ --split  │  tars the
-                                          └──────────┘  task needs
-```
-
-**Three CLI entry points you'll actually run:**
-
-```bash
-# Walk the captures on disk, see how much data there is.
-python -m rpx_benchmark.dataset_hub.cli scan /path/to/test_dataset_aggregated
-
-# Turn the captures into HF-shaped tar shards + manifest + objects_meta/.
-python -m rpx_benchmark.dataset_hub.cli pack \
-    --src /path/to/test_dataset_aggregated \
-    --staging /path/to/staging
-python -m rpx_benchmark.dataset_hub.cli manifest \
-    --src /path/to/test_dataset_aggregated \
-    --staging /path/to/staging \
-    --splits benchmark/data/splits/scene_splits.json
-
-# Push to the HF dataset repo (resumable; takes hours at 890 GB).
-python -m rpx_benchmark.dataset_hub.cli upload \
-    --staging /path/to/staging \
-    --repo-id IRVLUTD/RPX
-```
-
-**User-facing command** (what the team and collaborators will call):
-
-```bash
-python -m rpx_benchmark.dataset_hub.cli download \
-    --task segmentation --split easy
-# → fetches only the RGB + masks tars for easy-tier MOS scenes.
-# Re-running with --task relative_pose --split easy reuses the RGB
-# tars from the cache and only fetches the cam_pose tars as the delta.
-```
-
-**Mock** lets you exercise the whole chain locally in ~1 s:
-
-```bash
-python -m rpx_benchmark.dataset_hub.cli mock --out /tmp/rpx_mock
-python -m rpx_benchmark.dataset_hub.cli pack \
-    --src /tmp/rpx_mock --staging /tmp/rpx_stage
-# Inspect the staging tree — it's the HF repo shape.
-find /tmp/rpx_stage -type f | head
-```
-
----
-
-## 2. The on-disk source layout (what the team arranges)
-
-See `benchmark/templates/rpx_capture_wireframe/README.md` for the full
-spec. Short version:
-
-```
-test_dataset_aggregated/
-├── mos/                      # multi-object scenes (100)
-│   ├── scene1/
-│   │   ├── 0/ 1/ 2/          # three phases: clutter, interaction, clean
-│   │   │   ├── rgb/ depth/ fisheye/{left,right}/ cam_pose/
-│   │   │   └── sam2/
-│   │   │       ├── masks/
-│   │   │       ├── bbox_overlay/ …                 # viz, opt-in
-│   │   │       ├── mask_to_object.json             # {mask_id → object_id}
-│   │   │       ├── verified_masks.txt
-│   │   │       └── iter1_faulty.txt … iter4_faulty.txt
-│   │   └── ...
-│   └── ... scene100/
-└── sos/                      # single-object scenes (220)
-    ├── tape_and_holder/
-    │   ├── questionnaire.txt                        # FewSOL-style Q&A
-    │   └── 0/                                       # only one "phase"
-    │       └── ... same modalities as MOS ...
-    └── ... 220 objects ...
-```
-
-**Three rules the team must honour** (the packer + downloader depend on
-them):
-
-1. **SOS dir name == canonical `object_id`.** Use the same string in MOS
-   `mask_to_object.json` values.
-2. **`questionnaire.txt` lives at the SOS scene root**, not inside a
-   phase. MOS scenes never carry one.
-3. **Frame names `00000.png`, 5-digit zero-padded, aligned across
-   modalities.** 250 frames per phase.
-
----
-
-## 3. HF repo layout the pipeline produces
-
-```
-IRVLUTD/RPX/
-├── manifest/
-│   ├── frames_v1.parquet     # per-frame metadata (always pulled, small)
-│   └── current.json          # {label_versions: {masks: v1, ...}}
-├── splits/                   # ← TODO 1 adds these
-│   ├── scene_splits.json
-│   ├── easy.txt  medium.txt  hard.txt
-├── scenes/<scene_id>/<phase>/
-│   ├── rgb.tar  depth.tar  fisheye.tar
-│   └── labels/{cam_pose,masks,masks_aux,sam2_meta,vqa}/v1.tar
-├── objects/<object_id>/0/
-│   └── (same modality tars)
-├── objects_meta/
-│   ├── _index.json
-│   └── <object_id>/questionnaire.json     # parsed from FewSOL text
-├── preview/                  # ← TODO 4 adds these
-├── README.md                 # ← TODO 2 adds this (dataset card)
-└── rpx_croissant.json        # ← TODO 3 adds this
-```
-
----
-
-## 4. Where the code lives
-
-| Module | Purpose | Entry point |
-|---|---|---|
-| `mock.py` | Generate synthetic capture tree | `cli mock` |
-| `scanner.py` | Inventory the capture tree | `cli scan` |
-| `packer.py` | Capture tree → per-(scene, phase, modality) tars + `objects_meta/` | `cli pack` |
-| `manifest.py` | Per-frame Parquet + `current.json` | `cli manifest` |
-| `uploader.py` | HF push (resumable) | `cli upload` |
-| `downloader.py` | Selective pull by (task, split) | `cli download` |
-| `recipes.py` | Task → modality recipes | lib only |
-| `cli.py` | `python -m rpx_benchmark.dataset_hub.cli <cmd>` | — |
-
----
-
-## TODOs
-
-Five items before v1 ships to HF, ordered by dependency.
-
-### TODO 1 — Ship the splits files into staging (small, blocking)
-
-The manifest's `split` column is only populated when we pass
-`--splits scene_splits.json` to the `manifest` CLI (already supported).
-We also need the splits files at the HF repo root for downstream
-tooling. Two tiny file copies during staging.
-
-- **Where**: new `staging.py` module in `dataset_hub/` + new CLI
-  subcommand `cli stage-splits`.
-- **What**:
-  - Copy `benchmark/data/splits/scene_splits.json` →
-    `<staging>/splits/scene_splits.json`
-  - Copy `easy.txt`, `medium.txt`, `hard.txt` → `<staging>/splits/`
-  - Done.
-- **Acceptance**:
-  - `staging/splits/{easy,medium,hard}.txt` and `scene_splits.json`
-    exist after running the new subcommand.
-  - A test that passes the resulting `scene_splits.json` to
-    `build_frame_manifest(..., splits=...)` and confirms the `split`
-    column gets populated.
-- **Estimated effort**: ~30 min including tests.
-
-### TODO 2 — Generate the HuggingFace dataset card
-
-HF Dataset Viewer needs a `README.md` with YAML frontmatter at the
-repo root. Template is already at
-`benchmark/templates/hf_dataset_card.md` — needs to be populated with
-real metadata (num_scenes, total_bytes, modalities, task_categories,
-splits, license).
-
-- **Where**: new `dataset_card.py` in `dataset_hub/` + `cli dataset-card`.
-- **What**:
-  - Fill the template using the `ScanResult` + manifest totals from
-    `manifest.py`.
-  - Render and write to `<staging>/README.md`.
-  - YAML frontmatter must include:
-    ```yaml
-    task_categories: [image-segmentation, depth-estimation,
-                      visual-question-answering, ...]
-    tags: [robotics, manipulation, rgb-d, realsense]
-    size_categories: [100B<n<1T]
-    license: <pick one: cc-by-4.0 or mit or apache-2.0>
-    ```
-  - Include a quick-start `snapshot_download` example in the card.
-- **Acceptance**:
-  - `staging/README.md` exists, parses as valid YAML frontmatter + MD.
-  - Upload dry-run lists it as the top-level file.
-- **Estimated effort**: ~1 h including a representative rendering test.
-
-### TODO 3 — Copy Croissant metadata into staging + reconcile
-
-`paper-submission/neurips-2026/croissant/rpx_croissant.json` already
-exists. We need to (a) copy it into `<staging>/rpx_croissant.json`
-and (b) reconcile its field paths against the new tar layout (it was
-drafted against the earlier loose-file layout).
-
-- **Where**: extend `staging.py` with `stage_croissant()`.
-- **What**:
-  - Copy the JSON into staging root.
-  - Walk the JSON's `distribution` and `recordSet` entries, rewrite
-    any paths that still reference the old `rgb/*.png` layout to the
-    new `rgb.tar` shard paths.
-- **Acceptance**:
-  - `staging/rpx_croissant.json` exists.
-  - A test that parses the JSON and confirms every file path it
-    references resolves to an actual file or glob in `<staging>/`.
-- **Estimated effort**: ~1 h (mostly the reconciliation).
-
-### TODO 4 — Preview subset for the HF Dataset Viewer
-
-Pick ~50 representative frames (mix of easy/medium/hard, 1–2 SOS)
-and stage them under `<staging>/preview/`. HF Dataset Viewer renders
-these as a thumbnail strip, which is the "window shopping" experience.
-
-- **Where**: new `preview.py` in `dataset_hub/` + `cli preview`.
-- **What**:
-  - Curate frames: the CLI takes a `--config preview.yaml` listing
-    `(scene_id, phase, frame_idx)` tuples, or a `--auto` mode that
-    samples 1 frame per tertile per 5 MOS scenes + 10 SOS scenes.
-  - For each curated frame: decode the RGB from its tar shard,
-    overlay the mask, resize to 512×512, write to
-    `<staging>/preview/<nnn>_<scene_id>_<phase>_<frame>.jpg`.
-  - Also write `<staging>/preview/thumbnails.parquet` with embedded
-    JPEG bytes for the viewer's native thumbnail panel (HF viewer
-    auto-detects Parquet with image columns).
-- **Acceptance**:
-  - `staging/preview/` contains ~50 JPEGs + the Parquet.
-  - Total preview dir size < 50 MB (so the viewer loads fast).
-- **Estimated effort**: ~2 h (includes the mask-overlay renderer).
-
-### TODO 5 — Python loader that decodes (task, split) → iterator of samples
-
-The downloader currently stops at "tars on disk". Users want a
-Python loop that yields decoded frames. Plumb this through using
-`rpx_benchmark.loader.RPXDataset` (already exists) or a new
-`DatasetHubLoader`.
-
-- **Where**: new `loader.py` in `dataset_hub/`.
-- **What**:
-  - Given `DownloadResult`, open each relevant tar with
-    `tarfile.open(..., "r|")` for streaming, yield
-    `Sample(rgb=PIL, depth=np.ndarray, masks=..., cam_pose=...)`.
-  - Honour the manifest's `has_<modality>` column — skip frames
-    where any required modality is missing.
-  - Support iteration ordering: `"sequential"` (by `(scene, phase,
-    frame_idx)`) or `"shuffle(seed=N)"`.
-- **Acceptance**:
-  - On the mock dataset, a loader loop yields the expected number
-    of samples, each with the correct modalities populated.
-  - Works for both MOS (with `split`) and SOS (no split) recipes.
-  - A torch/jax-agnostic iterator that can be wrapped into a
-    `DataLoader` in three lines.
-- **Estimated effort**: ~3 h including tests.
-
----
-
-## 5. Running on the real captures (once the above is done)
-
-On the system holding the real ~890 GB:
-
-```bash
-# 0. One-time setup
+# one-time
 pip install -e 'benchmark[hub]'
 hf auth login
 
-# 1. Sanity-check the layout
+# upload (run on the system that has the ~890 GB captures)
+python -m rpx_benchmark.dataset_hub.cli pack            --src DATA --staging STAGE
+python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA --staging STAGE \
+                                                         --splits benchmark/data/splits/scene_splits.json
+python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE
+python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA --staging STAGE
+python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE
+python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE  --repo-id IRVLUTD/RPX
+
+# download (any machine, any time)
+python -m rpx_benchmark.dataset_hub.cli download --task segmentation --split easy
+```
+
+`DATA` is your captures root (the dir holding `mos/` and `sos/`).
+`STAGE` is any local scratch dir with enough free space.
+
+---
+
+## 2. What each command does
+
+| Command | One-line job |
+|---|---|
+| `scan` | Walk the captures, report counts and bytes per modality. Read-only. |
+| `pack` | Bundle each `(scene, phase, modality)` into a tar shard ready for upload. |
+| `manifest` | Build the per-frame Parquet that tells downloaders which scenes belong to which split. |
+| `stage-splits` | Copy `splits/{easy,medium,hard}.txt` and `scene_splits.json` into the staging dir. |
+| `dataset-card` | Generate the `README.md` HuggingFace shows on the dataset page. |
+| `stage-croissant` | Copy the Croissant metadata JSON (see §6 for what that is). |
+| `upload` | Push the staging dir to the HF repo. Resumable. |
+| `download` | (Users.) Pull just the files a `(task, split)` needs. |
+
+If you forget any of `stage-splits` / `dataset-card` / `stage-croissant`,
+the upload still works, but the HF dataset page will be sparse and
+downloaders will not find a `split` column to filter on.
+
+---
+
+## 3. How the captures must be arranged on disk
+
+The pipeline expects this directory shape under your data root. There's
+a fully-populated wireframe at `benchmark/templates/rpx_capture_wireframe/`
+that the team can copy as a starting template.
+
+```
+DATA/
+├── mos/                              # 100 multi-object scenes
+│   ├── scene1/
+│   │   ├── 0/    (clutter phase)
+│   │   ├── 1/    (interaction phase)
+│   │   └── 2/    (clean phase)
+│   │       ├── rgb/         00000.png …  (5-digit, 250 frames)
+│   │       ├── depth/       00000.png …  (16-bit grayscale)
+│   │       ├── fisheye/
+│   │       │   ├── left/    00000.png …  (T265 left)
+│   │       │   └── right/   00000.png …  (T265 right, same filenames)
+│   │       ├── cam_pose/    00000.json … (T265 SLAM pose)
+│   │       └── sam2/
+│   │           ├── masks/                  00000.png … (instance IDs)
+│   │           ├── bbox_overlay/ … rgb_and_mask/   (six viz dirs, opt-in)
+│   │           ├── mask_to_object.json     {"1": "tape_and_holder", "2": …}
+│   │           ├── verified_masks.txt
+│   │           └── iter1_faulty.txt … iter4_faulty.txt
+│   └── … scene100/
+└── sos/                              # 220 single-object scenes
+    ├── tape_and_holder/              # ← directory name = the canonical object_id
+    │   ├── questionnaire.txt         # FewSOL Q&A about this object
+    │   └── 0/                        # only one phase (360° turntable)
+    │       └── … same modality dirs as MOS …
+    └── … 219 more objects …
+```
+
+**Three rules to honour:**
+
+1. **MOS dirs**: `scene1`, `scene2`, …, `scene100`.
+2. **SOS dirs**: bare object names (`tape_and_holder`, `coffee_mug`, …),
+   no prefix. **The directory name is the object's canonical ID** — use
+   the same string in MOS `mask_to_object.json` values.
+3. **Frame names**: `00000.png` (5-digit zero-padded), aligned across
+   modalities, 250 per phase.
+
+If anything looks wrong, run `scan` — it lists "skipped" entries that
+didn't fit the pattern (typos, stray files).
+
+---
+
+## 4. What ends up on the HuggingFace repo
+
+Your `pack`/`upload` produces this on `IRVLUTD/RPX`:
+
+```
+IRVLUTD/RPX/
+├── README.md                         # the dataset card (from `dataset-card`)
+├── rpx_croissant.json                # metadata for ML platforms (from `stage-croissant`)
+├── manifest/
+│   ├── frames_v1.parquet             # one row per frame; users pull this first
+│   └── current.json                  # which label version is the default
+├── splits/
+│   ├── scene_splits.json
+│   ├── easy.txt  medium.txt  hard.txt
+├── scenes/<scene_id>/<phase>/                       # MOS captures
+│   ├── rgb.tar  depth.tar  fisheye.tar
+│   └── labels/{cam_pose,masks,masks_aux,sam2_meta,vqa}/v1.tar
+├── objects/<object_id>/0/                           # SOS captures
+│   └── (same modality tars)
+└── objects_meta/                                    # questionnaire dedup
+    ├── _index.json
+    └── <object_id>/questionnaire.json
+```
+
+Two things to notice:
+
+- **One tar per modality, not per frame.** A user fetching segmentation
+  pulls a few hundred tars (rgb + masks for the matched scenes) — never
+  the whole repo, never a million loose files.
+- **Labels are versioned.** Bumping a label version is a one-line config
+  change. Users get the new version automatically via `current.json`,
+  or pin to the old one with `--label-version <name>=v<N>`.
+
+---
+
+## 5. Updating the dataset later
+
+The most common updates and how to ship each.
+
+### 5a. Adding new label data (e.g. VQA arrives)
+
+```bash
+# After the new vqa/ subdirs are written under each phase on disk:
+python -m rpx_benchmark.dataset_hub.cli pack --src DATA --staging STAGE --overwrite
+# Bump current.json so default downloaders pick up the new label
+python -c "import json, pathlib; p = pathlib.Path('STAGE/manifest/current.json'); \
+           c = json.loads(p.read_text()); c['label_versions']['vqa'] = 'v1'; \
+           p.write_text(json.dumps(c, indent=2))"
+python -m rpx_benchmark.dataset_hub.cli upload --staging STAGE --repo-id IRVLUTD/RPX \
+    --message "v1.1.0: add VQA labels"
+```
+
+Users get VQA on the next `download --task vqa --split <X>` call.
+Other tasks (`segmentation`, `relative_pose`, …) are untouched
+because their tar paths are unchanged — HF cache hits for everyone.
+
+### 5b. Re-releasing an existing label (e.g. cam_pose refinement)
+
+```bash
+# After the refined cam_pose/ files replace the old ones on disk:
+python -m rpx_benchmark.dataset_hub.cli pack --src DATA --staging STAGE \
+    --label-version v2 --overwrite
+# This adds  scenes/<scene>/<phase>/labels/cam_pose/v2.tar
+# alongside the existing v1 files (which stay reachable for reproducibility).
+
+# Bump current.json so default downloaders pick up v2
+python -c "import json, pathlib; p = pathlib.Path('STAGE/manifest/current.json'); \
+           c = json.loads(p.read_text()); c['label_versions']['cam_pose'] = 'v2'; \
+           p.write_text(json.dumps(c, indent=2))"
+python -m rpx_benchmark.dataset_hub.cli upload --staging STAGE --repo-id IRVLUTD/RPX \
+    --message "v1.2.0: refined cam_pose (v2)"
+```
+
+A user pinning to v1 just adds `--label-version cam_pose=v1` and gets
+the original poses forever.
+
+### 5c. Adding new scenes after v1 ships
+
+Drop the new scenes into `DATA/mos/` (or `DATA/sos/`) and re-run
+`pack` + `manifest` + `upload --message "v1.x.x: add N scenes"`. The
+unchanged scenes' tars are byte-identical (the packer is deterministic)
+so HF skips them; only the new tars transfer.
+
+### 5d. Removing a scene
+
+`huggingface_hub` doesn't expose a clean delete-folder API. Use the
+HF web UI: Files & versions → navigate to the scene dir → Delete.
+Then re-build the manifest locally and re-upload `manifest/frames_v1.parquet`
+so the row count matches. Rare; usually fixing a bad capture rather
+than removing.
+
+### 5e. Bumping the dataset version (semantic releases)
+
+Tag the HF repo with a Git revision (`v1.0.0`, `v1.1.0`, ...) so users
+can pin to a specific release for reproducibility:
+
+```python
+# in code:
+download_for_task(task=..., split=..., revision="v1.0.0")
+```
+
+The HF UI's "Settings → Git tags" creates these.
+
+---
+
+## 6. What is Croissant?
+
+[Croissant](https://mlcommons.org/working-groups/croissant/) is a
+metadata standard for ML datasets — a JSON file that describes the
+dataset's structure (fields, types, splits, license, citation) in a
+machine-readable form. HuggingFace, Kaggle, OpenML, and Papers-with-Code
+all parse Croissant to render rich previews and search filters.
+
+We already authored ours at
+`paper-submission/neurips-2026/croissant/rpx_croissant.json`. The
+`stage-croissant` command copies it into the upload tree and patches a
+few fields (URL, version, optional bibtex) to point at the live HF repo.
+
+You don't need to write or read Croissant manually — `stage-croissant`
+handles it. The only reason to touch the JSON is if you want to
+register a new field schema for a new modality (e.g. once VQA labels
+land, adding a `vqa_qa` recordSet). That's a one-time edit per major
+schema change.
+
+---
+
+## 7. Running the full pipeline against the real data
+
+On the system with the ~890 GB captures, in order:
+
+```bash
+# 0. install
+pip install -e 'benchmark[hub]'
+hf auth login
+
+# 1. sanity-check the layout
 python -m rpx_benchmark.dataset_hub.cli scan /data/test_dataset_aggregated
-# → "100 scenes, 220 objects, 780k files, 890 GB"
-# → check: no stray entries in the "skipped" list
+# expect: ~100 MOS scenes, ~220 SOS scenes, ~890 GB.
+# any "skipped" entries are typos or strays — fix on disk and re-scan.
 
-# 2. Pack to a local staging dir (will need ~2 TB scratch)
+# 2. pack (≈2 TB scratch needed for the staging dir)
 python -m rpx_benchmark.dataset_hub.cli pack \
-    --src /data/test_dataset_aggregated \
-    --staging /scratch/rpx_stage
+    --src /data/test_dataset_aggregated --staging /scratch/rpx_stage
 
-# 3. Build the manifest with split assignments
+# 3. build the manifest with split assignments
 python -m rpx_benchmark.dataset_hub.cli manifest \
-    --src /data/test_dataset_aggregated \
-    --staging /scratch/rpx_stage \
+    --src /data/test_dataset_aggregated --staging /scratch/rpx_stage \
     --splits benchmark/data/splits/scene_splits.json
 
-# 4. (TODOs 1-4) Stage splits, dataset card, croissant, preview
-python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging /scratch/rpx_stage   # TODO 1
-python -m rpx_benchmark.dataset_hub.cli dataset-card    --staging /scratch/rpx_stage   # TODO 2
-python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging /scratch/rpx_stage   # TODO 3
-python -m rpx_benchmark.dataset_hub.cli preview --auto  --staging /scratch/rpx_stage   # TODO 4
-
-# 5. Dry-run the upload — checks file count + bytes + ignores
-python -m rpx_benchmark.dataset_hub.cli upload \
-    --staging /scratch/rpx_stage \
-    --repo-id IRVLUTD/RPX \
-    --dry-run
-# → e.g. "would push 2,103 files (889.2 GB) to IRVLUTD/RPX"
-
-# 6. Real upload (resumable; hours)
-python -m rpx_benchmark.dataset_hub.cli upload \
-    --staging /scratch/rpx_stage \
+# 4. small companion files
+python -m rpx_benchmark.dataset_hub.cli stage-splits     --staging /scratch/rpx_stage
+python -m rpx_benchmark.dataset_hub.cli dataset-card \
+    --src /data/test_dataset_aggregated --staging /scratch/rpx_stage \
     --repo-id IRVLUTD/RPX
+python -m rpx_benchmark.dataset_hub.cli stage-croissant \
+    --staging /scratch/rpx_stage --repo-id IRVLUTD/RPX
 
-# 7. Smoke-test a pull from a clean cache
-HF_HOME=/tmp/hf_cache_check python -m rpx_benchmark.dataset_hub.cli download \
-    --task segmentation --split easy --cache-dir /tmp/hf_cache_check
+# 5. dry-run the upload (file count + bytes, no network)
+python -m rpx_benchmark.dataset_hub.cli upload \
+    --staging /scratch/rpx_stage --repo-id IRVLUTD/RPX --dry-run
+
+# 6. real upload (resumable; takes hours)
+python -m rpx_benchmark.dataset_hub.cli upload \
+    --staging /scratch/rpx_stage --repo-id IRVLUTD/RPX
+
+# 7. smoke-test from a clean cache
+HF_HOME=/tmp/hf_check python -m rpx_benchmark.dataset_hub.cli download \
+    --task segmentation --split easy --cache-dir /tmp/hf_check
 ```
 
 ---
 
-## 6. Troubleshooting
+## 8. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `scan` reports `skipped: [mos/scence1]` (typo) | scene dir name doesn't match `scene*` or `object*` | rename on disk and re-scan |
+| `scan` reports `skipped: [mos/scence1]` | scene dir name typo | rename on disk and re-scan |
 | `pack` raises `refusing to overwrite existing shard` | staging dir already populated | pass `--overwrite` or remove the staging dir |
-| `upload --dry-run` shows a `.fls`, `.aux`, etc. | LaTeX build artefacts leaked into staging | they are covered by `DEFAULT_IGNORE_PATTERNS`; confirm you're on a staging dir built by `pack`, not a hand-copied tree |
-| `download` raises `No scenes matched task=... split=...` | manifest has `split = null` everywhere | pass `--splits scene_splits.json` to `manifest` when building the staging dir |
-| Upload stalls or dies mid-transfer | network blip / HF rate limit | just re-run the same `upload` command — `upload_large_folder` checkpoints in `<staging>/.huggingface/` |
+| `upload --dry-run` shows `.aux`, `.fls`, etc. | LaTeX build artefacts leaked in | `DEFAULT_IGNORE_PATTERNS` covers these; check you're staging from `pack` output |
+| `download` raises `No scenes matched task=... split=...` | manifest has `split = null` everywhere | run `manifest` with `--splits scene_splits.json` |
+| Upload stalls or dies mid-transfer | network blip / HF rate limit | re-run the same `upload` command — checkpoint is in `<staging>/.huggingface/` |
 
 ---
 
-## 7. Tests
+## 9. Where the code lives
+
+| Module | Job |
+|---|---|
+| `scanner.py` | Walks captures, reports inventory |
+| `packer.py` | Captures → per-modality tars + `objects_meta/` |
+| `manifest.py` | Builds per-frame Parquet + `current.json` |
+| `staging.py` | Copies `splits/` files |
+| `dataset_card.py` | Renders the HF `README.md` |
+| `croissant.py` | Patches and copies the Croissant JSON |
+| `uploader.py` | Pushes staging to HF (resumable) |
+| `downloader.py` | Pulls just the (task, split) slice users need |
+| `recipes.py` | Task → modality lookup table |
+| `mock.py` | Generates a tiny synthetic capture tree for testing |
+| `cli.py` | All `python -m rpx_benchmark.dataset_hub.cli <cmd>` entry points |
+
+---
+
+## 10. Tests
 
 ```bash
 cd benchmark
 pytest -q tests/test_dataset_hub_*.py
-# → 80 tests across 7 files; runs in < 15 s.
+# 100+ tests across ~10 files; runs in ~20 s.
 ```
 
-Each source module has its own test file. New TODOs should ship with
-tests — pattern-match off existing ones
-(`test_dataset_hub_packer.py`, `test_dataset_hub_downloader.py`,
-`test_dataset_hub_objects_meta.py`).
+If you change layout or the recipe table, re-run; the suite catches the
+common breakages (wrong tar paths, missing modalities, stale tests).
 
 ---
 
-## Ownership
+## Owners
 
-| Area | Primary owner | Backup |
-|---|---|---|
-| Source layout / wireframe conformance | **team (whoever arranges the captures on disk)** | — |
-| Pipeline code + tests | jishnu | open to PRs |
-| HF repo permissions | jishnu | — |
-| Label re-releases (masks v2, vqa v1) | TBD (when data lands) | — |
+| Area | Owner |
+|---|---|
+| Source layout / wireframe conformance | the team member who arranges captures on disk |
+| Pipeline code + tests | jishnu |
+| HF repo permissions | jishnu |
+| Label re-releases (cam_pose v2, vqa v1) | TBD when the data lands |
