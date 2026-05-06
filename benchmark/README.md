@@ -97,6 +97,69 @@ ds = load("monocular_depth", "hard")
 
 Both yield `list[Sample]` batches the runner consumes interchangeably.
 
+## Visualize a scene
+
+One command opens an interactive [Rerun](https://rerun.io/) viewer with all six modalities (RGB, depth, fisheye stereo, instance masks, and the T265 6-DoF camera trajectory) on a shared timeline.
+
+![RPX in Rerun: 3 phases × 6 panels (cam pose, RGB, cividis depth, royal-tone masks, fisheye L, fisheye R)](docs/assets/rpx_rerun_viewer.png)
+
+```bash
+pip install -e '.[hub,viz]'
+
+make visualize            # stream into viewer; no disk artifact (HF cache only)
+make visualize-phases     # all 3 phases (clutter / interaction / clean) side-by-side
+make visualize-save       # also write a portable .rrd to benchmark/site/
+make visualize-lite       # constrained devices (Pi 4 / Jetson Nano): stride=3, smaller
+make visualize-headless   # build .rrd only, no viewer (CI / SSH)
+```
+
+### Single-phase layout
+
+```
+┌──────────────┬──────────────┬──────────────┐
+│   Cam Pose   │  Fisheye L   │  Fisheye R   │
+├──────────────┼──────────────┼──────────────┤
+│     RGB      │ Depth (mm)   │    Masks     │
+└──────────────┴──────────────┴──────────────┘
+```
+
+### All-phases layout (`--all-phases`, screenshot above)
+
+Each row is a phase, six panels per row sharing one timeline. Scrub forward and the same physical frame index advances in all 18 panels at once, so you can directly compare what the perception model sees in clutter vs. interaction vs. clean.
+
+```
+Row 0 · Clutter:     [Cam Pose] [RGB] [Depth (cividis)] [Masks] [Fisheye L] [Fisheye R]
+Row 1 · Interaction: [Cam Pose] [RGB] [Depth (cividis)] [Masks] [Fisheye L] [Fisheye R]
+Row 2 · Clean:       [Cam Pose] [RGB] [Depth (cividis)] [Masks] [Fisheye L] [Fisheye R]
+```
+
+### Visual conventions
+
+- **Depth**: cividis colormap, **per-frame histogram-equalized** so subtle structure remains visible even when a frame's depth band is narrow. Invalid (`raw == 0`) pixels render black.
+- **Masks**: hand-curated **royal jewel-tone palette** (sapphire, emerald, ruby, amethyst, gold, …) with deterministic `id → palette[id mod 16]` mapping. Background (id=0) is black. The same instance ID always produces the same color across frames *and* phases — useful for verifying SAM-2 tracking consistency.
+- **Camera pose**: per-phase trajectory rendered as a colored polyline (magenta = clutter, orange = interaction, cyan = clean) with a Pinhole frustum that sweeps along the path as you scrub.
+- **Fisheye stereo**: T265 monochrome, percentile-stretched per frame (T265 raw uint8 occupies a narrow band that displays as dark without contrast normalisation).
+
+### Disk footprint
+
+By default the data **streams straight from the HuggingFace cache** (`~/.cache/huggingface/hub/`) into the viewer's memory — no intermediate `.rrd` is written, so the only on-disk cost is the dataset cache itself. Pass `--save` (or use `make visualize-save`) when you want a portable `.rrd` to share or re-open later:
+
+```bash
+rerun --memory-limit 2GB site/rpx_*.rrd
+```
+
+### Keyboard shortcuts
+
+| Key | Action |
+|---|---|
+| `Space` | play / pause |
+| `,` / `.` | step backward / forward by one frame |
+| `Home` / `End` | jump to first / last frame |
+
+Arrow keys are reserved by Rerun for 3D camera navigation when a `Spatial3DView` has focus, so use `,` / `.` (which work regardless of focus) for frame stepping.
+
+See `python scripts/visualize_rerun.py --help` for the full flag set (specific scene/phase, JPEG quality, frame stride, lossless mode, etc.).
+
 ## Install extras
 
 | Extra | Pulls | Use when |
@@ -105,6 +168,7 @@ Both yield `list[Sample]` batches the runner consumes interchangeably.
 | `hub` | `huggingface_hub[hf_xet]` | Downloading from HF |
 | `hf-datasets` | `datasets>=2.18` | `load_hf(...)` one-liner |
 | `schemas` | `pydantic>=2.5` | Strict manifest validation |
+| `viz` | `rerun-sdk`, `matplotlib`, `Pillow`, `tqdm` | `make visualize` (interactive Rerun) |
 | `dev` | `pytest`, `pytest-cov`, `ruff`, `black`, `mypy`, `pre-commit` | Contributing |
 | `docs` | `mkdocs`, `mkdocs-material`, `mkdocstrings[python]` | Building docs locally |
 
