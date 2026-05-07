@@ -86,7 +86,7 @@ dev = [
   "pytest-cov>=5",
   "ruff>=0.4",
   "black>=24.8",
-  "mypy>=1.11",
+  "mypy>=1.11,<2.0",  # 2.0 tightened global defaults; the team's strict-modules-only policy assumes 1.x semantics
   "pre-commit>=3.8",
   "pydantic>=2.5",
 ]
