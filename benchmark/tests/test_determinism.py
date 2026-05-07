@@ -64,4 +64,4 @@ def test_seed_all_does_not_raise_without_torch(monkeypatch) -> None:
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
-    seed_all(7)   # must not raise
+    seed_all(7)  # must not raise

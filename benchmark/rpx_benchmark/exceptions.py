@@ -86,22 +86,22 @@ class RPXError(Exception):
 # Config-level errors
 # --------------------------------------------------------------------------- #
 
+
 class ConfigError(RPXError):
     """Raised when a user-supplied config is invalid.
 
     Examples
     --------
-    * ``MonocularDepthRunConfig`` built with both ``model`` and
-      ``hf_checkpoint`` set.
-    * CLI given ``--device cuda`` on a CPU-only host with
-      ``--strict-device`` enabled.
+    * ``MonocularDepthRunConfig`` built without a ``model``.
     * Unknown difficulty split.
+    * ``batch_size < 1``.
     """
 
 
 # --------------------------------------------------------------------------- #
 # Dataset-level errors
 # --------------------------------------------------------------------------- #
+
 
 class DatasetError(RPXError):
     """Base class for dataset load / manifest / download failures."""
@@ -134,6 +134,7 @@ class DownloadError(DatasetError):
 # Model-level errors
 # --------------------------------------------------------------------------- #
 
+
 class ModelError(RPXError):
     """Raised by model factories or the runner when a model misbehaves.
 
@@ -161,6 +162,7 @@ class AdapterError(ModelError):
 # --------------------------------------------------------------------------- #
 # Metric-level errors
 # --------------------------------------------------------------------------- #
+
 
 class MetricError(RPXError):
     """Raised when a metric calculator cannot compute a score.

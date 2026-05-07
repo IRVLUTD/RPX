@@ -30,10 +30,10 @@ from rpx_benchmark.api import (
 )
 from rpx_benchmark.metrics import compute_metrics
 
-
 # --------------------------------------------------------------------------- #
 # Detection
 # --------------------------------------------------------------------------- #
+
 
 def test_detection_perfect_match():
     boxes = np.array([[10, 10, 20, 20], [50, 50, 70, 70]], dtype=np.float32)
@@ -74,6 +74,7 @@ def test_detection_both_empty_returns_unity():
 # Segmentation
 # --------------------------------------------------------------------------- #
 
+
 def test_segmentation_perfect_mask_miou_one():
     mask = np.zeros((8, 8), dtype=np.int32)
     mask[2:6, 2:6] = 1
@@ -99,6 +100,7 @@ def test_segmentation_partial_overlap():
 # Relative pose
 # --------------------------------------------------------------------------- #
 
+
 def test_relative_pose_identity_is_zero_error():
     eye = np.eye(3, dtype=np.float64)
     zero_t = np.zeros(3, dtype=np.float64)
@@ -122,11 +124,14 @@ def test_relative_pose_known_translation():
 
 def test_relative_pose_rotation_error_is_90_deg_for_z_rotation():
     gt_rot = np.eye(3, dtype=np.float64)
-    pred_rot = np.array([
-        [0.0, -1.0, 0.0],
-        [1.0,  0.0, 0.0],
-        [0.0,  0.0, 1.0],
-    ], dtype=np.float64)  # 90° about Z
+    pred_rot = np.array(
+        [
+            [0.0, -1.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )  # 90° about Z
     pred = RelativePosePrediction(rotation=pred_rot, translation=np.zeros(3))
     gt = RelativePoseGroundTruth(rotation=gt_rot, translation=np.zeros(3))
     out = compute_metrics(TaskType.RELATIVE_CAMERA_POSE, pred, gt)
@@ -136,6 +141,7 @@ def test_relative_pose_rotation_error_is_90_deg_for_z_rotation():
 # --------------------------------------------------------------------------- #
 # Visual grounding
 # --------------------------------------------------------------------------- #
+
 
 def test_grounding_perfect_single_box_hit():
     box = np.array([[10, 10, 20, 20]], dtype=np.float32)
@@ -150,7 +156,9 @@ def test_grounding_miss_yields_zero_acc():
     pred_box = np.array([[0, 0, 5, 5]], dtype=np.float32)
     gt_box = np.array([[50, 50, 60, 60]], dtype=np.float32)
     pred = VisualGroundingPrediction(
-        boxes=pred_box, scores=np.array([1.0]), labels=["x"],
+        boxes=pred_box,
+        scores=np.array([1.0]),
+        labels=["x"],
     )
     gt = VisualGroundingGroundTruth(text="the x", boxes=gt_box)
     out = compute_metrics(TaskType.VISUAL_GROUNDING, pred, gt)
@@ -160,6 +168,7 @@ def test_grounding_miss_yields_zero_acc():
 # --------------------------------------------------------------------------- #
 # Sparse depth
 # --------------------------------------------------------------------------- #
+
 
 def test_sparse_depth_perfect_points():
     coords = np.array([[5, 5], [10, 10]], dtype=np.float32)
@@ -188,8 +197,9 @@ def test_sparse_depth_empty_gt_returns_zero():
 # Novel view synthesis
 # --------------------------------------------------------------------------- #
 
+
 def test_nvs_identical_frames_have_high_psnr():
-    rgb = (np.random.default_rng(0).uniform(0, 255, size=(8, 8, 3)).astype(np.uint8))
+    rgb = np.random.default_rng(0).uniform(0, 255, size=(8, 8, 3)).astype(np.uint8)
     pred = NovelViewSynthesisPrediction(rgb=rgb.copy())
     gt = NovelViewSynthesisGroundTruth(rgb=rgb.copy())
     out = compute_metrics(TaskType.NOVEL_VIEW_SYNTHESIS, pred, gt)
@@ -210,13 +220,16 @@ def test_nvs_different_frames_lower_psnr():
 # Keypoint matching
 # --------------------------------------------------------------------------- #
 
+
 def test_keypoint_perfect_matches_accuracy_one():
     points = np.array([[10, 10], [20, 20], [30, 30]], dtype=np.float32)
     pred = KeypointCorrespondencePrediction(
-        points0=points.copy(), points1=points.copy(),
+        points0=points.copy(),
+        points1=points.copy(),
     )
     gt = KeypointCorrespondenceGroundTruth(
-        points0=points, points1=points,
+        points0=points,
+        points1=points,
         visibility=np.ones(3, dtype=bool),
     )
     out = compute_metrics(TaskType.KEYPOINT_MATCHING, pred, gt)
@@ -230,7 +243,9 @@ def test_keypoint_all_miss_accuracy_zero():
     p1_pred = np.array([[100, 100]], dtype=np.float32)  # way off
     pred = KeypointCorrespondencePrediction(points0=p0, points1=p1_pred)
     gt = KeypointCorrespondenceGroundTruth(
-        points0=p0, points1=p1_gt, visibility=np.array([True]),
+        points0=p0,
+        points1=p1_gt,
+        visibility=np.array([True]),
     )
     out = compute_metrics(TaskType.KEYPOINT_MATCHING, pred, gt)
     assert out["keypoint_acc"] == 0.0
@@ -239,6 +254,7 @@ def test_keypoint_all_miss_accuracy_zero():
 # --------------------------------------------------------------------------- #
 # Tracking
 # --------------------------------------------------------------------------- #
+
 
 def test_tracking_perfect_single_tracklet():
     boxes = np.array(

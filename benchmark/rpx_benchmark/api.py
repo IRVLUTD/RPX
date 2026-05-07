@@ -384,6 +384,7 @@ def _check_shape(arr: np.ndarray, dims: int, name: str) -> None:
     """Raise :class:`ModelError` if ``arr`` does not have exactly ``dims`` axes."""
     if arr.ndim != dims:
         from .exceptions import ModelError
+
         raise ModelError(
             f"{name} must have {dims} dims; got {arr.ndim}",
             hint=f"Check the shape your model returns for {name!r}.",
@@ -413,8 +414,7 @@ def validate_prediction(task: TaskType, prediction: Any, sample: Sample | None =
 
     def _type_error(expected: str) -> "ModelError":
         return ModelError(
-            f"{task.value} models must return {expected}, got "
-            f"{type(prediction).__name__}",
+            f"{task.value} models must return {expected}, got {type(prediction).__name__}",
             hint=f"Check your model's predict() return type for {task.value}.",
         )
 
@@ -435,8 +435,7 @@ def validate_prediction(task: TaskType, prediction: Any, sample: Sample | None =
             )
         if len(prediction.scores) != len(boxes) or len(prediction.labels) != len(boxes):
             raise ModelError(
-                "DetectionPrediction boxes, scores, and labels must all "
-                "have the same length.",
+                "DetectionPrediction boxes, scores, and labels must all have the same length.",
                 details={
                     "n_boxes": len(boxes),
                     "n_scores": len(prediction.scores),
@@ -454,7 +453,7 @@ def validate_prediction(task: TaskType, prediction: Any, sample: Sample | None =
                 f"Segmentation mask shape {prediction.mask.shape} must "
                 f"match the RGB spatial size {sample.rgb.shape[:2]}",
                 hint="The OutputAdapter should resize masks to the sample's "
-                     "original H x W before returning.",
+                "original H x W before returning.",
             )
         return
 

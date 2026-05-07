@@ -39,7 +39,10 @@ class RelativePoseError(MetricCalculator):
                 f"{type(ground_truth).__name__}",
             )
         from ..evaluators import pose_metrics
+
         return pose_metrics(
-            prediction.rotation, prediction.translation,
-            ground_truth.rotation, ground_truth.translation,
+            prediction.rotation,
+            prediction.translation,
+            ground_truth.rotation,
+            ground_truth.translation,
         )

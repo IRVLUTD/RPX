@@ -23,8 +23,8 @@ from rpx_benchmark.api import (  # noqa: E402
     Difficulty,
     Phase,
     RelativePoseGroundTruth,
-    SegmentationGroundTruth,
     Sample,
+    SegmentationGroundTruth,
     TaskType,
 )
 from rpx_benchmark.data import (  # noqa: E402
@@ -35,10 +35,10 @@ from rpx_benchmark.data import (  # noqa: E402
 )
 from rpx_benchmark.loader import RPXDataset  # noqa: E402
 
-
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+
 
 def _png_bytes(arr: np.ndarray, mode: str) -> bytes:
     """Encode a numpy array as a PNG byte blob (mode e.g. 'RGB', 'I;16', 'I')."""
@@ -58,6 +58,7 @@ def _identity_pose_flat() -> list[float]:
 # --------------------------------------------------------------------------- #
 # Features schema
 # --------------------------------------------------------------------------- #
+
 
 def test_features_registered_for_every_task() -> None:
     """Guardrail: a new TaskType must also land a Features entry."""
@@ -79,6 +80,7 @@ def test_every_schema_has_required_identity_columns(task: TaskType) -> None:
 # --------------------------------------------------------------------------- #
 # row_to_sample dispatch
 # --------------------------------------------------------------------------- #
+
 
 def test_row_to_sample_depth() -> None:
     rgb = np.full((8, 8, 3), 42, dtype=np.uint8)
@@ -154,12 +156,11 @@ def test_row_to_sample_relative_pose_computes_relative_transform() -> None:
 # RPXHFBridge iteration + loader classmethod
 # --------------------------------------------------------------------------- #
 
+
 def _make_tiny_depth_hf_dataset(n: int = 3) -> Dataset:
     """Build an in-memory depth dataset with the canonical schema."""
     rgb_bytes = [_png_bytes(np.full((8, 8, 3), i * 10, np.uint8), "RGB") for i in range(n)]
-    depth_bytes = [
-        _png_bytes(np.full((8, 8), 1000 + i * 100, np.uint16), "I;16") for i in range(n)
-    ]
+    depth_bytes = [_png_bytes(np.full((8, 8), 1000 + i * 100, np.uint16), "I;16") for i in range(n)]
     data = {
         "id": [f"s{i}" for i in range(n)],
         "scene": ["scene_001"] * n,
@@ -169,15 +170,17 @@ def _make_tiny_depth_hf_dataset(n: int = 3) -> Dataset:
         "depth": depth_bytes,
         "camera_pose": [_identity_pose_flat()] * n,
     }
-    feats = Features({
-        "id": Value("string"),
-        "scene": Value("string"),
-        "phase": Value("string"),
-        "difficulty": Value("string"),
-        "rgb": Image(decode=True),
-        "depth": Image(decode=True),
-        "camera_pose": Sequence(Value("float32"), length=16),
-    })
+    feats = Features(
+        {
+            "id": Value("string"),
+            "scene": Value("string"),
+            "phase": Value("string"),
+            "difficulty": Value("string"),
+            "rgb": Image(decode=True),
+            "depth": Image(decode=True),
+            "camera_pose": Sequence(Value("float32"), length=16),
+        }
+    )
     return Dataset.from_dict(data, features=feats)
 
 

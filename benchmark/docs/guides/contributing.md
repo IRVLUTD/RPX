@@ -8,12 +8,34 @@ pass CI cleanly.
 ## Development install
 
 ```bash
-pip install -e '.[dev,hub,schemas]'
+cd benchmark
+make install          # editable install + pre-commit hooks
+```
+
+`make install` is a shortcut for:
+
+```bash
+pip install -e '.[dev,hub,hf-datasets,schemas,docs]'
 pre-commit install
 ```
 
 The `dev` extra bundles everything the lint/format/type pipeline
 needs: `ruff`, `black`, `mypy`, `pytest`, `pytest-cov`, `pre-commit`.
+
+## One-shot commands
+
+| Command | What it runs |
+|---|---|
+| `make test` | `pytest -q` |
+| `make cov` | tests + coverage report, fails under 70% |
+| `make lint` | ruff check (hard) + black/ruff format check (advisory) |
+| `make fmt` | ruff format + black + ruff check --fix |
+| `make type` | mypy with the pyproject strict overlay |
+| `make check` | lint + type + cov — everything CI runs |
+| `make docs` / `make serve` | build / live-serve the MkDocs site |
+| `make smoke` | run `examples/run_depth.py` (end-to-end synthetic pipeline) |
+
+`make help` lists every target.
 
 ## Tooling slate
 

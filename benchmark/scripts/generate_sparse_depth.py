@@ -48,8 +48,7 @@ def sample_valid(
 ) -> Tuple[np.ndarray, np.ndarray]:
     ys, xs = np.where(depth_mm > 0)
     if len(ys) == 0:
-        return (np.zeros((0, 2), dtype=np.float32),
-                np.zeros((0,), dtype=np.float32))
+        return (np.zeros((0, 2), dtype=np.float32), np.zeros((0,), dtype=np.float32))
     k = min(n, len(ys))
     idx = rng.choice(len(ys), size=k, replace=False)
     coords = np.stack([xs[idx], ys[idx]], axis=1).astype(np.float32)
@@ -65,6 +64,7 @@ def _frame_seed(base: int, scene: str, phase: str, frame: str) -> int:
 def main() -> int:
     try:
         from rpx_benchmark.banner import show_banner
+
         show_banner(subtitle="scripts/generate_sparse_depth.py")
     except ImportError:
         pass
@@ -72,9 +72,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--local-root", required=True, type=Path)
     parser.add_argument("--num-samples", type=int, default=256)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--stride", type=int, default=5,
-                        help="Emit a manifest entry every Nth frame")
+    # Default to the project-wide canonical seed (MMDDYYYY 05/06/2026).
+    from rpx_benchmark.determinism import RPX_SEED
+
+    parser.add_argument("--seed", type=int, default=RPX_SEED)
+    parser.add_argument(
+        "--stride", type=int, default=5, help="Emit a manifest entry every Nth frame"
+    )
     args = parser.parse_args()
 
     local_root: Path = args.local_root
@@ -137,18 +141,18 @@ def main() -> int:
                 np.save(out_dir / f"{frame}_coords.npy", coords)
                 np.save(out_dir / f"{frame}_depths.npy", depths)
 
-                manifests[difficulty]["samples"].append({
-                    "id": f"{scene}_{phase_name}_{frame}",
-                    "scene": scene,
-                    "phase": phase_name,
-                    "difficulty": difficulty,
-                    "rgb":   f"scenes/{scene}/{phase}/rgb/{frame}.png",
-                    "depth": f"scenes/{scene}/{phase}/depth/{frame}.png",
-                    "coordinates":
-                        f"scenes/{scene}/{phase}/sparse_depth/{frame}_coords.npy",
-                    "depths":
-                        f"scenes/{scene}/{phase}/sparse_depth/{frame}_depths.npy",
-                })
+                manifests[difficulty]["samples"].append(
+                    {
+                        "id": f"{scene}_{phase_name}_{frame}",
+                        "scene": scene,
+                        "phase": phase_name,
+                        "difficulty": difficulty,
+                        "rgb": f"scenes/{scene}/{phase}/rgb/{frame}.png",
+                        "depth": f"scenes/{scene}/{phase}/depth/{frame}.png",
+                        "coordinates": f"scenes/{scene}/{phase}/sparse_depth/{frame}_coords.npy",
+                        "depths": f"scenes/{scene}/{phase}/sparse_depth/{frame}_depths.npy",
+                    }
+                )
                 processed += 1
 
     out_root = local_root / "manifests" / "sparse_depth"
@@ -158,8 +162,7 @@ def main() -> int:
             continue
         with (out_root / f"{diff}.json").open("w", encoding="utf-8") as f:
             json.dump(m, f)
-        print(f"  sparse_depth  {diff:<6} {len(m['samples'])} frames "
-              f"({len(m['scenes'])} phases)")
+        print(f"  sparse_depth  {diff:<6} {len(m['samples'])} frames ({len(m['scenes'])} phases)")
     print(f"total: {processed} frames processed")
     return 0
 

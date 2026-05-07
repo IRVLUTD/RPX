@@ -1,0 +1,25 @@
+# FewSOL-style questionnaire. ONE per single-object scene, lives at the
+# scene root (NOT inside any phase). The packer extracts this into
+# objects_meta/<object_id>/questionnaire.json on the HF repo so MOS
+# scenes that contain this object can reference it without duplicating
+# the text. The object_id used on the HF side is the scene directory
+# name as-is — e.g. "object001.tape_and_holder".
+#
+# Format: each block is "<n>. <question>" then a list of comma-separated
+# free-text answers on the next line. Five questions total, in this
+# fixed order. Keep blank lines between blocks for readability.
+
+1. What is the name of the object in these images?
+tape and tape holder, tape, support and adhesive tape
+
+2. What is the category of the object in these images?
+stationary, stationery / adhesive tape
+
+3. What is the object in these images made of?
+plastic, paper, metal
+
+4. What can be the object in these images used for?
+placing the tape, stick, wrap, separate
+
+5. What is the color of the object in these images?
+black, transparent, white, yellow

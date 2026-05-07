@@ -29,8 +29,18 @@ from .base import (
     make_numpy_sparse_depth_model,
     make_numpy_tracking_model,
 )
+from .batched_depth import BatchedDepthBenchmarkModel
+from .batched_multimodal import (
+    BatchedRelativePoseBenchmarkModel,
+    BatchedSegmentationBenchmarkModel,
+    BatchedTaskBenchmarkModel,
+)
 
 __all__ = [
+    "BatchedDepthBenchmarkModel",
+    "BatchedRelativePoseBenchmarkModel",
+    "BatchedSegmentationBenchmarkModel",
+    "BatchedTaskBenchmarkModel",
     "BenchmarkableModel",
     "InputAdapter",
     "ModelInvoker",

@@ -25,7 +25,6 @@ from rpx_benchmark.schemas import (
     validate_manifest,
 )
 
-
 # Minimal representative sample entry per task. Only the fields the
 # per-task Pydantic model marks as required are populated — anything
 # else flows through ``extra='allow'``.

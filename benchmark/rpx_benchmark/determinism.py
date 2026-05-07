@@ -41,7 +41,18 @@ import random
 from contextlib import contextmanager
 from typing import Iterator
 
-__all__ = ["seed_all", "deterministic"]
+__all__ = ["seed_all", "deterministic", "RPX_SEED"]
+
+
+#: Canonical project-wide seed. MMDDYYYY-encoded 05/06/2026 — the date
+#: the team committed to a single deterministic seed across the whole
+#: benchmark (bootstrap CI, test data generation, sparse-depth /
+#: keypoint-pair samplers, ORD pixel-pair sampler, etc.). Stored here so
+#: there's exactly one place to change if the project policy shifts.
+#: Python's int literal grammar disallows a leading zero, so the
+#: storage form is ``5_062_026``; the underscores keep the
+#: month-day-year segmentation visible at a glance.
+RPX_SEED: int = 5_062_026
 
 
 def _seed_python(seed: int) -> None:
@@ -85,6 +96,7 @@ def _seed_hf(seed: int) -> None:
     """
     try:
         from transformers import set_seed as _tf_set_seed  # noqa: PLC0415
+
         _tf_set_seed(seed)
     except ImportError:
         pass
@@ -125,6 +137,7 @@ def deterministic(seed: int) -> Iterator[None]:
     np_state = None
     try:
         import numpy as np  # noqa: PLC0415
+
         np_state = np.random.get_state()
     except ImportError:
         np = None  # type: ignore[assignment]
@@ -136,4 +149,5 @@ def deterministic(seed: int) -> Iterator[None]:
         random.setstate(py_state)
         if np_state is not None:
             import numpy as _np  # noqa: PLC0415
+
             _np.random.set_state(np_state)

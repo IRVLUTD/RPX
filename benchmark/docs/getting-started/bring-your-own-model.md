@@ -53,23 +53,9 @@ Every code sample on this page consumes this `ds` — see
 [Load the Dataset](load-the-dataset.md) for the full data-loading
 surface (bulk snapshot, streaming, pinned revisions).
 
-## Four paths
+## Three paths
 
-=== "1. Zero-code CLI"
-
-    ```bash
-    pip install 'rpx-benchmark[depth-hf,hf-datasets]'
-
-    rpx bench monocular_depth \
-        --hf-checkpoint depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf \
-        --split hard
-    ```
-
-    Works for every task that has a shipped reference adapter today —
-    monocular depth and object segmentation. Other tasks route through
-    paths 2 / 3 / 4 until their reference adapters land.
-
-=== "2. Plain numpy callable"
+=== "1. Plain numpy callable"
 
     One `make_numpy_*_model` per task — point it at your function and
     you're benchmarkable. No protocol implementation required:
@@ -94,7 +80,7 @@ surface (bulk snapshot, streaming, pinned revisions).
     `make_numpy_nvs_model`, `make_numpy_keypoint_model`, and
     `make_numpy_tracking_model`.
 
-=== "3. Custom adapter stack"
+=== "2. Custom adapter stack"
 
     When you need fine-grained control over preprocessing, batching,
     or output post-processing, implement the two protocols
@@ -143,11 +129,7 @@ surface (bulk snapshot, streaming, pinned revisions).
     a dict, otherwise `model(payload)`. Pass `invoker=` to override
     (e.g. for a model that exposes `.infer(...)` instead of `.forward(...)`).
 
-    For a real reference implementation of this path, see the shipped
-    adapters in [`rpx_benchmark.reference.adapters`](../reference/index.md)
-    — they're examples you can copy, not framework API.
-
-=== "4. API / cloud model"
+=== "3. API / cloud model"
 
     Wrap a remote inference service in the same adapter pattern —
     `InputAdapter.prepare` serialises the sample, `OutputAdapter.finalize`

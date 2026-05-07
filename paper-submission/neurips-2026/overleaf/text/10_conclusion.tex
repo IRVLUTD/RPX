@@ -1,0 +1,30 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented an evaluation methodology for measuring the deployment readiness of foundation-model perception under embodied robot conditions, instantiated through \coolname{}.
+The three-phase protocol enables controlled measurement of perception degradation and recovery under scene-state variation; ESD grounds difficulty in annotation effort; and deployment-readiness metrics (STR for all tasks; TS and SGC for depth) capture properties invisible to static accuracy.
+Together, these compose into the Embodied Deployment Score (EDS)---a single actionable ranking per model.
+
+% ── TODO(results) ──
+\todo{REPLACE: 2--3 concrete findings with numbers. E.g.: ``Evaluating N models, we find that (i) standard-benchmark rankings are weakly correlated with deployment robustness ($\rho = X$); (ii) model rankings on Hard scenes diverge from Easy ($\tau = X$); (iii) [named finding].''}
+
+\paragraph{Limitations.}
+\textbf{Sensor envelope:} indoor scenes within D435 range (0.3--3\,m); results may not generalise to outdoor or long-range sensing.
+\textbf{Motion proxy:} human-carried capture approximates but does not replicate all robot motion profiles; validated via motion-statistics comparison with deployed platforms (\S\ref{sec:dataset}, Appendix~\ref{sec:appendix-motion}), but platforms with non-humanoid kinematics (e.g., fixed-base arms) may exhibit different failure modes.
+\textbf{Pose quality:} T265 VIO pose is unreliable during interaction-phase captures (hand occlusion of IR emitters), restricting TS to clutter and clean phases and excluding it from EDS in this release. This is a data-collection limitation, not a methodological one: the TS metric and its EDS integration are fully defined and will activate when higher-quality pose is available.
+\textbf{ESD circularity:} annotation-effort features are derived from SAM2-based annotation; mitigated by validating ESD against non-SAM2 model failure rates on a held-out split (\S\ref{sec:esd-validation}).
+\textbf{Scale:} 15 test scenes $\times$ 3 phases = 45 scene-phase pairs per ESD level (${\sim}$15); we report standard deviations across scenes to characterise statistical power.
+\textbf{Metric scope:} TS and SGC are currently defined only for D1 (depth); extending them to detection (box jitter) and segmentation (mask flicker) is an explicit toolkit extension point.
+\textbf{Output vs.\ feature evaluation:} \coolname{} evaluates perception at the output level; for VLAs that consume encoder features rather than explicit outputs, \coolname{}'s metrics serve as proxies for feature quality (\S\ref{sec:eds}), validated empirically in \S\ref{sec:downstream}.
+
+\paragraph{Broader impact.}
+\coolname{} evaluates perception on daily household objects; no personal data or faces are captured (IRB-exempt; consent obtained from interaction-phase participants).
+Improving perception robustness enables more reliable manipulation with positive societal impact (assistive robotics, logistics).
+We acknowledge that more robust object detection could in principle be repurposed for surveillance; however, the models evaluated are already publicly available, and \coolname{} adds evaluation methodology, not new detection capability.
+
+\paragraph{Community extensions.}
+We release data, annotations, splits, Croissant metadata, and the \texttt{rpx-benchmark} toolkit at \url{\webpage}.
+The toolkit's plugin architecture sustains community growth: new tasks, metrics, and models require no core changes.
+Released but not evaluated in this work: T265 fisheye stereo pairs and GoPro egocentric video captured during the interaction phase.
+The GoPro footage shows the same objects and manipulation events that the D435 pipeline annotates, providing a ready-made resource for the ego-exo perception research community~\citep{nair2022r3m, kareer2024egomimic, shaw2025egodex}.
+Future work with temporal synchronisation (e.g., audio alignment or hardware timecode) would enable ego-exo consistency benchmarking---measuring whether models produce consistent outputs from both viewpoints simultaneously.

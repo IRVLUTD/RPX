@@ -1,99 +1,25 @@
 """RPX — choose and rank perception models for robot learning.
 
-``rpx_benchmark`` is the reference toolkit for the RPX benchmark: a
-unified real-world RGB-D evaluation suite for the models actually
-deployed inside robot learning stacks. Bring your model (any
-HuggingFace checkpoint, numpy callable, or custom torch stack) and
-the toolkit handles dataset download, splits, metrics, reports, and
-ESD-weighted deployment-readiness scoring.
+``rpx_benchmark`` is the RPX benchmark toolkit: **dataset loaders,
+task-specific metrics, hardware-agnostic profiling, and an adapter
+protocol for plugging your model in**. The toolkit deliberately
+ships no models — bring your own.
 
-See the top-level README and the online documentation for getting
-started, the adapter framework, and the extension guides.
+Bring your model as a :class:`BenchmarkableModel` (easiest: wrap a
+numpy callable via ``make_numpy_<task>_model(fn)``; for full control
+implement your own :class:`InputAdapter` / :class:`OutputAdapter`
+pair). Hand it to the relevant ``run_<task>(config)`` entry point.
+
+See the top-level README and the online documentation for the full
+tour.
 """
 
-from .api import (
-    Difficulty,
-    ESD_WEIGHTS,
-    Phase,
-    TaskType,
-    Sample,
-    DepthGroundTruth,
-    DetectionGroundTruth,
-    SegmentationGroundTruth,
-    DepthPrediction,
-    DetectionPrediction,
-    SegmentationPrediction,
-    BenchmarkModel,
-    Tracklet,
-    TrackletGroundTruth,
-    TrackletPrediction,
-    VisualGroundingGroundTruth,
-    VisualGroundingPrediction,
-    RelativePoseGroundTruth,
-    RelativePosePrediction,
-    SparseDepthGroundTruth,
-    SparseDepthPrediction,
-    NovelViewSynthesisGroundTruth,
-    NovelViewSynthesisPrediction,
-    KeypointCorrespondenceGroundTruth,
-    KeypointCorrespondencePrediction,
-)
-from .loader import RPXDataset
-from .evaluators import MetricSuite, BenchmarkResult
-from .runner import BenchmarkRunner
-from .deployment import (
-    DeploymentReadinessReport,
-    ESDResult,
-    StackGeometricCoherenceResult,
-    StateTransitionRobustnessResult,
-    TemporalStabilityResult,
-    WeightedPhaseScore,
-    compute_esd,
-    compute_sgc,
-    compute_str,
-    compute_temporal_stability_depth,
-    compute_temporal_stability_seg,
-    compute_weighted_phase_score,
-)
-from .profiler import (
-    EfficiencyMetadata,
-    LatencyProfiler,
-    MemoryProfiler,
-    count_parameters,
-    profile_model,
-)
-from . import hub
-from .hub import (
-    DEFAULT_REPO_ID,
-    TASK_MODALITIES,
-    download_split,
-    fetch_manifest,
-    load,
-    mount,
-)
-from . import adapters, exceptions, logging_utils, metrics, models  # noqa: F401 — triggers side-effect registrations
-from .exceptions import (
-    AdapterError,
-    ConfigError,
-    DatasetError,
-    DownloadError,
-    ManifestError,
-    MetricError,
-    ModelError,
-    RPXError,
-)
-from .banner import show_banner
-from .determinism import deterministic, seed_all
-from .logging_utils import configure_logging, get_logger
-# Strict manifest validation is opt-in — we re-export a thin lazy
-# facade so ``import rpx_benchmark`` doesn't force a pydantic install
-# for users who only want the default tolerant loader.
-from . import _schemas_lazy as schemas  # noqa: F401
-# HuggingFace `datasets` integration is also opt-in for the same
-# reason: pulling pyarrow/datasets at package import is a ~100MB hit
-# we avoid for users on the huggingface_hub snapshot path.
-from . import _data_lazy as data  # noqa: F401
+from . import exceptions, hub, logging_utils, metrics  # noqa: F401 — side-effect registrations
 from .adapters import (
+    BatchedDepthBenchmarkModel,
+    BatchedRelativePoseBenchmarkModel,
+    BatchedSegmentationBenchmarkModel,
+    BatchedTaskBenchmarkModel,
     BenchmarkableModel,
     InputAdapter,
     OutputAdapter,
@@ -108,26 +34,121 @@ from .adapters import (
     make_numpy_sparse_depth_model,
     make_numpy_tracking_model,
 )
-from .models.registry import available_models, get_factory, resolve
-from .reference.adapters.depth_hf import make_hf_depth_model
-from .reference.adapters.seg_hf import make_hf_instance_seg_model
-from .tasks.monocular_depth import MonocularDepthRunConfig, run_monocular_depth
-from .tasks.segmentation import SegmentationRunConfig, run_segmentation
+from .api import (
+    ESD_WEIGHTS,
+    BenchmarkModel,
+    DepthGroundTruth,
+    DepthPrediction,
+    DetectionGroundTruth,
+    DetectionPrediction,
+    Difficulty,
+    KeypointCorrespondenceGroundTruth,
+    KeypointCorrespondencePrediction,
+    NovelViewSynthesisGroundTruth,
+    NovelViewSynthesisPrediction,
+    Phase,
+    RelativePoseGroundTruth,
+    RelativePosePrediction,
+    Sample,
+    SegmentationGroundTruth,
+    SegmentationPrediction,
+    SparseDepthGroundTruth,
+    SparseDepthPrediction,
+    TaskType,
+    Tracklet,
+    TrackletGroundTruth,
+    TrackletPrediction,
+    VisualGroundingGroundTruth,
+    VisualGroundingPrediction,
+)
+from .deployment import (
+    DEFAULT_ERS_BUDGETS,
+    DEFAULT_ERS_WEIGHTS,
+    DeploymentReadinessReport,
+    DeploymentReadinessResult,
+    EmbodiedReadinessScore,
+    ESDResult,
+    OperatingPoint,
+    StackGeometricCoherenceResult,
+    StateTransitionRobustnessResult,
+    TemporalStabilityResult,
+    WeightedPhaseScore,
+    compute_drs,
+    compute_embodied_readiness,
+    compute_esd,
+    compute_sgc,
+    compute_str,
+    compute_sweep_drs,
+    compute_temporal_stability_depth,
+    compute_temporal_stability_seg,
+    compute_weighted_phase_score,
+)
+from .determinism import RPX_SEED, deterministic, seed_all
+from .evaluators import BenchmarkResult, MetricSuite
+from .exceptions import (
+    AdapterError,
+    ConfigError,
+    DatasetError,
+    DownloadError,
+    ManifestError,
+    MetricError,
+    ModelError,
+    RPXError,
+)
+from .hub import (
+    DEFAULT_REPO_ID,
+    TASK_MODALITIES,
+    download_split,
+    fetch_manifest,
+    load,
+    mount,
+)
+from .loader import RPXDataset
+from .logging_utils import configure_logging, get_logger
+from .profiler import (
+    REFERENCE_GPUS,
+    EfficiencyMetadata,
+    GPUSpec,
+    LatencyProfiler,
+    MemoryProfiler,
+    RooflineBound,
+    SystemCard,
+    count_parameters,
+    estimate_memory_traffic_gb,
+    profile_model,
+)
+from .reports import format_markdown_summary, write_json
+from .runner import BenchmarkRunner
 from .tasks.detection import (
     ObjectDetectionRunConfig,
     run_object_detection,
     run_open_vocab_detection,
 )
-from .tasks.visual_grounding import VisualGroundingRunConfig, run_visual_grounding
-from .tasks.relative_pose import RelativePoseRunConfig, run_relative_pose
 from .tasks.keypoint_matching import KeypointMatchingRunConfig, run_keypoint_matching
-from .tasks.sparse_depth import SparseDepthRunConfig, run_sparse_depth
+from .tasks.monocular_depth import MonocularDepthRunConfig, run_monocular_depth
 from .tasks.novel_view_synthesis import (
     NovelViewSynthesisRunConfig,
     run_novel_view_synthesis,
 )
+from .tasks.relative_pose import RelativePoseRunConfig, run_relative_pose
+from .tasks.segmentation import SegmentationRunConfig, run_segmentation
+from .tasks.sparse_depth import SparseDepthRunConfig, run_sparse_depth
 from .tasks.tracking import ObjectTrackingRunConfig, run_object_tracking
-from .reports import format_markdown_summary, write_json
+from .tasks.visual_grounding import VisualGroundingRunConfig, run_visual_grounding
+
+# Optional subpackages that require extras. We import them best-effort
+# so `import rpx_benchmark` works without pydantic or datasets
+# installed; users who want strict validation or the HF datasets
+# bridge install the corresponding extras and then use `rpx.schemas`
+# / `rpx.data` directly.
+try:
+    from . import schemas  # noqa: F401
+except ImportError:
+    pass
+try:
+    from . import data  # noqa: F401
+except ImportError:
+    pass
 
 __all__ = [
     # Enums
@@ -138,10 +159,10 @@ __all__ = [
     # Data contracts
     "Sample",
     "DepthGroundTruth",
-    "DetectionGroundTruth",
-    "SegmentationGroundTruth",
     "DepthPrediction",
+    "DetectionGroundTruth",
     "DetectionPrediction",
+    "SegmentationGroundTruth",
     "SegmentationPrediction",
     "Tracklet",
     "TrackletGroundTruth",
@@ -165,21 +186,34 @@ __all__ = [
     "BenchmarkRunner",
     # Deployment-readiness
     "DeploymentReadinessReport",
+    "DeploymentReadinessResult",
+    "EmbodiedReadinessScore",
+    "OperatingPoint",
+    "DEFAULT_ERS_WEIGHTS",
+    "DEFAULT_ERS_BUDGETS",
     "ESDResult",
     "StackGeometricCoherenceResult",
     "StateTransitionRobustnessResult",
     "TemporalStabilityResult",
     "WeightedPhaseScore",
+    "compute_embodied_readiness",
     "compute_esd",
     "compute_sgc",
     "compute_str",
     "compute_temporal_stability_depth",
     "compute_temporal_stability_seg",
     "compute_weighted_phase_score",
+    "compute_drs",
+    "compute_sweep_drs",
     # Profiler
     "EfficiencyMetadata",
+    "GPUSpec",
     "LatencyProfiler",
     "MemoryProfiler",
+    "REFERENCE_GPUS",
+    "RooflineBound",
+    "SystemCard",
+    "estimate_memory_traffic_gb",
     "profile_model",
     "count_parameters",
     # Hub
@@ -190,8 +224,7 @@ __all__ = [
     "fetch_manifest",
     "load",
     "mount",
-    # Adapters + model registry
-    "adapters",
+    # Adapters (framework)
     "BenchmarkableModel",
     "InputAdapter",
     "OutputAdapter",
@@ -205,12 +238,12 @@ __all__ = [
     "make_numpy_pose_model",
     "make_numpy_sparse_depth_model",
     "make_numpy_tracking_model",
-    "make_hf_depth_model",
-    "make_hf_instance_seg_model",
-    "available_models",
-    "get_factory",
-    "resolve",
-    # Task runners + reporting
+    # Batched-dispatch wrappers (true GPU batching, not stock per-sample loop)
+    "BatchedTaskBenchmarkModel",
+    "BatchedDepthBenchmarkModel",
+    "BatchedSegmentationBenchmarkModel",
+    "BatchedRelativePoseBenchmarkModel",
+    # Task runners
     "MonocularDepthRunConfig",
     "run_monocular_depth",
     "SegmentationRunConfig",
@@ -246,15 +279,10 @@ __all__ = [
     "logging_utils",
     "get_logger",
     "configure_logging",
-    # Terminal banner
-    "show_banner",
     # Determinism
     "seed_all",
     "deterministic",
-    # Metric plugin system
+    "RPX_SEED",
+    # Plugin systems
     "metrics",
-    # Strict manifest validation (optional, requires `schemas` extra)
-    "schemas",
-    # HuggingFace `datasets` integration (optional, requires `hf-datasets` extra)
-    "data",
 ]

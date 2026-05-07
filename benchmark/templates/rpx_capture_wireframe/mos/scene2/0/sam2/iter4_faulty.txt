@@ -1,0 +1,2 @@
+# Frames flagged as faulty during SAM2 annotation iteration 4.
+# Empty if no frames flagged.

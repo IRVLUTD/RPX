@@ -40,4 +40,5 @@ class SegmentationMIoU(MetricCalculator):
             )
 
         from ..evaluators import segmentation_metrics
+
         return segmentation_metrics(prediction.mask, ground_truth.mask)

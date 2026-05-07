@@ -40,4 +40,5 @@ class NVSQuality(MetricCalculator):
                 f"{type(ground_truth).__name__}",
             )
         from ..evaluators import nvs_metrics
+
         return nvs_metrics(prediction.rgb, ground_truth.rgb)

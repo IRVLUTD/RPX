@@ -3,80 +3,51 @@
 ## Recommended
 
 ```bash
-pip install 'rpx-benchmark[depth]'
+pip install 'rpx-benchmark[hub]'
 ```
 
-This pulls the core library, the HuggingFace downloader, the rich
-terminal UI, `torch`, `torchvision`, and `transformers` — enough to
-run the full monocular absolute depth slate from the CLI.
+This pulls the core library plus `huggingface_hub` for pulling RPX
+dataset splits. Enough to run any task once you bring your own model.
 
 ## From source
 
 ```bash
 git clone https://github.com/IRVLUTD/RPX.git
 cd RPX/benchmark
-pip install -e '.[depth,dev,docs]'
+pip install -e '.[hub,hf-datasets,schemas,dev,docs]'
 ```
 
-## Optional extras matrix
+## Optional extras
 
 | Extra | What it installs | When to use |
 |---|---|---|
 | *(core)* | `numpy`, `Pillow` | Always — manifest loading, metric computation |
-| `hub` | `huggingface_hub[hf_xet]` | Pulling datasets from HuggingFace |
-| `ui` | `rich` | Pretty terminal output (progress bar, tables) |
-| `depth-hf` | `torch`, `torchvision`, `transformers`, `accelerate` | Any HuggingFace depth model (DA-v2, Depth Pro, ZoeDepth, PromptDA) |
-| `depth-unidepth` | `depth-hf` + `einops`, `timm`, `huggingface_hub` | UniDepth V2 |
-| `depth-metric3d` | `depth-hf` + `timm`, `mmcv-lite`, `mmengine` | Metric3D V2 (CUDA only) |
-| `depth` | `depth-hf` + `ui` | **Recommended default** for monocular depth |
-| `depth-all` | everything above | Monocular depth, full slate |
-| `dev` | `pytest`, `ruff` | Contributing |
+| `hub` | `huggingface_hub[hf_xet]` | Pulling datasets via modality-aware snapshots |
+| `hf-datasets` | `datasets>=2.18` | One-line `rpx_benchmark.data.load_hf(task, split)` |
+| `schemas` | `pydantic>=2.5` | Strict manifest validation + JSON Schema export |
+| `dev` | `pytest`, `pytest-cov`, `ruff`, `black`, `mypy`, `pre-commit` | Contributing |
 | `docs` | `mkdocs`, `mkdocs-material`, `mkdocstrings[python]` | Building docs locally |
 
-## Models that need manual installs
+## No model dependencies
 
-### UniDepth V2
-
-Ships via GitHub (not PyPI):
-
-```bash
-pip install 'rpx-benchmark[depth-unidepth]'
-pip install 'unidepth @ git+https://github.com/lpiccinelli-eth/UniDepth.git'
-```
-
-### Metric3D V2
-
-```bash
-pip install 'rpx-benchmark[depth-metric3d]'
-# Weights are downloaded via torch.hub on first use; no install step.
-```
-
-!!! warning "CUDA-only"
-    Metric3D V2's upstream decoder hardcodes
-    `torch.linspace(..., device="cuda")`, so CPU inference is not
-    supported. The adapter raises a clean error on CPU rather than
-    failing mid-inference.
+The toolkit ships **no models** and no model-specific extras — you
+bring your own model as a `BenchmarkableModel`. Any torch /
+transformers / JAX / cloud-API dependency is yours to manage in your
+own environment alongside `rpx-benchmark`.
 
 ## Verify your install
 
-```bash
-rpx --help
-rpx ls                 # lists tasks + splits
-rpx models             # lists runnable + deferred model adapters
-```
-
-All three should exit 0. If you installed `[depth]` you can also run
-a synthetic smoke without downloading a real dataset:
-
-```bash
-python -c "
-import rpx_benchmark as rpx
+```python
 import numpy as np
+import rpx_benchmark as rpx
+
 
 def fake_depth(rgb):
     return np.full(rgb.shape[:2], 2.0, dtype=np.float32)
 
+
 bm = rpx.make_numpy_depth_model(fake_depth)
-print(f'BenchmarkableModel ready: {bm.name}')
-"
+print(f"BenchmarkableModel ready: {bm.name}")
 ```
+
+Any exit without an ImportError means the core is healthy.

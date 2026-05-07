@@ -1,0 +1,227 @@
+\section{Evaluation Methodology}\label{sec:method}
+
+\coolname{}'s central claim is that standard accuracy on curated benchmarks does not predict perception reliability under deployment.
+To test this, we design an evaluation methodology with three components:
+a \textit{three-phase capture protocol} that creates controlled scene-state variation (\S\ref{sec:three-phase}),
+\textit{Effort-Stratified Difficulty} that grounds difficulty in annotation effort rather than geometric heuristics (\S\ref{sec:features}),
+and \textit{deployment-readiness metrics} that measure properties invisible to static accuracy (\S\ref{sec:deploy-metrics}).
+These compose into a single \textit{Embodied Deployment Score} (\S\ref{sec:eds}) that ranks models for real-world use.
+The RPX dataset (\S\ref{sec:dataset}) instantiates this methodology; the toolkit (\S\ref{sec:toolkit}) makes it reproducible and extensible.
+
+% ─────────────────────────────────────────────────
+\subsection{Three-Phase Scene Protocol}
+\label{sec:three-phase}
+
+A deployed robot typically cycles through three perceptual states during a manipulation episode---\textit{observe $\to$ act $\to$ verify}.
+We mirror this cycle:
+
+\textbf{(1)~Clutter} ($\mathcal{P}_{\text{clu}}$):
+360\textdegree{} walkaround of a densely arranged scene---the most frequent operating state~\citep{liu2024okrobot, khazatsky2024droid}.
+
+\textbf{(2)~Interaction} ($\mathcal{P}_{\text{int}}$):
+a human rearranges the scene while D435 and GoPro capture simultaneous exo/ego views---closely matching the data that learning-from-human pipelines~\citep{padalunkal2024iteach, 2025hrt1, nair2022r3m, wang2023mimicplay, bharadhwaj2023zeroshothuman, kareer2024egomimic, shaw2025egodex, khazatsky2024droid} train on.
+Perception failures here corrupt the demonstration data itself.
+
+\textbf{(3)~Clean} ($\mathcal{P}_{\text{cln}}$):
+second walkaround of the reorganised scene---a within-scene control that tests post-manipulation verification.
+
+Background, objects, lighting, and sensors are held fixed across phases.
+Camera trajectories are not identical (each walkaround follows a natural path), but the 360\textdegree{} coverage and ESD's per-frame aggregation mitigate viewpoint confounds.
+Performance differences are therefore \textit{primarily attributable to scene state}---enabling controlled real-world measurement of how perception degrades during manipulation and recovers afterward.
+Each phase yields ${\sim}$250 frames (${\sim}$75K total across 100 scenes).
+The full deployment-grounded justification for exactly three phases is in Appendix~\ref{sec:appendix-phases}.
+
+% ─────────────────────────────────────────────────
+\subsection{Effort-Stratified Difficulty (ESD)}
+\label{sec:features}
+
+Standard benchmarks stratify difficulty by 1--3 features within a single modality: KITTI~\citep{geiger2012kitti} uses bbox height, occlusion, and truncation; Waymo~\citep{sun2019waymo} uses LiDAR point count and a human flag; TARGO~\citep{xia2024targo} uses occlusion level alone.
+Most major benchmarks (nuScenes, BOP, ScanNet, OCID) define no explicit difficulty splits at all.
+\coolname{} takes a different approach: difficulty is grounded in \textbf{27 features spanning 8 categories}---annotation effort, scene complexity, occlusion, depth quality, photometric--depth conflict, temporal stability, camera motion, and fisheye/stereo quality---fusing signals from RGB, depth, instance masks, 6-DoF camera pose, T265 fisheye stereo, and annotation process logs.
+The insight that annotation process encodes difficulty builds on prior work in NLP (annotator disagreement as a calibration signal~\citep{nie2020chaosNLI}) and vision (human response time for visual search as a difficulty proxy~\citep{ionescu2016hard}), but to our knowledge, RPX is the first perception benchmark to use annotation refinement effort as a difficulty feature.
+The three-phase protocol further enables \textit{phase-conditional} difficulty: splits are assigned per (scene, phase), not per-scene---a stratification only possible because the same scene is captured across controlled state transitions.
+
+\paragraph{Feature extraction.}
+For each (scene $s$, phase $p$), we compute 27 features $\{f_i\}$ spanning eight categories:
+annotation effort (2: $f_{\text{iter-mean}}, f_{\text{iter-max}}$),
+scene complexity (3: $f_{\text{obj-mean}}, f_{\text{obj-std}}, f_{\text{obj-consist}}$),
+occlusion (3: $f_{\text{occ-mean}}, f_{\text{occ-p90}}, f_{\text{occ-heavy}}$),
+depth quality (4: $f_{\text{depth-invalid}}, f_{\text{depth-invalid-mask}}, f_{\text{depth-std}}, f_{\text{depth-std-mask}}$),
+photometric--depth conflict (2: $f_{\text{specular}}, f_{\text{dark}}$),
+temporal annotation stability (3: $f_{\text{area-cv}}, f_{\text{area-drop}}, f_{\text{vis-instability}}$),
+camera motion (5: $f_{\text{trans-mean}}, f_{\text{trans-p90}}, f_{\text{rot-mean}}, f_{\text{rot-p90}}, f_{\text{jerk}}$),
+and fisheye/stereo quality (5: $f_{\text{fisheye-dark}}, f_{\text{fisheye-bright}}, f_{\text{fisheye-sharpness}}, f_{\text{fisheye-corr}}, f_{\text{fisheye-texture}}$; set to 0 when the T265 fisheye stream is absent).
+Full definitions: Appendix~\ref{sec:appendix-esd-full}.
+
+\paragraph{RPX Difficulty Score.}
+Features are percentile-normalised to $[0,1]$ and combined via a convex sum that anchors the score on annotation effort---the property the methodology is named for:
+\[
+\text{RPX-DS}(s,p) \;=\; \alpha \cdot \tfrac{1}{|\mathcal{E}|}\!\!\sum_{i\in\mathcal{E}} \tilde{f}_i(s,p) \;+\; (1-\alpha) \cdot \tfrac{1}{F-|\mathcal{E}|}\!\!\sum_{i\notin\mathcal{E}}\tilde{f}_i(s,p)
+\]
+where $\mathcal{E} = \{f_{\text{iter-mean}}, f_{\text{iter-max}}\}$ are the annotation-effort features and $\alpha \in [0,1]$ controls how strongly effort anchors the score.
+The default \textbf{effort\_stratified\_v1} uses $\alpha = 0.25$: each effort feature carries 12.5\% of the score (25\% combined), while the 25 perception features collectively drive 75\%---a modest emphasis on effort that respects the methodology's name without letting it dominate.
+A \textbf{uniform\_v1} fallback ($\alpha \to 0$ rebased so all 27 features carry $1/F$) is shipped as a sensitivity baseline.
+Both are fully reproducible from data alone---no model dependency, no calibration-model checkpoints needed.
+A refined \textbf{mi\_v1} sets weights proportional to mutual information between each feature and per-scene model failure rate (Table~\ref{tab:esd-weights}), where failure is per-scene accuracy below the median across all scenes for that model.
+All three coexist in the splits manifest; mi\_v1 is reported as a refinement when calibration models are available.
+
+\paragraph{Calibration procedure.}
+Because \coolname{} is evaluation-only (all 99 scenes are test, with no train/val split), MI calibration uses \textit{model holdout} rather than scene holdout:
+(i)~weights are computed from a calibration model set of \todo{N$_\text{cal}$} models held out of the headline results;
+(ii)~ESD validation (\S\ref{sec:esd-validation}) uses models \textit{not} in the calibration set;
+(iii)~uniform\_v1 is always available without calibration data, providing a frozen baseline that future researchers can reproduce from the dataset alone.
+
+\textbf{Stability.} On the released 297 (scene, phase) pairs, the tier assignment is highly stable to data resampling: 89.9\% of pairs retain the same dominant tier across 1{,}000 80\%-bootstrap subsamples (Appendix~\ref{sec:appendix-method-study}). Stability under weight perturbation depends on which prior we use as the centre: under the uniform\_v1 prior, 88.6\% of pairs retain the same dominant tier across 1{,}000 Dirichlet-sampled weight vectors over the simplex, with median Kendall $\tau = 0.685$ (IQR: $0.630$--$0.734$) between perturbed and centre rankings. Switching the primary from uniform\_v1 to effort\_stratified\_v1 ($\alpha\!=\!0.25$) shifts the per-(scene, phase) tier of $146$ of $297$ pairs ($49.2\%$); the corresponding scene-level rollup (\S~``ESD splits'' below) shifts $20$ of $99$ scenes ($20\%$, Adjusted Rand Index $0.50$). The effort prior's main empirical effect is to neutralise the counter-intuitive phase-composition inversion seen under uniform: under uniform, the interaction phase concentrates in Easy ($46/99$) because hand occlusion reduces per-frame complexity; under effort\_stratified the interaction phase redistributes across Medium and Hard, matching annotators' observation that interaction frames required more refinement effort.
+
+\begin{table}[h]
+\centering
+\caption{Top-6 ESD features (of 27 total) ranked by mutual information with model failure rate on the calibration set (val split, \todo{N$_\text{cal}$} models). The remaining 21 features receive non-zero but lower weights; full weight vector in Appendix~\ref{sec:appendix-esd-full}.}
+\label{tab:esd-weights}
+\begin{tabular}{lcc}
+\toprule
+Feature & Weight $w_i$ & Spearman $\rho$ \\
+\midrule
+$f_{\text{occ-mean}}$           & \todo{X} & \todo{X} \\
+$f_{\text{iter-mean}}$          & \todo{X} & \todo{X} \\
+$f_{\text{area-cv}}$            & \todo{X} & \todo{X} \\
+$f_{\text{depth-invalid-mask}}$ & \todo{X} & \todo{X} \\
+$f_{\text{vis-instability}}$    & \todo{X} & \todo{X} \\
+$f_{\text{jerk}}$               & \todo{X} & \todo{X} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{ESD splits.}
+\coolname{} ships splits at two granularities. Per-(scene, phase) tertiles assign each of the 297 entries to Easy / Medium / Hard at the 33/33/34 cut on RPX-DS---enabling phase-conditional analysis (Appendix~\ref{sec:appendix-method-study}). The benchmark-consumer deliverable is the \textbf{per-scene} rollup: each scene's three phase scores are averaged into a single mean, scenes are sorted, and the 99 (will be 100) scenes are cut into $\lfloor N/3 \rfloor$ Easy + $\lfloor N/3 \rfloor$ Medium + remainder Hard. With $N=99$ this yields a 33/33/33 split; with $N=100$ it becomes the canonical 33/33/34. Aggregating before tertiling guarantees that all three phases of a scene land in the same split---a hard requirement of the state-transition robustness metric (\S~\ref{sec:deploy-metrics}).
+The 33/33/34 cut is a \textit{reporting convention} for interpretability (Easy/Medium/Hard is canonical in benchmarks), not a data-discovered cluster structure: silhouette and Tibshirani gap statistic on the 27-feature matrix both prefer $k=2$ over $k=3$ (Appendix~\ref{sec:appendix-method-study}).
+To surface the methodological uncertainty this implies, we publish a \textit{consensus tier} alongside the primary effort\_stratified\_v1 tier---majority vote across 11 scoring methods spanning percentile aggregation (mean, median, max, top-3), dimensionality reduction (PCA), and clustering (k-means at $k\!\in\!\{3,5,8\}$, GMM, Ward, DBSCAN; the latter is reported as degenerate when no density modes are found).
+Across the 297 (scene, phase) pairs, 8.1\% receive unanimous agreement across methods, 35.0\% are split between 2 tiers, and 56.9\% across all 3---quantifying that scoring choice matters and motivating the consensus reporting alongside any single primary method.
+
+\paragraph{Validation.}
+\label{sec:esd-validation}
+To verify ESD captures genuine difficulty and to break the circularity of using SAM2 for both annotation and evaluation, we measure Spearman $\rho$ between RPX-DS and model failure rate across all \textit{non-SAM2, non-calibration} models: $\rho = \todo{X}$ ($p < 0.001$).
+The capture-phase signal in feature space is weak---the maximum Adjusted Rand Index between any clustering method and the (clutter, interaction, clean) phase index is $0.182$ (Appendix~\ref{sec:appendix-method-study})---confirming that ESD captures perception difficulty rather than capture-protocol artifacts.
+Mahalanobis-distance outlier detection (\S\ref{sec:appendix-method-study}) flags 12 of 297 pairs as multivariate outliers; the top entries (\texttt{scene100.jsom.atrium} interaction phase, \texttt{scene74.ecsw.atriumStairs} clean phase) coincide with known T265 tracking failures during capture, demonstrating that the methodology surfaces real data quality issues.
+
+% ─────────────────────────────────────────────────
+\subsection{Deployment-Readiness Metrics}
+\label{sec:deploy-metrics}
+
+Standard accuracy measures what a model gets right on one frame.
+But a robot's perception feeds a pipeline: depth $\to$ point cloud $\to$ grasp planner, or VLM $\to$ spatial reasoning $\to$ target selection.
+Failures in three properties --- temporal consistency, phase-transition robustness, and geometric fidelity --- propagate into planning and control even when per-frame accuracy is high.
+Not all metrics apply to all tasks; Table~\ref{tab:metric-applicability} specifies which metrics are computed for each decision.
+
+\begin{table}[h]
+\centering
+\caption{Metric applicability. STR applies universally; SGC requires dense depth + instance masks (D1 only). TS is defined but restricted to non-interaction phases in this release (see text).}
+\label{tab:metric-applicability}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Decision} & \textbf{STR} & \textbf{TS} & \textbf{SGC} \\
+\midrule
+D1: Depth          & \cmark & \pmark$^\dagger$ & \cmark \\
+D2: Det./Ground.   & \cmark & \xmark & \xmark \\
+D3: Tracking       & \cmark & \xmark$^*$ & \xmark \\
+D4: Scene QA       & \cmark & \xmark & \xmark \\
+D5: Spatial QA     & \cmark & \xmark & \xmark \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+{\footnotesize $^\dagger$TS reported on clutter/clean phases only (interaction-phase pose unreliable); excluded from EDS in this release.\\
+$^*$Tracking temporal consistency is captured by MOTA/IDF1's inherent sequence-level design; a separate TS metric would be redundant.}
+\end{table}
+
+\paragraph{Temporal Stability (TS).}
+Pose-compensated frame-to-frame consistency for dense predictions.
+For depth, TS requires warping adjacent frames into a shared coordinate system using 6-DoF camera pose:
+$\text{TS}_\text{depth} = \mathbb{E}_t\!\left[1 - \frac{\|D_t - \text{warp}(D_{t+1}, \Delta\mathbf{T}_t)\|_1}{N_\text{valid}}\right]$,
+where $\text{warp}(D, \Delta\mathbf{T})$ reprojects depth map $D$ via the relative transform $\Delta\mathbf{T}_t$ and $N_\text{valid}$ counts pixels valid in both frames.
+\textit{Why it matters for robots:} low TS means the point cloud jitters frame-to-frame, causing grasp planners to oscillate between candidates --- even when each individual frame's depth is accurate.
+
+\textbf{Current status.}
+TS requires accurate extrinsic camera pose.
+In this release, T265 VIO pose exhibited sufficient drift during interaction-phase captures (hand occlusion of IR emitters) that TS measurements on those sequences would conflate model flicker with pose error.
+We therefore \textbf{report TS only on clutter and clean phases} (where T265 tracking is reliable) and \textbf{exclude TS from the EDS composite} in this work.
+TS remains defined in the toolkit and will be activated when higher-quality pose (e.g., from marker-based tracking or SLAM with loop closure) is available---an explicit extension point.
+Importantly, the remaining EDS factors (accuracy, STR, SGC, efficiency) do not depend on camera pose and are fully operational across all three phases.
+
+\paragraph{State-Transition Robustness (STR).}
+The performance change across phase boundaries:
+$\Delta_{\text{int}} = S_{\text{int}} - S_{\text{clu}}$ (interaction drop);
+$\Delta_{\text{rec}} = S_{\text{cln}} - S_{\text{int}}$ (recovery).
+STR is defined for \textit{all} five tasks: it uses each task's primary accuracy metric (AbsRel for D1, AP$_{50}$ for D2, MOTA for D3, accuracy for D4/D5).
+A model with high accuracy but large $|\Delta_{\text{int}}|$ is unreliable: its quality depends on scene state, a variable the robot cannot control.
+\textit{Why it matters for robots:} during a pick-and-place episode, the scene transitions from clutter (pre-grasp) through interaction (grasping) to clean (post-grasp verification). A depth model that degrades during interaction produces bad point clouds exactly when the robot's hand is in the scene --- the moment grasp refinement is most critical. A VLM that loses spatial accuracy during interaction will misidentify targets for the next action.
+
+\paragraph{Geometric Coherence (SGC).}
+$\text{SGC} = \text{F-score}(\partial M_{\text{gt}}, \{x : |\nabla \hat{D}(x)| > \tau_{\text{sgc}}\})$---alignment between \textit{ground-truth} mask boundaries and predicted depth discontinuities, with $\tau_{\text{sgc}} = 1.5$\,mm/px (derived from D435 depth resolution of $\sim$2\,mm at 1\,m and pixel pitch of $\sim$1.4\,mm/px at $640\!\times\!480$ with $\sim$70$^\circ$ HFOV; sensitivity analysis in Appendix~\ref{sec:appendix-esd}).
+SGC tests whether the depth map is geometrically consistent with the scene's object structure.
+\textit{Why it matters for robots:} grasp planners segment the point cloud along depth discontinuities to identify graspable surfaces. If depth edges do not align with actual object boundaries, the planner may attempt to grasp across two objects or miss a thin object entirely --- failures invisible to AbsRel but fatal for manipulation.
+Because SGC requires dense depth predictions and GT instance masks, it is restricted to D1.
+
+% ─────────────────────────────────────────────────
+\subsection{Embodied Deployment Score (EDS)}
+\label{sec:eds}
+
+The final output of \coolname{} for each (model, task) pair is the \textbf{Embodied Deployment Score}---a single scalar that tells a roboticist how suitable a model is for real-world deployment.
+EDS is designed to correlate with manipulation success: a model that is accurate, robust to scene-state changes, temporally stable, and fast enough for closed-loop control should produce better downstream performance than one that fails on any of these axes.
+EDS is a multiplicative composite: each factor is $\in [0,1]$ and any single poor factor drags the score down:
+\[
+\text{EDS} = S_\text{overall} \;\cdot\; \text{Rob} \;\cdot\; \text{Stab} \;\cdot\; \eta
+\]
+
+\textbf{Accuracy} ($S_\text{overall}$):
+$S_\text{overall} = \frac{1}{3}(S_{\text{clu}} + S_{\text{int}} + S_{\text{cln}})$, where each $S_p = 0.25 M_\text{Easy} + 0.35 M_\text{Med} + 0.40 M_\text{Hard}$ (ESD-weighted).
+For lower-is-better metrics (e.g., AbsRel), we use $S_p = 1 - \min(M_p, 1)$ so that all scores are $\in [0,1]$ with higher = better.
+
+\textbf{Robustness} ($\text{Rob}$):
+$\text{Rob} = 1 - \min(|\Delta_\text{int}|, 1)$, where $\Delta_\text{int} = S_{\text{int}} - S_{\text{clu}}$.
+Clamping to $[0,1]$ ensures the factor cannot go negative even for catastrophic drops.
+
+\textbf{Stability} ($\text{Stab}$):
+Designed to incorporate TS for dense tasks; in this release, $\text{Stab} = 1$ for all tasks because TS is restricted to non-interaction phases (see above).
+EDS therefore reduces to $S_\text{overall} \cdot \text{Rob} \cdot \eta$ --- accuracy, robustness, and efficiency.
+When reliable full-sequence pose becomes available, TS can be reactivated as a fourth factor without changing the framework.
+
+\textbf{Efficiency} ($\eta$):
+$\eta = \min\!\big(\frac{t_\text{budget}}{\text{lat}_\text{median}},\; 1\big)$,
+where $t_\text{budget}$ is the real-time frame budget (33\,ms for 30\,fps; configurable per deployment).
+Models faster than budget get $\eta = 1$; slower models are penalised linearly.
+
+\paragraph{Decomposability.}
+The individual components ($S_\text{overall}$, $\Delta_\text{int}$, $\Delta_\text{rec}$, TS, SGC, latency, memory) are always reported separately (Table~\ref{tab:main-results}), so practitioners can weight dimensions according to their deployment priorities.
+The multiplicative formulation is a conservative design choice: any single failing dimension (e.g., poor robustness) prevents a high score, appropriate for safety-relevant deployment.
+EDS is not prescriptive---it provides a sensible default ranking; the toolkit supports alternative compositions (additive weighting, Pareto analysis), and we verify in \S\ref{sec:experiments} that main findings are robust to the scoring rule.
+
+\paragraph{Connection to the perception--planning--control pipeline.}
+Table~\ref{tab:metric-pipeline} maps each \coolname{} metric to the downstream failure mode it is designed to predict.
+This grounding ensures that EDS captures properties that matter for deployed robots, not just properties that are easy to measure.
+
+\begin{table}[h]
+\centering
+\caption{How each \coolname{} metric connects to the robot pipeline. Each metric targets a specific downstream failure mode.}
+\label{tab:metric-pipeline}
+\small
+\begin{tabular}{p{1.5cm}p{4.5cm}p{6.5cm}}
+\toprule
+\textbf{Metric} & \textbf{Perception property} & \textbf{Downstream failure if poor} \\
+\midrule
+$S_{\text{overall}}$ & Per-frame accuracy across difficulties & Wrong depth/detections $\to$ wrong grasps, wrong targets \\
+STR & Robustness to scene-state change & Perception degrades when robot's hand enters scene $\to$ grasp refinement fails \\
+TS$^\dagger$ & Frame-to-frame consistency & Point cloud jitter $\to$ grasp planner oscillates; VLA gets inconsistent features \\
+SGC & Depth edges align with objects & Grasp planned across object boundaries; thin objects missed \\
+$\eta$ & Inference speed & Cannot close the perception--action loop at control rate \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{From outputs to features.}
+\coolname{} evaluates perception at the \textit{output} level (depth maps, boxes, answers), but many robot learning systems consume perception at the \textit{feature} level (encoder activations inside VLAs).
+We argue the methodology remains informative for feature-level selection because:
+(i)~TS and STR measure \textit{representation stability}---a backbone with flickering outputs under small viewpoint changes likely has features that do not stably encode geometry, regardless of which head is attached;
+(ii)~D4/D5 directly evaluate the VLMs (PaliGemma, Qwen2-VL, GPT-4o) whose encoders VLAs inherit, testing scene understanding on robot-grade imagery;
+and (iii)~modular systems (OK-Robot, DP3, TesserAct) consume raw outputs directly, so output-level evaluation is not a proxy but the direct signal.
+The downstream validation (\S\ref{sec:downstream}) empirically tests this link.

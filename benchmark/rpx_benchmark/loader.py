@@ -53,9 +53,9 @@ import numpy as np
 from PIL import Image
 
 from .api import (
-    Difficulty,
     DepthGroundTruth,
     DetectionGroundTruth,
+    Difficulty,
     KeypointCorrespondenceGroundTruth,
     NovelViewSynthesisGroundTruth,
     Phase,
@@ -156,7 +156,7 @@ class RPXDataset:
             raise ManifestError(
                 f"Manifest file not found: {manifest_path}",
                 hint="Did the HuggingFace download fail? Try rerunning with "
-                     "--cache-dir pointing at a writable location.",
+                "--cache-dir pointing at a writable location.",
             )
         try:
             with manifest_path.open("r", encoding="utf-8") as f:
@@ -201,16 +201,14 @@ class RPXDataset:
         if "task" not in manifest:
             raise ManifestError(
                 "Manifest is missing required field 'task'.",
-                hint="Task must be one of: " +
-                     ", ".join(t.value for t in TaskType),
+                hint="Task must be one of: " + ", ".join(t.value for t in TaskType),
             )
         try:
             task = TaskType(manifest["task"])
         except ValueError as e:
             raise ManifestError(
                 f"Manifest task {manifest['task']!r} is not a known TaskType.",
-                hint="Expected one of: " +
-                     ", ".join(t.value for t in TaskType),
+                hint="Expected one of: " + ", ".join(t.value for t in TaskType),
             ) from e
 
         if "samples" not in manifest:
@@ -224,8 +222,7 @@ class RPXDataset:
             raise ManifestError(
                 f"Manifest 'samples' must be a list, got {type(samples).__name__}",
             )
-        log.debug("loaded manifest: task=%s root=%s samples=%d",
-                  task.value, root, len(samples))
+        log.debug("loaded manifest: task=%s root=%s samples=%d", task.value, root, len(samples))
         return cls(samples=samples, task=task, root=root, batch_size=batch_size)
 
     @classmethod
@@ -270,8 +267,7 @@ class RPXDataset:
             config = getattr(info, "config_name", None) if info is not None else None
             if config is None:
                 raise ManifestError(
-                    "Could not infer task from the HF dataset; pass "
-                    "task=TaskType.* explicitly.",
+                    "Could not infer task from the HF dataset; pass task=TaskType.* explicitly.",
                 )
             task = TaskType(config)
         if isinstance(task, str):
@@ -385,7 +381,7 @@ class RPXDataset:
 
     def _load_relative_pose(self, entry: Dict[str, Any]) -> RelativePoseGroundTruth:
         # Load the two poses and compute relative transform
-        pose_a = self._load_pose(entry["pose_a"])   # 4×4 SE(3)
+        pose_a = self._load_pose(entry["pose_a"])  # 4×4 SE(3)
         pose_b = self._load_pose(entry["pose_b"])
         T_rel = np.linalg.inv(pose_a) @ pose_b
         return RelativePoseGroundTruth(
@@ -466,8 +462,8 @@ class RPXDataset:
         """
         path = self._resolve(relative_path)
         data = np.load(path)
-        position = data["position"].astype(np.float64)        # (3,)
-        quat_xyzw = data["orientation"].astype(np.float64)   # (4,) x,y,z,w
+        position = data["position"].astype(np.float64)  # (3,)
+        quat_xyzw = data["orientation"].astype(np.float64)  # (4,) x,y,z,w
 
         R = _quat_xyzw_to_rotmat(quat_xyzw)
         T = np.eye(4, dtype=np.float64)
@@ -484,7 +480,7 @@ class RPXDataset:
             raise ManifestError(
                 f"Mask file at {path} is not 2-D: got shape {mask.shape}",
                 hint="RPX instance masks are single-channel PNGs whose "
-                     "pixel values are instance IDs.",
+                "pixel values are instance IDs.",
             )
         return mask
 
@@ -516,11 +512,15 @@ class RPXDataset:
 # Quaternion helper
 # ------------------------------------------------------------------ #
 
+
 def _quat_xyzw_to_rotmat(q: np.ndarray) -> np.ndarray:
     """Convert quaternion [x, y, z, w] (T265 convention) to 3×3 rotation matrix."""
     x, y, z, w = q / np.linalg.norm(q)
-    return np.array([
-        [1 - 2*y*y - 2*z*z,     2*x*y - 2*z*w,     2*x*z + 2*y*w],
-        [    2*x*y + 2*z*w, 1 - 2*x*x - 2*z*z,     2*y*z - 2*x*w],
-        [    2*x*z - 2*y*w,     2*y*z + 2*x*w, 1 - 2*x*x - 2*y*y],
-    ], dtype=np.float64)
+    return np.array(
+        [
+            [1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * z * w, 2 * x * z + 2 * y * w],
+            [2 * x * y + 2 * z * w, 1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * x * w],
+            [2 * x * z - 2 * y * w, 2 * y * z + 2 * x * w, 1 - 2 * x * x - 2 * y * y],
+        ],
+        dtype=np.float64,
+    )

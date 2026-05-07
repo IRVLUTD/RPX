@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rpx-benchmark"
-version = "0.2.0"
-description = "RPX — choose and rank perception models for robot learning on real-world RGB-D data"
+version = "0.3.0"
+description = "RPX — benchmark harness for evaluating robot-perception models on real-world RGB-D data"
 authors = [{name = "RPX Team"}]
 maintainers = [{name = "RPX Team"}]
 readme = "README.md"
@@ -16,8 +16,6 @@ keywords = [
   "perception",
   "rgb-d",
   "benchmark",
-  "monocular-depth",
-  "segmentation",
   "robotics",
   "embodied-ai",
   "huggingface",
@@ -47,64 +45,49 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# HuggingFace Hub snapshot downloads (modality-aware bulk fetch),
+# packing capture trees into per-modality tar shards, and writing the
+# per-frame Parquet manifest the dataset hub ships.
 hub = [
   "huggingface_hub[hf_xet]>=0.26",
+  "pyarrow>=14",
 ]
-# Native HuggingFace `datasets` integration: one-line
-# `load_dataset("IRVLUTD/rpx-benchmark", "<task>")` support, PyTorch
-# DataLoader bridge, and the shared Features schema.
+# One-line `datasets.load_dataset(...)` + PyTorch DataLoader bridge.
 hf-datasets = [
   "datasets>=2.18",
   "huggingface_hub>=0.22",
 ]
-# Strict, typed manifest validation via rpx_benchmark.schemas.
-# Not required for basic dataset loading — the loader's hand-rolled
-# checks run without it — but recommended for CI, release automation,
-# and third-party tooling that consumes the JSON Schema.
+# Strict manifest validation.
 schemas = [
   "pydantic>=2.5",
 ]
-ui = [
-  "rich>=13.7",
+# Optional fast-path for ESD feature extraction (PNG decode 2-5× over PIL).
+esd-fast = [
+  "opencv-python>=4.8",
 ]
-depth-hf = [
-  "torch>=2.1",
-  "torchvision>=0.16",
-  "transformers>=4.45",
-  "accelerate>=0.30",
+# Exploratory analysis of ESD features (analyze_esd.py): PCA, k-means, GMM,
+# correlation tests, plots. Heavy deps kept out of the core install.
+analysis = [
+  "pandas>=2.0",
+  "scikit-learn>=1.3",
+  "scipy>=1.10",
+  "matplotlib>=3.7",
 ]
-# UniDepth ships via GitHub, not PyPI. The dependency list below covers
-# its transitive needs; the `unidepth` package itself must be installed
-# with: pip install 'unidepth @ git+https://github.com/lpiccinelli-eth/UniDepth.git'
-depth-unidepth = [
-  "rpx-benchmark[depth-hf]",
-  "einops>=0.7",
-  "timm>=1.0",
-  "huggingface_hub>=0.22",
-]
-# Metric3D needs mmcv (or mmcv-lite for CPU-only installs) + mmengine
-# + timm. Note: Metric3D *inference* hardcodes device='cuda' in the
-# decoder, so a CUDA-capable host is required at run time.
-depth-metric3d = [
-  "rpx-benchmark[depth-hf]",
-  "timm>=1.0",
-  "mmcv-lite>=2.1",
-  "mmengine>=0.10",
-]
-depth = [
-  "rpx-benchmark[depth-hf,ui]",
-]
-depth-all = [
-  "rpx-benchmark[depth-hf,ui,depth-unidepth,depth-metric3d]",
+# Interactive Rerun visualization of a (scene, phase) time series — RGB,
+# depth, fisheye stereo, masks, and the T265 trajectory. Use `make visualize`.
+viz = [
+  "rerun-sdk>=0.26",
+  "matplotlib>=3.7",
+  "pillow>=10",
+  "tqdm>=4.66",
 ]
 dev = [
   "pytest>=7",
   "pytest-cov>=5",
   "ruff>=0.4",
   "black>=24.8",
-  "mypy>=1.11",
+  "mypy>=1.11,<2.0",  # 2.0 tightened global defaults; the team's strict-modules-only policy assumes 1.x semantics
   "pre-commit>=3.8",
-  # Pulled in so mypy type-checks schemas cleanly in dev envs.
   "pydantic>=2.5",
 ]
 docs = [
@@ -113,9 +96,6 @@ docs = [
   "mkdocstrings[python]>=0.26",
   "pymdown-extensions>=10.8",
 ]
-
-[project.scripts]
-rpx = "rpx_benchmark.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/IRVLUTD/RPX"
@@ -127,31 +107,17 @@ Changelog = "https://github.com/IRVLUTD/RPX/blob/main/benchmark/CHANGELOG.md"
 [tool.setuptools.packages.find]
 include = ["rpx_benchmark*"]
 
-# Ship inline type information (PEP 561). Without this marker,
-# downstream ``mypy`` / ``pyright`` runs treat rpx_benchmark as
-# untyped and silently accept everything.
 [tool.setuptools.package-data]
 rpx_benchmark = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
-filterwarnings = [
-  "ignore::DeprecationWarning",
-]
+filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.coverage.run]
 source = ["rpx_benchmark"]
 branch = true
-omit = [
-  # Heavy reference backends aren't exercised in the offline test
-  # suite (they require torch + network). Their tests land once a
-  # CUDA-capable CI runner is wired; until then excluding them keeps
-  # the coverage floor meaningful rather than depressed by
-  # untested-by-design code.
-  "rpx_benchmark/reference/adapters/*",
-  "rpx_benchmark/reference/models/*",
-]
 
 [tool.coverage.report]
 show_missing = true
@@ -175,10 +141,10 @@ select = [
   "F82",  # undefined names
   "F401", # unused imports
   "I",    # isort: import sorting
-  "B",    # bugbear: likely bugs and bad practices
+  "B",    # bugbear: likely bugs
 ]
 ignore = [
-  "E402", # module-level import not at top (we allow this in __init__ files)
+  "E402", # module-level import not at top
   "B008", # function calls in default args (fine for dataclasses)
 ]
 
@@ -188,18 +154,7 @@ known-first-party = ["rpx_benchmark"]
 [tool.black]
 line-length = 100
 target-version = ["py310", "py311", "py312"]
-# Black and ruff disagree on some trivial formatting; ruff's
-# ``format`` subcommand is a drop-in so we configure both to the
-# same line length and let CI run either.
 
-# ---------------------------------------------------------------------------
-# mypy — strict on the new stable-surface modules, tolerant elsewhere for now.
-#
-# The ``strict`` slate will expand module-by-module as M1..M5 land. Today:
-#   * api.py, schemas.py, _schemas_lazy.py are strict
-#   * the rest of the package runs with default permissive settings
-# so we don't gate CI on pre-existing type holes.
-# ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.10"
 namespace_packages = true
@@ -210,17 +165,14 @@ warn_unreachable = true
 show_error_codes = true
 show_column_numbers = true
 pretty = true
-
-# Don't fail when optional model backends (torch, transformers,
-# huggingface_hub, pydantic) aren't present in the dev env.
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
   "rpx_benchmark.api",
   "rpx_benchmark.schemas",
-  "rpx_benchmark._schemas_lazy",
   "rpx_benchmark.exceptions",
+  "rpx_benchmark.determinism",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
@@ -229,3 +181,49 @@ no_implicit_optional = true
 warn_return_any = true
 strict_equality = true
 strict = true
+# Silence error codes that catch a class of issues we can't fix
+# without invasive churn:
+#   type-arg     — np.ndarray annotations don't carry generic args
+#                  (numpy's PEP 696 support came after these dataclasses
+#                  shipped); a typing pass should switch to `NDArray` aliases.
+#   arg-type     — pydantic v2 + ConfigDict generics interplay.
+#   assignment   — Field(default_factory=...) widens declared type.
+disable_error_code = ["type-arg", "arg-type", "assignment", "unused-ignore"]
+
+
+# Also silence `attr-defined` re-export errors from __init__ — these
+# come from modules without explicit `__all__`, which is a separate
+# typing-pass cleanup item.
+[[tool.mypy.overrides]]
+module = ["rpx_benchmark"]
+disable_error_code = ["attr-defined"]
+
+# Tracked separately for the typing pass — modules that pre-date the
+# `[no-untyped-def]` policy and modules with heavy generic-shape
+# inference that aren't worth annotating until the toolkit's typing
+# story stabilises. Keeping these out of mypy lets the strict overlay
+# above stay informative without the rest of the codebase drowning
+# the signal.
+[[tool.mypy.overrides]]
+module = [
+  # Toolkit modules with pre-existing untyped defs (Feynman / earlier work)
+  "rpx_benchmark.adapters.base",
+  "rpx_benchmark.deployment",
+  "rpx_benchmark.drs_sensitivity",
+  "rpx_benchmark.evaluators",
+  "rpx_benchmark.profiler",
+  "rpx_benchmark.runner",
+  "rpx_benchmark.reports",
+  "rpx_benchmark.loader",
+  "rpx_benchmark.hub",
+  "rpx_benchmark.logging_utils",
+  "rpx_benchmark.data.*",
+  "rpx_benchmark.metrics.*",
+  "rpx_benchmark.tasks.*",
+  "rpx_benchmark.dataset_hub.*",
+  # New batched-dispatch + alignment modules — annotated minimally,
+  # full type pass is a TODO alongside the rest of the codebase.
+  "rpx_benchmark.adapters.batched_depth",
+  "rpx_benchmark.adapters.batched_multimodal",
+]
+ignore_errors = true

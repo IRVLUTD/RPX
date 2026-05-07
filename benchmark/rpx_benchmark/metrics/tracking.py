@@ -38,16 +38,16 @@ class TrackletMetrics(MetricCalculator):
     ) -> Dict[str, float]:
         if not isinstance(prediction, TrackletPrediction):
             raise MetricError(
-                f"TrackletMetrics expected TrackletPrediction, got "
-                f"{type(prediction).__name__}",
+                f"TrackletMetrics expected TrackletPrediction, got {type(prediction).__name__}",
             )
         if not isinstance(ground_truth, TrackletGroundTruth):
             raise MetricError(
-                f"TrackletMetrics expected TrackletGroundTruth, got "
-                f"{type(ground_truth).__name__}",
+                f"TrackletMetrics expected TrackletGroundTruth, got {type(ground_truth).__name__}",
             )
         from ..evaluators import tracking_metrics
+
         return tracking_metrics(
-            prediction.tracks, ground_truth.tracks,
+            prediction.tracks,
+            ground_truth.tracks,
             iou_threshold=self.iou_threshold,
         )

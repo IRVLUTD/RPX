@@ -1,116 +1,90 @@
 # Quickstart
 
-This page gets you from a blank environment to a written benchmark
-report in about 60 seconds.
+From a blank environment to a written benchmark report, in Python.
 
 ## 1. Install
 
 ```bash
-pip install 'rpx-benchmark[depth]'
+pip install 'rpx-benchmark[hub]'
 ```
 
-See [Installation](installation.md) for the full extras matrix.
+`[hub]` pulls `huggingface_hub` for dataset downloads. Add
+`[hf-datasets]` if you want the `datasets.load_dataset` path, and
+`[schemas]` for strict manifest validation.
 
-## 2. List what's available
+## 2. Bring your model and run
 
-```bash
-rpx ls        # tasks + ESD splits + required modalities
-rpx models    # runnable adapter names (also shows deferred stubs)
+```python
+import numpy as np
+import rpx_benchmark as rpx
+
+# 1. Define your model as a plain numpy callable.
+def my_depth(rgb: np.ndarray) -> np.ndarray:
+    """rgb: H x W x 3 uint8 -> H x W float32 (metres)."""
+    return np.full(rgb.shape[:2], 2.0, dtype=np.float32)
+
+# 2. Wrap it as a BenchmarkableModel.
+model = rpx.make_numpy_depth_model(my_depth, name="my_depth")
+
+# 3. Run.
+cfg = rpx.MonocularDepthRunConfig(model=model, split="hard", device="cpu")
+result, report, paths = rpx.run_monocular_depth(cfg)
+
+print(result.aggregated)                   # absrel, rmse, delta1..3
+print(report.weighted_phase_score)         # ESD-weighted phase score
+print(report.embodied_readiness.score)     # single [0, 1] deployment rank
+print(paths["json"], paths["markdown"])    # written report files
 ```
 
-Example output of `rpx models`:
+That's it — no CLI, no registry. The same pattern works for every
+task: `make_numpy_<task>_model(fn)` + the matching
+`<TaskName>RunConfig` + `run_<task>(cfg)`.
 
-```text
-Runnable models:
-  depth_anything_v2_metric_indoor_base
-  depth_anything_v2_metric_indoor_large
-  depth_anything_v2_metric_indoor_small
-  depth_pro
-  metric3d_v2_vit_giant2
-  metric3d_v2_vit_large
-  metric3d_v2_vit_small
-  unidepth_v2_vitb
-  unidepth_v2_vitl
-  zoedepth_nyu
+## 3. Segmentation example
 
-Deferred (registered for visibility; raise on resolve):
-  depth_anything_3
-  prompt_depth_anything_vits
-  video_depth_anything_large
+```python
+import numpy as np
+import rpx_benchmark as rpx
+
+def my_seg(rgb: np.ndarray) -> np.ndarray:
+    """rgb: H x W x 3 uint8 -> H x W int32 (instance IDs)."""
+    return np.zeros(rgb.shape[:2], dtype=np.int32)
+
+model = rpx.make_numpy_mask_model(my_seg, name="my_seg")
+cfg = rpx.SegmentationRunConfig(model=model, split="hard", device="cpu")
+result, report, _ = rpx.run_segmentation(cfg)
 ```
 
-## 3. Run a registered model on the Hard split
+## 4. Full control: custom input/output adapters
 
-```bash
-rpx bench monocular_depth --model depth_pro --split hard
+When the numpy fast path doesn't fit (PyTorch, transformers,
+JAX, cloud API, ...), implement `InputAdapter.prepare` and
+`OutputAdapter.finalize` yourself — see
+[Bring Your Own Model](bring-your-own-model.md) for four complete
+templates including an API/cloud-model example.
+
+## 5. Read the output
+
+Every run writes two files under `./rpx_results/<model>/<split>/`:
+
+- **`result.json`** — machine-readable. Contains
+  `aggregated` metrics, `per_sample` rows with `id` / `phase` /
+  `difficulty` **and per-sample `latency_ms`**, and the full
+  `deployment_readiness` report (Weighted Phase Score,
+  State-Transition Robustness, Temporal Stability, FLOPs, latency
+  percentiles, peak CPU/CUDA/MPS memory, parameter count, **Embodied
+  Readiness Score** composite with per-component breakdown).
+- **`summary.md`** — human-readable tables rendered from the same
+  numbers.
+
+## 6. Errors
+
+Every exception subclasses `rpx.RPXError` and carries a `hint`
+string. Catch the base class to log a single user-facing error:
+
+```python
+try:
+    result, report, _ = rpx.run_monocular_depth(cfg)
+except rpx.RPXError as e:
+    print(f"benchmark failed: {e}")
 ```
-
-## 4. Or run ANY HuggingFace depth checkpoint — zero code
-
-```bash
-rpx bench monocular_depth \
-    --hf-checkpoint depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf \
-    --split hard
-```
-
-Works with any model loadable via
-`transformers.AutoModelForDepthEstimation`.
-
-## 5. Run segmentation
-
-```bash
-rpx bench object_segmentation \
-    --hf-checkpoint facebook/mask2former-swin-tiny-coco-instance \
-    --split hard
-```
-
-## 6. Read the output
-
-Every run writes two files under
-`./rpx_results/<model>/<split>/`:
-
-- **`result.json`** — machine-readable. Contains:
-    - `aggregated`: metrics averaged over the split.
-    - `per_sample`: one row per sample with metric values **and**
-      `id` / `phase` / `difficulty` metadata, so downstream analysis
-      can group back to scenes and phases without re-reading the
-      manifest.
-    - `deployment_readiness`: Weighted Phase Score, State-Transition
-      Robustness, Temporal Stability, FLOPs, median latency,
-      parameter count.
-- **`summary.md`** — human-readable. Rendered with the same tables
-  the CLI prints.
-
-## 7. Live terminal output
-
-If `rich` is installed (pulled in by `[depth]`), the CLI renders
-Claude-Code-style panels:
-
-- A header panel with model / split / device
-- Live progress bar during inference
-- Aggregated metric table
-- ESD-weighted phase score table with coloured Δ_int / Δ_rec
-- Efficiency table (params / FLOPs / latency)
-- Footer pointing at the output files
-
-Pass `--plain` to disable the rich UI for CI logs / plain ssh / tmux
-weirdness.
-
-## 8. Global flags
-
-```bash
-rpx --verbose <command>   # DEBUG-level logging
-rpx --quiet <command>     # WARNING-level logging only
-```
-
-Exit codes:
-
-| Code | Meaning |
-|---|---|
-| `0` | Success |
-| `1` | `RPXError` (config / dataset / model / metric / download failure) |
-| `2` | CLI argument error (handled by argparse) |
-| `130` | KeyboardInterrupt |
-
-All errors subclass `rpx.RPXError` and carry a `hint` line telling
-the user exactly what to fix.

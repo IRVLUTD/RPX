@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from rpx_benchmark.api import Difficulty, ESD_WEIGHTS, Phase
+from rpx_benchmark.api import ESD_WEIGHTS, Difficulty, Phase
 from rpx_benchmark.deployment import (
     ESDResult,
     StateTransitionRobustnessResult,
@@ -21,10 +21,10 @@ from rpx_benchmark.deployment import (
     compute_weighted_phase_score,
 )
 
-
 # --------------------------------------------------------------------------- #
 # ESDResult
 # --------------------------------------------------------------------------- #
+
 
 def test_esd_result_weighted_score_matches_formula():
     r = ESDResult(easy=0.10, medium=0.20, hard=0.30, metric_key="absrel")
@@ -48,6 +48,7 @@ def test_esd_weights_sum_to_one():
 # compute_esd
 # --------------------------------------------------------------------------- #
 
+
 def test_compute_esd_buckets_samples_by_difficulty():
     metrics = [{"absrel": 0.10}, {"absrel": 0.20}, {"absrel": 0.30}]
     diffs = [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD]
@@ -70,11 +71,18 @@ def test_compute_esd_ignores_samples_without_metric_key():
 # compute_weighted_phase_score
 # --------------------------------------------------------------------------- #
 
+
 def test_compute_weighted_phase_score_produces_per_phase_breakdown():
     metrics = [
-        {"absrel": 0.1}, {"absrel": 0.2}, {"absrel": 0.3},  # clutter easy/med/hard
-        {"absrel": 0.2}, {"absrel": 0.3}, {"absrel": 0.4},  # interaction
-        {"absrel": 0.1}, {"absrel": 0.1}, {"absrel": 0.1},  # clean
+        {"absrel": 0.1},
+        {"absrel": 0.2},
+        {"absrel": 0.3},  # clutter easy/med/hard
+        {"absrel": 0.2},
+        {"absrel": 0.3},
+        {"absrel": 0.4},  # interaction
+        {"absrel": 0.1},
+        {"absrel": 0.1},
+        {"absrel": 0.1},  # clean
     ]
     phases = [Phase.CLUTTER] * 3 + [Phase.INTERACTION] * 3 + [Phase.CLEAN] * 3
     diffs = [Difficulty.EASY, Difficulty.MEDIUM, Difficulty.HARD] * 3
@@ -90,11 +98,13 @@ def test_compute_weighted_phase_score_produces_per_phase_breakdown():
 def test_weighted_phase_score_to_dict_roundtrip():
     metrics = [{"absrel": 0.1}]
     r = compute_weighted_phase_score(
-        metrics, [Phase.CLUTTER], [Difficulty.HARD], "absrel",
+        metrics,
+        [Phase.CLUTTER],
+        [Difficulty.HARD],
+        "absrel",
     )
     d = r.to_dict()
-    for key in ("s_clutter", "s_interaction", "s_clean", "s_overall",
-                "delta_int", "delta_rec"):
+    for key in ("s_clutter", "s_interaction", "s_clean", "s_overall", "delta_int", "delta_rec"):
         assert key in d
 
 
@@ -102,12 +112,15 @@ def test_weighted_phase_score_to_dict_roundtrip():
 # compute_str
 # --------------------------------------------------------------------------- #
 
+
 def test_compute_str_deltas_signs():
-    r = compute_str({
-        Phase.CLUTTER: 0.10,
-        Phase.INTERACTION: 0.15,
-        Phase.CLEAN: 0.12,
-    })
+    r = compute_str(
+        {
+            Phase.CLUTTER: 0.10,
+            Phase.INTERACTION: 0.15,
+            Phase.CLEAN: 0.12,
+        }
+    )
     assert isinstance(r, StateTransitionRobustnessResult)
     assert abs(r.str_c_to_i - 0.05) < 1e-9
     assert abs(r.str_i_to_l - (-0.03)) < 1e-9
@@ -119,6 +132,7 @@ def test_compute_str_deltas_signs():
 # --------------------------------------------------------------------------- #
 # Temporal stability (depth)
 # --------------------------------------------------------------------------- #
+
 
 def test_temporal_stability_identical_frames_is_one():
     """Two copies of the same depth map → perfect stability."""
@@ -150,6 +164,7 @@ def test_temporal_stability_handles_all_invalid():
 # --------------------------------------------------------------------------- #
 # SGC
 # --------------------------------------------------------------------------- #
+
 
 def test_sgc_zero_samples_short_circuits():
     r = compute_sgc(pred_masks=[], pred_depths=[])

@@ -5,13 +5,12 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
-
 from .api import BenchmarkModel, Difficulty, Phase, TaskType, validate_prediction
 from .deployment import (
     DeploymentReadinessReport,
     StackGeometricCoherenceResult,
     TemporalStabilityResult,
+    compute_embodied_readiness,
     compute_str,
     compute_weighted_phase_score,
 )
@@ -127,6 +126,7 @@ class BenchmarkRunner:
         """
         try:
             from .tasks.registry import get_task_spec  # noqa: PLC0415 — lazy
+
             return get_task_spec(self.model.task)
         except Exception:
             return None
@@ -170,7 +170,7 @@ class BenchmarkRunner:
                     f"a batch of {len(batch)} samples — must return one "
                     "prediction per sample.",
                 )
-            for sample, pred in zip(batch, predictions):
+            for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
                 metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
                 per_sample.append(metrics)
@@ -186,6 +186,7 @@ class BenchmarkRunner:
         efficiency: EfficiencyMetadata | None = None,
         compute_ts: bool = True,
         compute_sgc_flag: bool = True,
+        skip_flops: bool = False,
         progress: Optional[ProgressCallback] = None,
     ) -> tuple[BenchmarkResult, DeploymentReadinessReport]:
         """Run benchmark and compute all deployment-readiness metrics.
@@ -196,6 +197,10 @@ class BenchmarkRunner:
             efficiency: pre-computed EfficiencyMetadata (params, FLOPs).
             compute_ts: whether to compute Temporal Stability (needs sequential frames).
             compute_sgc_flag: whether to compute SGC (needs both seg + depth predictions).
+            skip_flops: skip the first-batch FLOP counter.  Useful for
+                high-VRAM models on small GPUs where the FLOP-counter
+                dispatch metadata alone may cause OOM even though
+                inference fits.
 
         Returns:
             (BenchmarkResult, DeploymentReadinessReport)
@@ -226,10 +231,18 @@ class BenchmarkRunner:
         first_batch = True
         for batch in self.dataset:
             t0 = time.perf_counter()
-            if first_batch:
-                flops_g, predictions = _count_flops_of(self.model.predict, batch)
-                if flops_g is not None and len(batch) > 0:
-                    first_batch_flops_g = flops_g / len(batch)
+            if first_batch and not skip_flops:
+                # Count FLOPs on a single sample to avoid scaling
+                # the FLOP-counter dispatch overhead by batch size.
+                # FLOPs are per-sample, so counting on one is enough.
+                single = [batch[0]]
+                flops_g, _ = _count_flops_of(self.model.predict, single)
+                first_batch_flops_g = flops_g  # already per-sample
+                # Now run the full batch normally (timed)
+                predictions = self.model.predict(batch)
+                first_batch = False
+            elif first_batch and skip_flops:
+                predictions = self.model.predict(batch)
                 first_batch = False
             else:
                 predictions = self.model.predict(batch)
@@ -243,7 +256,7 @@ class BenchmarkRunner:
                 )
             latency.add_batch_seconds(batch_seconds, len(batch))
 
-            for sample, pred in zip(batch, predictions):
+            for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
                 metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
                 metrics.update(_sample_meta(sample))
@@ -255,6 +268,14 @@ class BenchmarkRunner:
                 all_samples.append(sample)
                 if progress:
                     progress(len(per_sample_metrics), total, "predict")
+
+        # Attach per-sample latency_ms so downstream analysis can group
+        # timings with the metric values. LatencyProfiler.samples_ms()
+        # produces one entry per sample (batch timing amortised evenly
+        # across the batch's samples).
+        per_sample_latencies = latency.samples_ms()
+        for row, lat_ms in zip(per_sample_metrics, per_sample_latencies, strict=False):
+            row["latency_ms"] = float(lat_ms)
 
         result = self.metric_suite.build_result(per_sample_metrics)
 
@@ -270,11 +291,13 @@ class BenchmarkRunner:
             metric_key=primary_metric,
         )
 
-        str_result = compute_str({
-            Phase.CLUTTER: wps.s_clutter,
-            Phase.INTERACTION: wps.s_interaction,
-            Phase.CLEAN: wps.s_clean,
-        })
+        str_result = compute_str(
+            {
+                Phase.CLUTTER: wps.s_clutter,
+                Phase.INTERACTION: wps.s_interaction,
+                Phase.CLEAN: wps.s_clean,
+            }
+        )
 
         # --- Deployment-readiness hooks dispatched via TaskSpec ---
         # The runner no longer branches on task identity. Each task
@@ -291,15 +314,13 @@ class BenchmarkRunner:
             and spec.temporal_stability_fn is not None
         ):
             ts_result = spec.temporal_stability_fn(
-                all_predictions, all_samples, per_sample_poses,
+                all_predictions,
+                all_samples,
+                per_sample_poses,
             )
 
         sgc_result: StackGeometricCoherenceResult | None = None
-        if (
-            compute_sgc_flag
-            and spec is not None
-            and spec.geometric_coherence_fn is not None
-        ):
+        if compute_sgc_flag and spec is not None and spec.geometric_coherence_fn is not None:
             sgc_result = spec.geometric_coherence_fn(all_predictions, all_samples)
 
         # Merge counted FLOPs + measured latency + memory into the
@@ -317,6 +338,37 @@ class BenchmarkRunner:
         eff.peak_cuda_mb = memory_peaks["cuda_mb"]
         eff.peak_mps_mb = memory_peaks["mps_mb"]
 
+        # Peak resident memory across the three possible backends
+        # (CPU / CUDA / MPS). We pick the max so the ERS has a single
+        # "worst-case device memory" number regardless of where the
+        # model actually ran.
+        peak_mb_vals = [v for v in memory_peaks.values() if v is not None]
+        peak_memory_mb = max(peak_mb_vals) if peak_mb_vals else None
+
+        # Ensure derived Tier-1 fields (MACs, traffic, AI) are populated
+        # now that flops_g may have been filled by the FLOP counter above.
+        eff.derive_tier1()
+
+        # Compute Tier-2 roofline bounds if we have enough data
+        if eff.flops_g is not None and eff.roofline is None:
+            eff.compute_roofline()
+
+        # Serialise roofline bounds for the report
+        roofline_dict = None
+        if eff.roofline:
+            roofline_dict = {
+                name: {
+                    "compute_ms": b.compute_ms,
+                    "memory_ms": b.memory_ms,
+                    "latency_ms": b.latency_ms,
+                    "bottleneck": b.bottleneck,
+                }
+                for name, b in eff.roofline.items()
+            }
+
+        # Serialise system card if present
+        system_card_dict = eff.system_card.to_dict() if eff.system_card else None
+
         report = DeploymentReadinessReport(
             task=self.model.task.value,
             model_name=model_name,
@@ -324,10 +376,59 @@ class BenchmarkRunner:
             temporal_stability=ts_result,
             state_transition=str_result,
             geometric_coherence=sgc_result,
+            # Tier 1
             params_m=eff.params_m,
             flops_g=eff.flops_g,
+            macs_g=eff.macs_g,
             actmem_gb_fp16=eff.actmem_gb_fp16,
+            memory_traffic_gb=eff.memory_traffic_gb,
+            arithmetic_intensity=eff.arithmetic_intensity,
+            # Tier 2
+            roofline=roofline_dict,
+            # Tier 3
             latency_ms_per_sample=eff.latency_ms_per_sample,
+            peak_memory_mb=peak_memory_mb,
+            system_card=system_card_dict,
         )
+
+        # Compose the Embodied Readiness Score (legacy).
+        higher_is_better = bool(getattr(spec, "higher_is_better", True))
+        try:
+            report.embodied_readiness = compute_embodied_readiness(
+                report,
+                higher_is_better=higher_is_better,
+            )
+        except ValueError:
+            pass
+
+        # Build an OperatingPoint for the DRS (platform-independent).
+        # The full DRS (with F_median) is computed post-sweep via
+        # compute_sweep_drs(); here we store the raw operating point
+        # so downstream code has everything it needs.
+        from .deployment import OperatingPoint  # noqa: PLC0415
+
+        if wps is not None and eff.flops_g is not None:
+            # Precision: prefer the model's declared native_precision,
+            # fall back to the system card, default to fp32.
+            precision = getattr(self.model, "native_precision", None) or (
+                eff.system_card.get("precision", "fp32")
+                if isinstance(eff.system_card, dict)
+                else getattr(eff.system_card, "precision", "fp32")
+                if eff.system_card
+                else "fp32"
+            )
+            str_val = 0.0
+            if str_result is not None:
+                str_val = str_result.str_c_to_i or 0.0
+            report.operating_point = OperatingPoint(
+                precision=precision,
+                task_metric=wps.s_overall,
+                task_metric_name=primary_metric,
+                higher_is_better=higher_is_better,
+                str_score=str_val,
+                flops_g=eff.flops_g,
+                params_m=eff.params_m or 0.0,
+                memory_traffic_gb=eff.memory_traffic_gb,
+            )
 
         return result, report

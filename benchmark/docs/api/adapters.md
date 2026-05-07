@@ -1,8 +1,8 @@
 # Adapters (`rpx_benchmark.adapters`)
 
 The formal adapter framework: `InputAdapter` / `OutputAdapter`
-protocols, `PreparedInput`, `BenchmarkableModel`, and the shipped
-numpy / HuggingFace / UniDepth / Metric3D / segmentation adapters.
+protocols, `PreparedInput`, `BenchmarkableModel`, and the
+true-batched-dispatch wrappers.
 
 ## Base framework
 
@@ -10,26 +10,24 @@ numpy / HuggingFace / UniDepth / Metric3D / segmentation adapters.
     options:
       show_root_toc_entry: false
 
-## HuggingFace depth adapter
+## True-batched-dispatch base + reference subclasses
 
-::: rpx_benchmark.adapters.depth_hf
+The toolkit ships a generic batched-dispatch `BenchmarkModel` so any
+task can opt into single-call GPU batching without reimplementing the
+loop, save logic, and prediction-wrapping ceremony.
+
+::: rpx_benchmark.adapters.batched_depth
     options:
       show_root_toc_entry: false
 
-## UniDepth V2 adapter
-
-::: rpx_benchmark.adapters.depth_unidepth
+::: rpx_benchmark.adapters.batched_multimodal
     options:
       show_root_toc_entry: false
 
-## Metric3D V2 adapter
+## Reference depth adapters
 
-::: rpx_benchmark.adapters.depth_metric3d
-    options:
-      show_root_toc_entry: false
-
-## HuggingFace segmentation adapter
-
-::: rpx_benchmark.adapters.seg_hf
-    options:
-      show_root_toc_entry: false
+Reference implementations of nine monocular-depth adapters live in
+`scripts/depth_models/` (alongside the run scripts), not under
+`rpx_benchmark.adapters`. See
+[`scripts/depth_models/README.md`](https://github.com/IRVLUTD/RPX/tree/main/benchmark/scripts/depth_models)
+for the full list and the per-model registry.

@@ -19,10 +19,10 @@ import numpy as np
 # rpx_benchmark.evaluators import MetricSuite`` imports keep working.
 from .metrics.registry import BenchmarkResult, MetricSuite  # noqa: F401
 
-
 # ------------------------------------------------------------------ #
 # Task-specific metric functions
 # ------------------------------------------------------------------ #
+
 
 def depth_metrics(pred: np.ndarray, gt: np.ndarray) -> Dict[str, float]:
     """AbsRel, RMSE, and threshold accuracy (δ<1.25) for monocular depth."""
@@ -39,8 +39,8 @@ def depth_metrics(pred: np.ndarray, gt: np.ndarray) -> Dict[str, float]:
 
     thresh = np.maximum(pred_v / gt_v, gt_v / pred_v)
     delta1 = float(np.mean(thresh < 1.25))
-    delta2 = float(np.mean(thresh < 1.25 ** 2))
-    delta3 = float(np.mean(thresh < 1.25 ** 3))
+    delta2 = float(np.mean(thresh < 1.25**2))
+    delta3 = float(np.mean(thresh < 1.25**3))
 
     return {"rmse": rmse, "absrel": absrel, "delta1": delta1, "delta2": delta2, "delta3": delta3}
 
@@ -66,7 +66,7 @@ def detection_metrics(
         box = pred_boxes[idx]
         label = pred_labels[idx]
         best_iou, best_j = 0.0, -1
-        for j, (gt_box, gt_label) in enumerate(zip(gt_boxes, gt_labels)):
+        for j, (gt_box, gt_label) in enumerate(zip(gt_boxes, gt_labels, strict=False)):
             if j in matched_gt or gt_label != label:
                 continue
             iou = bbox_iou(box, gt_box)
@@ -156,7 +156,7 @@ def tracking_metrics(
 
         # Greedy matching
         matched_gt_idx: set[int] = set()
-        for p_idx, (p_box, p_id) in enumerate(zip(pred_boxes_t, pred_ids_t)):
+        for _p_idx, (p_box, p_id) in enumerate(zip(pred_boxes_t, pred_ids_t, strict=False)):
             best_iou, best_g = 0.0, -1
             for g_idx, g_box in enumerate(gt_boxes_t):
                 if g_idx in matched_gt_idx:
@@ -182,8 +182,13 @@ def tracking_metrics(
     idf1 = (2 * total_tp) / max(2 * total_tp + total_fp + total_fn, 1)
     idf1 = float(np.clip(idf1, 0.0, 1.0))
 
-    return {"mota": mota, "idf1": idf1, "fp": float(total_fp),
-            "fn": float(total_fn), "idsw": float(total_idsw)}
+    return {
+        "mota": mota,
+        "idf1": idf1,
+        "fp": float(total_fp),
+        "fn": float(total_fn),
+        "idsw": float(total_idsw),
+    }
 
 
 def pose_metrics(
@@ -209,9 +214,11 @@ def pose_metrics(
     cos_angle = np.clip(cos_angle, -1.0, 1.0)
     rot_err_deg = float(np.degrees(np.arccos(cos_angle)))
 
-    trans_err_m = float(np.linalg.norm(
-        np.asarray(pred_trans, dtype=np.float64) - np.asarray(gt_trans, dtype=np.float64)
-    ))
+    trans_err_m = float(
+        np.linalg.norm(
+            np.asarray(pred_trans, dtype=np.float64) - np.asarray(gt_trans, dtype=np.float64)
+        )
+    )
 
     return {"rotation_error_deg": rot_err_deg, "translation_error_m": trans_err_m}
 
@@ -256,10 +263,10 @@ def sparse_depth_metrics(
 
     abs_errors = []
     sq_errors = []
-    for (gx, gy), gd in zip(gt_coords, gt_depths):
+    for (gx, gy), gd in zip(gt_coords, gt_depths, strict=False):
         if len(pred_coords) == 0:
             abs_errors.append(gd)
-            sq_errors.append(gd ** 2)
+            sq_errors.append(gd**2)
             continue
         dists = np.sqrt(((pred_coords - np.array([gx, gy])) ** 2).sum(axis=1))
         nearest = int(np.argmin(dists))
@@ -282,7 +289,7 @@ def nvs_metrics(pred_rgb: np.ndarray, gt_rgb: np.ndarray) -> Dict[str, float]:
     gt = np.asarray(gt_rgb, dtype=np.float32)
 
     mse = float(np.mean((pred - gt) ** 2))
-    psnr = float(10 * np.log10(255.0 ** 2 / mse)) if mse > 0 else 100.0
+    psnr = float(10 * np.log10(255.0**2 / mse)) if mse > 0 else 100.0
 
     ssim = _ssim(pred, gt)
 
@@ -315,7 +322,7 @@ def keypoint_metrics(
         return {"keypoint_acc": 1.0, "mean_match_error": 0.0}
 
     errors = []
-    for gp0, gp1 in zip(gt_p0_v, gt_p1_v):
+    for gp0, gp1 in zip(gt_p0_v, gt_p1_v, strict=False):
         dists0 = np.sqrt(((pred_p0 - gp0) ** 2).sum(axis=1))
         nearest = int(np.argmin(dists0))
         err = float(np.sqrt(((pred_p1[nearest] - gp1) ** 2).sum()))
@@ -331,6 +338,7 @@ def keypoint_metrics(
 # ------------------------------------------------------------------ #
 # Geometry helpers
 # ------------------------------------------------------------------ #
+
 
 def bbox_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
     ax1, ay1, ax2, ay2 = box_a
@@ -349,15 +357,19 @@ def bbox_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
 def _quat_to_rotmat(q: np.ndarray) -> np.ndarray:
     """Convert quaternion [w, x, y, z] to 3x3 rotation matrix."""
     w, x, y, z = q / np.linalg.norm(q)
-    return np.array([
-        [1 - 2*y*y - 2*z*z,     2*x*y - 2*z*w,     2*x*z + 2*y*w],
-        [    2*x*y + 2*z*w, 1 - 2*x*x - 2*z*z,     2*y*z - 2*x*w],
-        [    2*x*z - 2*y*w,     2*y*z + 2*x*w, 1 - 2*x*x - 2*y*y],
-    ], dtype=np.float64)
+    return np.array(
+        [
+            [1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * z * w, 2 * x * z + 2 * y * w],
+            [2 * x * y + 2 * z * w, 1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * x * w],
+            [2 * x * z - 2 * y * w, 2 * y * z + 2 * x * w, 1 - 2 * x * x - 2 * y * y],
+        ],
+        dtype=np.float64,
+    )
 
 
-def _ssim(pred: np.ndarray, gt: np.ndarray, k1: float = 0.01, k2: float = 0.03,
-          L: float = 255.0) -> float:
+def _ssim(
+    pred: np.ndarray, gt: np.ndarray, k1: float = 0.01, k2: float = 0.03, L: float = 255.0
+) -> float:
     """Simplified global SSIM (no sliding window) for NVS evaluation."""
     c1 = (k1 * L) ** 2
     c2 = (k2 * L) ** 2
@@ -366,5 +378,5 @@ def _ssim(pred: np.ndarray, gt: np.ndarray, k1: float = 0.01, k2: float = 0.03,
     sigma_gt = gt.std()
     sigma_pred_gt = float(np.mean((pred - mu_pred) * (gt - mu_gt)))
     numerator = (2 * mu_pred * mu_gt + c1) * (2 * sigma_pred_gt + c2)
-    denominator = (mu_pred ** 2 + mu_gt ** 2 + c1) * (sigma_pred ** 2 + sigma_gt ** 2 + c2)
+    denominator = (mu_pred**2 + mu_gt**2 + c1) * (sigma_pred**2 + sigma_gt**2 + c2)
     return float(numerator / denominator) if denominator > 0 else 1.0

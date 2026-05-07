@@ -3,6 +3,11 @@ sam2-test/
 FrameViewer.py
 recorded_data/
 data/
+# The bare `data/` rule above unintentionally hides the rpx_benchmark.data
+# Python subpackage. Negate it explicitly so the source tree is tracked
+# while real data dirs (dc/data/, recorded_data/, vendored .../data/) stay
+# ignored.
+!benchmark/rpx_benchmark/data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

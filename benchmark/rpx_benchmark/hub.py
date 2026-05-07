@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import tarfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
 
@@ -59,16 +60,16 @@ SPATIAL_QA = "spatial_qa.json"
 GENERAL_QA = "general_qa.json"
 
 TASK_MODALITIES: Dict[TaskType, List[str]] = {
-    TaskType.MONOCULAR_DEPTH:      [RGB, DEPTH],
-    TaskType.SPARSE_DEPTH:         [RGB, DEPTH, SPARSE_DEPTH_DIR],
-    TaskType.OBJECT_SEGMENTATION:  [RGB, MASK],
-    TaskType.OBJECT_DETECTION:     [RGB, MASK, TRACKLETS],
+    TaskType.MONOCULAR_DEPTH: [RGB, DEPTH],
+    TaskType.SPARSE_DEPTH: [RGB, DEPTH, SPARSE_DEPTH_DIR],
+    TaskType.OBJECT_SEGMENTATION: [RGB, MASK],
+    TaskType.OBJECT_DETECTION: [RGB, MASK, TRACKLETS],
     TaskType.OPEN_VOCAB_DETECTION: [RGB, MASK, TRACKLETS, QUESTIONNAIRES],
-    TaskType.OBJECT_TRACKING:      [RGB, MASK, TRACKLETS],
+    TaskType.OBJECT_TRACKING: [RGB, MASK, TRACKLETS],
     TaskType.RELATIVE_CAMERA_POSE: [RGB, POSE],
     TaskType.NOVEL_VIEW_SYNTHESIS: [RGB, DEPTH, POSE],
-    TaskType.VISUAL_GROUNDING:     [RGB, QUESTIONNAIRES, SPATIAL_QA],
-    TaskType.KEYPOINT_MATCHING:    [RGB, KEYPOINTS_DIR],
+    TaskType.VISUAL_GROUNDING: [RGB, QUESTIONNAIRES, SPATIAL_QA],
+    TaskType.KEYPOINT_MATCHING: [RGB, KEYPOINTS_DIR],
 }
 
 # QA-only tasks we may add later (not in TaskType enum yet); keep mapping
@@ -82,6 +83,7 @@ EXTRA_TASK_ALIASES: Dict[str, List[str]] = {
 # ------------------------------------------------------------------ #
 # Hub helpers
 # ------------------------------------------------------------------ #
+
 
 def _hub():
     """Lazy-import ``huggingface_hub`` and re-raise as :class:`DownloadError`.
@@ -126,6 +128,7 @@ def _modalities_for(task: TaskType | str) -> List[str]:
 # ------------------------------------------------------------------ #
 # Manifest handling
 # ------------------------------------------------------------------ #
+
 
 def fetch_manifest(
     task: TaskType | str,
@@ -225,6 +228,7 @@ def _build_allow_patterns(
 # Public download API
 # ------------------------------------------------------------------ #
 
+
 def download_split(
     task: TaskType | str,
     split: Difficulty | str,
@@ -241,7 +245,9 @@ def download_split(
     :meth:`RPXDataset.from_manifest`.
     """
     hf = _hub()
-    task_enum = TaskType(task) if isinstance(task, str) and task in TaskType._value2member_map_ else task
+    task_enum = (
+        TaskType(task) if isinstance(task, str) and task in TaskType._value2member_map_ else task
+    )
     split_enum = Difficulty(split) if isinstance(split, str) else split
 
     manifest = fetch_manifest(task_enum, split_enum, repo_id, cache_dir, revision)
@@ -249,10 +255,9 @@ def download_split(
     pairs = _extract_scene_phase_pairs(manifest)
     if not pairs:
         raise ManifestError(
-            f"Manifest {task}/{split} references no scenes; cannot "
-            "derive download patterns.",
+            f"Manifest {task}/{split} references no scenes; cannot derive download patterns.",
             hint="This usually means the manifest was generated against "
-                 "an empty scene list — re-run the upload script.",
+            "an empty scene list — re-run the upload script.",
         )
 
     modalities = list(_modalities_for(task_enum))
@@ -282,8 +287,19 @@ def download_split(
         raise DownloadError(
             f"snapshot_download failed for {repo_id}: {e}",
             hint="Rerun with --cache-dir pointing at a writable directory "
-                 "or set HF_HUB_OFFLINE=1 to use a prebuilt local cache.",
+            "or set HF_HUB_OFFLINE=1 to use a prebuilt local cache.",
         ) from e
+
+    # The HF tree ships tar shards; the per-task per-split JSON we just
+    # downloaded references *extracted* PNG/NPZ paths. Run the extraction
+    # step here so the user can hand the manifest to RPXDataset directly.
+    # Idempotent — files already on disk are skipped.
+    n_extracted, n_skipped = _extract_snapshot_tars(Path(snapshot_root))
+    log.info(
+        "extracted %d new files (%d already on disk) from tar shards",
+        n_extracted,
+        n_skipped,
+    )
 
     resolved = dict(manifest)
     resolved["root"] = str(snapshot_root)
@@ -295,7 +311,9 @@ def download_split(
     task_name = task_enum.value if isinstance(task_enum, TaskType) else str(task_enum)
     out_dir = _rpx_cache_dir() / repo_id.replace("/", "__") / "manifests" / task_name
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{split_enum.value if isinstance(split_enum, Difficulty) else split_enum}.json"
+    out_path = (
+        out_dir / f"{split_enum.value if isinstance(split_enum, Difficulty) else split_enum}.json"
+    )
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(resolved, f)
     return out_path
@@ -333,6 +351,7 @@ def load(
 # fsspec mount (preview / debug only — do not use for training)
 # ------------------------------------------------------------------ #
 
+
 def mount(repo_id: str = DEFAULT_REPO_ID):
     """Return an ``HfFileSystem`` rooted at the RPX repo for lazy browsing.
 
@@ -341,3 +360,102 @@ def mount(repo_id: str = DEFAULT_REPO_ID):
     hf = _hub()
     fs = hf.HfFileSystem()
     return fs, f"datasets/{repo_id}"
+
+
+# ------------------------------------------------------------------ #
+# Tar extraction (post-download)
+# ------------------------------------------------------------------ #
+
+
+def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
+    """Extract every tar shard under ``snapshot_root`` into ``snapshot_root/extracted/``.
+
+    The HF dataset tree ships tar shards (``scenes/<scene>/<phase>/rgb.tar``,
+    ``scenes/<scene>/<phase>/labels/masks/v1.tar``, ...). Per-task per-split
+    manifests reference *extracted* paths
+    (``extracted/scenes/<scene>/<phase>/rgb/<frame>.png``,
+     ``extracted/scenes/<scene>/<phase>/sam2/masks/<frame>.png``, ...). This
+    helper materialises that layout post-download.
+
+    Idempotency
+    -----------
+    For each tar member, we check if the destination file already exists
+    (correct size). Only missing or wrong-size files are extracted. The
+    write is atomic-ish: extract to ``<dest>.part`` then ``rename`` so a
+    half-written file never collides with a re-run.
+
+    Path mapping
+    ------------
+    Tar location ``scenes/<scene>/<phase>/<...>.tar`` → extraction root
+    ``extracted/scenes/<scene>/<phase>/`` (with the tar's *own* member
+    names appended). Examples:
+
+    * ``scenes/scene1/0/rgb.tar``               members ``rgb/00000.png``  → ``extracted/scenes/scene1/0/rgb/00000.png``
+    * ``scenes/scene1/0/labels/masks/v1.tar``   members ``sam2/masks/00000.png`` → ``extracted/scenes/scene1/0/sam2/masks/00000.png``
+    * ``scenes/scene1/0/labels/cam_pose/v1.tar`` members ``cam_pose/00000.npz`` → ``extracted/scenes/scene1/0/cam_pose/00000.npz``
+
+    Parameters
+    ----------
+    snapshot_root
+        Root of an HF snapshot (the path returned by ``snapshot_download``).
+
+    Returns
+    -------
+    (n_extracted, n_skipped)
+        Number of files newly extracted and number already present.
+    """
+    extracted_root = snapshot_root / "extracted"
+    n_new = 0
+    n_skip = 0
+    for tar_path in sorted(snapshot_root.rglob("*.tar")):
+        if extracted_root in tar_path.parents:
+            # Don't re-process artefacts already under extracted/ from a
+            # previous run that happened to leave tars behind.
+            continue
+        try:
+            rel = tar_path.relative_to(snapshot_root)
+        except ValueError:  # symlinks pointing outside; skip
+            continue
+        # Locate the (scene, phase) prefix: the parts up to and including
+        # the first numeric component (the phase index 0/1/2). Example:
+        # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'
+        # ('scenes', 'scene1', '0', 'labels', 'masks', 'v1.tar') → same.
+        prefix_parts: List[str] = []
+        for p in rel.parts[:-1]:  # stop before the .tar filename
+            prefix_parts.append(p)
+            if p.isdigit():
+                break
+        if not prefix_parts or not prefix_parts[-1].isdigit():
+            # Not a per-scene-per-phase shard (e.g. an unrelated tar at
+            # repo root); skip rather than guess.
+            continue
+        out_base = extracted_root.joinpath(*prefix_parts)
+        out_base.mkdir(parents=True, exist_ok=True)
+        try:
+            with tarfile.open(tar_path, "r") as tf:
+                for member in tf.getmembers():
+                    if not member.isfile():
+                        continue
+                    out = out_base / member.name
+                    if out.exists() and out.stat().st_size == member.size:
+                        n_skip += 1
+                        continue
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = out.with_suffix(out.suffix + ".part")
+                    f = tf.extractfile(member)
+                    if f is None:
+                        continue
+                    with tmp.open("wb") as g:
+                        # Stream-copy in chunks; member.size can be ~MB
+                        # for masks, no point loading whole thing in RAM.
+                        while True:
+                            chunk = f.read(1 << 20)
+                            if not chunk:
+                                break
+                            g.write(chunk)
+                    tmp.rename(out)
+                    n_new += 1
+        except tarfile.TarError as e:
+            log.warning("failed to extract %s: %s", tar_path, e)
+            continue
+    return n_new, n_skip

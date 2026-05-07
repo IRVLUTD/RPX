@@ -14,19 +14,25 @@ robot-learning backbones, and a team can add a whole new task or
 metric in **one file**.
 
 ```bash
-pip install 'rpx-benchmark[depth]'
-
-rpx bench monocular_depth \
-    --hf-checkpoint depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf \
-    --split hard
+pip install 'rpx-benchmark[hub]'
 ```
 
-That line downloads only the RGB + depth files the Hard split
-references (via HuggingFace), loads the model, runs inference with a
-live progress bar, prints an ESD-weighted phase-score table, measures
-FLOPs and median latency, and writes `result.json` + `summary.md`.
+```python
+import numpy as np
+import rpx_benchmark as rpx
 
-**No Python code required.**
+def my_depth(rgb):
+    """rgb: H x W x 3 uint8 -> H x W float32 (metres)."""
+    ...
+
+model = rpx.make_numpy_depth_model(my_depth, name="my_depth")
+cfg = rpx.MonocularDepthRunConfig(model=model, split="hard", device="cpu")
+result, report, paths = rpx.run_monocular_depth(cfg)
+```
+
+Twelve lines download only the RGB + depth files the Hard split
+references, run inference, score each sample, measure FLOPs + latency
+percentiles + peak memory, and write `result.json` + `summary.md`.
 
 ---
 

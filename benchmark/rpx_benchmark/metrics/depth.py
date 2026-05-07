@@ -57,13 +57,11 @@ class DepthErrorMetrics(MetricCalculator):
     ) -> Dict[str, float]:
         if not isinstance(prediction, DepthPrediction):
             raise MetricError(
-                f"DepthErrorMetrics expected DepthPrediction, got "
-                f"{type(prediction).__name__}",
+                f"DepthErrorMetrics expected DepthPrediction, got {type(prediction).__name__}",
             )
         if not isinstance(ground_truth, DepthGroundTruth):
             raise MetricError(
-                f"DepthErrorMetrics expected DepthGroundTruth, got "
-                f"{type(ground_truth).__name__}",
+                f"DepthErrorMetrics expected DepthGroundTruth, got {type(ground_truth).__name__}",
             )
 
         pred = np.asarray(prediction.depth_map, dtype=np.float32)
@@ -71,8 +69,7 @@ class DepthErrorMetrics(MetricCalculator):
 
         if pred.shape != gt.shape:
             raise MetricError(
-                f"Depth prediction shape {pred.shape} does not match "
-                f"ground-truth shape {gt.shape}",
+                f"Depth prediction shape {pred.shape} does not match ground-truth shape {gt.shape}",
                 hint=(
                     "The adapter's OutputAdapter should resize predictions "
                     "back to the sample RGB resolution before returning."
@@ -81,8 +78,7 @@ class DepthErrorMetrics(MetricCalculator):
 
         valid = gt > 0
         if not valid.any():
-            return {"rmse": 0.0, "absrel": 0.0,
-                    "delta1": 1.0, "delta2": 1.0, "delta3": 1.0}
+            return {"rmse": 0.0, "absrel": 0.0, "delta1": 1.0, "delta2": 1.0, "delta3": 1.0}
 
         pred_v = pred[valid]
         gt_v = gt[valid]
@@ -96,8 +92,8 @@ class DepthErrorMetrics(MetricCalculator):
 
         thresh = np.maximum(pred_v / gt_v, gt_v / pred_v)
         delta1 = float(np.mean(thresh < 1.25))
-        delta2 = float(np.mean(thresh < 1.25 ** 2))
-        delta3 = float(np.mean(thresh < 1.25 ** 3))
+        delta2 = float(np.mean(thresh < 1.25**2))
+        delta3 = float(np.mean(thresh < 1.25**3))
 
         return {
             "rmse": rmse,

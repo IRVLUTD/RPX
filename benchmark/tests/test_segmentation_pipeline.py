@@ -22,52 +22,53 @@ from rpx_benchmark.evaluators import MetricSuite
 from rpx_benchmark.runner import BenchmarkRunner
 from rpx_benchmark.tasks.registry import get_task_spec
 
-
 # --------------------------------------------------------------------------- #
 # Fixture: 6-frame synthetic segmentation dataset
 # --------------------------------------------------------------------------- #
 
+
 @pytest.fixture
 def synthetic_seg_dataset(tmp_path: Path) -> rpx.RPXDataset:
     samples = []
-    for phase_idx, phase_name in (("0", "clutter"),
-                                   ("1", "interaction"),
-                                   ("2", "clean")):
+    for phase_idx, phase_name in (("0", "clutter"), ("1", "interaction"), ("2", "clean")):
         for difficulty in ("easy", "hard"):
             pdir = tmp_path / "scenes" / "scene_000" / phase_idx
             (pdir / "rgb").mkdir(parents=True, exist_ok=True)
             (pdir / "mask").mkdir(parents=True, exist_ok=True)
             frame = f"0{difficulty[0]}"
             # RGB: uniform gray
-            Image.fromarray(np.full((20, 30, 3), 128, np.uint8)).save(
-                pdir / "rgb" / f"{frame}.png"
-            )
+            Image.fromarray(np.full((20, 30, 3), 128, np.uint8)).save(pdir / "rgb" / f"{frame}.png")
             # GT mask: two instances (1 = upper-left square, 2 = lower-right square)
             mask = np.zeros((20, 30), dtype=np.int32)
             mask[2:10, 2:10] = 1
             mask[12:18, 18:26] = 2
-            Image.fromarray(mask.astype(np.int32), mode="I").save(
-                pdir / "mask" / f"{frame}.png"
+            Image.fromarray(mask.astype(np.int32), mode="I").save(pdir / "mask" / f"{frame}.png")
+            samples.append(
+                {
+                    "id": f"scene_000_{phase_name}_{frame}",
+                    "rgb": f"scenes/scene_000/{phase_idx}/rgb/{frame}.png",
+                    "mask": f"scenes/scene_000/{phase_idx}/mask/{frame}.png",
+                    "phase": phase_name,
+                    "difficulty": difficulty,
+                }
             )
-            samples.append({
-                "id": f"scene_000_{phase_name}_{frame}",
-                "rgb":  f"scenes/scene_000/{phase_idx}/rgb/{frame}.png",
-                "mask": f"scenes/scene_000/{phase_idx}/mask/{frame}.png",
-                "phase": phase_name,
-                "difficulty": difficulty,
-            })
     manifest_path = tmp_path / "manifest.json"
-    manifest_path.write_text(json.dumps({
-        "task": "object_segmentation",
-        "root": str(tmp_path),
-        "samples": samples,
-    }))
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "task": "object_segmentation",
+                "root": str(tmp_path),
+                "samples": samples,
+            }
+        )
+    )
     return rpx.RPXDataset.from_manifest(manifest_path, batch_size=1)
 
 
 # --------------------------------------------------------------------------- #
 # make_numpy_mask_model contract
 # --------------------------------------------------------------------------- #
+
 
 def test_numpy_mask_model_returns_segmentation_prediction():
     def fn(rgb):
@@ -77,6 +78,7 @@ def test_numpy_mask_model_returns_segmentation_prediction():
     assert bm.task is TaskType.OBJECT_SEGMENTATION
 
     from rpx_benchmark.api import Sample
+
     sample = Sample(
         id="t",
         rgb=np.full((20, 30, 3), 128, np.uint8),
@@ -96,6 +98,7 @@ def test_numpy_mask_model_nearest_resizes_output():
 
     bm = rpx.make_numpy_mask_model(fn)
     from rpx_benchmark.api import Sample
+
     sample = Sample(
         id="t",
         rgb=np.full((20, 30, 3), 128, np.uint8),
@@ -115,6 +118,7 @@ def test_numpy_mask_model_rejects_non_2d_output():
     bm = rpx.make_numpy_mask_model(fn)
     from rpx_benchmark.api import Sample
     from rpx_benchmark.exceptions import AdapterError
+
     sample = Sample(
         id="t",
         rgb=np.full((10, 10, 3), 128, np.uint8),
@@ -127,6 +131,7 @@ def test_numpy_mask_model_rejects_non_2d_output():
 # --------------------------------------------------------------------------- #
 # End-to-end pipeline
 # --------------------------------------------------------------------------- #
+
 
 def _perfect_seg(rgb: np.ndarray) -> np.ndarray:
     """Exactly matches the synthetic GT mask from the fixture."""
@@ -144,7 +149,8 @@ def _wrong_seg(rgb: np.ndarray) -> np.ndarray:
 def test_segmentation_perfect_prediction_yields_miou_one(synthetic_seg_dataset):
     bm = rpx.make_numpy_mask_model(_perfect_seg, name="perfect")
     runner = BenchmarkRunner(
-        bm, synthetic_seg_dataset,
+        bm,
+        synthetic_seg_dataset,
         MetricSuite.for_task(TaskType.OBJECT_SEGMENTATION),
     )
     result, dr = runner.run_with_deployment_readiness(
@@ -163,7 +169,8 @@ def test_segmentation_perfect_prediction_yields_miou_one(synthetic_seg_dataset):
 def test_segmentation_runner_attaches_metadata(synthetic_seg_dataset):
     bm = rpx.make_numpy_mask_model(_perfect_seg)
     runner = BenchmarkRunner(
-        bm, synthetic_seg_dataset,
+        bm,
+        synthetic_seg_dataset,
         MetricSuite.for_task(TaskType.OBJECT_SEGMENTATION),
     )
     result, _ = runner.run_with_deployment_readiness(
@@ -179,7 +186,8 @@ def test_segmentation_runner_attaches_metadata(synthetic_seg_dataset):
 def test_segmentation_wrong_prediction_has_nonzero_error(synthetic_seg_dataset):
     bm = rpx.make_numpy_mask_model(_wrong_seg)
     runner = BenchmarkRunner(
-        bm, synthetic_seg_dataset,
+        bm,
+        synthetic_seg_dataset,
         MetricSuite.for_task(TaskType.OBJECT_SEGMENTATION),
     )
     result, _ = runner.run_with_deployment_readiness(
@@ -196,21 +204,11 @@ def test_segmentation_wrong_prediction_has_nonzero_error(synthetic_seg_dataset):
 # Task registration
 # --------------------------------------------------------------------------- #
 
+
 def test_segmentation_task_is_registered():
     spec = get_task_spec(TaskType.OBJECT_SEGMENTATION)
     assert spec.primary_metric == "miou"
     assert spec.higher_is_better is True
     assert "rgb" in spec.required_modalities
     assert "mask" in spec.required_modalities
-    assert callable(spec.build_config)
     assert callable(spec.run)
-    assert callable(spec.add_cli_arguments)
-
-
-def test_segmentation_subcommand_in_cli(capsys):
-    from rpx_benchmark import cli
-    with pytest.raises(SystemExit) as exc:
-        cli.main(["bench", "--help"])
-    assert exc.value.code == 0
-    out = capsys.readouterr().out
-    assert "object_segmentation" in out
