@@ -325,8 +325,8 @@ Tests grew from 154 → 251 (+97); no behaviour regressions.
   (first-batch FLOPs) and median per-sample latency (skip warmup).
 - Per-sample metadata (`id`, `phase`, `difficulty`) attached to
   `result.per_sample` without leaking into aggregate means.
-- Claude-Code-style terminal UI (`rich` backend with plain-text
-  fallback) showing progress bar, phase score table, efficiency table.
+- Rich terminal UI (`rich` backend with plain-text fallback) showing
+  progress bar, phase score table, efficiency table.
 - Report writers: `write_json` + `format_markdown_summary` with
   JSON + markdown output per run.
 - Task pipelines: monocular absolute depth + object segmentation.

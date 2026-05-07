@@ -20,7 +20,7 @@ Notes
 The Lotus checkpoints have shipped under several names over the project's
 lifetime (``jingheya/Lotus-2``, ``jingheya/lotus-depth-d-v2-0``,
 ``jingheya/lotus-depth-g-v2-1-disparity``). We pin to ``jingheya/Lotus-2``
-per Feynman's verified-2026 list. If the auto-pipeline can't load it
+per the team's verified-2026 list. If the auto-pipeline can't load it
 (checkpoint format change), the adapter raises an actionable error.
 """
 

@@ -186,18 +186,17 @@ PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity   # pape
 
 Outputs: `rpx_results/_sweep/drs_<split>.{csv,json}` and
 `sensitivity_<split>.json`. The DRS (Deployment Readiness Score) is the
-multiplicative `TP × R × E` headline metric — see Feynman's
+multiplicative `TP × R × E` headline metric — see
 `paper-submission/latex/drs_section.tex` for the axiomatization.
 
-### 4. Cross-session coordination
+### 4. Where to look
 
-| Channel | Owner | When to consult |
-|---|---|---|
-| [`TEAM_LAUNCH.md`](TEAM_LAUNCH.md) | one-page handoff | running the sweep |
-| [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md) | log between Feynman + Session B Claude sessions | "what changed today?" |
-| [`scripts/README.md`](scripts/README.md) | per-script docs | extending the depth zoo or the metric basket |
-| [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/README.md) | hub team guide | HF upload questions |
-| `paper-submission/BRIEF_FOR_ADVISOR.tex` | advisor brief | scope discussions |
+| Channel | When to consult |
+|---|---|
+| [`TEAM_LAUNCH.md`](TEAM_LAUNCH.md) | running the sweep — one-page handoff |
+| [`scripts/README.md`](scripts/README.md) | extending the depth zoo or the metric basket |
+| [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/README.md) | HF upload questions |
+| `paper-submission/BRIEF_FOR_ADVISOR.tex` | scope discussions / advisor brief |
 
 ### Known limits
 

@@ -206,7 +206,7 @@ disable_error_code = ["attr-defined"]
 # the signal.
 [[tool.mypy.overrides]]
 module = [
-  # Toolkit modules with pre-existing untyped defs (Feynman / earlier work)
+  # Toolkit modules with pre-existing untyped defs (earlier work)
   "rpx_benchmark.adapters.base",
   "rpx_benchmark.deployment",
   "rpx_benchmark.drs_sensitivity",
