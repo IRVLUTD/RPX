@@ -105,6 +105,98 @@ def _build_distill_any_depth(*, device: str = "cuda", batch_size: int = 1, **kwa
     )
 
 
+# ── Diffusion adapters (relative; ls_affine alignment in the runner) ──
+
+def _build_marigold(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Marigold v1.1 — diffusion. Default ensemble_size=1 (raw). Override
+    with ensemble_size=10 for the published-best supplementary number."""
+    from .marigold import Marigold
+    return Marigold(
+        model_id="prs-eth/marigold-depth-v1-1",
+        device=device, batch_size=batch_size, ensemble_size=1, **kwargs,
+    )
+
+
+def _build_marigold_lcm(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Marigold-LCM — latent-consistency-distilled, single-step inference."""
+    from .marigold import Marigold
+    return Marigold(
+        model_id="prs-eth/marigold-depth-lcm-v1-0",
+        device=device, batch_size=batch_size, ensemble_size=1, **kwargs,
+    )
+
+
+def _build_lotus_2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Lotus-2 — single-step diffusion-prior depth."""
+    from .lotus import Lotus
+    return Lotus(model_id="jingheya/Lotus-2",
+                  device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_geowizard(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """GeoWizard — diffusion, joint depth + normal (we consume depth only)."""
+    from .geowizard import GeoWizard
+    return GeoWizard(model_id="lemonaddie/geowizard",
+                      device=device, batch_size=batch_size, **kwargs)
+
+
+# ── Microsoft pair (MoGe-2 metric, MoGe v1 affine-invariant) ──
+
+def _build_moge_2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """MoGe-2 — geometry-aware metric depth + normal."""
+    from .moge import MoGe
+    return MoGe(
+        model_id="Ruicheng/moge-2-vitl-normal",
+        device=device, batch_size=batch_size,
+        native_alignment="none",            # metric
+        **kwargs,
+    )
+
+
+def _build_moge_v1(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """MoGe v1 — predecessor; affine-invariant depth."""
+    from .moge import MoGe
+    return MoGe(
+        model_id="Ruicheng/moge-vitl",
+        device=device, batch_size=batch_size,
+        native_alignment="ls_affine",       # affine-invariant
+        **kwargs,
+    )
+
+
+# ── Specialised HF adapters ──
+
+def _build_patchfusion(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """PatchFusion ZoeDepth — tile-based hi-res metric (CVPR'24)."""
+    from .patchfusion import PatchFusion
+    return PatchFusion(model_id="zhyever/patchfusion_zoedepth",
+                        device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_hyden_metric(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """HyDen — Meta's metric-depth head (ICLR'26)."""
+    from .hyden import HyDen
+    return HyDen(model_id="facebook/hyden-da2-metric-depth",
+                  device=device, batch_size=batch_size,
+                  native_alignment="none", **kwargs)
+
+
+def _build_hyden_relative(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """HyDen — Meta's relative-depth head (ICLR'26)."""
+    from .hyden import HyDen
+    return HyDen(model_id="facebook/hyden-da2-relative-depth",
+                  device=device, batch_size=batch_size,
+                  native_alignment="ls_affine", **kwargs)
+
+
+# ── github-vendored ──
+
+def _build_metric3d_v2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Metric3D V2 — universal metric depth via torch.hub."""
+    from .metric3d_v2 import Metric3DV2
+    return Metric3DV2(device=device, batch_size=batch_size, **kwargs)
+
+
 #: Public name → builder. ``--model X`` resolves through this table.
 #: Each entry is the canonical short id (snake_case) the team uses in
 #: result.json paths and the Box upload tree, so the same key shows up
@@ -116,31 +208,51 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "da_v2_metric_indoor":   _build_da_v2_indoor,
     "da_v2_metric_outdoor":  _build_da_v2_outdoor,
     "unidepth_v2":           _build_unidepth_v2,
+    "moge_2":                _build_moge_2,
+    "patchfusion":           _build_patchfusion,
+    "hyden_metric":          _build_hyden_metric,
+    "metric3d_v2":           _build_metric3d_v2,
     # ── Relative / aligned (native_alignment="ls_affine") ────────────────
     "da_v2_relative":        _build_da_v2_relative,
     "da_v1":                 _build_da_v1,
     "midas_v31":             _build_midas_v31,
     "distill_any_depth":     _build_distill_any_depth,
-    # ── Pending ─────────────────────────────────────────────────────────
-    # Turn C (diffusion): marigold, marigold_lcm, lotus_2, geowizard
-    # Turn D (Microsoft): moge_2, moge_v1
-    # Turn E (specialised HF): patchfusion, hyden_metric, hyden_relative
-    # Turn F (github):  metric3d_v2, metricsolver
+    "marigold":              _build_marigold,
+    "marigold_lcm":          _build_marigold_lcm,
+    "lotus_2":               _build_lotus_2,
+    "geowizard":             _build_geowizard,
+    "moge_v1":               _build_moge_v1,
+    "hyden_relative":        _build_hyden_relative,
+    # ── Dropped (no clean release as of May 2026) ────────────────────────
+    # MetricSolver — kept off the table until a maintained checkpoint
+    # surfaces; revisit in a future minor release.
 }
 
 
 #: Display names for tables and reports — preserves capitalisation /
 #: punctuation that the snake_case keys lose.
 MODEL_DISPLAY_NAMES: Dict[str, str] = {
+    # Metric
     "zoedepth":              "ZoeDepth_NK",
     "depth_pro":             "DepthPro",
     "da_v2_metric_indoor":   "DA-V2-Metric-Indoor-L",
     "da_v2_metric_outdoor":  "DA-V2-Metric-Outdoor-L",
     "unidepth_v2":           "UniDepth-V2-ViTL14",
+    "moge_2":                "MoGe-2-ViTL",
+    "patchfusion":           "PatchFusion-ZoeDepth",
+    "hyden_metric":          "HyDen-DA2-Metric",
+    "metric3d_v2":           "Metric3D-V2-ViT-Giant",
+    # Relative
     "da_v2_relative":        "DA-V2-Relative-L",
     "da_v1":                 "DA-V1-Large",
     "midas_v31":             "MiDaS-v3.1-DPT-BEiT-L",
     "distill_any_depth":     "Distill-Any-Depth-L",
+    "marigold":              "Marigold-v1.1",
+    "marigold_lcm":          "Marigold-LCM",
+    "lotus_2":               "Lotus-2",
+    "geowizard":             "GeoWizard",
+    "moge_v1":               "MoGe-v1-ViTL",
+    "hyden_relative":        "HyDen-DA2-Relative",
 }
 
 

@@ -54,21 +54,23 @@ PYTHONPATH=. python scripts/run_depth.py --model <KEY> --split <easy|medium|hard
     --save-predictions --comprehensive-metrics --upload-to-box
 ```
 
-**`--model` keys (9 live):**
+**`--model` keys (19 live):**
 
-| key | display | type | precision |
-|---|---|---|---|
-| `zoedepth` | ZoeDepth_NK | metric | fp32 |
-| `depth_pro` | DepthPro | metric (D435 FOV-corrected) | fp32 |
-| `da_v2_metric_indoor` | DA-V2-Metric-Indoor-L | metric (Hypersim) | fp16 |
-| `da_v2_metric_outdoor` | DA-V2-Metric-Outdoor-L | metric (VKITTI) | fp16 |
-| `unidepth_v2` | UniDepth-V2-ViTL14 | metric | fp16 |
-| `da_v2_relative` | DA-V2-Relative-L | up-to-scale (`ls_affine`) | fp16 |
-| `da_v1` | DA-V1-Large | up-to-scale (`ls_affine`) | fp32 |
-| `midas_v31` | MiDaS-v3.1-DPT-BEiT-L | up-to-scale (`ls_affine`) | fp32 |
-| `distill_any_depth` | Distill-Any-Depth-L | up-to-scale (`ls_affine`) | fp32 |
+*Metric (9, `native_alignment="none"`)* — `zoedepth`, `depth_pro`,
+`da_v2_metric_indoor`, `da_v2_metric_outdoor`, `unidepth_v2`, `moge_2`,
+`patchfusion`, `hyden_metric`, `metric3d_v2`.
 
-**Pending** (Turns C–F): Marigold, Marigold-LCM, Lotus-2, GeoWizard, MoGe-2, MoGe v1, PatchFusion, HyDen-metric, HyDen-relative, Metric3D v2, MetricSolver.
+*Relative (10, `native_alignment="ls_affine"`)* — `da_v2_relative`,
+`da_v1`, `midas_v31`, `distill_any_depth`, `marigold`, `marigold_lcm`,
+`lotus_2`, `geowizard`, `moge_v1`, `hyden_relative`.
+
+Full source / precision table in [`README.md`](README.md#for-the-team--canonical-sweep).
+**Optional install extras** (per adapter): `pip install diffusers
+accelerate` (Marigold, Lotus-2, GeoWizard), `pip install moge` (MoGe
+pair), `pip install unidepth` (UniDepth V2). Each adapter raises a
+clear `ImportError` with the install hint when missing.
+
+**Dropped from the 20-model target**: MetricSolver — no clean release surfaced as of May 2026.
 
 **Per-run output**: `rpx_results/<display>/<split>/`:
 - `result.json`  — primary metric, DR report (Tier 1/2/3 + DRS OperatingPoint), per-stage timing, per-metric CIs.

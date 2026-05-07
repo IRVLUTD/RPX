@@ -57,19 +57,49 @@ PYTHONPATH=. python scripts/run_depth.py --model <KEY> --split <easy|medium|hard
     --save-predictions --comprehensive-metrics --upload-to-box
 ```
 
-The 9 live model keys (all reproducible from a single HF / pip URL):
+19 model keys registered. All reproducible from a single HF / pip / torch.hub URL each.
 
-| `--model <key>`           | Type                    | Native precision |
-|---------------------------|-------------------------|------------------|
-| `zoedepth`                | metric                  | fp32 |
-| `depth_pro`               | metric (D435 FOV-corrected) | fp32 |
-| `da_v2_metric_indoor`     | metric (Hypersim)       | fp16 |
-| `da_v2_metric_outdoor`    | metric (VKITTI)         | fp16 |
-| `unidepth_v2`             | metric                  | fp16 |
-| `da_v2_relative`          | up-to-scale (`ls_affine`) | fp16 |
-| `da_v1`                   | up-to-scale (`ls_affine`) | fp32 |
-| `midas_v31`               | up-to-scale (`ls_affine`) | fp32 |
-| `distill_any_depth`       | up-to-scale (`ls_affine`) | fp32 |
+**Metric (9)** — `native_alignment="none"`:
+
+| `--model <key>`           | Source                                                          | Precision |
+|---------------------------|-----------------------------------------------------------------|-----------|
+| `zoedepth`                | `Intel/zoedepth-nyu-kitti`                                       | fp32 |
+| `depth_pro`               | `apple/DepthPro-hf` (D435 FOV-corrected)                         | fp32 |
+| `da_v2_metric_indoor`     | `depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf`        | fp16 |
+| `da_v2_metric_outdoor`    | `depth-anything/Depth-Anything-V2-Metric-Outdoor-Large-hf`       | fp16 |
+| `unidepth_v2`             | `lpiccinelli/unidepth-v2-vitl14` (PyPI `unidepth`)               | fp16 |
+| `moge_2`                  | `Ruicheng/moge-2-vitl-normal` (PyPI `moge`)                      | fp16 |
+| `patchfusion`             | `zhyever/patchfusion_zoedepth`                                   | fp32 |
+| `hyden_metric`            | `facebook/hyden-da2-metric-depth`                                | fp16 |
+| `metric3d_v2`             | torch.hub `YvanYin/Metric3D` / `metric3d_vit_giant2`             | fp32 |
+
+**Relative / up-to-scale (10)** — `native_alignment="ls_affine"`:
+
+| `--model <key>`           | Source                                                  | Precision |
+|---------------------------|---------------------------------------------------------|-----------|
+| `da_v2_relative`          | `depth-anything/Depth-Anything-V2-Large-hf`             | fp16 |
+| `da_v1`                   | `LiheYoung/depth-anything-large-hf`                     | fp32 |
+| `midas_v31`               | `Intel/dpt-beit-large-384`                              | fp32 |
+| `distill_any_depth`       | `xingyang1/Distill-Any-Depth-Large-hf`                  | fp32 |
+| `marigold`                | `prs-eth/marigold-depth-v1-1` (PyPI `diffusers`)         | fp16 |
+| `marigold_lcm`            | `prs-eth/marigold-depth-lcm-v1-0`                        | fp16 |
+| `lotus_2`                 | `jingheya/Lotus-2`                                       | fp16 |
+| `geowizard`               | `lemonaddie/geowizard`                                   | fp16 |
+| `moge_v1`                 | `Ruicheng/moge-vitl`                                     | fp16 |
+| `hyden_relative`          | `facebook/hyden-da2-relative-depth`                      | fp16 |
+
+**Dropped from the original target list**: MetricSolver — no clean
+release surfaced as of May 2026. Will revisit when a maintained
+checkpoint lands.
+
+**Optional install extras** (each adapter raises a clear ImportError on
+construct when missing):
+```bash
+pip install diffusers accelerate            # marigold, marigold_lcm, lotus_2, geowizard
+pip install moge                            # moge_2, moge_v1
+pip install unidepth                        # unidepth_v2
+# torch.hub for metric3d_v2 — first call clones YvanYin/Metric3D + downloads weights
+```
 
 Per-run output lands under `rpx_results/<DisplayName>/<split>/`:
 - `result.json` — primary metric, full deployment-readiness report (Tier 1/2/3 + DRS OperatingPoint), per-stage timing with 95% CIs.
@@ -81,9 +111,6 @@ Box mirror (when `--upload-to-box`):
 `<box_root>/monocular_depth/<DisplayName>/<split>/...` matches the local
 tree exactly. Idempotent (size-matched skip on re-upload).
 
-Pending Turn C–F adapters (11 more, ~30 LOC each via `MODEL_REGISTRY`):
-Marigold, Marigold-LCM, Lotus-2, GeoWizard, MoGe-2, MoGe v1,
-PatchFusion, HyDen-metric, HyDen-relative, Metric3D V2, MetricSolver.
 
 ### 3. Aggregate the sweep into the paper table
 
