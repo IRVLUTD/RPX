@@ -319,7 +319,7 @@ def _run_via_local_manifest(
     )
 
     model.setup()
-    # Caller side of the 3-tier efficiency contract (Feynman's runner now
+    # Caller side of the 3-tier efficiency contract (the runner now
     # owns derive_tier1 + compute_roofline + flops counting). We only
     # provide the bits the runner can't infer on its own:
     #   - params_m       (count_parameters needs the torch module)
@@ -458,7 +458,7 @@ def main() -> None:
     ap.add_argument(
         "--comprehensive-metrics",
         action="store_true",
-        help="after the run, compute the full Feynman metric basket "
+        help="after the run, compute the full comprehensive metric basket "
         "(SqRel/RMSElog/SIlog/log10/MAE/iRMSE/iMAE + boundary "
         "F-score + ORD + depth-band & in-mask stratification) "
         "and append to result.json. Auto-enables --save-predictions.",

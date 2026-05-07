@@ -1,4 +1,4 @@
-"""Comprehensive monocular-depth metrics per Feynman's
+"""Comprehensive monocular-depth metrics per
 ``docs/methods/comprehensive_metrics.md`` spec.
 
 Runs **after** BenchmarkRunner finishes, reads the per-frame ``.npz`` predictions

@@ -75,7 +75,7 @@ clear `ImportError` with the install hint when missing.
 **Per-run output**: `rpx_results/<display>/<split>/`:
 - `result.json`  — primary metric, DR report (Tier 1/2/3 + DRS OperatingPoint), per-stage timing, per-metric CIs.
 - `summary.md`  — human-readable.
-- `comprehensive_metrics.json`  — full Feynman-spec basket (9 error + 3 accuracy + alignment modes + depth-band stratification + per-object basket + holes + ORD).
+- `comprehensive_metrics.json`  — full metric basket (9 error + 3 accuracy + alignment modes + depth-band stratification + per-object basket + holes + ORD).
 - `predictions/<scene>/<phase>/<frame>.npz`  — per-frame raw depth (when `--save-predictions`).
 
 **Box mirror** (when `--upload-to-box`): `<box_folder_id>/monocular_depth/<display>/<split>/...` matches the local tree exactly.
@@ -89,7 +89,7 @@ PYTHONPATH=. python scripts/run_drs_sweep.py --split medium
 PYTHONPATH=. python scripts/run_drs_sweep.py --split hard
 
 # DRS + paper-appendix sensitivity analysis (Kendall's τ across exponent /
-# E-function / anchor perturbations — Feynman's drs_sensitivity)
+# E-function / anchor perturbations).
 PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity
 ```
 
@@ -118,7 +118,5 @@ Outputs land at `rpx_results/_sweep/drs_<split>.{csv,json}` and `sensitivity_<sp
 
 - **Itay**: §1 (HF upload).
 - **Naren / depth lead**: §2 (per-model sweeps), §3 (DRS aggregation).
-- **Feynman**: paper section + DRS theory + 20-model survey (`docs/methods/`).
-- **Session B (Claude on Jishnu's machine)**: pipeline plumbing, adapter rollout, Box upload.
-
-Cross-session log lives at `benchmark/SHARED_CONTEXT.md`.
+- **Paper / DRS theory + 20-model survey**: see `docs/methods/`.
+- **Pipeline plumbing, adapter rollout, Box upload**: maintained alongside this PR's surface.

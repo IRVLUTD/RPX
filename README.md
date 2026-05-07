@@ -70,7 +70,7 @@ everything behind the benchmark:
 **Reference**
 - [🛠️ Data capture prerequisites](#-data-capture-prerequisites)
 - [📄 Paper](#-paper)
-- [🤖 CI / automated docs](#-ci--automated-docs)
+- [⚙️ CI / automated docs](#-ci--automated-docs)
 
 **Community**
 - [🧪 Contributing](#-contributing)
@@ -287,7 +287,7 @@ protocol details, and experiment tables are in the paper.
 
 ---
 
-## 🤖 CI / automated docs
+## ⚙️ CI / automated docs
 
 | Workflow | What it does | When it runs |
 |---|---|---|
