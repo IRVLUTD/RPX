@@ -29,9 +29,7 @@ yet (HyDen is a 2026 release; the public repo ids may shift).
 
 from __future__ import annotations
 
-from typing import Optional, Sequence, Union
-
-import numpy as np
+from typing import Optional
 
 from .hf_pipeline import HFDepthEstimationAdapter
 
@@ -43,7 +41,7 @@ class HyDen(HFDepthEstimationAdapter):
     defaults but inherits the batched dispatch + path-resolution logic.
     """
 
-    METRIC_MODEL_ID   = "facebook/hyden-da2-metric-depth"
+    METRIC_MODEL_ID = "facebook/hyden-da2-metric-depth"
     RELATIVE_MODEL_ID = "facebook/hyden-da2-relative-depth"
 
     def __init__(
@@ -66,9 +64,10 @@ class HyDen(HFDepthEstimationAdapter):
             )
         except Exception as e:
             from rpx_benchmark.exceptions import AdapterError
+
             raise AdapterError(
                 f"HyDen load failed for {model_id!r}: {e}",
                 hint="HyDen is a 2026 release; the published HF repo id may "
-                     "have shifted. Check https://huggingface.co/facebook for "
-                     "the latest hyden-* checkpoint and pass `model_id=...`.",
+                "have shifted. Check https://huggingface.co/facebook for "
+                "the latest hyden-* checkpoint and pass `model_id=...`.",
             ) from e

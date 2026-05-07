@@ -37,6 +37,7 @@ def test_get_task_spec_unknown_raises_config_error():
             get_task_spec(TaskType.MONOCULAR_DEPTH)
     finally:
         from rpx_benchmark.tasks.monocular_depth import TASK_SPEC
+
         register_task(TASK_SPEC)
 
 

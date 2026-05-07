@@ -40,8 +40,7 @@ class DetectionMetrics(MetricCalculator):
     ) -> Dict[str, float]:
         if not isinstance(prediction, DetectionPrediction):
             raise MetricError(
-                f"DetectionMetrics expected DetectionPrediction, got "
-                f"{type(prediction).__name__}",
+                f"DetectionMetrics expected DetectionPrediction, got {type(prediction).__name__}",
             )
         if not isinstance(ground_truth, DetectionGroundTruth):
             raise MetricError(
@@ -50,6 +49,7 @@ class DetectionMetrics(MetricCalculator):
             )
 
         from ..evaluators import detection_metrics
+
         return detection_metrics(
             pred_boxes=prediction.boxes,
             pred_scores=prediction.scores,

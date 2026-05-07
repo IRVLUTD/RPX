@@ -42,8 +42,7 @@ import struct
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional
-
+from typing import List, Optional
 
 # --------------------------------------------------------------------- #
 # Tiny pure-Python PNG writer
@@ -53,20 +52,18 @@ from typing import Iterable, List, Optional
 # a valid 8-bit-grayscale, 8-bit-RGB, or 16-bit-grayscale PNG.
 # --------------------------------------------------------------------- #
 
+
 def _png_chunk(tag: bytes, data: bytes) -> bytes:
     crc = zlib.crc32(tag + data) & 0xFFFFFFFF
     return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", crc)
 
 
-def _png(width: int, height: int, bit_depth: int, color_type: int,
-          raw_rows: List[bytes]) -> bytes:
+def _png(width: int, height: int, bit_depth: int, color_type: int, raw_rows: List[bytes]) -> bytes:
     sig = b"\x89PNG\r\n\x1a\n"
     ihdr = struct.pack(">IIBBBBB", width, height, bit_depth, color_type, 0, 0, 0)
-    raw  = b"".join(b"\x00" + row for row in raw_rows)   # filter byte = 0
+    raw = b"".join(b"\x00" + row for row in raw_rows)  # filter byte = 0
     idat = zlib.compress(raw, 6)
-    return sig + _png_chunk(b"IHDR", ihdr) \
-                + _png_chunk(b"IDAT", idat) \
-                + _png_chunk(b"IEND", b"")
+    return sig + _png_chunk(b"IHDR", ihdr) + _png_chunk(b"IDAT", idat) + _png_chunk(b"IEND", b"")
 
 
 def _grayscale8_png(width: int, height: int, value: int) -> bytes:
@@ -89,18 +86,23 @@ def _grayscale16_png(width: int, height: int, value: int) -> bytes:
 # Spec
 # --------------------------------------------------------------------- #
 
+
 @dataclass(frozen=True)
 class MockSpec:
     """Knobs for the mock generator. Defaults give a ~1 MB tree."""
 
-    multi_object_scenes:  int = 3
+    multi_object_scenes: int = 3
     single_object_scenes: int = 5
-    phases_per_multi:     int = 3
-    frames_per_phase:     int = 4
-    image_size:           int = 32
+    phases_per_multi: int = 3
+    frames_per_phase: int = 4
+    image_size: int = 32
     sam2_aux_subdirs: tuple[str, ...] = (
-        "bbox_overlay", "contour_gt_masks", "dino_output",
-        "masks_contour_with_hidden", "palette", "rgb_and_mask",
+        "bbox_overlay",
+        "contour_gt_masks",
+        "dino_output",
+        "masks_contour_with_hidden",
+        "palette",
+        "rgb_and_mask",
     )
     sam2_iter_files: int = 4
 
@@ -108,6 +110,7 @@ class MockSpec:
 # --------------------------------------------------------------------- #
 # Generator
 # --------------------------------------------------------------------- #
+
 
 def generate_mock(out_root: Path, spec: MockSpec | None = None) -> Path:
     """Materialise a synthetic capture tree under ``out_root``.
@@ -128,11 +131,11 @@ def generate_mock(out_root: Path, spec: MockSpec | None = None) -> Path:
         name = f"mock_obj_{i:02d}"
         sos_object_names.append(name)
         obj_dir = out_root / "sos" / name
-        _emit_phase(obj_dir / "0", spec, salt=10_000 + i,
-                     mask_to_object={"1": name})
+        _emit_phase(obj_dir / "0", spec, salt=10_000 + i, mask_to_object={"1": name})
         # FewSOL-style questionnaire at the SOS scene root.
         (obj_dir / "questionnaire.txt").write_text(
-            _mock_questionnaire(name), encoding="utf-8",
+            _mock_questionnaire(name),
+            encoding="utf-8",
         )
 
     # MOS scenes — reference SOS objects in mask_to_object.json so the
@@ -141,16 +144,18 @@ def generate_mock(out_root: Path, spec: MockSpec | None = None) -> Path:
         scene_dir = out_root / "mos" / f"scene{i}"
         # Pick up to 3 of the SOS objects to populate this scene with.
         if sos_object_names:
-            picked = sos_object_names[(i - 1) % len(sos_object_names)
-                                       :(i - 1) % len(sos_object_names) + 3]
+            picked = sos_object_names[
+                (i - 1) % len(sos_object_names) : (i - 1) % len(sos_object_names) + 3
+            ]
             if not picked:
                 picked = sos_object_names[:3]
         else:
             picked = []
         m2o = {str(idx + 1): name for idx, name in enumerate(picked)}
         for phase in range(spec.phases_per_multi):
-            _emit_phase(scene_dir / str(phase), spec, salt=i * 100 + phase,
-                         mask_to_object=m2o or None)
+            _emit_phase(
+                scene_dir / str(phase), spec, salt=i * 100 + phase, mask_to_object=m2o or None
+            )
 
     return out_root
 
@@ -172,7 +177,9 @@ def _mock_questionnaire(object_name: str) -> str:
 
 
 def _emit_phase(
-    phase_dir: Path, spec: MockSpec, salt: int,
+    phase_dir: Path,
+    spec: MockSpec,
+    salt: int,
     mask_to_object: Optional[dict[str, str]] = None,
 ) -> None:
     """Write all modality subdirs for one (scene, phase).
@@ -182,15 +189,23 @@ def _emit_phase(
     scenes reference real SOS object names (the dedup key for the
     objects_meta/ layer).
     """
-    rgb_dir       = phase_dir / "rgb";       rgb_dir.mkdir(parents=True, exist_ok=True)
-    depth_dir     = phase_dir / "depth";     depth_dir.mkdir(exist_ok=True)
+    rgb_dir = phase_dir / "rgb"
+    rgb_dir.mkdir(parents=True, exist_ok=True)
+    depth_dir = phase_dir / "depth"
+    depth_dir.mkdir(exist_ok=True)
     # Fisheye is the T265 stereo pair: two subdirs with synced filenames.
-    fisheye_root  = phase_dir / "fisheye";   fisheye_root.mkdir(exist_ok=True)
-    fisheye_left  = fisheye_root / "left";   fisheye_left.mkdir(exist_ok=True)
-    fisheye_right = fisheye_root / "right";  fisheye_right.mkdir(exist_ok=True)
-    cam_pose_dir  = phase_dir / "cam_pose";  cam_pose_dir.mkdir(exist_ok=True)
-    sam2_dir      = phase_dir / "sam2";      sam2_dir.mkdir(exist_ok=True)
-    masks_dir     = sam2_dir / "masks";      masks_dir.mkdir(exist_ok=True)
+    fisheye_root = phase_dir / "fisheye"
+    fisheye_root.mkdir(exist_ok=True)
+    fisheye_left = fisheye_root / "left"
+    fisheye_left.mkdir(exist_ok=True)
+    fisheye_right = fisheye_root / "right"
+    fisheye_right.mkdir(exist_ok=True)
+    cam_pose_dir = phase_dir / "cam_pose"
+    cam_pose_dir.mkdir(exist_ok=True)
+    sam2_dir = phase_dir / "sam2"
+    sam2_dir.mkdir(exist_ok=True)
+    masks_dir = sam2_dir / "masks"
+    masks_dir.mkdir(exist_ok=True)
     aux_dirs = {name: (sam2_dir / name) for name in spec.sam2_aux_subdirs}
     for d in aux_dirs.values():
         d.mkdir(exist_ok=True)
@@ -199,27 +214,29 @@ def _emit_phase(
     for k in range(n):
         stem = f"{k:05d}.png"
         v = (salt + k) & 0xFF
-        (rgb_dir       / stem).write_bytes(_rgb8_png(sz, sz, v, (v + 50) & 0xFF, (v + 100) & 0xFF))
-        (depth_dir     / stem).write_bytes(_grayscale16_png(sz, sz, ((salt + k) * 37) & 0xFFFF))
+        (rgb_dir / stem).write_bytes(_rgb8_png(sz, sz, v, (v + 50) & 0xFF, (v + 100) & 0xFF))
+        (depth_dir / stem).write_bytes(_grayscale16_png(sz, sz, ((salt + k) * 37) & 0xFFFF))
         # Synced filenames: same stem in both fisheye/left/ and fisheye/right/
-        (fisheye_left  / stem).write_bytes(_grayscale8_png(sz, sz, (255 - v) & 0xFF))
+        (fisheye_left / stem).write_bytes(_grayscale8_png(sz, sz, (255 - v) & 0xFF))
         (fisheye_right / stem).write_bytes(_grayscale8_png(sz, sz, v))
-        (masks_dir     / stem).write_bytes(_grayscale8_png(sz, sz, (k % 5) + 1))
+        (masks_dir / stem).write_bytes(_grayscale8_png(sz, sz, (k % 5) + 1))
         for d in aux_dirs.values():
             (d / stem).write_bytes(_grayscale8_png(sz, sz, v))
         (cam_pose_dir / f"{k:05d}.json").write_text(
-            json.dumps({"pose": [[1, 0, 0, 0.01 * k],
-                                  [0, 1, 0, 0],
-                                  [0, 0, 1, 0],
-                                  [0, 0, 0, 1]],
-                         "salt": salt + k}),
+            json.dumps(
+                {
+                    "pose": [[1, 0, 0, 0.01 * k], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                    "salt": salt + k,
+                }
+            ),
             encoding="utf-8",
         )
 
     # SAM2 metadata files.
     m2o = mask_to_object or {str(i): f"mock_object_{i}" for i in range(1, 6)}
     (sam2_dir / "mask_to_object.json").write_text(
-        json.dumps(m2o, sort_keys=True), encoding="utf-8",
+        json.dumps(m2o, sort_keys=True),
+        encoding="utf-8",
     )
     (sam2_dir / "verified_masks.txt").write_text(
         "\n".join(f"{k:05d}.png" for k in range(n)) + "\n",
@@ -227,13 +244,15 @@ def _emit_phase(
     )
     for it in range(1, spec.sam2_iter_files + 1):
         (sam2_dir / f"iter{it}_faulty.txt").write_text(
-            "" if it > 1 else "00000.png\n", encoding="utf-8",
+            "" if it > 1 else "00000.png\n",
+            encoding="utf-8",
         )
 
 
 # --------------------------------------------------------------------- #
 # Convenience: total size + file count
 # --------------------------------------------------------------------- #
+
 
 def measure_tree(root: Path) -> tuple[int, int]:
     """Return ``(file_count, total_bytes)`` under ``root``. Pure stdlib."""

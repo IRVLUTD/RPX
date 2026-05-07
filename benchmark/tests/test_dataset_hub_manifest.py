@@ -22,10 +22,15 @@ from rpx_benchmark.dataset_hub.scanner import scan_capture_root
 
 @pytest.fixture
 def packed(tmp_path: Path):
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=2, single_object_scenes=3,
-        phases_per_multi=3, frames_per_phase=4,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=3,
+            phases_per_multi=3,
+            frames_per_phase=4,
+        ),
+    )
     staging = tmp_path / "stage"
     scan = scan_capture_root(src)
     pack = pack_capture_tree(PackPlan(src_root=src, staging_root=staging), scan)
@@ -54,21 +59,33 @@ def test_manifest_schema_columns(packed):
     paths = build_frame_manifest(scan, pack, staging)
     table = read_frame_manifest(paths.parquet_path)
     expected_cols = {
-        "scene_id", "scene_type", "phase", "frame_idx", "frame_filename",
+        "scene_id",
+        "scene_type",
+        "phase",
+        "frame_idx",
+        "frame_filename",
         "split",
-        "has_rgb", "has_depth", "has_fisheye", "has_cam_pose",
-        "has_masks", "has_masks_aux", "has_sam2_meta",
-        "shard_rgb", "shard_depth", "shard_fisheye", "shard_cam_pose",
-        "shard_masks", "shard_masks_aux", "shard_sam2_meta",
+        "has_rgb",
+        "has_depth",
+        "has_fisheye",
+        "has_cam_pose",
+        "has_masks",
+        "has_masks_aux",
+        "has_sam2_meta",
+        "shard_rgb",
+        "shard_depth",
+        "shard_fisheye",
+        "shard_cam_pose",
+        "shard_masks",
+        "shard_masks_aux",
+        "shard_sam2_meta",
     }
     assert expected_cols == set(table.column_names)
 
 
 def test_split_assignment_applies_only_to_multi_object(packed):
     src, staging, scan, pack = packed
-    splits = {s.scene_id: "easy"
-               for s in scan.scenes
-               if s.scene_type.value == "multi_object"}
+    splits = {s.scene_id: "easy" for s in scan.scenes if s.scene_type.value == "multi_object"}
     paths = build_frame_manifest(scan, pack, staging, splits=splits)
     table = read_frame_manifest(paths.parquet_path)
     df = table.to_pandas()
@@ -84,8 +101,15 @@ def test_has_columns_reflect_packed_modalities(packed):
     table = read_frame_manifest(paths.parquet_path)
     df = table.to_pandas()
     # All mock frames have every modality.
-    for col in ("has_rgb", "has_depth", "has_fisheye",
-                 "has_cam_pose", "has_masks", "has_masks_aux", "has_sam2_meta"):
+    for col in (
+        "has_rgb",
+        "has_depth",
+        "has_fisheye",
+        "has_cam_pose",
+        "has_masks",
+        "has_masks_aux",
+        "has_sam2_meta",
+    ):
         assert df[col].all(), f"{col} should be True for every mock frame"
 
 
@@ -96,15 +120,15 @@ def test_shard_columns_point_to_actual_tar_paths(packed):
     df = table.to_pandas()
     for shard_col in ("shard_rgb", "shard_depth", "shard_masks"):
         for repo_path in df[shard_col].dropna().unique():
-            assert (staging / repo_path).is_file(), \
+            assert (staging / repo_path).is_file(), (
                 f"shard column {shard_col} points to missing file {repo_path}"
+            )
 
 
 def test_current_json_records_label_versions(packed):
     src, staging, scan, pack = packed
     versions = {"masks": "v1", "masks_aux": "v1", "sam2_meta": "v1"}
-    paths = build_frame_manifest(scan, pack, staging,
-                                   label_versions=versions)
+    paths = build_frame_manifest(scan, pack, staging, label_versions=versions)
     payload = json.loads(paths.current_json_path.read_text(encoding="utf-8"))
     assert payload["schema_version"] == SCHEMA_VERSION
     assert payload["label_versions"] == versions
@@ -112,17 +136,19 @@ def test_current_json_records_label_versions(packed):
 
 def test_split_input_accepts_scene_splits_json_shape(packed):
     src, staging, scan, pack = packed
-    multi_ids = {s.scene_id for s in scan.scenes
-                  if s.scene_type.value == "multi_object"}
+    multi_ids = {s.scene_id for s in scan.scenes if s.scene_type.value == "multi_object"}
     splits_dict = {sid: "hard" for sid in multi_ids}
     paths = build_frame_manifest(scan, pack, staging, splits=splits_dict)
     table = read_frame_manifest(paths.parquet_path)
     multi_rows = [
-        (s, sp) for s, sp, st in zip(
+        (s, sp)
+        for s, sp, st in zip(
             table["scene_id"].to_pylist(),
             table["split"].to_pylist(),
             table["scene_type"].to_pylist(),
-        ) if st == "multi_object"
+            strict=False,
+        )
+        if st == "multi_object"
     ]
     assert all(sp == "hard" for _, sp in multi_rows)
 
@@ -134,5 +160,4 @@ def test_frame_indices_are_sequential_per_phase(packed):
     df = table.to_pandas()
     for (sid, phase), grp in df.groupby(["scene_id", "phase"]):
         idxs = sorted(grp["frame_idx"].tolist())
-        assert idxs == list(range(len(idxs))), \
-            f"frame_idx not sequential for {sid}/{phase}"
+        assert idxs == list(range(len(idxs))), f"frame_idx not sequential for {sid}/{phase}"

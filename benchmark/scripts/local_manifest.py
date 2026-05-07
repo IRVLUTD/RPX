@@ -57,12 +57,12 @@ log = logging.getLogger(__name__)
 # Mirrors `MULTI_OBJECT_TASK_RECIPES` in `rpx_benchmark/dataset_hub/recipes.py`
 # but expressed as plain strings so this script can run standalone.
 TASK_MODALITIES = {
-    "monocular_depth":  {"inputs": ["rgb"], "labels": ["depth"]},
+    "monocular_depth": {"inputs": ["rgb"], "labels": ["depth"]},
     "rgbd_segmentation": {"inputs": ["rgb", "depth"], "labels": ["masks"]},
-    "segmentation":      {"inputs": ["rgb"], "labels": ["masks"]},
-    "relative_pose":     {"inputs": ["rgb"], "labels": ["cam_pose"]},
+    "segmentation": {"inputs": ["rgb"], "labels": ["masks"]},
+    "relative_pose": {"inputs": ["rgb"], "labels": ["cam_pose"]},
     "rgbd_relative_pose": {"inputs": ["rgb", "depth"], "labels": ["cam_pose"]},
-    "object_tracking":   {"inputs": ["rgb"], "labels": ["masks"]},
+    "object_tracking": {"inputs": ["rgb"], "labels": ["masks"]},
 }
 
 # Path inside the tar where each modality's frames live.
@@ -82,18 +82,20 @@ def _hf_snapshot_root(repo_id: str = "itaykadosh/rpx-test") -> Path:
     repo_dir = cache / f"datasets--{repo_id.replace('/', '--')}" / "snapshots"
     if not repo_dir.exists():
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"no snapshots for {repo_id} under {cache}.",
             hint="Run `python -m rpx_benchmark.dataset_hub.cli download "
-                 "--task <task> --split <split>` first to populate the HF cache.",
+            "--task <task> --split <split>` first to populate the HF cache.",
         )
     snaps = sorted(repo_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
     if not snaps:
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"empty snapshots dir at {repo_dir}",
             hint="The HF cache exists but no snapshot has been downloaded. "
-                 "Run download_for_task or rpx.load() to populate it.",
+            "Run download_for_task or rpx.load() to populate it.",
         )
     return snaps[0]
 
@@ -107,11 +109,12 @@ def _extract_member(tar_path: Path, member_name: str, out_path: Path) -> None:
         f = tf.extractfile(member_name)
         if f is None:
             from rpx_benchmark.exceptions import DatasetError
+
             raise DatasetError(
                 f"{member_name} not in {tar_path}",
                 hint="The cached tar shard is incomplete or its layout "
-                     "doesn't match the parquet's frame_filename. Re-run "
-                     "`dataset_hub.cli manifest` to regenerate.",
+                "doesn't match the parquet's frame_filename. Re-run "
+                "`dataset_hub.cli manifest` to regenerate.",
             )
         tmp = out_path.with_suffix(out_path.suffix + ".part")
         with tmp.open("wb") as g:
@@ -119,14 +122,16 @@ def _extract_member(tar_path: Path, member_name: str, out_path: Path) -> None:
         tmp.rename(out_path)
 
 
-def _modality_out_path(extracted_root: Path, scene: str, phase: int,
-                        modality: str, frame_filename: str) -> Path:
+def _modality_out_path(
+    extracted_root: Path, scene: str, phase: int, modality: str, frame_filename: str
+) -> Path:
     """Where each extracted frame lands locally."""
     return extracted_root / "scenes" / scene / str(phase) / modality / frame_filename
 
 
-def _open_tars_once(snapshot_root: Path, df: pd.DataFrame,
-                     modalities: Iterable[str]) -> dict[Path, tarfile.TarFile]:
+def _open_tars_once(
+    snapshot_root: Path, df: pd.DataFrame, modalities: Iterable[str]
+) -> dict[Path, tarfile.TarFile]:
     """Open every distinct tar exactly once. Caller closes."""
     handles: dict[Path, tarfile.TarFile] = {}
     cols = [f"shard_{m}" for m in modalities]
@@ -169,6 +174,7 @@ def build_local_manifest(
     """
     if task not in TASK_MODALITIES:
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             f"unknown task {task!r}",
             hint=f"Known tasks: {sorted(TASK_MODALITIES)}.",
@@ -177,6 +183,7 @@ def build_local_manifest(
     parquet = snap / "manifest" / "frames_v1.parquet"
     if not parquet.exists():
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"missing {parquet}",
             hint="Run download_for_task or rpx.load() first to populate the cache.",
@@ -192,9 +199,7 @@ def build_local_manifest(
     # The frames Parquet may carry per-(scene, phase) split values; we collapse
     # to per-scene by taking the mode (most common tier across that scene's
     # phases) and overwriting `split` accordingly.
-    scene_split = df.groupby("scene_id")["split"].agg(
-        lambda s: s.value_counts().idxmax()
-    )
+    scene_split = df.groupby("scene_id")["split"].agg(lambda s: s.value_counts().idxmax())
     df = df.drop(columns=["split"]).merge(
         scene_split.rename("split"), left_on="scene_id", right_index=True
     )
@@ -205,11 +210,12 @@ def build_local_manifest(
         col = f"has_{m}"
         if col not in df.columns:
             from rpx_benchmark.exceptions import DatasetError
+
             raise DatasetError(
                 f"frames Parquet has no column {col!r}",
                 hint=f"The parquet at {parquet} is missing the modality "
-                     f"presence column for {m!r}. Re-run "
-                     "`dataset_hub.cli manifest` to regenerate.",
+                f"presence column for {m!r}. Re-run "
+                "`dataset_hub.cli manifest` to regenerate.",
             )
         mask &= df[col].fillna(False).astype(bool)
     df = df[mask].reset_index(drop=True)
@@ -217,20 +223,21 @@ def build_local_manifest(
         df = df.head(max_samples)
     if df.empty:
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
-            f"no frames satisfy task={task} split={split} with all "
-            f"modalities present in {parquet}",
+            f"no frames satisfy task={task} split={split} with all modalities present in {parquet}",
             hint=f"Available splits in this parquet: "
-                 f"{sorted(set(pd.read_parquet(parquet)['split'].dropna()))}. "
-                 f"Required modalities for this task: {modalities}.",
+            f"{sorted(set(pd.read_parquet(parquet)['split'].dropna()))}. "
+            f"Required modalities for this task: {modalities}.",
         )
 
     extracted = extracted_root or (snap / "extracted")
     extracted.mkdir(parents=True, exist_ok=True)
 
     # Pre-open every tar exactly once for fast iteration
-    log.info("[manifest] %d frames across %d scenes — extracting...",
-             len(df), df["scene_id"].nunique())
+    log.info(
+        "[manifest] %d frames across %d scenes — extracting...", len(df), df["scene_id"].nunique()
+    )
     handles = _open_tars_once(snap, df, modalities)
     bytes_extracted = 0
     samples = []
@@ -250,9 +257,9 @@ def build_local_manifest(
             # downstream model wrappers can resolve scene/phase/frame without
             # re-parsing the id. Avoids fragile id-string assumptions.
             "metadata": {
-                "scene_id":  scene,
+                "scene_id": scene,
                 "phase_idx": int(phase),
-                "frame":     frame_stem,
+                "frame": frame_stem,
             },
         }
         for m in modalities:
@@ -264,11 +271,12 @@ def build_local_manifest(
                 f = tf.extractfile(member_name)
                 if f is None:
                     from rpx_benchmark.exceptions import DatasetError
+
                     raise DatasetError(
                         f"{member_name} not in {tar_path}",
                         hint="The cached tar shard is incomplete or its layout "
-                             "doesn't match the parquet's frame_filename. Re-run "
-                             "`dataset_hub.cli manifest` to regenerate.",
+                        "doesn't match the parquet's frame_filename. Re-run "
+                        "`dataset_hub.cli manifest` to regenerate.",
                     )
                 out_path.parent.mkdir(parents=True, exist_ok=True)
                 tmp = out_path.with_suffix(out_path.suffix + ".part")
@@ -313,15 +321,21 @@ def _cli():
     ap.add_argument("--task", default="monocular_depth", choices=sorted(TASK_MODALITIES))
     ap.add_argument("--split", default="easy", choices=["easy", "medium", "hard"])
     ap.add_argument("--repo", default="itaykadosh/rpx-test")
-    ap.add_argument("--max-samples", type=int, default=None,
-                    help="cap (smoke test)")
-    ap.add_argument("--extracted-root", type=Path, default=None,
-                    help="override extracted-files root (default: <snapshot>/extracted/)")
+    ap.add_argument("--max-samples", type=int, default=None, help="cap (smoke test)")
+    ap.add_argument(
+        "--extracted-root",
+        type=Path,
+        default=None,
+        help="override extracted-files root (default: <snapshot>/extracted/)",
+    )
     args = ap.parse_args()
     try:
         result = build_local_manifest(
-            task=args.task, split=args.split, repo_id=args.repo,
-            extracted_root=args.extracted_root, max_samples=args.max_samples,
+            task=args.task,
+            split=args.split,
+            repo_id=args.repo,
+            extracted_root=args.extracted_root,
+            max_samples=args.max_samples,
         )
     except Exception as e:  # noqa: BLE001
         sys.exit(f"local_manifest error: {type(e).__name__}: {e}")

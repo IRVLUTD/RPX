@@ -33,8 +33,7 @@ class GroundingIoU(MetricCalculator):
     ) -> Dict[str, float]:
         if not isinstance(prediction, VisualGroundingPrediction):
             raise MetricError(
-                f"GroundingIoU expected VisualGroundingPrediction, got "
-                f"{type(prediction).__name__}",
+                f"GroundingIoU expected VisualGroundingPrediction, got {type(prediction).__name__}",
             )
         if not isinstance(ground_truth, VisualGroundingGroundTruth):
             raise MetricError(
@@ -42,6 +41,7 @@ class GroundingIoU(MetricCalculator):
                 f"{type(ground_truth).__name__}",
             )
         from ..evaluators import grounding_metrics
+
         return grounding_metrics(
             pred_boxes=prediction.boxes,
             gt_boxes=ground_truth.boxes,

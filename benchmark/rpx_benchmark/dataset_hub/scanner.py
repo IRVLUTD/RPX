@@ -22,10 +22,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from .recipes import SceneType
-
 
 # Top-level subdirectory → scene type. Anything else under root (READMEs,
 # stray captures, half-finished work) is reported via ``ScanResult.skipped``.
@@ -39,7 +38,7 @@ _TYPE_DIRS: Dict[str, SceneType] = {
 class ModalityInventory:
     """Inventory of a single modality directory under one phase."""
 
-    name: str           # e.g. "rgb", "depth", "fisheye", "cam_pose", "sam2/masks"
+    name: str  # e.g. "rgb", "depth", "fisheye", "cam_pose", "sam2/masks"
     file_count: int
     total_bytes: int
 
@@ -117,6 +116,7 @@ class ScanResult:
 # Scanner
 # --------------------------------------------------------------------- #
 
+
 def _measure_dir(d: Path) -> tuple[int, int]:
     """``(file_count, total_bytes)`` for everything under ``d`` (recursive)."""
     files, total = 0, 0
@@ -151,19 +151,25 @@ def _scan_phase(phase_dir: Path) -> PhaseInventory:
                 if sub.is_dir():
                     fc, tb = _measure_dir(sub)
                     modalities[f"sam2/{sub.name}"] = ModalityInventory(
-                        name=f"sam2/{sub.name}", file_count=fc, total_bytes=tb,
+                        name=f"sam2/{sub.name}",
+                        file_count=fc,
+                        total_bytes=tb,
                     )
             meta_files = [p for p in child.iterdir() if p.is_file()]
             if meta_files:
                 fc = len(meta_files)
                 tb = sum(p.stat().st_size for p in meta_files)
                 modalities["sam2/_meta"] = ModalityInventory(
-                    name="sam2/_meta", file_count=fc, total_bytes=tb,
+                    name="sam2/_meta",
+                    file_count=fc,
+                    total_bytes=tb,
                 )
             continue
         fc, tb = _measure_dir(child)
         modalities[child.name] = ModalityInventory(
-            name=child.name, file_count=fc, total_bytes=tb,
+            name=child.name,
+            file_count=fc,
+            total_bytes=tb,
         )
 
     return PhaseInventory(phase_index=idx, modalities=modalities)
@@ -199,8 +205,12 @@ def scan_capture_root(root: Path) -> ScanResult:
                 key=lambda p: p.name,
             )
             phases = [_scan_phase(p) for p in phase_dirs]
-            scenes.append(SceneInventory(
-                scene_id=scene_dir.name, scene_type=scene_type, phases=phases,
-            ))
+            scenes.append(
+                SceneInventory(
+                    scene_id=scene_dir.name,
+                    scene_type=scene_type,
+                    phases=phases,
+                )
+            )
 
     return ScanResult(root=root, scenes=scenes, skipped=skipped)

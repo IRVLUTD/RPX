@@ -73,8 +73,7 @@ class DepthPro:
         # Default to the D435 RGB focal so the metric scale matches RPX's
         # GT out of the box; pass `focal_length_px` explicitly to override.
         self.focal_length_px = (
-            float(focal_length_px) if focal_length_px is not None
-            else self.D435_RGB_FOCAL_PX
+            float(focal_length_px) if focal_length_px is not None else self.D435_RGB_FOCAL_PX
         )
 
         # We DO NOT use ``transformers.pipeline("depth-estimation")`` for
@@ -107,6 +106,7 @@ class DepthPro:
         dispatches a single batched GPU forward.
         """
         from PIL import Image
+
         torch = self._torch
 
         is_batch = isinstance(rgb, (list, tuple))
@@ -115,10 +115,11 @@ class DepthPro:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                     hint="Adapter contract: each input must be a (H, W, 3) "
-                         "uint8 numpy array. Got an unexpected ndim or channel count.",
+                    "uint8 numpy array. Got an unexpected ndim or channel count.",
                 )
 
         pil_imgs = [Image.fromarray(np.asarray(r, dtype=np.uint8)) for r in rgbs]
@@ -133,6 +134,7 @@ class DepthPro:
         # gets the same FOV (single-camera dataset).
         # FOV (degrees) = 2 * atan(W / 2*fx) * 180/π
         import math as _math
+
         # Use the maximum image width across the batch — RPX is uniform
         # 640 wide so this is just 640.
         widths = [t[1] for t in target_sizes]
@@ -141,15 +143,18 @@ class DepthPro:
             fov_deg = 2.0 * _math.degrees(_math.atan(w / (2.0 * self.focal_length_px)))
             fovs.append(fov_deg)
         outputs.field_of_view = torch.tensor(
-            fovs, dtype=outputs.field_of_view.dtype, device=outputs.field_of_view.device,
+            fovs,
+            dtype=outputs.field_of_view.dtype,
+            device=outputs.field_of_view.device,
         )
 
         post = self._processor.post_process_depth_estimation(
-            outputs, target_sizes=target_sizes,
+            outputs,
+            target_sizes=target_sizes,
         )
 
         depths: list[np.ndarray] = []
-        for r, p in zip(rgbs, post):
+        for r, p in zip(rgbs, post, strict=False):
             d = p["predicted_depth"].detach().cpu().numpy().astype(np.float32)
             if d.ndim == 3:
                 d = d.squeeze(0)
@@ -163,6 +168,7 @@ class DepthPro:
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     """Resize a 2D float array to (H, W). PIL-only; no OpenCV dep."""
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

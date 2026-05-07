@@ -30,14 +30,14 @@ from __future__ import annotations
 
 import argparse
 import json
+
+# Local imports: allow running from the repo without ``pip install -e``.
+import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
-from PIL import Image
 
-# Local imports: allow running from the repo without ``pip install -e``.
-import sys
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
@@ -55,11 +55,13 @@ def _pose_matrix(path: Path) -> List[float]:
     qx, qy, qz, qw = data["orientation"].astype(np.float64)
     n = np.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
     qx, qy, qz, qw = qx / n, qy / n, qz / n, qw / n
-    R = np.array([
-        [1 - 2 * qy * qy - 2 * qz * qz, 2 * qx * qy - 2 * qz * qw, 2 * qx * qz + 2 * qy * qw],
-        [2 * qx * qy + 2 * qz * qw, 1 - 2 * qx * qx - 2 * qz * qz, 2 * qy * qz - 2 * qx * qw],
-        [2 * qx * qz - 2 * qy * qw, 2 * qy * qz + 2 * qx * qw, 1 - 2 * qx * qx - 2 * qy * qy],
-    ])
+    R = np.array(
+        [
+            [1 - 2 * qy * qy - 2 * qz * qz, 2 * qx * qy - 2 * qz * qw, 2 * qx * qz + 2 * qy * qw],
+            [2 * qx * qy + 2 * qz * qw, 1 - 2 * qx * qx - 2 * qz * qz, 2 * qy * qz - 2 * qx * qw],
+            [2 * qx * qz - 2 * qy * qw, 2 * qy * qz + 2 * qx * qw, 1 - 2 * qx * qx - 2 * qy * qy],
+        ]
+    )
     T = np.eye(4, dtype=np.float32)
     T[:3, :3] = R.astype(np.float32)
     T[:3, 3] = position.astype(np.float32)
@@ -74,8 +76,7 @@ def _row_for_depth(entry: Dict[str, Any], root: Path) -> Dict[str, Any]:
         "difficulty": str(entry.get("difficulty", "")),
         "rgb": _read_png_bytes(root / entry["rgb"]),
         "depth": _read_png_bytes(root / entry["depth"]),
-        "camera_pose": _pose_matrix(root / entry["pose"])
-        if entry.get("pose") else [0.0] * 16,
+        "camera_pose": _pose_matrix(root / entry["pose"]) if entry.get("pose") else [0.0] * 16,
     }
 
 
@@ -87,8 +88,7 @@ def _row_for_segmentation(entry: Dict[str, Any], root: Path) -> Dict[str, Any]:
         "difficulty": str(entry.get("difficulty", "")),
         "rgb": _read_png_bytes(root / entry["rgb"]),
         "mask": _read_png_bytes(root / entry["mask"]),
-        "camera_pose": _pose_matrix(root / entry["pose"])
-        if entry.get("pose") else [0.0] * 16,
+        "camera_pose": _pose_matrix(root / entry["pose"]) if entry.get("pose") else [0.0] * 16,
     }
 
 
@@ -114,9 +114,7 @@ def _write_readme(out_dir: Path, task_splits: Dict[str, List[str]]) -> None:
         lines.append("    data_files:")
         for split in sorted(splits):
             lines.append(f"      - split: {split}")
-            lines.append(
-                f'        path: "shards/{task}/{split}-*.parquet"'
-            )
+            lines.append(f'        path: "shards/{task}/{split}-*.parquet"')
     lines += ["---", "", "# RPX — Robot Perception X"]
     (out_dir / "README.md").write_text("\n".join(lines) + "\n")
 
@@ -170,12 +168,21 @@ def build(source_root: Path, manifests_root: Path, out_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-root", required=True, type=Path,
-                        help="Directory holding scenes/<scene>/<phase>/ modalities.")
-    parser.add_argument("--manifests-root", required=True, type=Path,
-                        help="Directory holding <task>/<split>.json manifests.")
-    parser.add_argument("--out", required=True, type=Path,
-                        help="Output directory for the Parquet shards + README.")
+    parser.add_argument(
+        "--source-root",
+        required=True,
+        type=Path,
+        help="Directory holding scenes/<scene>/<phase>/ modalities.",
+    )
+    parser.add_argument(
+        "--manifests-root",
+        required=True,
+        type=Path,
+        help="Directory holding <task>/<split>.json manifests.",
+    )
+    parser.add_argument(
+        "--out", required=True, type=Path, help="Output directory for the Parquet shards + README."
+    )
     args = parser.parse_args()
     build(args.source_root, args.manifests_root, args.out)
 

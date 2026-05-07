@@ -60,12 +60,10 @@ from .recipes import (
     FISHEYE,
     MASKS,
     MASKS_AUX,
-    QUESTIONNAIRE,
     RGB,
     SceneType,
 )
 from .scanner import ScanResult
-
 
 log = get_logger(__name__)
 
@@ -82,19 +80,19 @@ RAW_MODALITIES = frozenset({RGB, DEPTH, FISHEYE})
 # into sam2/<sub>. The packer collapses these into a small, named set.
 _MODALITY_PLAN: Dict[str, tuple[str, bool]] = {
     # scanner key                 (output modality name, is_label)
-    "rgb":                         (RGB,           False),
-    "depth":                       (DEPTH,         False),
-    "fisheye":                     (FISHEYE,       False),
-    "cam_pose":                    (CAM_POSE,      True),    # versioned label
-    "sam2/masks":                  (MASKS,         True),
-    "sam2/_meta":                  ("sam2_meta",   True),
+    "rgb": (RGB, False),
+    "depth": (DEPTH, False),
+    "fisheye": (FISHEYE, False),
+    "cam_pose": (CAM_POSE, True),  # versioned label
+    "sam2/masks": (MASKS, True),
+    "sam2/_meta": ("sam2_meta", True),
     # The remaining sam2/* aux directories all collapse into masks_aux.
-    "sam2/bbox_overlay":           (MASKS_AUX,     True),
-    "sam2/contour_gt_masks":       (MASKS_AUX,     True),
-    "sam2/dino_output":            (MASKS_AUX,     True),
-    "sam2/masks_contour_with_hidden": (MASKS_AUX,  True),
-    "sam2/palette":                (MASKS_AUX,     True),
-    "sam2/rgb_and_mask":           (MASKS_AUX,     True),
+    "sam2/bbox_overlay": (MASKS_AUX, True),
+    "sam2/contour_gt_masks": (MASKS_AUX, True),
+    "sam2/dino_output": (MASKS_AUX, True),
+    "sam2/masks_contour_with_hidden": (MASKS_AUX, True),
+    "sam2/palette": (MASKS_AUX, True),
+    "sam2/rgb_and_mask": (MASKS_AUX, True),
 }
 
 
@@ -102,33 +100,33 @@ _MODALITY_PLAN: Dict[str, tuple[str, bool]] = {
 class PackPlan:
     """Knobs for the packer."""
 
-    src_root:      Path
-    staging_root:  Path
-    label_version: str  = "v1"
-    overwrite:     bool = False
-    compute_hash:  bool = True
+    src_root: Path
+    staging_root: Path
+    label_version: str = "v1"
+    overwrite: bool = False
+    compute_hash: bool = True
 
 
 @dataclass(frozen=True)
 class PackedShard:
     """One tar shard the packer produced."""
 
-    repo_path:    str           # path relative to staging_root, forward-slashes
-    scene_id:     str
-    phase:        int
-    modality:     str
-    is_label:     bool
-    file_count:   int
-    total_bytes:  int
-    sha256:       Optional[str] = None
+    repo_path: str  # path relative to staging_root, forward-slashes
+    scene_id: str
+    phase: int
+    modality: str
+    is_label: bool
+    file_count: int
+    total_bytes: int
+    sha256: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class PackResult:
     """Aggregate result of one packer run."""
 
-    shards:        List[PackedShard]
-    skipped_keys:  List[str] = field(default_factory=list)
+    shards: List[PackedShard]
+    skipped_keys: List[str] = field(default_factory=list)
 
     @property
     def total_bytes(self) -> int:
@@ -143,13 +141,18 @@ class PackResult:
 # Helpers
 # --------------------------------------------------------------------- #
 
+
 def _scene_root_for(scene_type: SceneType) -> str:
     return "scenes" if scene_type is SceneType.MULTI_OBJECT else "objects"
 
 
 def _shard_repo_path(
-    scene_type: SceneType, scene_id: str, phase: int,
-    modality: str, is_label: bool, label_version: str,
+    scene_type: SceneType,
+    scene_id: str,
+    phase: int,
+    modality: str,
+    is_label: bool,
+    label_version: str,
 ) -> str:
     base = f"{_scene_root_for(scene_type)}/{scene_id}/{phase}"
     if is_label:
@@ -157,22 +160,25 @@ def _shard_repo_path(
     return f"{base}/{modality}.tar"
 
 
-def _scene_src_root(src_root: Path, scene_type: SceneType,
-                     scene_id: str) -> Path:
+def _scene_src_root(src_root: Path, scene_type: SceneType, scene_id: str) -> Path:
     """Where a scene actually lives on disk: ``<src>/{mos,sos}/<scene_id>``."""
     sub = "mos" if scene_type is SceneType.MULTI_OBJECT else "sos"
     return src_root / sub / scene_id
 
 
-def _src_dir_for(src_root: Path, scene_type: SceneType, scene_id: str,
-                  phase: int, scanner_key: str) -> Path:
+def _src_dir_for(
+    src_root: Path, scene_type: SceneType, scene_id: str, phase: int, scanner_key: str
+) -> Path:
     """Translate a scanner modality key back to its on-disk source dir."""
     return _scene_src_root(src_root, scene_type, scene_id) / str(phase) / scanner_key
 
 
 def _enumerate_files_for_modality(
-    src_root: Path, scene_type: SceneType, scene_id: str,
-    phase: int, scanner_key: str,
+    src_root: Path,
+    scene_type: SceneType,
+    scene_id: str,
+    phase: int,
+    scanner_key: str,
 ) -> List[Path]:
     """All files under one modality dir, sorted, recursive.
 
@@ -193,7 +199,9 @@ def _enumerate_files_for_modality(
 
 
 def _write_tar(
-    out_path: Path, files: List[Path], rel_to: Path,
+    out_path: Path,
+    files: List[Path],
+    rel_to: Path,
     compute_hash: bool,
 ) -> tuple[int, int, Optional[str]]:
     """Write ``files`` to a tar at ``out_path``. Returns
@@ -232,6 +240,7 @@ def _write_tar(
 # Public API
 # --------------------------------------------------------------------- #
 
+
 def pack_capture_tree(plan: PackPlan, scan: ScanResult) -> PackResult:
     """Pack each ``(scene, phase, modality)`` triple in ``scan`` into one tar.
 
@@ -259,25 +268,32 @@ def pack_capture_tree(plan: PackPlan, scan: ScanResult) -> PackResult:
             for scanner_key in phase.modalities:
                 target = _MODALITY_PLAN.get(scanner_key)
                 if target is None:
-                    skipped.append(
-                        f"{scene.scene_id}/{phase.phase_index}/{scanner_key}"
-                    )
+                    skipped.append(f"{scene.scene_id}/{phase.phase_index}/{scanner_key}")
                     continue
                 grouped.setdefault(target, []).append(scanner_key)
 
             for (out_modality, is_label), keys in grouped.items():
                 files: List[Path] = []
                 for k in keys:
-                    files.extend(_enumerate_files_for_modality(
-                        plan.src_root, scene.scene_type,
-                        scene.scene_id, phase.phase_index, k,
-                    ))
+                    files.extend(
+                        _enumerate_files_for_modality(
+                            plan.src_root,
+                            scene.scene_type,
+                            scene.scene_id,
+                            phase.phase_index,
+                            k,
+                        )
+                    )
                 if not files:
                     continue
 
                 repo_path = _shard_repo_path(
-                    scene.scene_type, scene.scene_id, phase.phase_index,
-                    out_modality, is_label, plan.label_version,
+                    scene.scene_type,
+                    scene.scene_id,
+                    phase.phase_index,
+                    out_modality,
+                    is_label,
+                    plan.label_version,
                 )
                 out_path = plan.staging_root / repo_path
                 if out_path.exists() and not plan.overwrite:
@@ -287,24 +303,27 @@ def pack_capture_tree(plan: PackPlan, scan: ScanResult) -> PackResult:
                     )
 
                 fc, bs, sha = _write_tar(
-                    out_path, files,
-                    rel_to=(_scene_src_root(plan.src_root, scene.scene_type,
-                                              scene.scene_id)
-                             / str(phase.phase_index)),
+                    out_path,
+                    files,
+                    rel_to=(
+                        _scene_src_root(plan.src_root, scene.scene_type, scene.scene_id)
+                        / str(phase.phase_index)
+                    ),
                     compute_hash=plan.compute_hash,
                 )
-                shards.append(PackedShard(
-                    repo_path=repo_path,
-                    scene_id=scene.scene_id,
-                    phase=phase.phase_index,
-                    modality=out_modality,
-                    is_label=is_label,
-                    file_count=fc,
-                    total_bytes=bs,
-                    sha256=sha,
-                ))
-                log.info("packed %s (%d files, %d bytes)",
-                          repo_path, fc, bs)
+                shards.append(
+                    PackedShard(
+                        repo_path=repo_path,
+                        scene_id=scene.scene_id,
+                        phase=phase.phase_index,
+                        modality=out_modality,
+                        is_label=is_label,
+                        file_count=fc,
+                        total_bytes=bs,
+                        sha256=sha,
+                    )
+                )
+                log.info("packed %s (%d files, %d bytes)", repo_path, fc, bs)
 
     return PackResult(shards=shards, skipped_keys=skipped)
 
@@ -322,8 +341,8 @@ _QUESTION_RE = re.compile(r"^\s*\d+\.\s*(?P<q>.+\?)\s*$", re.MULTILINE)
 class SharedArtefact:
     """One file written under ``objects_meta/<object_id>/``."""
 
-    object_id:   str
-    repo_path:   str
+    object_id: str
+    repo_path: str
     total_bytes: int
 
 
@@ -344,8 +363,7 @@ def _parse_questionnaire(text: str) -> Dict[str, list[str]]:
     schema survives changes to the answer-template wording.
     """
     out: Dict[str, list[str]] = {}
-    lines = [ln for ln in text.splitlines()
-              if not ln.lstrip().startswith("#")]
+    lines = [ln for ln in text.splitlines() if not ln.lstrip().startswith("#")]
     cleaned = "\n".join(lines)
     matches = list(_QUESTION_RE.finditer(cleaned))
     for i, m in enumerate(matches):
@@ -384,11 +402,10 @@ def pack_objects_meta(plan: PackPlan, scan: ScanResult) -> List[SharedArtefact]:
     for scene in scan.scenes:
         if scene.scene_type is not SceneType.SINGLE_OBJECT:
             continue
-        sos_root = (plan.src_root / "sos" / scene.scene_id)
+        sos_root = plan.src_root / "sos" / scene.scene_id
         questionnaire_src = sos_root / "questionnaire.txt"
         if not questionnaire_src.is_file():
-            log.warning("SOS scene %s has no questionnaire.txt; skipping",
-                         scene.scene_id)
+            log.warning("SOS scene %s has no questionnaire.txt; skipping", scene.scene_id)
             continue
 
         parsed = _parse_questionnaire(
@@ -409,17 +426,19 @@ def pack_objects_meta(plan: PackPlan, scan: ScanResult) -> List[SharedArtefact]:
             )
         rendered = json.dumps(payload, indent=2, sort_keys=True)
         out_path.write_text(rendered, encoding="utf-8")
-        out.append(SharedArtefact(
-            object_id=scene.scene_id, repo_path=repo_path,
-            total_bytes=out_path.stat().st_size,
-        ))
+        out.append(
+            SharedArtefact(
+                object_id=scene.scene_id,
+                repo_path=repo_path,
+                total_bytes=out_path.stat().st_size,
+            )
+        )
         object_ids.append(scene.scene_id)
         log.info("wrote %s (%d questions)", repo_path, len(parsed))
 
     index_path = objects_meta / "_index.json"
     index_path.write_text(
-        json.dumps({"object_ids": sorted(object_ids)}, indent=2,
-                    sort_keys=True),
+        json.dumps({"object_ids": sorted(object_ids)}, indent=2, sort_keys=True),
         encoding="utf-8",
     )
     return out

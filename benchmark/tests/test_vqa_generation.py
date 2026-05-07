@@ -1,24 +1,44 @@
 """Tests for RPX VQA generation — deterministic, balanced, unbiased."""
-import pytest
+
 from rpx_benchmark.tasks.vqa_generation import (
-    generate_existence_questions,
+    QAPair,
+    evaluate_mcq,
     generate_attribute_questions,
     generate_count_questions,
+    generate_existence_questions,
     generate_spatial_questions,
-    evaluate_mcq,
-    QAPair,
 )
-
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
 VISIBLE = [
-    {"category": "mug", "color": "red", "material": "ceramic", "shape": "cylinder",
-     "instance_id": 1, "bbox_cx": 100, "bbox_cy": 200},
-    {"category": "bottle", "color": "blue", "material": "plastic", "shape": "cylinder",
-     "instance_id": 2, "bbox_cx": 300, "bbox_cy": 200},
-    {"category": "bowl", "color": "white", "material": "ceramic", "shape": "round",
-     "instance_id": 3, "bbox_cx": 200, "bbox_cy": 100},
+    {
+        "category": "mug",
+        "color": "red",
+        "material": "ceramic",
+        "shape": "cylinder",
+        "instance_id": 1,
+        "bbox_cx": 100,
+        "bbox_cy": 200,
+    },
+    {
+        "category": "bottle",
+        "color": "blue",
+        "material": "plastic",
+        "shape": "cylinder",
+        "instance_id": 2,
+        "bbox_cx": 300,
+        "bbox_cy": 200,
+    },
+    {
+        "category": "bowl",
+        "color": "white",
+        "material": "ceramic",
+        "shape": "round",
+        "instance_id": 3,
+        "bbox_cx": 200,
+        "bbox_cy": 100,
+    },
 ]
 
 ALL_OBJECTS = VISIBLE + [
@@ -30,6 +50,7 @@ ALL_OBJECTS = VISIBLE + [
 
 
 # ── Existence ───────────────────────────────────────────────────────────────
+
 
 def test_existence_balanced():
     """Yes and No questions should be roughly balanced."""
@@ -58,6 +79,7 @@ def test_existence_deterministic():
 
 # ── Attribute ───────────────────────────────────────────────────────────────
 
+
 def test_attribute_distractors_are_real():
     """Distractors should be real attribute values, not random strings."""
     pairs = generate_attribute_questions(VISIBLE, ALL_OBJECTS, "s1", 0, "00000")
@@ -79,6 +101,7 @@ def test_attribute_correct_answer_from_questionnaire():
 
 # ── Count ───────────────────────────────────────────────────────────────────
 
+
 def test_count_gt_from_masks():
     pairs = generate_count_questions(VISIBLE, "s1", 0, "00000")
     for p in pairs:
@@ -96,6 +119,7 @@ def test_count_distractors_are_integers():
 
 # ── Spatial ─────────────────────────────────────────────────────────────────
 
+
 def test_spatial_image_plane():
     """'Left' means smaller x-coordinate in image plane."""
     pairs = generate_spatial_questions(VISIBLE, "s1", 0, "00000")
@@ -103,8 +127,9 @@ def test_spatial_image_plane():
         if p.metadata["direction"] == "left":
             ref = next(o for o in VISIBLE if o["category"] == p.metadata["reference"])
             target = next(o for o in VISIBLE if o["category"] == p.metadata["target"])
-            assert target["bbox_cx"] < ref["bbox_cx"], \
+            assert target["bbox_cx"] < ref["bbox_cx"], (
                 f"{p.metadata['target']} should be left of {p.metadata['reference']}"
+            )
 
 
 def test_spatial_above_means_smaller_y():
@@ -118,12 +143,17 @@ def test_spatial_above_means_smaller_y():
 
 # ── Phase variation (anti-bias) ────────────────────────────────────────────
 
+
 def test_phase_varying_answers():
     """Same question type on different phases should produce different answers
     when the scene changes."""
     # Phase 0: mug visible. Phase 2: mug removed.
-    phase0_visible = [{"category": "mug", "color": "red", "material": "ceramic", "shape": "cylinder"}]
-    phase2_visible = [{"category": "bottle", "color": "blue", "material": "plastic", "shape": "cylinder"}]
+    phase0_visible = [
+        {"category": "mug", "color": "red", "material": "ceramic", "shape": "cylinder"}
+    ]
+    phase2_visible = [
+        {"category": "bottle", "color": "blue", "material": "plastic", "shape": "cylinder"}
+    ]
 
     p0 = generate_existence_questions(phase0_visible, ALL_OBJECTS, "s1", 0, "00000")
     p2 = generate_existence_questions(phase2_visible, ALL_OBJECTS, "s1", 2, "00000")
@@ -138,6 +168,7 @@ def test_phase_varying_answers():
 
 # ── Evaluation ──────────────────────────────────────────────────────────────
 
+
 def test_evaluate_perfect_score():
     pairs = generate_existence_questions(VISIBLE, ALL_OBJECTS, "s1", 0, "00000")
     preds = [p.correct_index for p in pairs]
@@ -148,6 +179,7 @@ def test_evaluate_perfect_score():
 def test_evaluate_random_baseline():
     """Random guessing on 4-choice MCQ should be ~25%."""
     import random
+
     random.seed(42)
     pairs = generate_existence_questions(VISIBLE, ALL_OBJECTS, "s1", 0, "00000")
     pairs += generate_attribute_questions(VISIBLE, ALL_OBJECTS, "s1", 0, "00000")
@@ -173,4 +205,4 @@ def test_evaluate_str_computation():
     assert result["per_phase"][1] == 0.0
     assert result["per_phase"][2] == 1.0
     assert result["str_clu_to_int"] == -1.0  # dropped from 1.0 to 0.0
-    assert result["str_int_to_cln"] == 1.0   # recovered from 0.0 to 1.0
+    assert result["str_int_to_cln"] == 1.0  # recovered from 0.0 to 1.0

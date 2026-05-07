@@ -86,6 +86,7 @@ class RPXError(Exception):
 # Config-level errors
 # --------------------------------------------------------------------------- #
 
+
 class ConfigError(RPXError):
     """Raised when a user-supplied config is invalid.
 
@@ -100,6 +101,7 @@ class ConfigError(RPXError):
 # --------------------------------------------------------------------------- #
 # Dataset-level errors
 # --------------------------------------------------------------------------- #
+
 
 class DatasetError(RPXError):
     """Base class for dataset load / manifest / download failures."""
@@ -132,6 +134,7 @@ class DownloadError(DatasetError):
 # Model-level errors
 # --------------------------------------------------------------------------- #
 
+
 class ModelError(RPXError):
     """Raised by model factories or the runner when a model misbehaves.
 
@@ -159,6 +162,7 @@ class AdapterError(ModelError):
 # --------------------------------------------------------------------------- #
 # Metric-level errors
 # --------------------------------------------------------------------------- #
+
 
 class MetricError(RPXError):
     """Raised when a metric calculator cannot compute a score.

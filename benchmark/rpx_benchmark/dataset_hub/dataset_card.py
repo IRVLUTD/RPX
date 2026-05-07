@@ -44,8 +44,13 @@ DEFAULT_TASK_CATEGORIES = (
     "visual-question-answering",
 )
 DEFAULT_TAGS = (
-    "robotics", "embodied-ai", "rgb-d", "benchmark",
-    "perception", "manipulation", "stereo",
+    "robotics",
+    "embodied-ai",
+    "rgb-d",
+    "benchmark",
+    "perception",
+    "manipulation",
+    "stereo",
 )
 
 
@@ -53,13 +58,13 @@ DEFAULT_TAGS = (
 class CardSpec:
     """Knobs for the card generator."""
 
-    repo_id:    str = DEFAULT_REPO_ID
+    repo_id: str = DEFAULT_REPO_ID
     pretty_name: str = DEFAULT_PRETTY_NAME
-    license:    str = DEFAULT_LICENSE
+    license: str = DEFAULT_LICENSE
     task_categories: tuple[str, ...] = DEFAULT_TASK_CATEGORIES
-    tags:       tuple[str, ...] = DEFAULT_TAGS
-    paper_url:  Optional[str] = None
-    code_url:   Optional[str] = "https://github.com/IRVLUTD/RPX"
+    tags: tuple[str, ...] = DEFAULT_TAGS
+    paper_url: Optional[str] = None
+    code_url: Optional[str] = "https://github.com/IRVLUTD/RPX"
 
 
 def _human_bytes(n: int) -> str:
@@ -73,11 +78,15 @@ def _human_bytes(n: int) -> str:
 
 def _size_category(total_bytes: int) -> str:
     """HF size_categories tag bucket (used for search filters)."""
-    gb = total_bytes / (1024 ** 3)
-    if gb < 1:        return "100M<n<1B"
-    if gb < 10:       return "1B<n<10B"
-    if gb < 100:      return "10B<n<100B"
-    if gb < 1024:     return "100B<n<1T"
+    gb = total_bytes / (1024**3)
+    if gb < 1:
+        return "100M<n<1B"
+    if gb < 10:
+        return "1B<n<10B"
+    if gb < 100:
+        return "10B<n<100B"
+    if gb < 1024:
+        return "100B<n<1T"
     return "n>1T"
 
 
@@ -85,9 +94,8 @@ def _yaml_list(values) -> str:
     return "\n".join(f"- {v}" for v in values)
 
 
-def _frontmatter(spec: CardSpec, scan: ScanResult,
-                  splits: Mapping[str, str] | None = None) -> str:
-    n_multi  = len(scan.by_type(SceneType.MULTI_OBJECT))
+def _frontmatter(spec: CardSpec, scan: ScanResult, splits: Mapping[str, str] | None = None) -> str:
+    n_multi = len(scan.by_type(SceneType.MULTI_OBJECT))
     n_single = len(scan.by_type(SceneType.SINGLE_OBJECT))
 
     lines = [
@@ -114,24 +122,30 @@ def _frontmatter(spec: CardSpec, scan: ScanResult,
                 tier_counts[tier] += 1
         lines.append("configs:")
         lines.append("- config_name: multi_object")
-        lines.append('  description: "MOS scenes (3 phases each), '
-                      'tertile-cut by Effort-Stratified Difficulty."')
+        lines.append(
+            '  description: "MOS scenes (3 phases each), '
+            'tertile-cut by Effort-Stratified Difficulty."'
+        )
         lines.append("  data_files:")
         for tier, n in tier_counts.items():
             if n:
                 lines.append(f'  - split: "{tier}"')
                 lines.append(f'    path: "splits/{tier}.txt"')
         lines.append("- config_name: single_object")
-        lines.append('  description: "SOS scenes (one 360° collection per object); '
-                      'no difficulty split."')
+        lines.append(
+            '  description: "SOS scenes (one 360° collection per object); no difficulty split."'
+        )
     lines.append("---")
     return "\n".join(lines)
 
 
-def _body(spec: CardSpec, scan: ScanResult,
-            splits: Mapping[str, str] | None = None,
-            label_versions: Mapping[str, str] | None = None) -> str:
-    n_multi  = len(scan.by_type(SceneType.MULTI_OBJECT))
+def _body(
+    spec: CardSpec,
+    scan: ScanResult,
+    splits: Mapping[str, str] | None = None,
+    label_versions: Mapping[str, str] | None = None,
+) -> str:
+    n_multi = len(scan.by_type(SceneType.MULTI_OBJECT))
     n_single = len(scan.by_type(SceneType.SINGLE_OBJECT))
     modalities = scan.modality_totals()
 
@@ -150,18 +164,15 @@ def _body(spec: CardSpec, scan: ScanResult,
         f"| `{name}` | {sorted(r.inputs)} → {sorted(r.labels)} |"
         for name, r in SINGLE_OBJECT_TASK_RECIPES.items()
     )
-    label_v_rows = "\n".join(
-        f"| `{k}` | `{v}` |"
-        for k, v in (label_versions or {}).items()
-    )
+    label_v_rows = "\n".join(f"| `{k}` | `{v}` |" for k, v in (label_versions or {}).items())
     label_v_block = (
         "| modality | current version |\n|---|---|\n" + label_v_rows
-        if label_v_rows else
-        "*(default versions are in `manifest/current.json`)*"
+        if label_v_rows
+        else "*(default versions are in `manifest/current.json`)*"
     )
 
     paper_line = f"\n* Paper: {spec.paper_url}\n" if spec.paper_url else ""
-    code_line  = f"* Code: {spec.code_url}\n" if spec.code_url else ""
+    code_line = f"* Code: {spec.code_url}\n" if spec.code_url else ""
 
     return f"""
 # {spec.pretty_name}
@@ -302,11 +313,17 @@ def write_dataset_card(
             hint="Pass overwrite=True or remove the file first.",
         )
 
-    contents = _frontmatter(spec, scan, splits) + "\n" + _body(
-        spec, scan, splits, label_versions,
+    contents = (
+        _frontmatter(spec, scan, splits)
+        + "\n"
+        + _body(
+            spec,
+            scan,
+            splits,
+            label_versions,
+        )
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(contents, encoding="utf-8")
-    log.info("wrote dataset card → %s (%d bytes)",
-              out_path, out_path.stat().st_size)
+    log.info("wrote dataset card → %s (%d bytes)", out_path, out_path.stat().st_size)
     return out_path

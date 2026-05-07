@@ -38,18 +38,17 @@ log = get_logger(__name__)
 def _default_croissant_src() -> Path:
     """``<repo_root>/paper-submission/neurips-2026/croissant/rpx_croissant.json``."""
     here = Path(__file__).resolve()
-    repo_root = here.parents[3]   # .../benchmark/rpx_benchmark/dataset_hub/croissant.py
-    return (repo_root / "paper-submission" / "neurips-2026" / "croissant"
-            / "rpx_croissant.json")
+    repo_root = here.parents[3]  # .../benchmark/rpx_benchmark/dataset_hub/croissant.py
+    return repo_root / "paper-submission" / "neurips-2026" / "croissant" / "rpx_croissant.json"
 
 
 @dataclass(frozen=True)
 class CroissantPatch:
     """Knobs for the staging step."""
 
-    repo_id:    str  = DEFAULT_REPO_ID
-    version:    str  = "1.0.0"
-    cite_as:    Optional[str] = None
+    repo_id: str = DEFAULT_REPO_ID
+    version: str = "1.0.0"
+    cite_as: Optional[str] = None
     annotate_layout: bool = True
 
 
@@ -82,9 +81,11 @@ def stage_croissant(
     if not src.is_file():
         raise ConfigError(
             f"croissant source JSON does not exist: {src}",
-            hint=("Pass src= explicitly, or check that "
-                  "paper-submission/neurips-2026/croissant/ is present "
-                  "in the repo."),
+            hint=(
+                "Pass src= explicitly, or check that "
+                "paper-submission/neurips-2026/croissant/ is present "
+                "in the repo."
+            ),
         )
 
     out_path = Path(staging_root) / "rpx_croissant.json"
@@ -107,8 +108,6 @@ def stage_croissant(
             payload["description"] = desc + _LAYOUT_NOTE
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False),
-                         encoding="utf-8")
-    log.info("staged croissant → %s (%d bytes)",
-              out_path, out_path.stat().st_size)
+    out_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    log.info("staged croissant → %s (%d bytes)", out_path, out_path.stat().st_size)
     return out_path

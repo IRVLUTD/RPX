@@ -82,8 +82,8 @@ def main():
     rgb_members = sorted(list_members(rgb_tar))
     if not rgb_members:
         sys.exit("rgb tar empty")
-    rgb_member = rgb_members[0]                     # e.g. "rgb/00000.png"
-    frame_id = Path(rgb_member).stem                # "00000"
+    rgb_member = rgb_members[0]  # e.g. "rgb/00000.png"
+    frame_id = Path(rgb_member).stem  # "00000"
     print(f"  frame_id     : {frame_id}")
 
     # Read RGB.
@@ -101,7 +101,11 @@ def main():
         fisheye_left = np.array(Image.open(BytesIO(read_member(fisheye_tar, matched[0]))))
         fisheye_right = np.array(Image.open(BytesIO(read_member(fisheye_tar, matched[1]))))
     else:
-        fisheye_left = np.array(Image.open(BytesIO(read_member(fisheye_tar, matched[0] if matched else fisheye_members[0]))))
+        fisheye_left = np.array(
+            Image.open(
+                BytesIO(read_member(fisheye_tar, matched[0] if matched else fisheye_members[0]))
+            )
+        )
         fisheye_right = None
 
     # Read masks.

@@ -40,10 +40,10 @@ from ..api import (
 )
 from ..exceptions import AdapterError
 
-
 # --------------------------------------------------------------------------- #
 # Payload container
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class PreparedInput:
@@ -65,6 +65,7 @@ class PreparedInput:
 # --------------------------------------------------------------------------- #
 # Protocol types
 # --------------------------------------------------------------------------- #
+
 
 @runtime_checkable
 class InputAdapter(Protocol):
@@ -109,6 +110,7 @@ def default_invoker(model: Any, payload: Any) -> Any:
         return _dispatch(model, payload)
 
     import torch
+
     with torch.no_grad():
         return _dispatch(model, payload)
 
@@ -122,6 +124,7 @@ def _dispatch(model: Any, payload: Any) -> Any:
 # --------------------------------------------------------------------------- #
 # BenchmarkableModel
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class BenchmarkableModel(BenchmarkModel):
@@ -182,6 +185,7 @@ class BenchmarkableModel(BenchmarkModel):
 # Convenience factory: numpy-in / numpy-out depth model
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyDepthInput:
     """Hand the model the raw ``(H, W, 3) uint8`` array untouched."""
 
@@ -209,11 +213,12 @@ class _NumpyDepthOutput:
             raise AdapterError(
                 f"numpy depth model must return a 2-D array; got shape {depth.shape}",
                 hint="Your depth callable must return a (H, W) float array. "
-                     "A common mistake is returning (1, H, W) or (H, W, 1).",
+                "A common mistake is returning (1, H, W) or (H, W, 1).",
             )
         target_hw = context.get("target_hw", depth.shape)
         if depth.shape != target_hw:
             from PIL import Image
+
             pil = Image.fromarray(depth, mode="F")
             pil = pil.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
             depth = np.asarray(pil, dtype=np.float32)
@@ -262,6 +267,7 @@ def make_numpy_depth_model(
 # Convenience factory: numpy-in / int-mask-out segmentation model
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyMaskInput:
     """Hand the model the raw ``(H, W, 3) uint8`` array untouched."""
 
@@ -289,12 +295,13 @@ class _NumpyMaskOutput:
             raise AdapterError(
                 f"numpy mask model must return a 2-D array; got shape {mask.shape}",
                 hint="Your mask callable must return a (H, W) int array. "
-                     "A common mistake is returning (H, W, C) per-class logits.",
+                "A common mistake is returning (H, W, C) per-class logits.",
             )
         mask = mask.astype(np.int32, copy=False)
         target_hw = context.get("target_hw", mask.shape)
         if mask.shape != target_hw:
             from PIL import Image
+
             pil = Image.fromarray(mask.astype(np.int32), mode="I")
             pil = pil.resize((target_hw[1], target_hw[0]), Image.NEAREST)
             mask = np.asarray(pil, dtype=np.int32)
@@ -346,6 +353,7 @@ def make_numpy_mask_model(
 # Shared helpers for numpy fast paths
 # --------------------------------------------------------------------------- #
 
+
 def _passthrough_invoker(model: Any, payload: Any) -> Any:
     """Invoker for numpy fast paths — just call the function on its payload."""
     return model(payload)
@@ -386,7 +394,7 @@ def _coerce_dict_result(
             )
         return {k: result[k] for k in required_keys}
     if isinstance(result, tuple) and len(result) == len(required_keys):
-        return dict(zip(required_keys, result))
+        return dict(zip(required_keys, result, strict=False))
     raise AdapterError(
         f"{task_name} model must return a dict with keys "
         f"{list(required_keys)} or a {len(required_keys)}-tuple in that order; "
@@ -397,6 +405,7 @@ def _coerce_dict_result(
 # --------------------------------------------------------------------------- #
 # Object detection — fn(rgb) -> {boxes, scores, labels}
 # --------------------------------------------------------------------------- #
+
 
 class _NumpyDetectionOutput:
     """Wrap a detection callable's output into a :class:`DetectionPrediction`."""
@@ -476,6 +485,7 @@ def make_numpy_detection_model(
 # Visual grounding — fn(rgb, text) -> {boxes, scores}
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyGroundingInput:
     """Grounding input: raw RGB + the referring expression from the GT."""
 
@@ -504,7 +514,9 @@ class _NumpyGroundingOutput:
         scores = np.asarray(fields["scores"], dtype=np.float32).reshape(-1)
         labels = fields.get("labels") if isinstance(fields, dict) else None
         return VisualGroundingPrediction(
-            boxes=boxes, scores=scores, labels=labels,
+            boxes=boxes,
+            scores=scores,
+            labels=labels,
         )
 
 
@@ -552,6 +564,7 @@ def make_numpy_grounding_model(
 # Relative camera pose — fn(rgb_a, rgb_b) -> {rotation, translation}
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyPoseInput:
     """Pose input: extract rgb_a + rgb_b from the sample metadata side-channel."""
 
@@ -565,7 +578,7 @@ class _NumpyPoseInput:
                 "Relative-pose numpy adapter requires a second RGB frame "
                 "(`rgb_b`) loaded by the dataset.",
                 hint="Check that your manifest entries include `rgb_b` "
-                     "alongside `rgb` so the loader stashes it in sample.metadata.",
+                "alongside `rgb` so the loader stashes it in sample.metadata.",
             )
         return PreparedInput(
             payload={"rgb_a": rgb_a, "rgb_b": np.asarray(rgb_b, dtype=np.uint8)},
@@ -629,6 +642,7 @@ def make_numpy_pose_model(
 # Sparse depth — fn(rgb, coords) -> depths
 # --------------------------------------------------------------------------- #
 
+
 class _NumpySparseDepthInput:
     """Sparse-depth input: rgb + the GT sparse pixel coordinates."""
 
@@ -655,9 +669,7 @@ class _NumpySparseDepthOutput:
     ) -> SparseDepthPrediction:
         # The callable is responsible for returning depths at the
         # sparse coords it was given; we pass its coords back as-is.
-        coords = np.asarray(
-            sample.ground_truth.coordinates, dtype=np.float32
-        )
+        coords = np.asarray(sample.ground_truth.coordinates, dtype=np.float32)
         depths = np.asarray(model_output, dtype=np.float32).reshape(-1)
         if len(depths) != len(coords):
             raise AdapterError(
@@ -705,6 +717,7 @@ def make_numpy_sparse_depth_model(
 # Novel view synthesis — fn(rgb, target_pose) -> rgb
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyNVSInput:
     """NVS input: source RGB + target camera pose (4x4)."""
 
@@ -715,7 +728,7 @@ class _NumpyNVSInput:
             raise AdapterError(
                 "NVS ground truth missing `camera_pose` (target pose).",
                 hint="Use a manifest that sets `target_pose` so the loader "
-                     "populates ground_truth.camera_pose.",
+                "populates ground_truth.camera_pose.",
             )
         return PreparedInput(
             payload={"rgb": rgb_src, "target_pose": np.asarray(target_pose)},
@@ -740,6 +753,7 @@ class _NumpyNVSOutput:
         target_hw = context.get("target_hw")
         if target_hw is not None and rgb.shape[:2] != target_hw:
             from PIL import Image
+
             pil = Image.fromarray(rgb)
             pil = pil.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
             rgb = np.asarray(pil, dtype=np.uint8)
@@ -784,6 +798,7 @@ def make_numpy_nvs_model(
 # Keypoint matching — fn(rgb_a, rgb_b) -> {points0, points1}
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyKeypointInput:
     """Keypoint matching input: rgb_a + rgb_b from sample metadata."""
 
@@ -796,8 +811,7 @@ class _NumpyKeypointInput:
             raise AdapterError(
                 "Keypoint matching numpy adapter requires a second RGB "
                 "frame (`rgb_b`) loaded by the dataset.",
-                hint="Check that your manifest entries include `rgb_b` "
-                     "alongside `rgb`.",
+                hint="Check that your manifest entries include `rgb_b` alongside `rgb`.",
             )
         return PreparedInput(
             payload={"rgb_a": rgb_a, "rgb_b": np.asarray(rgb_b, dtype=np.uint8)},
@@ -826,8 +840,7 @@ class _NumpyKeypointOutput:
                 "{points0, points1[, scores]} or a 2/3-tuple.",
             )
         scores_arr = (
-            np.asarray(scores, dtype=np.float32).reshape(-1)
-            if scores is not None else None
+            np.asarray(scores, dtype=np.float32).reshape(-1) if scores is not None else None
         )
         return KeypointCorrespondencePrediction(
             points0=p0.reshape(-1, 2),
@@ -875,6 +888,7 @@ def make_numpy_keypoint_model(
 # Object tracking — fn(rgb) -> [{track_id, boxes, scores?}, ...]
 # --------------------------------------------------------------------------- #
 
+
 class _NumpyTrackingInput:
     """Tracking input: a single RGB frame per step.
 
@@ -919,10 +933,9 @@ def _coerce_tracking_output(model_output: Any) -> list[Tracklet]:
         model_output = model_output["tracks"]
     if not isinstance(model_output, Sequence):
         raise AdapterError(
-            "Tracking model must return a sequence of tracks or a "
-            "TrackletPrediction.",
+            "Tracking model must return a sequence of tracks or a TrackletPrediction.",
             hint="Return either [Tracklet, ...] or "
-                 "[{'track_id': str, 'boxes': (T,4) array, ...}, ...].",
+            "[{'track_id': str, 'boxes': (T,4) array, ...}, ...].",
         )
     tracks: list[Tracklet] = []
     for item in model_output:
@@ -931,8 +944,7 @@ def _coerce_tracking_output(model_output: Any) -> list[Tracklet]:
             continue
         if not isinstance(item, dict):
             raise AdapterError(
-                f"Tracking output entries must be Tracklet or dict, got "
-                f"{type(item).__name__}.",
+                f"Tracking output entries must be Tracklet or dict, got {type(item).__name__}.",
             )
         try:
             boxes = np.asarray(item["boxes"], dtype=np.float32).reshape(-1, 4)
@@ -943,8 +955,7 @@ def _coerce_tracking_output(model_output: Any) -> list[Tracklet]:
             ) from e
         scores_raw = item.get("scores")
         scores = (
-            np.asarray(scores_raw, dtype=np.float32).reshape(-1)
-            if scores_raw is not None else None
+            np.asarray(scores_raw, dtype=np.float32).reshape(-1) if scores_raw is not None else None
         )
         tracks.append(
             Tracklet(

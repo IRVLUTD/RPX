@@ -20,10 +20,15 @@ from rpx_benchmark.exceptions import ConfigError, DatasetError
 
 @pytest.fixture
 def packed(tmp_path: Path):
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=2, single_object_scenes=2,
-        phases_per_multi=3, frames_per_phase=3,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=2,
+            phases_per_multi=3,
+            frames_per_phase=3,
+        ),
+    )
     staging = tmp_path / "stage"
     scan = scan_capture_root(src)
     res = pack_capture_tree(PackPlan(src_root=src, staging_root=staging), scan)
@@ -54,8 +59,7 @@ def test_raw_modalities_at_phase_root_label_modalities_under_labels(packed):
 
 def test_pack_result_aggregate_matches_filesystem(packed):
     src, staging, scan, res = packed
-    on_disk = sum(p.stat().st_size
-                   for p in staging.rglob("*.tar") if p.is_file())
+    on_disk = sum(p.stat().st_size for p in staging.rglob("*.tar") if p.is_file())
     # PackResult.total_bytes is the sum of *source* file bytes (not the
     # tar overhead). The on-disk bytes should be at least the source
     # total minus a tiny amount of trailing zero padding.
@@ -78,9 +82,9 @@ def test_tar_contents_round_trip_to_source_files(packed):
 
 def test_masks_aux_collapses_six_aux_subdirs(packed):
     src, staging, scan, res = packed
-    aux_shard = next(s for s in res.shards
-                       if s.modality == "masks_aux"
-                       and s.scene_id == res.shards[0].scene_id)
+    aux_shard = next(
+        s for s in res.shards if s.modality == "masks_aux" and s.scene_id == res.shards[0].scene_id
+    )
     # 6 aux subdirs * 3 frames each = 18 files in masks_aux.tar.
     assert aux_shard.file_count == 6 * 3
 
@@ -94,10 +98,15 @@ def test_sam2_meta_picks_up_loose_files(packed):
 
 def test_packer_is_deterministic(tmp_path: Path):
     """Same source + same plan → byte-identical tars."""
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=1, single_object_scenes=1,
-        phases_per_multi=1, frames_per_phase=2,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=1,
+            phases_per_multi=1,
+            frames_per_phase=2,
+        ),
+    )
     a = tmp_path / "a"
     b = tmp_path / "b"
     scan = scan_capture_root(src)
@@ -107,16 +116,22 @@ def test_packer_is_deterministic(tmp_path: Path):
     b_tars = sorted(p.relative_to(b) for p in b.rglob("*.tar"))
     assert a_tars == b_tars
     for rel in a_tars:
-        assert hashlib.sha256((a / rel).read_bytes()).hexdigest() == \
-                hashlib.sha256((b / rel).read_bytes()).hexdigest(), \
-                f"shard {rel} not deterministic"
+        assert (
+            hashlib.sha256((a / rel).read_bytes()).hexdigest()
+            == hashlib.sha256((b / rel).read_bytes()).hexdigest()
+        ), f"shard {rel} not deterministic"
 
 
 def test_packer_refuses_to_overwrite_by_default(tmp_path: Path):
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=1, single_object_scenes=0,
-        phases_per_multi=1, frames_per_phase=1,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=1,
+        ),
+    )
     staging = tmp_path / "stage"
     scan = scan_capture_root(src)
     pack_capture_tree(PackPlan(src, staging), scan)
@@ -125,10 +140,15 @@ def test_packer_refuses_to_overwrite_by_default(tmp_path: Path):
 
 
 def test_packer_overwrite_flag_allows_repack(tmp_path: Path):
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=1, single_object_scenes=0,
-        phases_per_multi=1, frames_per_phase=1,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=1,
+        ),
+    )
     staging = tmp_path / "stage"
     scan = scan_capture_root(src)
     pack_capture_tree(PackPlan(src, staging), scan)
@@ -137,24 +157,39 @@ def test_packer_overwrite_flag_allows_repack(tmp_path: Path):
 
 
 def test_packer_rejects_mismatched_src_root(tmp_path: Path):
-    src1 = generate_mock(tmp_path / "src1", MockSpec(
-        multi_object_scenes=1, single_object_scenes=0,
-        phases_per_multi=1, frames_per_phase=1,
-    ))
-    src2 = generate_mock(tmp_path / "src2", MockSpec(
-        multi_object_scenes=1, single_object_scenes=0,
-        phases_per_multi=1, frames_per_phase=1,
-    ))
+    src1 = generate_mock(
+        tmp_path / "src1",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=1,
+        ),
+    )
+    src2 = generate_mock(
+        tmp_path / "src2",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=1,
+        ),
+    )
     scan = scan_capture_root(src1)
     with pytest.raises(ConfigError, match="does not match"):
         pack_capture_tree(PackPlan(src2, tmp_path / "stage"), scan)
 
 
 def test_label_version_lands_in_repo_path(tmp_path: Path):
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=1, single_object_scenes=0,
-        phases_per_multi=1, frames_per_phase=1,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=1,
+        ),
+    )
     staging = tmp_path / "stage"
     scan = scan_capture_root(src)
     res = pack_capture_tree(PackPlan(src, staging, label_version="v7"), scan)
@@ -180,9 +215,7 @@ def test_scene_type_routes_to_correct_top_level(packed):
     assert multi_scene_ids.isdisjoint(single_scene_ids)
     # Reconcile against the scan: shards in `scenes/` must come from
     # MOS scenes, shards in `objects/` from SOS scenes.
-    expected_multi = {s.scene_id for s in scan.scenes
-                       if s.scene_type is SceneType.MULTI_OBJECT}
-    expected_single = {s.scene_id for s in scan.scenes
-                        if s.scene_type is SceneType.SINGLE_OBJECT}
+    expected_multi = {s.scene_id for s in scan.scenes if s.scene_type is SceneType.MULTI_OBJECT}
+    expected_single = {s.scene_id for s in scan.scenes if s.scene_type is SceneType.SINGLE_OBJECT}
     assert multi_scene_ids == expected_multi
     assert single_scene_ids == expected_single

@@ -51,11 +51,17 @@ def _find_pairs(local_root: Path, max_frames: int) -> list[dict]:
         for fname in [rgb_members[len(rgb_members) // 2]]:
             stem = Path(fname).stem
             depth_member = f"depth/{stem}.png"
-            pairs.append({
-                "scene": scene, "phase": phase, "frame": stem,
-                "rgb_tar": rgb_tar, "rgb_member": fname,
-                "depth_tar": depth_tar, "depth_member": depth_member,
-            })
+            pairs.append(
+                {
+                    "scene": scene,
+                    "phase": phase,
+                    "frame": stem,
+                    "rgb_tar": rgb_tar,
+                    "rgb_member": fname,
+                    "depth_tar": depth_tar,
+                    "depth_member": depth_member,
+                }
+            )
             if len(pairs) >= max_frames:
                 return pairs
     return pairs
@@ -73,8 +79,8 @@ def _depth_metrics(pred_m: np.ndarray, gt_mm: np.ndarray) -> dict:
     rmse = float(np.sqrt(np.mean((p - g) ** 2)))
     ratio = np.maximum(p / g, g / p)
     delta1 = float(np.mean(ratio < 1.25))
-    delta2 = float(np.mean(ratio < 1.25 ** 2))
-    delta3 = float(np.mean(ratio < 1.25 ** 3))
+    delta2 = float(np.mean(ratio < 1.25**2))
+    delta3 = float(np.mean(ratio < 1.25**3))
     return {
         "valid_px": int(valid.sum()),
         "abs_rel": abs_rel,
@@ -89,15 +95,22 @@ def _depth_metrics(pred_m: np.ndarray, gt_mm: np.ndarray) -> dict:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--frames", type=int, default=4,
-                    help="number of (scene, phase) frames to smoke (default: 4)")
+    ap.add_argument(
+        "--frames",
+        type=int,
+        default=4,
+        help="number of (scene, phase) frames to smoke (default: 4)",
+    )
     args = ap.parse_args()
 
     from rpx_benchmark.dataset_hub import download_for_task
+
     print("== ensuring rgb + depth shards are in the HF cache ==")
     res = download_for_task(
-        task="segmentation", split="easy",
-        repo_id="itaykadosh/rpx-test", extra_modalities=["depth"],
+        task="segmentation",
+        split="easy",
+        repo_id="itaykadosh/rpx-test",
+        extra_modalities=["depth"],
     )
     local = Path(res.local_dir)
 
@@ -111,12 +124,15 @@ def main() -> None:
     print("\n== loading ZoeDepth ==")
     t0 = time.time()
     from depth_models.zoedepth import ZoeDepth
+
     zoe = ZoeDepth(device="cuda")
     print(f"  loaded in {time.time() - t0:.1f}s")
 
     print("\n== inference + metrics ==")
-    print(f"{'scene':>22} {'phase':>5} {'frame':>5}   {'AbsRel':>7} {'RMSE_m':>7} "
-          f"{'δ1':>5} {'δ2':>5} {'δ3':>5}  {'pred_med':>8} {'gt_med':>7}  {'t_s':>5}")
+    print(
+        f"{'scene':>22} {'phase':>5} {'frame':>5}   {'AbsRel':>7} {'RMSE_m':>7} "
+        f"{'δ1':>5} {'δ2':>5} {'δ3':>5}  {'pred_med':>8} {'gt_med':>7}  {'t_s':>5}"
+    )
     for p in pairs:
         rgb = _read_frame(p["rgb_tar"], p["rgb_member"])
         gt_mm = _read_frame(p["depth_tar"], p["depth_member"])
@@ -125,13 +141,17 @@ def main() -> None:
         dt = time.time() - t0
         m = _depth_metrics(pred_m, gt_mm)
         if "abs_rel" not in m:
-            print(f"  {p['scene']:>22} {p['phase']:>5} {p['frame']:>5}   "
-                  f"(too few valid pixels: {m['valid_px']})")
+            print(
+                f"  {p['scene']:>22} {p['phase']:>5} {p['frame']:>5}   "
+                f"(too few valid pixels: {m['valid_px']})"
+            )
             continue
-        print(f"  {p['scene']:>22} {p['phase']:>5} {p['frame']:>5}   "
-              f"{m['abs_rel']:7.4f} {m['rmse_m']:7.3f} "
-              f"{m['delta1']:5.3f} {m['delta2']:5.3f} {m['delta3']:5.3f}  "
-              f"{m['pred_med_m']:8.3f} {m['gt_med_m']:7.3f}  {dt:5.2f}")
+        print(
+            f"  {p['scene']:>22} {p['phase']:>5} {p['frame']:>5}   "
+            f"{m['abs_rel']:7.4f} {m['rmse_m']:7.3f} "
+            f"{m['delta1']:5.3f} {m['delta2']:5.3f} {m['delta3']:5.3f}  "
+            f"{m['pred_med_m']:8.3f} {m['gt_med_m']:7.3f}  {dt:5.2f}"
+        )
 
     print("\nDone. ZoeDepth ran end-to-end on RPX imagery — adapter is sane.")
 

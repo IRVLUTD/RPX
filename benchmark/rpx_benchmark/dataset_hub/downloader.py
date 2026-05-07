@@ -19,9 +19,10 @@ Wire-up::
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import (
+    TYPE_CHECKING,
     Any,
     Iterable,
     List,
@@ -29,7 +30,6 @@ from typing import (
     Optional,
     Sequence,
     Set,
-    TYPE_CHECKING,
 )
 
 from ..exceptions import ConfigError, DownloadError
@@ -106,19 +106,27 @@ def _arrow():
 # Manifest helpers (pulled and read first; small file, always cheap)
 # --------------------------------------------------------------------- #
 
+
 def _fetch_manifest(
-    hf, repo_id: str, revision: Optional[str], cache_dir: Optional[Path],
+    hf,
+    repo_id: str,
+    revision: Optional[str],
+    cache_dir: Optional[Path],
 ) -> tuple[Path, Path]:
     """Download just ``manifest/{frames_v1.parquet, current.json}``."""
     parquet_path = hf.hf_hub_download(
-        repo_id=repo_id, repo_type="dataset",
+        repo_id=repo_id,
+        repo_type="dataset",
         filename=f"manifest/frames_{SCHEMA_VERSION}.parquet",
-        revision=revision, cache_dir=str(cache_dir) if cache_dir else None,
+        revision=revision,
+        cache_dir=str(cache_dir) if cache_dir else None,
     )
     current_path = hf.hf_hub_download(
-        repo_id=repo_id, repo_type="dataset",
+        repo_id=repo_id,
+        repo_type="dataset",
         filename="manifest/current.json",
-        revision=revision, cache_dir=str(cache_dir) if cache_dir else None,
+        revision=revision,
+        cache_dir=str(cache_dir) if cache_dir else None,
     )
     return Path(parquet_path), Path(current_path)
 
@@ -141,8 +149,11 @@ def _filter_manifest(
 # Pattern resolution
 # --------------------------------------------------------------------- #
 
+
 def _resolve_label_version(
-    modality: str, current: Mapping[str, Any], explicit: Mapping[str, str],
+    modality: str,
+    current: Mapping[str, Any],
+    explicit: Mapping[str, str],
 ) -> str:
     """Pick the label version for ``modality``: explicit > current.json > 'v1'."""
     if modality in explicit:
@@ -171,7 +182,7 @@ def _build_allow_patterns(
     for scene in sorted(matched_scenes):
         for m in sorted(modalities):
             if m in _SHARED_MODALITIES:
-                continue   # handled by _shared_artefact_patterns
+                continue  # handled by _shared_artefact_patterns
             if m in _RAW_MODALITIES:
                 patterns.append(f"{root}/{scene}/*/{m}.tar")
             else:
@@ -198,6 +209,7 @@ def _shared_artefact_patterns(modalities: Iterable[str]) -> List[str]:
 # --------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------- #
+
 
 def download_for_task(
     task: str,
@@ -256,7 +268,10 @@ def download_for_task(
         )
 
     parquet_path, current_path = _fetch_manifest(
-        hf, repo_id, revision, cache_dir,
+        hf,
+        repo_id,
+        revision,
+        cache_dir,
     )
     current = json.loads(current_path.read_text(encoding="utf-8"))
     _, pq = _arrow()
@@ -278,17 +293,27 @@ def download_for_task(
     modalities = set(recipe.all_modalities()) | set(extra_modalities)
     explicit = dict(label_versions or {})
     patterns = _build_allow_patterns(
-        matched_scenes, recipe.scene_type, modalities, current, explicit,
+        matched_scenes,
+        recipe.scene_type,
+        modalities,
+        current,
+        explicit,
     )
     patterns.extend(_shared_artefact_patterns(modalities))
 
-    log.info("download plan: task=%s split=%s scenes=%d modalities=%s "
-              "patterns=%d", task, split, len(matched_scenes),
-              sorted(modalities), len(patterns))
+    log.info(
+        "download plan: task=%s split=%s scenes=%d modalities=%s patterns=%d",
+        task,
+        split,
+        len(matched_scenes),
+        sorted(modalities),
+        len(patterns),
+    )
 
     try:
         local_dir = hf.snapshot_download(
-            repo_id=repo_id, repo_type="dataset",
+            repo_id=repo_id,
+            repo_type="dataset",
             allow_patterns=patterns,
             revision=revision,
             cache_dir=str(cache_dir) if cache_dir else None,
@@ -308,12 +333,16 @@ def download_for_task(
     bytes_ = sum(p.stat().st_size for p in files)
 
     return DownloadResult(
-        repo_id=repo_id, revision=revision,
-        task=task, split=split, scene_type=recipe.scene_type,
+        repo_id=repo_id,
+        revision=revision,
+        task=task,
+        split=split,
+        scene_type=recipe.scene_type,
         local_dir=local,
         allow_patterns=patterns,
         matched_scenes=sorted(matched_scenes),
-        bytes_fetched=bytes_, files_fetched=len(files),
-        cache_hits=0,                 # HF doesn't expose per-call hit count
+        bytes_fetched=bytes_,
+        files_fetched=len(files),
+        cache_hits=0,  # HF doesn't expose per-call hit count
         manifest_table=sliced if return_manifest else None,
     )

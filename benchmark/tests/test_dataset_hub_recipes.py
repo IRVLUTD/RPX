@@ -11,7 +11,6 @@ from rpx_benchmark.dataset_hub import (
     resolve_recipe,
 )
 from rpx_benchmark.dataset_hub.recipes import (
-    CAM_POSE,
     DEPTH,
     MASKS,
     RGB,
@@ -58,8 +57,7 @@ def test_all_modalities_unions_inputs_and_labels():
 
 def test_recipes_only_reference_known_modalities():
     """Sanity: every modality in every recipe is from the known vocabulary."""
-    known = {"rgb", "depth", "fisheye", "cam_pose",
-              "masks", "masks_aux", "questionnaire", "vqa"}
+    known = {"rgb", "depth", "fisheye", "cam_pose", "masks", "masks_aux", "questionnaire", "vqa"}
     for table in (MULTI_OBJECT_TASK_RECIPES, SINGLE_OBJECT_TASK_RECIPES):
         for name, rec in table.items():
             unknown = rec.all_modalities() - known

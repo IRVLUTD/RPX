@@ -18,7 +18,8 @@ Two surfaces:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Sequence as TSequence
+from typing import Any, Dict, Iterator, List
+from typing import Sequence as TSequence
 
 import numpy as np
 
@@ -40,13 +41,13 @@ from ..api import (
 )
 from ..exceptions import ManifestError
 
-
 __all__ = ["row_to_sample", "RPXHFBridge"]
 
 
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
+
 
 def _decode_image(value: Any) -> np.ndarray:
     """Decode a HF ``Image`` column value into a numpy array.
@@ -65,8 +66,7 @@ def _decode_image(value: Any) -> np.ndarray:
         from PIL import Image as PILImage  # noqa: PLC0415
     except ImportError as e:  # pragma: no cover
         raise ImportError(
-            "Decoding HF Image features requires Pillow. "
-            "Install with: pip install Pillow"
+            "Decoding HF Image features requires Pillow. Install with: pip install Pillow"
         ) from e
     if isinstance(value, PILImage.Image):
         return np.asarray(value)
@@ -74,10 +74,9 @@ def _decode_image(value: Any) -> np.ndarray:
     # row was fetched before decode. Redirect through PIL.
     if isinstance(value, dict) and "bytes" in value:
         import io  # noqa: PLC0415
+
         return np.asarray(PILImage.open(io.BytesIO(value["bytes"])))
-    raise ManifestError(
-        f"Unsupported image-column value type: {type(value).__name__}"
-    )
+    raise ManifestError(f"Unsupported image-column value type: {type(value).__name__}")
 
 
 def _decode_depth(value: Any) -> np.ndarray:
@@ -87,7 +86,7 @@ def _decode_depth(value: Any) -> np.ndarray:
         raise ManifestError(
             f"Depth map must be 2-D, got shape {arr.shape}.",
             hint="RPX depth is stored as a single-channel 16-bit PNG in "
-                 "millimetres. Check the dataset's shard-generation script.",
+            "millimetres. Check the dataset's shard-generation script.",
         )
     depth = arr.astype(np.float32) / 1000.0
     depth[arr == 0] = 0.0
@@ -126,6 +125,7 @@ def _enum_or_none(cls: Any, raw: Any) -> Any:
 # Task-specific ground truth builders
 # --------------------------------------------------------------------------- #
 
+
 def _gt_depth(row: Dict[str, Any]) -> DepthGroundTruth:
     return DepthGroundTruth(depth_map=_decode_depth(row["depth"]))
 
@@ -146,11 +146,7 @@ def _gt_tracking(row: Dict[str, Any]) -> TrackletGroundTruth:
     for item in tracks_raw:
         boxes = np.asarray(item["boxes"], dtype=np.float32).reshape(-1, 4)
         scores_raw = item.get("scores")
-        scores = (
-            np.asarray(scores_raw, dtype=np.float32)
-            if scores_raw
-            else None
-        )
+        scores = np.asarray(scores_raw, dtype=np.float32) if scores_raw else None
         tracks.append(Tracklet(track_id=str(item["track_id"]), boxes=boxes, scores=scores))
     return TrackletGroundTruth(tracks=tracks)
 
@@ -207,6 +203,7 @@ _GT_BUILDERS = {
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
+
 
 def row_to_sample(row: Dict[str, Any], task: TaskType | str) -> Sample:
     """Convert one HF ``Dataset`` row into a :class:`Sample`.

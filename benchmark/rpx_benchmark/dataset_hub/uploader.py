@@ -14,7 +14,6 @@ where it left off.
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -29,8 +28,12 @@ log = get_logger(__name__)
 # Patterns we always exclude from upload, regardless of caller settings.
 # Build artefacts and editor leftovers should never end up in the repo.
 DEFAULT_IGNORE_PATTERNS: tuple[str, ...] = (
-    ".DS_Store", "__pycache__", "*.pyc", "*.tmp", "*.part",
-    ".huggingface/*",   # HF's own checkpoint state
+    ".DS_Store",
+    "__pycache__",
+    "*.pyc",
+    "*.tmp",
+    "*.part",
+    ".huggingface/*",  # HF's own checkpoint state
 )
 
 
@@ -39,12 +42,12 @@ class UploadPlan:
     """Inputs needed to push a staging directory to a HF dataset repo."""
 
     staging_root: Path
-    repo_id:      str  = DEFAULT_REPO_ID
-    revision:     str  = "main"
-    private:      bool = True
-    commit_message:    str = "RPX dataset hub upload"
+    repo_id: str = DEFAULT_REPO_ID
+    revision: str = "main"
+    private: bool = True
+    commit_message: str = "RPX dataset hub upload"
     create_if_missing: bool = True
-    use_large_folder:  bool = True
+    use_large_folder: bool = True
     allow_patterns: Optional[Sequence[str]] = None
     ignore_patterns: Sequence[str] = DEFAULT_IGNORE_PATTERNS
     dry_run: bool = False
@@ -54,12 +57,12 @@ class UploadPlan:
 class UploadResult:
     """Reported back so callers can log / verify."""
 
-    repo_id:       str
-    revision:      str
+    repo_id: str
+    revision: str
     files_planned: int
     bytes_planned: int
-    commit_url:    Optional[str] = None
-    skipped:       List[Path] = field(default_factory=list)
+    commit_url: Optional[str] = None
+    skipped: List[Path] = field(default_factory=list)
 
 
 def _hub():
@@ -86,18 +89,17 @@ def _enumerate_uploadable(
     to ``root`` *and* against the bare file name.
     """
     import fnmatch
+
     keep: List[Path] = []
     total = 0
     for p in root.rglob("*"):
         if not p.is_file():
             continue
         rel = p.relative_to(root).as_posix()
-        if any(fnmatch.fnmatch(rel, pat) or
-                fnmatch.fnmatch(p.name, pat) for pat in ignore):
+        if any(fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(p.name, pat) for pat in ignore):
             continue
         if allow is not None and not any(
-            fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(p.name, pat)
-            for pat in allow
+            fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(p.name, pat) for pat in allow
         ):
             continue
         keep.append(p)
@@ -125,15 +127,25 @@ def upload_staging(plan: UploadPlan) -> UploadResult:
         )
 
     files, total = _enumerate_uploadable(
-        plan.staging_root, plan.ignore_patterns, plan.allow_patterns,
+        plan.staging_root,
+        plan.ignore_patterns,
+        plan.allow_patterns,
     )
-    log.info("upload plan: %d files, %d bytes → %s (revision=%s, dry_run=%s)",
-              len(files), total, plan.repo_id, plan.revision, plan.dry_run)
+    log.info(
+        "upload plan: %d files, %d bytes → %s (revision=%s, dry_run=%s)",
+        len(files),
+        total,
+        plan.repo_id,
+        plan.revision,
+        plan.dry_run,
+    )
 
     if plan.dry_run:
         return UploadResult(
-            repo_id=plan.repo_id, revision=plan.revision,
-            files_planned=len(files), bytes_planned=total,
+            repo_id=plan.repo_id,
+            revision=plan.revision,
+            files_planned=len(files),
+            bytes_planned=total,
         )
 
     hf = _hub()
@@ -142,8 +154,10 @@ def upload_staging(plan: UploadPlan) -> UploadResult:
     if plan.create_if_missing:
         try:
             api.create_repo(
-                repo_id=plan.repo_id, repo_type="dataset",
-                private=plan.private, exist_ok=True,
+                repo_id=plan.repo_id,
+                repo_type="dataset",
+                private=plan.private,
+                exist_ok=True,
             )
         except Exception as e:
             raise DownloadError(
@@ -152,7 +166,8 @@ def upload_staging(plan: UploadPlan) -> UploadResult:
             ) from e
 
     common_kwargs = dict(
-        repo_id=plan.repo_id, repo_type="dataset",
+        repo_id=plan.repo_id,
+        repo_type="dataset",
         folder_path=str(plan.staging_root),
         revision=plan.revision,
         ignore_patterns=list(plan.ignore_patterns),
@@ -169,7 +184,8 @@ def upload_staging(plan: UploadPlan) -> UploadResult:
             commit_url = None
         else:
             commit = api.upload_folder(
-                commit_message=plan.commit_message, **common_kwargs,
+                commit_message=plan.commit_message,
+                **common_kwargs,
             )
             commit_url = getattr(commit, "commit_url", None)
     except Exception as e:
@@ -183,8 +199,10 @@ def upload_staging(plan: UploadPlan) -> UploadResult:
         ) from e
 
     return UploadResult(
-        repo_id=plan.repo_id, revision=plan.revision,
-        files_planned=len(files), bytes_planned=total,
+        repo_id=plan.repo_id,
+        revision=plan.revision,
+        files_planned=len(files),
+        bytes_planned=total,
         commit_url=commit_url,
     )
 
@@ -215,8 +233,13 @@ def upload_paths(
         total += p.stat().st_size
 
     plan = UploadPlan(
-        staging_root=staging_root, repo_id=repo_id, revision=revision,
-        private=private, commit_message=commit_message,
-        allow_patterns=tuple(rels), use_large_folder=False, dry_run=dry_run,
+        staging_root=staging_root,
+        repo_id=repo_id,
+        revision=revision,
+        private=private,
+        commit_message=commit_message,
+        allow_patterns=tuple(rels),
+        use_large_folder=False,
+        dry_run=dry_run,
     )
     return upload_staging(plan)

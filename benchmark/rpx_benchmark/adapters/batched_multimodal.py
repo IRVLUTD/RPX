@@ -62,7 +62,6 @@ import numpy as np
 
 from ..api import Sample, TaskType
 
-
 __all__ = [
     "BatchedTaskBenchmarkModel",
     "BatchedSegmentationBenchmarkModel",
@@ -149,14 +148,14 @@ class BatchedTaskBenchmarkModel:
         outputs = self.call_adapter(inputs)
         if len(outputs) != len(batch):
             from ..exceptions import AdapterError
+
             raise AdapterError(
-                f"adapter returned {len(outputs)} outputs for a batch of "
-                f"{len(batch)}",
+                f"adapter returned {len(outputs)} outputs for a batch of {len(batch)}",
                 hint="Check the adapter's batched contract: it must return "
-                     "one output per input sample.",
+                "one output per input sample.",
             )
         preds: List[Any] = []
-        for sample, out in zip(batch, outputs):
+        for sample, out in zip(batch, outputs, strict=False):
             preds.append(self.wrap_output(out, sample))
             self.maybe_save(sample, out)
         return preds
@@ -180,8 +179,9 @@ class BatchedSegmentationBenchmarkModel(BatchedTaskBenchmarkModel):
         return np.asarray(sample.rgb, dtype=np.uint8)
 
     def wrap_output(self, model_output: Any, sample: Sample) -> Any:
-        from ..api import SegmentationPrediction
         from PIL import Image
+
+        from ..api import SegmentationPrediction
 
         mask = np.asarray(model_output)
         target_hw = np.asarray(sample.rgb).shape[:2]
@@ -196,6 +196,7 @@ class BatchedSegmentationBenchmarkModel(BatchedTaskBenchmarkModel):
         if self._save_dir is None:
             return
         from PIL import Image
+
         meta = getattr(sample, "metadata", None) or {}
         scene = meta.get("scene_id")
         phase = meta.get("phase_idx")
@@ -227,6 +228,7 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
         rgb_b = meta.get("rgb_b")
         if rgb_b is None:
             from ..exceptions import AdapterError
+
             raise AdapterError(
                 "Relative-pose adapter requires `rgb_b` in sample.metadata; "
                 "check the manifest writes `rgb_b` so the loader stashes it.",
@@ -235,6 +237,7 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
 
     def wrap_output(self, model_output: Any, sample: Sample) -> Any:
         from ..api import RelativePosePrediction
+
         if isinstance(model_output, dict):
             rot = model_output["rotation"]
             trans = model_output["translation"]
@@ -258,10 +261,15 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
         out = self._save_dir / str(scene) / str(phase) / f"{frame_a}_to_{frame_b}.npz"
         out.parent.mkdir(parents=True, exist_ok=True)
         if isinstance(model_output, dict):
-            np.savez(out,
-                     rotation=np.asarray(model_output["rotation"], dtype=np.float64),
-                     translation=np.asarray(model_output["translation"], dtype=np.float64))
+            np.savez(
+                out,
+                rotation=np.asarray(model_output["rotation"], dtype=np.float64),
+                translation=np.asarray(model_output["translation"], dtype=np.float64),
+            )
         else:
             rot, trans = model_output
-            np.savez(out, rotation=np.asarray(rot, dtype=np.float64),
-                     translation=np.asarray(trans, dtype=np.float64))
+            np.savez(
+                out,
+                rotation=np.asarray(rot, dtype=np.float64),
+                translation=np.asarray(trans, dtype=np.float64),
+            )

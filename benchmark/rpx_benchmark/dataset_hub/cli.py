@@ -26,15 +26,15 @@ from .downloader import download_for_task
 from .manifest import build_frame_manifest
 from .mock import MockSpec, generate_mock, measure_tree
 from .packer import PackPlan, pack_capture_tree, pack_objects_meta
-from .staging import load_scene_splits, stage_splits
 from .recipes import DEFAULT_REPO_ID, SceneType
 from .scanner import scan_capture_root
+from .staging import load_scene_splits, stage_splits
 from .uploader import UploadPlan, upload_staging
-
 
 # --------------------------------------------------------------------- #
 # Formatting helpers
 # --------------------------------------------------------------------- #
+
 
 def _human_bytes(n: int) -> str:
     for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -47,6 +47,7 @@ def _human_bytes(n: int) -> str:
 # --------------------------------------------------------------------- #
 # `mock`
 # --------------------------------------------------------------------- #
+
 
 def _cmd_mock(args: argparse.Namespace) -> int:
     spec = MockSpec(
@@ -64,6 +65,7 @@ def _cmd_mock(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------- #
 # `scan`
 # --------------------------------------------------------------------- #
+
 
 def _cmd_scan(args: argparse.Namespace) -> int:
     res = scan_capture_root(Path(args.root))
@@ -94,8 +96,10 @@ def _cmd_scan(args: argparse.Namespace) -> int:
         return 0
 
     print(f"\n📂  {res.root}")
-    print(f"    {len(res.scenes)} scenes, {res.file_count:,} files, "
-           f"{_human_bytes(res.total_bytes)} total\n")
+    print(
+        f"    {len(res.scenes)} scenes, {res.file_count:,} files, "
+        f"{_human_bytes(res.total_bytes)} total\n"
+    )
 
     for scene_type in SceneType:
         subset = res.by_type(scene_type)
@@ -103,13 +107,14 @@ def _cmd_scan(args: argparse.Namespace) -> int:
             continue
         bytes_ = sum(s.total_bytes for s in subset)
         files_ = sum(s.file_count for s in subset)
-        print(f"  · {scene_type.value:14s}  {len(subset):4d} scenes  "
-               f"{files_:>9,} files  {_human_bytes(bytes_)}")
+        print(
+            f"  · {scene_type.value:14s}  {len(subset):4d} scenes  "
+            f"{files_:>9,} files  {_human_bytes(bytes_)}"
+        )
 
     print("\n  per-modality totals (across all scenes & phases):")
     for name, inv in res.modality_totals().items():
-        print(f"    {name:24s}  {inv.file_count:>9,} files  "
-               f"{_human_bytes(inv.total_bytes)}")
+        print(f"    {name:24s}  {inv.file_count:>9,} files  {_human_bytes(inv.total_bytes)}")
 
     if res.skipped:
         print(f"\n  ⚠ skipped {len(res.skipped)} non-matching entries:")
@@ -125,29 +130,36 @@ def _cmd_scan(args: argparse.Namespace) -> int:
 # `pack`
 # --------------------------------------------------------------------- #
 
+
 def _cmd_pack(args: argparse.Namespace) -> int:
     src = Path(args.src)
     staging = Path(args.staging)
     scan = scan_capture_root(src)
     plan = PackPlan(
-        src_root=src, staging_root=staging,
-        label_version=args.label_version, overwrite=args.overwrite,
+        src_root=src,
+        staging_root=staging,
+        label_version=args.label_version,
+        overwrite=args.overwrite,
     )
     res = pack_capture_tree(plan, scan)
-    print(f"[pack] wrote {len(res.shards)} tar shards "
-           f"({_human_bytes(res.total_bytes)} total) under {staging}")
+    print(
+        f"[pack] wrote {len(res.shards)} tar shards "
+        f"({_human_bytes(res.total_bytes)} total) under {staging}"
+    )
     if res.skipped_keys:
-        print(f"[pack] skipped {len(res.skipped_keys)} unknown modality keys "
-               f"(first 3: {res.skipped_keys[:3]})")
+        print(
+            f"[pack] skipped {len(res.skipped_keys)} unknown modality keys "
+            f"(first 3: {res.skipped_keys[:3]})"
+        )
     artefacts = pack_objects_meta(plan, scan)
-    print(f"[pack] wrote {len(artefacts)} per-object questionnaires under "
-           f"{staging}/objects_meta/")
+    print(f"[pack] wrote {len(artefacts)} per-object questionnaires under {staging}/objects_meta/")
     return 0
 
 
 # --------------------------------------------------------------------- #
 # `manifest`
 # --------------------------------------------------------------------- #
+
 
 def _cmd_manifest(args: argparse.Namespace) -> int:
     src = Path(args.src)
@@ -163,9 +175,7 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
         # Accept both a flat {scene_id: tier} dict and the
         # scene_splits.json shape {"splits": {"easy": [...], ...}}.
         if "splits" in splits and isinstance(splits["splits"], dict):
-            splits = {sid: tier
-                       for tier, ids in splits["splits"].items()
-                       for sid in ids}
+            splits = {sid: tier for tier, ids in splits["splits"].items() for sid in ids}
 
     paths = build_frame_manifest(scan, pack, staging, splits=splits)
     print(f"[manifest] wrote {paths.parquet_path}")
@@ -175,6 +185,7 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
     # expects at ``manifests/<task>/<split>.json``. Without these, a
     # freshly published HF dataset 404s on every benchmark call.
     from .split_manifests import write_split_manifests  # local import to avoid cycles
+
     written = write_split_manifests(staging)
     if not written:
         # Loud failure: the published dataset would be unusable.
@@ -183,6 +194,7 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
         # produced. The hub README's canonical sequence requires
         # ``--splits benchmark/data/splits/scene_splits.json``.
         from ..exceptions import DatasetError
+
         raise DatasetError(
             "no per-task per-split manifests written — published HF tree "
             "would be unusable for `download_split`. Most likely cause: "
@@ -190,11 +202,12 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
             "`--splits benchmark/data/splits/scene_splits.json` (or "
             "another scene-tier mapping).",
             hint="If you intentionally want to skip split-manifests for "
-                 "a partial scene set, pass --splits with at least one "
-                 "scene mapped to a tier."
+            "a partial scene set, pass --splits with at least one "
+            "scene mapped to a tier.",
         )
-    print(f"[manifest] wrote {len(written)} per-task per-split manifests "
-          f"under {staging}/manifests/")
+    print(
+        f"[manifest] wrote {len(written)} per-task per-split manifests under {staging}/manifests/"
+    )
     return 0
 
 
@@ -207,8 +220,9 @@ def _rehydrate_pack_result(scan, staging):
     recomputed — the manifest does not store them, and re-hashing 800
     GB of tars would be prohibitively slow at manifest time.
     """
-    from .packer import PackResult, PackedShard  # local import to avoid cycles
     import tarfile
+
+    from .packer import PackedShard, PackResult  # local import to avoid cycles
 
     shards = []
     for scene in scan.scenes:
@@ -230,18 +244,25 @@ def _rehydrate_pack_result(scan, staging):
                 else:
                     modality = tar_path.stem
                     is_label = False
-                shards.append(PackedShard(
-                    repo_path=rel, scene_id=scene.scene_id,
-                    phase=phase.phase_index, modality=modality,
-                    is_label=is_label, file_count=fc,
-                    total_bytes=tar_path.stat().st_size, sha256=None,
-                ))
+                shards.append(
+                    PackedShard(
+                        repo_path=rel,
+                        scene_id=scene.scene_id,
+                        phase=phase.phase_index,
+                        modality=modality,
+                        is_label=is_label,
+                        file_count=fc,
+                        total_bytes=tar_path.stat().st_size,
+                        sha256=None,
+                    )
+                )
     return PackResult(shards=shards)
 
 
 # --------------------------------------------------------------------- #
 # `upload`
 # --------------------------------------------------------------------- #
+
 
 def _cmd_upload(args: argparse.Namespace) -> int:
     plan = UploadPlan(
@@ -254,11 +275,15 @@ def _cmd_upload(args: argparse.Namespace) -> int:
     )
     res = upload_staging(plan)
     if res.dry_run if hasattr(res, "dry_run") else args.dry_run:
-        print(f"[upload-dry-run] would push {res.files_planned} files "
-               f"({_human_bytes(res.bytes_planned)}) to {res.repo_id}")
+        print(
+            f"[upload-dry-run] would push {res.files_planned} files "
+            f"({_human_bytes(res.bytes_planned)}) to {res.repo_id}"
+        )
     else:
-        print(f"[upload] pushed {res.files_planned} files "
-               f"({_human_bytes(res.bytes_planned)}) to {res.repo_id}")
+        print(
+            f"[upload] pushed {res.files_planned} files "
+            f"({_human_bytes(res.bytes_planned)}) to {res.repo_id}"
+        )
         if res.commit_url:
             print(f"[upload] commit: {res.commit_url}")
     return 0
@@ -268,15 +293,16 @@ def _cmd_upload(args: argparse.Namespace) -> int:
 # `stage-splits`
 # --------------------------------------------------------------------- #
 
+
 def _cmd_stage_splits(args: argparse.Namespace) -> int:
     src = Path(args.splits_src) if args.splits_src else None
     staged = stage_splits(
         staging_root=Path(args.staging),
-        splits_src=src, overwrite=args.overwrite,
+        splits_src=src,
+        overwrite=args.overwrite,
         require_all=not args.allow_missing,
     )
-    print(f"[stage-splits] copied {len(staged)} files into "
-           f"{args.staging}/splits/")
+    print(f"[stage-splits] copied {len(staged)} files into {args.staging}/splits/")
     for s in staged:
         print(f"               {s.repo_path}  ({_human_bytes(s.bytes_)})")
     return 0
@@ -285,6 +311,7 @@ def _cmd_stage_splits(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------- #
 # `dataset-card`
 # --------------------------------------------------------------------- #
+
 
 def _cmd_dataset_card(args: argparse.Namespace) -> int:
     src = Path(args.src)
@@ -296,8 +323,7 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
         try:
             splits = load_scene_splits(staging)
         except Exception as e:
-            print(f"[dataset-card] WARN: could not load scene splits: {e}",
-                   file=sys.stderr)
+            print(f"[dataset-card] WARN: could not load scene splits: {e}", file=sys.stderr)
 
     label_versions = None
     cur_path = staging / "manifest" / "current.json"
@@ -307,10 +333,14 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
         )
 
     spec = CardSpec(repo_id=args.repo_id)
-    out = write_dataset_card(staging, scan, spec=spec,
-                              splits=splits,
-                              label_versions=label_versions,
-                              overwrite=args.overwrite)
+    out = write_dataset_card(
+        staging,
+        scan,
+        spec=spec,
+        splits=splits,
+        label_versions=label_versions,
+        overwrite=args.overwrite,
+    )
     print(f"[dataset-card] wrote {out} ({out.stat().st_size:,} bytes)")
     return 0
 
@@ -319,12 +349,13 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
 # `stage-croissant`
 # --------------------------------------------------------------------- #
 
+
 def _cmd_stage_croissant(args: argparse.Namespace) -> int:
     src = Path(args.src) if args.src else None
-    patch = CroissantPatch(repo_id=args.repo_id, version=args.version,
-                            cite_as=args.cite_as)
-    out = stage_croissant(staging_root=Path(args.staging),
-                            src=src, patch=patch, overwrite=args.overwrite)
+    patch = CroissantPatch(repo_id=args.repo_id, version=args.version, cite_as=args.cite_as)
+    out = stage_croissant(
+        staging_root=Path(args.staging), src=src, patch=patch, overwrite=args.overwrite
+    )
     print(f"[stage-croissant] wrote {out} ({out.stat().st_size:,} bytes)")
     return 0
 
@@ -333,14 +364,14 @@ def _cmd_stage_croissant(args: argparse.Namespace) -> int:
 # `download`
 # --------------------------------------------------------------------- #
 
+
 def _cmd_download(args: argparse.Namespace) -> int:
     extras = tuple(args.modalities.split(",")) if args.modalities else ()
     label_versions = {}
     for kv in args.label_version or ():
         k, _, v = kv.partition("=")
         if not k or not v:
-            print(f"[download] ignoring malformed --label-version entry: {kv}",
-                   file=sys.stderr)
+            print(f"[download] ignoring malformed --label-version entry: {kv}", file=sys.stderr)
             continue
         label_versions[k] = v
 
@@ -353,19 +384,19 @@ def _cmd_download(args: argparse.Namespace) -> int:
         extra_modalities=extras,
         label_versions=label_versions,
     )
-    print(f"[download] task={res.task} split={res.split} "
-           f"scene_type={res.scene_type.value}")
-    print(f"[download] matched {len(res.matched_scenes)} scenes, "
-           f"{len(res.allow_patterns)} patterns")
+    print(f"[download] task={res.task} split={res.split} scene_type={res.scene_type.value}")
+    print(
+        f"[download] matched {len(res.matched_scenes)} scenes, {len(res.allow_patterns)} patterns"
+    )
     print(f"[download] local_dir={res.local_dir}")
-    print(f"[download] {res.files_fetched} files on disk "
-           f"({_human_bytes(res.bytes_fetched)})")
+    print(f"[download] {res.files_fetched} files on disk ({_human_bytes(res.bytes_fetched)})")
     return 0
 
 
 # --------------------------------------------------------------------- #
 # Wiring
 # --------------------------------------------------------------------- #
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -375,115 +406,137 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_mock = sub.add_parser("mock", help="Generate a synthetic capture tree.")
-    p_mock.add_argument("--out", required=True,
-                         help="Output root (will be created).")
-    p_mock.add_argument("--multi", type=int, default=3,
-                         help="Number of multi-object scenes (default: 3).")
-    p_mock.add_argument("--single", type=int, default=5,
-                         help="Number of single-object scenes (default: 5).")
-    p_mock.add_argument("--frames", type=int, default=4,
-                         help="Frames per phase (default: 4).")
-    p_mock.add_argument("--size", type=int, default=32,
-                         help="Image edge length in px (default: 32).")
+    p_mock.add_argument("--out", required=True, help="Output root (will be created).")
+    p_mock.add_argument(
+        "--multi", type=int, default=3, help="Number of multi-object scenes (default: 3)."
+    )
+    p_mock.add_argument(
+        "--single", type=int, default=5, help="Number of single-object scenes (default: 5)."
+    )
+    p_mock.add_argument("--frames", type=int, default=4, help="Frames per phase (default: 4).")
+    p_mock.add_argument(
+        "--size", type=int, default=32, help="Image edge length in px (default: 32)."
+    )
     p_mock.set_defaults(func=_cmd_mock)
 
     p_scan = sub.add_parser("scan", help="Inventory an on-disk capture tree.")
     p_scan.add_argument("root", help="Capture-tree root (test_dataset_aggregated/).")
-    p_scan.add_argument("--json", action="store_true",
-                         help="Emit machine-readable JSON instead of a table.")
+    p_scan.add_argument(
+        "--json", action="store_true", help="Emit machine-readable JSON instead of a table."
+    )
     p_scan.set_defaults(func=_cmd_scan)
 
     p_pack = sub.add_parser("pack", help="Pack a capture tree into HF tar shards.")
     p_pack.add_argument("--src", required=True, help="Capture-tree root.")
     p_pack.add_argument("--staging", required=True, help="Staging output dir.")
-    p_pack.add_argument("--label-version", default="v1",
-                         help="Label version tag (default: v1).")
-    p_pack.add_argument("--overwrite", action="store_true",
-                         help="Overwrite existing shards in the staging dir.")
+    p_pack.add_argument("--label-version", default="v1", help="Label version tag (default: v1).")
+    p_pack.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing shards in the staging dir."
+    )
     p_pack.set_defaults(func=_cmd_pack)
 
     p_man = sub.add_parser("manifest", help="Build the per-frame Parquet manifest.")
-    p_man.add_argument("--src", required=True,
-                        help="Capture-tree root (for frame inventory).")
-    p_man.add_argument("--staging", required=True,
-                        help="Packed staging dir (must contain *.tar shards).")
-    p_man.add_argument("--splits", default=None,
-                        help="Optional scene_splits.json path for split labels.")
+    p_man.add_argument("--src", required=True, help="Capture-tree root (for frame inventory).")
+    p_man.add_argument(
+        "--staging", required=True, help="Packed staging dir (must contain *.tar shards)."
+    )
+    p_man.add_argument(
+        "--splits", default=None, help="Optional scene_splits.json path for split labels."
+    )
     p_man.set_defaults(func=_cmd_manifest)
 
     p_up = sub.add_parser("upload", help="Push a staging dir to a HF dataset repo.")
     p_up.add_argument("--staging", required=True, help="Packed staging dir.")
-    p_up.add_argument("--repo-id", default=DEFAULT_REPO_ID,
-                       help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).")
-    p_up.add_argument("--revision", default="main",
-                       help="HF revision/branch (default: main).")
-    p_up.add_argument("--public", action="store_true",
-                       help="Create as public; default is private.")
-    p_up.add_argument("--dry-run", action="store_true",
-                       help="Walk the tree and report; no network call.")
-    p_up.add_argument("--message", default="RPX dataset hub upload",
-                       help="Commit message.")
+    p_up.add_argument(
+        "--repo-id",
+        default=DEFAULT_REPO_ID,
+        help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).",
+    )
+    p_up.add_argument("--revision", default="main", help="HF revision/branch (default: main).")
+    p_up.add_argument("--public", action="store_true", help="Create as public; default is private.")
+    p_up.add_argument(
+        "--dry-run", action="store_true", help="Walk the tree and report; no network call."
+    )
+    p_up.add_argument("--message", default="RPX dataset hub upload", help="Commit message.")
     p_up.set_defaults(func=_cmd_upload)
 
-    p_dl = sub.add_parser("download",
-                            help="Pull just the tar shards a (task, split) needs.")
-    p_dl.add_argument("--task", required=True,
-                       help="Recipe key (e.g. segmentation, relative_pose).")
-    p_dl.add_argument("--split", default=None,
-                       help="easy | medium | hard (multi-object only).")
-    p_dl.add_argument("--repo-id", default=DEFAULT_REPO_ID,
-                       help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).")
-    p_dl.add_argument("--revision", default=None,
-                       help="HF revision/branch/tag (default: main).")
-    p_dl.add_argument("--cache-dir", default=None,
-                       help="HF cache root (default: ~/.cache/huggingface).")
-    p_dl.add_argument("--modalities", default="",
-                       help="Comma-separated extras beyond the recipe defaults.")
-    p_dl.add_argument("--label-version", action="append", default=[],
-                       metavar="KEY=VALUE",
-                       help="Override a label modality version (repeatable).")
+    p_dl = sub.add_parser("download", help="Pull just the tar shards a (task, split) needs.")
+    p_dl.add_argument(
+        "--task", required=True, help="Recipe key (e.g. segmentation, relative_pose)."
+    )
+    p_dl.add_argument("--split", default=None, help="easy | medium | hard (multi-object only).")
+    p_dl.add_argument(
+        "--repo-id",
+        default=DEFAULT_REPO_ID,
+        help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).",
+    )
+    p_dl.add_argument("--revision", default=None, help="HF revision/branch/tag (default: main).")
+    p_dl.add_argument(
+        "--cache-dir", default=None, help="HF cache root (default: ~/.cache/huggingface)."
+    )
+    p_dl.add_argument(
+        "--modalities", default="", help="Comma-separated extras beyond the recipe defaults."
+    )
+    p_dl.add_argument(
+        "--label-version",
+        action="append",
+        default=[],
+        metavar="KEY=VALUE",
+        help="Override a label modality version (repeatable).",
+    )
     p_dl.set_defaults(func=_cmd_download)
 
-    p_st = sub.add_parser("stage-splits",
-                            help="Copy splits/* into a staging dir.")
-    p_st.add_argument("--staging", required=True,
-                       help="Staging dir (the upload target).")
-    p_st.add_argument("--splits-src", default=None,
-                       help="Source dir holding scene_splits.json + tier "
-                            "txts (default: benchmark/data/splits/).")
-    p_st.add_argument("--overwrite", action="store_true",
-                       help="Overwrite existing files in <staging>/splits/.")
-    p_st.add_argument("--allow-missing", action="store_true",
-                       help="Don't raise if some expected splits files are "
-                            "absent in the source dir.")
+    p_st = sub.add_parser("stage-splits", help="Copy splits/* into a staging dir.")
+    p_st.add_argument("--staging", required=True, help="Staging dir (the upload target).")
+    p_st.add_argument(
+        "--splits-src",
+        default=None,
+        help="Source dir holding scene_splits.json + tier txts (default: benchmark/data/splits/).",
+    )
+    p_st.add_argument(
+        "--overwrite", action="store_true", help="Overwrite existing files in <staging>/splits/."
+    )
+    p_st.add_argument(
+        "--allow-missing",
+        action="store_true",
+        help="Don't raise if some expected splits files are absent in the source dir.",
+    )
     p_st.set_defaults(func=_cmd_stage_splits)
 
-    p_dc = sub.add_parser("dataset-card",
-                            help="Generate <staging>/README.md (HF dataset card).")
-    p_dc.add_argument("--src", required=True,
-                       help="Capture-tree root (used for scan totals).")
-    p_dc.add_argument("--staging", required=True,
-                       help="Staging dir; the README lands at <staging>/README.md.")
-    p_dc.add_argument("--repo-id", default=DEFAULT_REPO_ID,
-                       help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).")
-    p_dc.add_argument("--overwrite", action="store_true",
-                       help="Overwrite an existing README.md.")
+    p_dc = sub.add_parser("dataset-card", help="Generate <staging>/README.md (HF dataset card).")
+    p_dc.add_argument("--src", required=True, help="Capture-tree root (used for scan totals).")
+    p_dc.add_argument(
+        "--staging", required=True, help="Staging dir; the README lands at <staging>/README.md."
+    )
+    p_dc.add_argument(
+        "--repo-id",
+        default=DEFAULT_REPO_ID,
+        help=f"HF dataset repo id (default: {DEFAULT_REPO_ID}).",
+    )
+    p_dc.add_argument("--overwrite", action="store_true", help="Overwrite an existing README.md.")
     p_dc.set_defaults(func=_cmd_dataset_card)
 
-    p_cr = sub.add_parser("stage-croissant",
-                            help="Copy + patch the Croissant JSON.")
-    p_cr.add_argument("--staging", required=True,
-                       help="Staging dir; lands at <staging>/rpx_croissant.json.")
-    p_cr.add_argument("--src", default=None,
-                       help="Source JSON path (default: paper-submission/.../rpx_croissant.json).")
-    p_cr.add_argument("--repo-id", default=DEFAULT_REPO_ID,
-                       help=f"HF dataset repo id for url field (default: {DEFAULT_REPO_ID}).")
-    p_cr.add_argument("--version", default="1.0.0",
-                       help="Dataset version string (default: 1.0.0).")
-    p_cr.add_argument("--cite-as", default=None,
-                       help="Replace the citeAs field (e.g. a bibtex string).")
-    p_cr.add_argument("--overwrite", action="store_true",
-                       help="Overwrite an existing rpx_croissant.json.")
+    p_cr = sub.add_parser("stage-croissant", help="Copy + patch the Croissant JSON.")
+    p_cr.add_argument(
+        "--staging", required=True, help="Staging dir; lands at <staging>/rpx_croissant.json."
+    )
+    p_cr.add_argument(
+        "--src",
+        default=None,
+        help="Source JSON path (default: paper-submission/.../rpx_croissant.json).",
+    )
+    p_cr.add_argument(
+        "--repo-id",
+        default=DEFAULT_REPO_ID,
+        help=f"HF dataset repo id for url field (default: {DEFAULT_REPO_ID}).",
+    )
+    p_cr.add_argument("--version", default="1.0.0", help="Dataset version string (default: 1.0.0).")
+    p_cr.add_argument(
+        "--cite-as", default=None, help="Replace the citeAs field (e.g. a bibtex string)."
+    )
+    p_cr.add_argument(
+        "--overwrite", action="store_true", help="Overwrite an existing rpx_croissant.json."
+    )
     p_cr.set_defaults(func=_cmd_stage_croissant)
 
     return parser

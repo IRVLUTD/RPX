@@ -23,12 +23,12 @@ from typing import Any, Dict, List, Sequence, Tuple
 
 import numpy as np
 
-from .api import Difficulty, ESD_WEIGHTS, Phase
-
+from .api import ESD_WEIGHTS, Difficulty, Phase
 
 # ------------------------------------------------------------------ #
 # Result dataclasses
 # ------------------------------------------------------------------ #
+
 
 @dataclass
 class TemporalStabilityResult:
@@ -41,8 +41,9 @@ class TemporalStabilityResult:
     When exact warping is not feasible, a consistency proxy (unchanged-pixel
     fraction) is used as a lower bound.
     """
-    ts_score: float                        # primary TS value (higher = more stable)
-    num_pairs: int                         # number of consecutive frame pairs evaluated
+
+    ts_score: float  # primary TS value (higher = more stable)
+    num_pairs: int  # number of consecutive frame pairs evaluated
     per_pair: List[float] = field(default_factory=list)
 
 
@@ -53,8 +54,9 @@ class StateTransitionRobustnessResult:
     STR_{C→I} = M(interaction) − M(clutter)    ← interaction drop (negative = worse)
     STR_{I→L} = M(clean)       − M(interaction) ← recovery        (positive = better)
     """
-    str_c_to_i: float   # interaction drop Δ = M_I − M_C
-    str_i_to_l: float   # recovery          Δ = M_L − M_I
+
+    str_c_to_i: float  # interaction drop Δ = M_I − M_C
+    str_i_to_l: float  # recovery          Δ = M_L − M_I
     metric_clutter: float
     metric_interaction: float
     metric_clean: float
@@ -67,7 +69,8 @@ class StackGeometricCoherenceResult:
     SGC = F-score(boundary(mask), boundary(depth_gradient > τ))
     Boundary pixels are extracted via Sobel gradient magnitude thresholding.
     """
-    sgc_score: float          # F-score of mask/depth boundary overlap
+
+    sgc_score: float  # F-score of mask/depth boundary overlap
     precision: float
     recall: float
     num_samples: int
@@ -76,10 +79,11 @@ class StackGeometricCoherenceResult:
 @dataclass
 class ESDResult:
     """Per-difficulty metric breakdown (Effort-Stratified Difficulty)."""
+
     easy: float | None
     medium: float | None
     hard: float | None
-    metric_key: str           # which metric was stratified (e.g. "absrel", "miou")
+    metric_key: str  # which metric was stratified (e.g. "absrel", "miou")
 
     def weighted_score(self) -> float:
         """S_p = 0.25·Easy + 0.35·Medium + 0.40·Hard."""
@@ -101,6 +105,7 @@ class WeightedPhaseScore:
     Delta int:  Δ_int = S_I − S_C
     Delta rec:  Δ_rec = S_L − S_I
     """
+
     clutter: ESDResult
     interaction: ESDResult
     clean: ESDResult
@@ -156,12 +161,12 @@ class EmbodiedReadinessScore:
     re-normalised.
     """
 
-    score: float                                # composite ERS in [0, 1]
-    accuracy: float                             # task accuracy in [0, 1]
-    robustness: float | None = None             # TS + STR mean in [0, 1]
-    latency: float | None = None                # 1 − p50_lat / budget, clipped
-    memory: float | None = None                 # 1 − peak_mem / budget, clipped
-    compute: float | None = None                # 1 − flops / budget, clipped
+    score: float  # composite ERS in [0, 1]
+    accuracy: float  # task accuracy in [0, 1]
+    robustness: float | None = None  # TS + STR mean in [0, 1]
+    latency: float | None = None  # 1 − p50_lat / budget, clipped
+    memory: float | None = None  # 1 − peak_mem / budget, clipped
+    compute: float | None = None  # 1 − flops / budget, clipped
     weights: Dict[str, float] = field(default_factory=dict)
     budgets: Dict[str, float] = field(default_factory=dict)
 
@@ -180,11 +185,11 @@ class EmbodiedReadinessScore:
 
 #: Default weights for :func:`compute_embodied_readiness`. Sum to 1.0.
 DEFAULT_ERS_WEIGHTS: Dict[str, float] = {
-    "accuracy":   0.40,
+    "accuracy": 0.40,
     "robustness": 0.20,
-    "latency":    0.20,
-    "memory":     0.10,
-    "compute":    0.10,
+    "latency": 0.20,
+    "memory": 0.10,
+    "compute": 0.10,
 }
 
 #: Default embodied-robot budgets — tune for your platform.
@@ -193,15 +198,16 @@ DEFAULT_ERS_WEIGHTS: Dict[str, float] = {
 #: - ``memory_mb``: 8 GB — roughly an Orin-class SoM or a laptop GPU.
 #: - ``flops_g``:   500 GFLOPs — order-of-magnitude edge-inference budget.
 DEFAULT_ERS_BUDGETS: Dict[str, float] = {
-    "latency_ms":  100.0,
-    "memory_mb":  8000.0,
-    "flops_g":     500.0,
+    "latency_ms": 100.0,
+    "memory_mb": 8000.0,
+    "flops_g": 500.0,
 }
 
 
 @dataclass
 class DeploymentReadinessReport:
     """Aggregated deployment-readiness report for a model on a task."""
+
     task: str
     model_name: str
     weighted_phase_score: WeightedPhaseScore | None = None
@@ -210,20 +216,20 @@ class DeploymentReadinessReport:
     geometric_coherence: StackGeometricCoherenceResult | None = None
 
     # --- Tier 1: hardware-agnostic model properties -----------------------
-    params_m: float | None = None                # parameter count in millions
-    flops_g: float | None = None                 # FLOPs in giga-ops (batch=1)
-    macs_g: float | None = None                  # MACs (= FLOPs / 2)
-    actmem_gb_fp16: float | None = None          # optional activation memory at FP16
-    memory_traffic_gb: float | None = None       # estimated DRAM traffic (GB)
-    arithmetic_intensity: float | None = None    # FLOPs / Bytes (FLOP/Byte)
+    params_m: float | None = None  # parameter count in millions
+    flops_g: float | None = None  # FLOPs in giga-ops (batch=1)
+    macs_g: float | None = None  # MACs (= FLOPs / 2)
+    actmem_gb_fp16: float | None = None  # optional activation memory at FP16
+    memory_traffic_gb: float | None = None  # estimated DRAM traffic (GB)
+    arithmetic_intensity: float | None = None  # FLOPs / Bytes (FLOP/Byte)
 
     # --- Tier 2: roofline bounds ------------------------------------------
-    roofline: Dict | None = None                 # {gpu_name: RooflineBound.to_dict()}
+    roofline: Dict | None = None  # {gpu_name: RooflineBound.to_dict()}
 
     # --- Tier 3: measured (hardware-specific) ------------------------------
-    latency_ms_per_sample: float | None = None   # wall-clock inference latency (p50)
-    peak_memory_mb: float | None = None          # peak resident memory (device-agnostic)
-    system_card: Dict | None = None              # SystemCard.to_dict()
+    latency_ms_per_sample: float | None = None  # wall-clock inference latency (p50)
+    peak_memory_mb: float | None = None  # peak resident memory (device-agnostic)
+    system_card: Dict | None = None  # SystemCard.to_dict()
 
     # --- Composite --------------------------------------------------------
     embodied_readiness: EmbodiedReadinessScore | None = None
@@ -354,26 +360,25 @@ def compute_embodied_readiness(
         robustness = None
 
     latency = _budget_component(report.latency_ms_per_sample, b["latency_ms"])
-    memory  = _budget_component(report.peak_memory_mb,        b["memory_mb"])
-    compute = _budget_component(report.flops_g,               b["flops_g"])
+    memory = _budget_component(report.peak_memory_mb, b["memory_mb"])
+    compute = _budget_component(report.flops_g, b["flops_g"])
 
     components: Dict[str, float | None] = {
-        "accuracy":   accuracy,
+        "accuracy": accuracy,
         "robustness": robustness,
-        "latency":    latency,
-        "memory":     memory,
-        "compute":    compute,
+        "latency": latency,
+        "memory": memory,
+        "compute": compute,
     }
     active = {k: v for k, v in components.items() if v is not None}
     if not active:
         from .exceptions import MetricError  # noqa: PLC0415 — lazy to avoid cycle
 
         raise MetricError(
-            "Embodied Readiness Score has no active components — the "
-            "deployment report is empty.",
+            "Embodied Readiness Score has no active components — the deployment report is empty.",
             hint="Run `BenchmarkRunner.run_with_deployment_readiness` "
-                 "to populate accuracy / robustness / efficiency fields "
-                 "before calling compute_embodied_readiness.",
+            "to populate accuracy / robustness / efficiency fields "
+            "before calling compute_embodied_readiness.",
         )
 
     total_weight = sum(w[k] for k in active)
@@ -395,6 +400,7 @@ def compute_embodied_readiness(
 # Metric computation functions
 # ------------------------------------------------------------------ #
 
+
 def compute_esd(
     per_sample_metrics: List[Dict[str, float]],
     per_sample_difficulties: List[Difficulty | None],
@@ -412,7 +418,7 @@ def compute_esd(
     """
     buckets: Dict[Difficulty, List[float]] = {d: [] for d in Difficulty}
 
-    for metrics, diff in zip(per_sample_metrics, per_sample_difficulties):
+    for metrics, diff in zip(per_sample_metrics, per_sample_difficulties, strict=False):
         if diff is None or metric_key not in metrics:
             continue
         buckets[diff].append(metrics[metric_key])
@@ -440,11 +446,11 @@ def compute_weighted_phase_score(
         S_p = 0.25·M(p,Easy) + 0.35·M(p,Medium) + 0.40·M(p,Hard)
     for each phase, then overall score and transition deltas.
     """
-    phase_sample_metrics: Dict[Phase, Tuple[List, List]] = {
-        p: ([], []) for p in Phase
-    }
+    phase_sample_metrics: Dict[Phase, Tuple[List, List]] = {p: ([], []) for p in Phase}
 
-    for m, ph, diff in zip(per_sample_metrics, per_sample_phases, per_sample_difficulties):
+    for m, ph, diff in zip(
+        per_sample_metrics, per_sample_phases, per_sample_difficulties, strict=False
+    ):
         if ph is None:
             continue
         phase_sample_metrics[ph][0].append(m)
@@ -594,16 +600,19 @@ def compute_sgc(
         boundary_dilation: pixel tolerance for boundary matching.
     """
     if len(pred_masks) == 0:
-        return StackGeometricCoherenceResult(sgc_score=0.0, precision=0.0, recall=0.0, num_samples=0)
+        return StackGeometricCoherenceResult(
+            sgc_score=0.0, precision=0.0, recall=0.0, num_samples=0
+        )
 
     precisions, recalls = [], []
-    for mask, depth in zip(pred_masks, pred_depths):
+    for mask, depth in zip(pred_masks, pred_depths, strict=False):
         mask = np.asarray(mask, dtype=np.int32)
         depth = np.asarray(depth, dtype=np.float32)
 
         mask_boundary = _extract_boundary(mask, dilation=boundary_dilation)
-        depth_boundary = _extract_depth_boundary(depth, threshold=depth_gradient_threshold,
-                                                 dilation=boundary_dilation)
+        depth_boundary = _extract_depth_boundary(
+            depth, threshold=depth_gradient_threshold, dilation=boundary_dilation
+        )
 
         tp = float((mask_boundary & depth_boundary).sum())
         fp = float((mask_boundary & ~depth_boundary).sum())
@@ -630,6 +639,7 @@ def compute_sgc(
 # Internal helpers
 # ------------------------------------------------------------------ #
 
+
 def _extract_boundary(mask: np.ndarray, dilation: int = 2) -> np.ndarray:
     """Boolean boundary map from a semantic mask using finite differences."""
     boundary = np.zeros_like(mask, dtype=bool)
@@ -640,14 +650,13 @@ def _extract_boundary(mask: np.ndarray, dilation: int = 2) -> np.ndarray:
     return boundary
 
 
-def _extract_depth_boundary(depth: np.ndarray, threshold: float,
-                            dilation: int = 2) -> np.ndarray:
+def _extract_depth_boundary(depth: np.ndarray, threshold: float, dilation: int = 2) -> np.ndarray:
     """Boolean boundary map from depth via Sobel gradient magnitude."""
     gy = np.zeros_like(depth)
     gx = np.zeros_like(depth)
     gy[1:-1, :] = (depth[2:, :] - depth[:-2, :]) / 2.0
     gx[:, 1:-1] = (depth[:, 2:] - depth[:, :-2]) / 2.0
-    grad_mag = np.sqrt(gx ** 2 + gy ** 2)
+    grad_mag = np.sqrt(gx**2 + gy**2)
     boundary = grad_mag > threshold
     if dilation > 0:
         boundary = _binary_dilate(boundary, dilation)
@@ -686,6 +695,7 @@ def _warp_mask_approx(
     """
     try:
         import cv2
+
         T_rel = _relative_pose(pose_t, pose_t1)
         R_rel = T_rel[:3, :3]
         angle_rad = float(np.arctan2(R_rel[1, 0], R_rel[0, 0]))
@@ -693,7 +703,9 @@ def _warp_mask_approx(
         cx, cy = w / 2.0, h / 2.0
         M = cv2.getRotationMatrix2D((cx, cy), float(np.degrees(angle_rad)), 1.0)
         warped = cv2.warpAffine(
-            mask.astype(np.float32), M, (w, h),
+            mask.astype(np.float32),
+            M,
+            (w, h),
             flags=cv2.INTER_NEAREST,
             borderValue=-1,
         ).astype(np.int32)
@@ -706,6 +718,7 @@ def _warp_mask_approx(
 # Platform-Independent Deployment Readiness Score (DRS)
 # ================================================================== #
 
+
 @dataclass
 class OperatingPoint:
     """One (precision, accuracy, cost) measurement for a model.
@@ -714,13 +727,13 @@ class OperatingPoint:
     The DRS selects the best one.
     """
 
-    precision: str                  # "fp32", "fp16", "bf16"
+    precision: str  # "fp32", "fp16", "bf16"
     # Task performance (primary metric — δ1, mIoU, accuracy, etc.)
     task_metric: float
-    task_metric_name: str           # e.g. "delta1", "miou"
+    task_metric_name: str  # e.g. "delta1", "miou"
     higher_is_better: bool
     # Robustness
-    str_score: float                # STR value (near 0 = robust)
+    str_score: float  # STR value (near 0 = robust)
     # Hardware-agnostic cost (Tier 1)
     flops_g: float
     params_m: float
@@ -853,7 +866,10 @@ def compute_drs(
         return DeploymentReadinessResult(
             operating_points=[],
             best_op=None,
-            tp=0.0, r=0.0, e=0.0, drs=0.0,
+            tp=0.0,
+            r=0.0,
+            e=0.0,
+            drs=0.0,
             f_median_g=f_median_g,
         )
 
@@ -931,6 +947,7 @@ def _warp_depth_approx(
     """Approximate depth warp (same in-plane rotation proxy as mask warp)."""
     try:
         import cv2
+
         T_rel = _relative_pose(pose_t, pose_t1)
         R_rel = T_rel[:3, :3]
         angle_rad = float(np.arctan2(R_rel[1, 0], R_rel[0, 0]))
@@ -938,7 +955,9 @@ def _warp_depth_approx(
         cx, cy = w / 2.0, h / 2.0
         M = cv2.getRotationMatrix2D((cx, cy), float(np.degrees(angle_rad)), 1.0)
         warped = cv2.warpAffine(
-            depth, M, (w, h),
+            depth,
+            M,
+            (w, h),
             flags=cv2.INTER_LINEAR,
             borderValue=0.0,
         )

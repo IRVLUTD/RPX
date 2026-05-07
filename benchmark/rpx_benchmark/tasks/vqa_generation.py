@@ -22,14 +22,9 @@ Evaluation: MCQ accuracy. Per-phase breakdown → feeds STR.
 from __future__ import annotations
 
 import hashlib
-import json
 import random
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
-import numpy as np
-
+from typing import Dict, List, Tuple
 
 # ── Question templates ──────────────────────────────────────────────────────
 # Each template maps to a robot operation. Multiple phrasings per type
@@ -73,14 +68,15 @@ SPATIAL_DIRECTIONS = ["left", "right", "above", "below"]
 @dataclass
 class QAPair:
     """One question-answer pair with MCQ options."""
+
     scene_id: str
     phase: int
     frame_id: str
-    question_type: str          # existence | attribute | count | spatial
+    question_type: str  # existence | attribute | count | spatial
     question: str
     correct_answer: str
-    options: List[str]          # 4 options, correct answer included, shuffled
-    correct_index: int          # index of correct answer in options
+    options: List[str]  # 4 options, correct answer included, shuffled
+    correct_index: int  # index of correct answer in options
     metadata: Dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
@@ -118,10 +114,13 @@ def _pick_template(templates: list, seed: int) -> str:
 
 # ── Generators ──────────────────────────────────────────────────────────────
 
+
 def generate_existence_questions(
     visible_objects: List[Dict],  # [{"category": "mug", "color": "red", ...}, ...]
     all_objects_in_dataset: List[Dict],  # for generating "no" distractors
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[QAPair]:
     """Generate balanced existence questions: 50% yes, 50% no.
 
@@ -140,29 +139,44 @@ def generate_existence_questions(
         seed = _deterministic_seed(scene_id, phase, frame_id, f"exist_yes_{obj['category']}")
         q = _pick_template(EXISTENCE_TEMPLATES, seed).format(attr=attr, category=obj["category"])
         opts, idx = _shuffle_options("yes", ["no", "not sure", "partially visible"], seed)
-        pairs.append(QAPair(
-            scene_id=scene_id, phase=phase, frame_id=frame_id,
-            question_type="existence", question=q,
-            correct_answer="yes", options=opts, correct_index=idx,
-            metadata={"object": obj["category"], "expected": True},
-        ))
+        pairs.append(
+            QAPair(
+                scene_id=scene_id,
+                phase=phase,
+                frame_id=frame_id,
+                question_type="existence",
+                question=q,
+                correct_answer="yes",
+                options=opts,
+                correct_index=idx,
+                metadata={"object": obj["category"], "expected": True},
+            )
+        )
 
     # No questions — ask about objects absent from this frame
-    absent = [o for o in all_objects_in_dataset
-              if (o["category"], o.get("color", "")) not in visible_set]
-    for obj in absent[:len(pairs)]:  # match count for 50/50 balance
+    absent = [
+        o for o in all_objects_in_dataset if (o["category"], o.get("color", "")) not in visible_set
+    ]
+    for obj in absent[: len(pairs)]:  # match count for 50/50 balance
         attr = obj.get("color", obj.get("material", ""))
         if not attr:
             continue
         seed = _deterministic_seed(scene_id, phase, frame_id, f"exist_no_{obj['category']}")
         q = _pick_template(EXISTENCE_TEMPLATES, seed).format(attr=attr, category=obj["category"])
         opts, idx = _shuffle_options("no", ["yes", "not sure", "partially visible"], seed)
-        pairs.append(QAPair(
-            scene_id=scene_id, phase=phase, frame_id=frame_id,
-            question_type="existence", question=q,
-            correct_answer="no", options=opts, correct_index=idx,
-            metadata={"object": obj["category"], "expected": False},
-        ))
+        pairs.append(
+            QAPair(
+                scene_id=scene_id,
+                phase=phase,
+                frame_id=frame_id,
+                question_type="existence",
+                question=q,
+                correct_answer="no",
+                options=opts,
+                correct_index=idx,
+                metadata={"object": obj["category"], "expected": False},
+            )
+        )
 
     return pairs
 
@@ -170,7 +184,9 @@ def generate_existence_questions(
 def generate_attribute_questions(
     visible_objects: List[Dict],
     all_objects_in_dataset: List[Dict],  # for distractors
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[QAPair]:
     """Generate attribute questions with distractors from real objects."""
     pairs = []
@@ -192,25 +208,35 @@ def generate_attribute_questions(
             if len(pool) < 3:
                 continue
 
-            seed = _deterministic_seed(scene_id, phase, frame_id,
-                                       f"attr_{attr_type}_{obj['category']}")
+            seed = _deterministic_seed(
+                scene_id, phase, frame_id, f"attr_{attr_type}_{obj['category']}"
+            )
             rng = random.Random(seed)
             distractors = rng.sample(pool, 3)
             q = _pick_template(templates, seed).format(category=obj["category"])
             opts, idx = _shuffle_options(gt_val, distractors, seed)
-            pairs.append(QAPair(
-                scene_id=scene_id, phase=phase, frame_id=frame_id,
-                question_type="attribute", question=q,
-                correct_answer=gt_val, options=opts, correct_index=idx,
-                metadata={"object": obj["category"], "attribute": attr_type},
-            ))
+            pairs.append(
+                QAPair(
+                    scene_id=scene_id,
+                    phase=phase,
+                    frame_id=frame_id,
+                    question_type="attribute",
+                    question=q,
+                    correct_answer=gt_val,
+                    options=opts,
+                    correct_index=idx,
+                    metadata={"object": obj["category"], "attribute": attr_type},
+                )
+            )
 
     return pairs
 
 
 def generate_count_questions(
     visible_objects: List[Dict],
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[QAPair]:
     """Generate counting questions. GT from mask instance count."""
     pairs = []
@@ -231,19 +257,28 @@ def generate_count_questions(
         if len(distractors) < 3:
             continue
         opts, idx = _shuffle_options(gt, distractors, seed)
-        pairs.append(QAPair(
-            scene_id=scene_id, phase=phase, frame_id=frame_id,
-            question_type="count", question=q,
-            correct_answer=gt, options=opts, correct_index=idx,
-            metadata={"category": cat, "count": count},
-        ))
+        pairs.append(
+            QAPair(
+                scene_id=scene_id,
+                phase=phase,
+                frame_id=frame_id,
+                question_type="count",
+                question=q,
+                correct_answer=gt,
+                options=opts,
+                correct_index=idx,
+                metadata={"category": cat, "count": count},
+            )
+        )
 
     return pairs
 
 
 def generate_spatial_questions(
     visible_objects: List[Dict],  # must include "bbox_cx", "bbox_cy"
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[QAPair]:
     """Generate spatial questions. Relations defined in image plane.
 
@@ -265,7 +300,9 @@ def generate_spatial_questions(
             best = None
             best_dist = float("inf")
             for other in visible_objects:
-                if other["category"] == ref_obj["category"] and other.get("instance_id") == ref_obj.get("instance_id"):
+                if other["category"] == ref_obj["category"] and other.get(
+                    "instance_id"
+                ) == ref_obj.get("instance_id"):
                     continue
                 ox, oy = other.get("bbox_cx"), other.get("bbox_cy")
                 if ox is None or oy is None:
@@ -289,15 +326,20 @@ def generate_spatial_questions(
             if best is None:
                 continue
 
-            seed = _deterministic_seed(scene_id, phase, frame_id,
-                                       f"spatial_{direction}_{ref_obj['category']}")
+            seed = _deterministic_seed(
+                scene_id, phase, frame_id, f"spatial_{direction}_{ref_obj['category']}"
+            )
             q = _pick_template(SPATIAL_TEMPLATES, seed).format(
-                direction=direction, object=ref_obj["category"])
+                direction=direction, object=ref_obj["category"]
+            )
             gt = best["category"]
 
             # Distractors: other visible objects
-            others = [o["category"] for o in visible_objects
-                      if o["category"] != gt and o["category"] != ref_obj["category"]]
+            others = [
+                o["category"]
+                for o in visible_objects
+                if o["category"] != gt and o["category"] != ref_obj["category"]
+            ]
             others = list(set(others))
             if len(others) < 2:
                 others += ["nothing", "unknown"]
@@ -307,19 +349,30 @@ def generate_spatial_questions(
                 distractors.append("nothing")
             opts, idx = _shuffle_options(gt, distractors[:3], seed)
 
-            pairs.append(QAPair(
-                scene_id=scene_id, phase=phase, frame_id=frame_id,
-                question_type="spatial", question=q,
-                correct_answer=gt, options=opts, correct_index=idx,
-                metadata={"reference": ref_obj["category"], "direction": direction,
-                          "target": best["category"]},
-            ))
+            pairs.append(
+                QAPair(
+                    scene_id=scene_id,
+                    phase=phase,
+                    frame_id=frame_id,
+                    question_type="spatial",
+                    question=q,
+                    correct_answer=gt,
+                    options=opts,
+                    correct_index=idx,
+                    metadata={
+                        "reference": ref_obj["category"],
+                        "direction": direction,
+                        "target": best["category"],
+                    },
+                )
+            )
             break  # one spatial question per reference object per direction
 
     return pairs
 
 
 # ── Evaluation ──────────────────────────────────────────────────────────────
+
 
 def evaluate_mcq(predictions: List[int], ground_truth: List[QAPair]) -> Dict:
     """Evaluate MCQ predictions. Returns accuracy overall and per type/phase.
@@ -337,8 +390,8 @@ def evaluate_mcq(predictions: List[int], ground_truth: List[QAPair]) -> Dict:
     by_type: Dict[str, List[bool]] = {}
     by_phase: Dict[int, List[bool]] = {}
 
-    for pred, qa in zip(predictions, ground_truth):
-        hit = (pred == qa.correct_index)
+    for pred, qa in zip(predictions, ground_truth, strict=False):
+        hit = pred == qa.correct_index
         correct += hit
 
         by_type.setdefault(qa.question_type, []).append(hit)

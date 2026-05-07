@@ -26,10 +26,15 @@ from rpx_benchmark.exceptions import ConfigError
 
 @pytest.fixture
 def staging(tmp_path: Path) -> Path:
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=1, single_object_scenes=1,
-        phases_per_multi=1, frames_per_phase=2,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=1,
+            single_object_scenes=1,
+            phases_per_multi=1,
+            frames_per_phase=2,
+        ),
+    )
     out = tmp_path / "stage"
     scan = scan_capture_root(src)
     pack_capture_tree(PackPlan(src_root=src, staging_root=out), scan)
@@ -37,8 +42,9 @@ def staging(tmp_path: Path) -> Path:
 
 
 def test_dry_run_returns_file_count_without_network(staging: Path):
-    plan = UploadPlan(staging_root=staging, repo_id="acme/RPX",
-                       dry_run=True, create_if_missing=False)
+    plan = UploadPlan(
+        staging_root=staging, repo_id="acme/RPX", dry_run=True, create_if_missing=False
+    )
     res = upload_staging(plan)
     assert res.repo_id == "acme/RPX"
     assert res.files_planned > 0
@@ -52,8 +58,10 @@ def test_dry_run_respects_ignore_patterns(staging: Path):
     (staging / "scratch.tmp").write_bytes(b"also junk")
 
     plan = UploadPlan(
-        staging_root=staging, repo_id="acme/RPX",
-        dry_run=True, create_if_missing=False,
+        staging_root=staging,
+        repo_id="acme/RPX",
+        dry_run=True,
+        create_if_missing=False,
         ignore_patterns=DEFAULT_IGNORE_PATTERNS,
     )
     res = upload_staging(plan)
@@ -64,8 +72,9 @@ def test_dry_run_respects_ignore_patterns(staging: Path):
 
 
 def test_missing_staging_dir_raises_config_error(tmp_path: Path):
-    plan = UploadPlan(staging_root=tmp_path / "nope", repo_id="acme/RPX",
-                       dry_run=True, create_if_missing=False)
+    plan = UploadPlan(
+        staging_root=tmp_path / "nope", repo_id="acme/RPX", dry_run=True, create_if_missing=False
+    )
     with pytest.raises(ConfigError, match="staging dir does not exist"):
         upload_staging(plan)
 
@@ -82,9 +91,13 @@ def test_real_upload_calls_huggingface_api(staging: Path, monkeypatch):
     fake_module.HfApi = MagicMock(return_value=fake_api)
     monkeypatch.setattr(uploader, "_hub", lambda: fake_module)
 
-    plan = UploadPlan(staging_root=staging, repo_id="acme/RPX",
-                       dry_run=False, create_if_missing=True,
-                       use_large_folder=True)
+    plan = UploadPlan(
+        staging_root=staging,
+        repo_id="acme/RPX",
+        dry_run=False,
+        create_if_missing=True,
+        use_large_folder=True,
+    )
     res = upload_staging(plan)
 
     assert res.repo_id == "acme/RPX"
@@ -96,7 +109,8 @@ def test_real_upload_calls_huggingface_api(staging: Path, monkeypatch):
 
 
 def test_falls_back_to_upload_folder_when_large_folder_unavailable(
-    staging: Path, monkeypatch,
+    staging: Path,
+    monkeypatch,
 ):
     """Older huggingface_hub versions without upload_large_folder."""
     from rpx_benchmark.dataset_hub import uploader
@@ -109,8 +123,9 @@ def test_falls_back_to_upload_folder_when_large_folder_unavailable(
     fake_module.HfApi = MagicMock(return_value=fake_api)
     monkeypatch.setattr(uploader, "_hub", lambda: fake_module)
 
-    plan = UploadPlan(staging_root=staging, repo_id="acme/RPX",
-                       dry_run=False, use_large_folder=True)
+    plan = UploadPlan(
+        staging_root=staging, repo_id="acme/RPX", dry_run=False, use_large_folder=True
+    )
     res = upload_staging(plan)
     fake_api.upload_folder.assert_called_once()
     assert res.commit_url == "https://example/c"

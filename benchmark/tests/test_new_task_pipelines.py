@@ -22,10 +22,10 @@ from rpx_benchmark.api import TaskType
 from rpx_benchmark.evaluators import MetricSuite
 from rpx_benchmark.runner import BenchmarkRunner
 
-
 # --------------------------------------------------------------------------- #
 # Helpers — tiny synthetic datasets per task
 # --------------------------------------------------------------------------- #
+
 
 def _write_rgb(path: Path, h: int = 20, w: int = 30, value: int = 128) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -43,9 +43,15 @@ def _write_pose(path: Path, x: float = 0.0) -> None:
 
 def _manifest(tmp_path: Path, task: str, samples: List[Dict[str, Any]]) -> Path:
     mf = tmp_path / "manifest.json"
-    mf.write_text(json.dumps({
-        "task": task, "root": str(tmp_path), "samples": samples,
-    }))
+    mf.write_text(
+        json.dumps(
+            {
+                "task": task,
+                "root": str(tmp_path),
+                "samples": samples,
+            }
+        )
+    )
     return mf
 
 
@@ -53,23 +59,31 @@ def _manifest(tmp_path: Path, task: str, samples: List[Dict[str, Any]]) -> Path:
 # Object detection
 # --------------------------------------------------------------------------- #
 
+
 def _det_dataset(tmp_path: Path) -> rpx.RPXDataset:
     _write_rgb(tmp_path / "rgb" / "0.png")
     # GT box JSON referenced by the manifest
     boxes_file = tmp_path / "boxes.json"
-    boxes_file.write_text(json.dumps([
-        {"bbox": [5, 5, 15, 15], "label": "cup"},
-        {"bbox": [20, 10, 28, 18], "label": "bowl"},
-    ]))
+    boxes_file.write_text(
+        json.dumps(
+            [
+                {"bbox": [5, 5, 15, 15], "label": "cup"},
+                {"bbox": [20, 10, 28, 18], "label": "bowl"},
+            ]
+        )
+    )
     manifest = _manifest(
-        tmp_path, "object_detection",
-        [{
-            "id": "t",
-            "rgb": "rgb/0.png",
-            "boxes": "boxes.json",
-            "phase": "clutter",
-            "difficulty": "hard",
-        }],
+        tmp_path,
+        "object_detection",
+        [
+            {
+                "id": "t",
+                "rgb": "rgb/0.png",
+                "boxes": "boxes.json",
+                "phase": "clutter",
+                "difficulty": "hard",
+            }
+        ],
     )
     return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
@@ -84,9 +98,7 @@ def test_detection_pipeline_end_to_end(tmp_path):
 
     bm = rpx.make_numpy_detection_model(perfect_det)
     ds = _det_dataset(tmp_path)
-    runner = BenchmarkRunner(
-        bm, ds, MetricSuite.for_task(TaskType.OBJECT_DETECTION)
-    )
+    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.OBJECT_DETECTION))
     result, dr = runner.run_with_deployment_readiness(
         primary_metric="f1",
         model_name="perfect_det",
@@ -105,6 +117,7 @@ def test_detection_tuple_return_shape(tmp_path):
             np.array([0.9], dtype=np.float32),
             ["cup"],
         )
+
     bm = rpx.make_numpy_detection_model(tuple_det)
     ds = _det_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.OBJECT_DETECTION))
@@ -123,18 +136,22 @@ def test_detection_tuple_return_shape(tmp_path):
 # Visual grounding
 # --------------------------------------------------------------------------- #
 
+
 def _grounding_dataset(tmp_path: Path) -> rpx.RPXDataset:
     _write_rgb(tmp_path / "rgb" / "0.png")
     manifest = _manifest(
-        tmp_path, "visual_grounding",
-        [{
-            "id": "g0",
-            "rgb": "rgb/0.png",
-            "text": "the red cup",
-            "boxes": [[10, 10, 20, 20]],
-            "phase": "clutter",
-            "difficulty": "hard",
-        }],
+        tmp_path,
+        "visual_grounding",
+        [
+            {
+                "id": "g0",
+                "rgb": "rgb/0.png",
+                "text": "the red cup",
+                "boxes": [[10, 10, 20, 20]],
+                "phase": "clutter",
+                "difficulty": "hard",
+            }
+        ],
     )
     return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
@@ -149,9 +166,7 @@ def test_grounding_pipeline_end_to_end(tmp_path):
 
     bm = rpx.make_numpy_grounding_model(perfect)
     ds = _grounding_dataset(tmp_path)
-    runner = BenchmarkRunner(
-        bm, ds, MetricSuite.for_task(TaskType.VISUAL_GROUNDING)
-    )
+    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.VISUAL_GROUNDING))
     result, _ = runner.run_with_deployment_readiness(
         primary_metric="grounding_acc",
         model_name="g",
@@ -166,22 +181,26 @@ def test_grounding_pipeline_end_to_end(tmp_path):
 # Relative camera pose
 # --------------------------------------------------------------------------- #
 
+
 def _pose_dataset(tmp_path: Path) -> rpx.RPXDataset:
     _write_rgb(tmp_path / "rgb" / "a.png")
     _write_rgb(tmp_path / "rgb" / "b.png")
     _write_pose(tmp_path / "pose" / "a.npz", x=0.0)
     _write_pose(tmp_path / "pose" / "b.npz", x=0.5)
     manifest = _manifest(
-        tmp_path, "relative_camera_pose",
-        [{
-            "id": "pair",
-            "rgb": "rgb/a.png",
-            "rgb_b": "rgb/b.png",
-            "pose_a": "pose/a.npz",
-            "pose_b": "pose/b.npz",
-            "phase": "clutter",
-            "difficulty": "hard",
-        }],
+        tmp_path,
+        "relative_camera_pose",
+        [
+            {
+                "id": "pair",
+                "rgb": "rgb/a.png",
+                "rgb_b": "rgb/b.png",
+                "pose_a": "pose/a.npz",
+                "pose_b": "pose/b.npz",
+                "phase": "clutter",
+                "difficulty": "hard",
+            }
+        ],
     )
     return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
@@ -192,9 +211,7 @@ def test_pose_pipeline_end_to_end(tmp_path):
 
     bm = rpx.make_numpy_pose_model(perfect_pose)
     ds = _pose_dataset(tmp_path)
-    runner = BenchmarkRunner(
-        bm, ds, MetricSuite.for_task(TaskType.RELATIVE_CAMERA_POSE)
-    )
+    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.RELATIVE_CAMERA_POSE))
     result, _ = runner.run_with_deployment_readiness(
         primary_metric="rotation_error_deg",
         model_name="p",
@@ -212,19 +229,21 @@ def test_pose_numpy_adapter_rejects_missing_rgb_b(tmp_path):
     # Manifest without rgb_b — the loader's NPZ pair still produces a GT,
     # but the numpy adapter should complain.
     manifest = _manifest(
-        tmp_path, "relative_camera_pose",
-        [{
-            "id": "pair",
-            "rgb": "rgb/a.png",
-            "pose_a": "pose/a.npz",
-            "pose_b": "pose/b.npz",
-        }],
+        tmp_path,
+        "relative_camera_pose",
+        [
+            {
+                "id": "pair",
+                "rgb": "rgb/a.png",
+                "pose_a": "pose/a.npz",
+                "pose_b": "pose/b.npz",
+            }
+        ],
     )
     ds = rpx.RPXDataset.from_manifest(manifest, batch_size=1)
-    bm = rpx.make_numpy_pose_model(
-        lambda a, b: {"rotation": np.eye(3), "translation": np.zeros(3)}
-    )
+    bm = rpx.make_numpy_pose_model(lambda a, b: {"rotation": np.eye(3), "translation": np.zeros(3)})
     from rpx_benchmark.exceptions import AdapterError
+
     with pytest.raises(AdapterError, match="second RGB frame"):
         for batch in ds:
             bm.predict(batch)
@@ -234,19 +253,23 @@ def test_pose_numpy_adapter_rejects_missing_rgb_b(tmp_path):
 # Sparse depth
 # --------------------------------------------------------------------------- #
 
+
 def _sparse_dataset(tmp_path: Path) -> rpx.RPXDataset:
     _write_rgb(tmp_path / "rgb" / "0.png")
     # Inline coordinates + depths so we don't need npy round-trip.
     manifest = _manifest(
-        tmp_path, "sparse_depth",
-        [{
-            "id": "s",
-            "rgb": "rgb/0.png",
-            "coordinates": [[5, 5], [10, 10], [15, 15]],
-            "depths": [1.0, 2.0, 3.0],
-            "phase": "clutter",
-            "difficulty": "hard",
-        }],
+        tmp_path,
+        "sparse_depth",
+        [
+            {
+                "id": "s",
+                "rgb": "rgb/0.png",
+                "coordinates": [[5, 5], [10, 10], [15, 15]],
+                "depths": [1.0, 2.0, 3.0],
+                "phase": "clutter",
+                "difficulty": "hard",
+            }
+        ],
     )
     return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
@@ -258,9 +281,7 @@ def test_sparse_depth_pipeline_end_to_end(tmp_path):
 
     bm = rpx.make_numpy_sparse_depth_model(perfect)
     ds = _sparse_dataset(tmp_path)
-    runner = BenchmarkRunner(
-        bm, ds, MetricSuite.for_task(TaskType.SPARSE_DEPTH)
-    )
+    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.SPARSE_DEPTH))
     result, _ = runner.run_with_deployment_readiness(
         primary_metric="sparse_absrel",
         model_name="s",
@@ -275,20 +296,24 @@ def test_sparse_depth_pipeline_end_to_end(tmp_path):
 # Novel view synthesis
 # --------------------------------------------------------------------------- #
 
+
 def _nvs_dataset(tmp_path: Path) -> rpx.RPXDataset:
     _write_rgb(tmp_path / "rgb" / "src.png", value=64)
     _write_rgb(tmp_path / "rgb" / "tgt.png", value=200)
     _write_pose(tmp_path / "pose" / "tgt.npz", x=0.3)
     manifest = _manifest(
-        tmp_path, "novel_view_synthesis",
-        [{
-            "id": "n0",
-            "rgb": "rgb/src.png",
-            "target_rgb": "rgb/tgt.png",
-            "target_pose": "pose/tgt.npz",
-            "phase": "clutter",
-            "difficulty": "hard",
-        }],
+        tmp_path,
+        "novel_view_synthesis",
+        [
+            {
+                "id": "n0",
+                "rgb": "rgb/src.png",
+                "target_rgb": "rgb/tgt.png",
+                "target_pose": "pose/tgt.npz",
+                "phase": "clutter",
+                "difficulty": "hard",
+            }
+        ],
     )
     return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
@@ -300,9 +325,7 @@ def test_nvs_pipeline_end_to_end(tmp_path):
 
     bm = rpx.make_numpy_nvs_model(perfect_nvs)
     ds = _nvs_dataset(tmp_path)
-    runner = BenchmarkRunner(
-        bm, ds, MetricSuite.for_task(TaskType.NOVEL_VIEW_SYNTHESIS)
-    )
+    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.NOVEL_VIEW_SYNTHESIS))
     result, _ = runner.run_with_deployment_readiness(
         primary_metric="psnr",
         model_name="nvs",
@@ -317,6 +340,7 @@ def test_nvs_pipeline_end_to_end(tmp_path):
 # Keypoint matching
 # --------------------------------------------------------------------------- #
 
+
 def _keypoint_dataset(tmp_path: Path) -> rpx.RPXDataset:
     _write_rgb(tmp_path / "rgb" / "a.png")
     _write_rgb(tmp_path / "rgb" / "b.png")
@@ -328,17 +352,20 @@ def _keypoint_dataset(tmp_path: Path) -> rpx.RPXDataset:
     np.save(tmp_path / "kp" / "p1.npy", p1)
     np.save(tmp_path / "kp" / "vis.npy", vis)
     manifest = _manifest(
-        tmp_path, "keypoint_matching",
-        [{
-            "id": "k",
-            "rgb": "rgb/a.png",
-            "rgb_b": "rgb/b.png",
-            "points0": "kp/p0.npy",
-            "points1": "kp/p1.npy",
-            "visibility": "kp/vis.npy",
-            "phase": "clutter",
-            "difficulty": "hard",
-        }],
+        tmp_path,
+        "keypoint_matching",
+        [
+            {
+                "id": "k",
+                "rgb": "rgb/a.png",
+                "rgb_b": "rgb/b.png",
+                "points0": "kp/p0.npy",
+                "points1": "kp/p1.npy",
+                "visibility": "kp/vis.npy",
+                "phase": "clutter",
+                "difficulty": "hard",
+            }
+        ],
     )
     return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
@@ -354,9 +381,7 @@ def test_keypoint_pipeline_end_to_end(tmp_path):
 
     bm = rpx.make_numpy_keypoint_model(perfect_matcher)
     ds = _keypoint_dataset(tmp_path)
-    runner = BenchmarkRunner(
-        bm, ds, MetricSuite.for_task(TaskType.KEYPOINT_MATCHING)
-    )
+    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.KEYPOINT_MATCHING))
     result, _ = runner.run_with_deployment_readiness(
         primary_metric="keypoint_acc",
         model_name="k",
@@ -371,8 +396,10 @@ def test_keypoint_pipeline_end_to_end(tmp_path):
 # Task registry: every new task is discoverable
 # --------------------------------------------------------------------------- #
 
+
 def test_all_new_tasks_registered():
     from rpx_benchmark.tasks.registry import available_tasks
+
     registered = {t.value for t in available_tasks()}
     for t in (
         "monocular_depth",

@@ -27,14 +27,14 @@ OUT_PNG.parent.mkdir(exist_ok=True)
 # Order: most likely candidates first, then perceptually-uniform alternatives,
 # then jet as the historical baseline reviewers will compare against.
 COLORMAPS = [
-    ("turbo",    "high contrast, robotics-default (RealSense, OpenCV)"),
-    ("plasma",   "perceptually uniform, vivid"),
-    ("viridis",  "perceptually uniform, paper-grade"),
-    ("cividis",  "colorblind-safe, calm aesthetic"),
-    ("magma",    "perceptually uniform, dark→warm"),
-    ("inferno",  "perceptually uniform, dark→hot"),
-    ("gray",     "no hue, just luminance"),
-    ("jet",      "historical baseline (avoid for new work)"),
+    ("turbo", "high contrast, robotics-default (RealSense, OpenCV)"),
+    ("plasma", "perceptually uniform, vivid"),
+    ("viridis", "perceptually uniform, paper-grade"),
+    ("cividis", "colorblind-safe, calm aesthetic"),
+    ("magma", "perceptually uniform, dark→warm"),
+    ("inferno", "perceptually uniform, dark→hot"),
+    ("gray", "no hue, just luminance"),
+    ("jet", "historical baseline (avoid for new work)"),
 ]
 
 
@@ -51,8 +51,10 @@ def stretch(d: np.ndarray) -> np.ndarray:
 def main():
     print(f"== fetching segmentation/easy + depth from {REPO_ID} ==")
     res = download_for_task(
-        task="segmentation", split="easy",
-        repo_id=REPO_ID, extra_modalities=["depth"],
+        task="segmentation",
+        split="easy",
+        repo_id=REPO_ID,
+        extra_modalities=["depth"],
     )
     local = Path(res.local_dir)
 
@@ -87,7 +89,7 @@ def main():
     rows = (n + cols - 1) // cols
     fig, axes = plt.subplots(rows, cols, figsize=(4.0 * cols, 3.2 * rows))
     axes = axes.flatten()
-    for ax, (cmap_name, blurb) in zip(axes, COLORMAPS):
+    for ax, (cmap_name, blurb) in zip(axes, COLORMAPS, strict=False):
         cmap = plt.get_cmap(cmap_name)
         rgba = cmap(norm)
         rgb = (rgba[..., :3] * 255).astype(np.uint8)

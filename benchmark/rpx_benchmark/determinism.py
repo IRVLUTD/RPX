@@ -96,6 +96,7 @@ def _seed_hf(seed: int) -> None:
     """
     try:
         from transformers import set_seed as _tf_set_seed  # noqa: PLC0415
+
         _tf_set_seed(seed)
     except ImportError:
         pass
@@ -136,6 +137,7 @@ def deterministic(seed: int) -> Iterator[None]:
     np_state = None
     try:
         import numpy as np  # noqa: PLC0415
+
         np_state = np.random.get_state()
     except ImportError:
         np = None  # type: ignore[assignment]
@@ -147,4 +149,5 @@ def deterministic(seed: int) -> Iterator[None]:
         random.setstate(py_state)
         if np_state is not None:
             import numpy as _np  # noqa: PLC0415
+
             _np.random.set_state(np_state)

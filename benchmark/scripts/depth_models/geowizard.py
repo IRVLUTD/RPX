@@ -36,7 +36,7 @@ class GeoWizard:
         batch_size: int = 1,
         ensemble_size: int = 1,
         num_inference_steps: int = 10,
-        domain: str = "indoor",                  # "indoor" | "outdoor" | "object"
+        domain: str = "indoor",  # "indoor" | "outdoor" | "object"
         dtype: Optional[str] = None,
     ) -> None:
         try:
@@ -55,21 +55,26 @@ class GeoWizard:
         self.domain = domain
         self._torch = torch
 
-        torch_dtype = (getattr(torch, dtype) if isinstance(dtype, str)
-                       else (torch.float16 if self.native_precision == "fp16"
-                             else torch.float32))
+        torch_dtype = (
+            getattr(torch, dtype)
+            if isinstance(dtype, str)
+            else (torch.float16 if self.native_precision == "fp16" else torch.float32)
+        )
         try:
             self._pipe = DiffusionPipeline.from_pretrained(
-                model_id, torch_dtype=torch_dtype, trust_remote_code=True,
+                model_id,
+                torch_dtype=torch_dtype,
+                trust_remote_code=True,
                 custom_pipeline=model_id,
             ).to(device)
         except Exception as e:
             from rpx_benchmark.exceptions import AdapterError
+
             raise AdapterError(
                 f"GeoWizard pipeline load failed for {model_id!r}: {e}",
                 hint="GeoWizard ships its custom pipeline via `custom_pipeline`. "
-                     "Some snapshots require `trust_remote_code=True` and a "
-                     "specific diffusers version (>=0.27).",
+                "Some snapshots require `trust_remote_code=True` and a "
+                "specific diffusers version (>=0.27).",
             ) from e
         if hasattr(self._pipe, "set_progress_bar_config"):
             self._pipe.set_progress_bar_config(disable=True)
@@ -90,6 +95,7 @@ class GeoWizard:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                 )
@@ -97,7 +103,7 @@ class GeoWizard:
         pil_imgs = [Image.fromarray(np.asarray(r, dtype=np.uint8)) for r in rgbs]
         depths: list[np.ndarray] = []
         with self._torch.inference_mode():
-            for r, img in zip(rgbs, pil_imgs):
+            for r, img in zip(rgbs, pil_imgs, strict=False):
                 out = self._pipe(
                     img,
                     denoising_steps=self.num_inference_steps,
@@ -111,31 +117,33 @@ class GeoWizard:
 
 
 def _extract_depth(out, target_hw):
-    from PIL import Image
     # Common shapes in GeoWizard's pipeline output
     for attr in ("depth_np", "depth", "prediction"):
         v = getattr(out, attr, None)
         if v is None and hasattr(out, "__getitem__"):
-            try: v = out[attr]
-            except Exception: v = None
+            try:
+                v = out[attr]
+            except Exception:
+                v = None
         if v is not None:
-            arr = np.asarray(v if not hasattr(v, "cpu") else v.cpu().numpy(),
-                             dtype=np.float32)
+            arr = np.asarray(v if not hasattr(v, "cpu") else v.cpu().numpy(), dtype=np.float32)
             while arr.ndim > 2:
                 arr = arr.squeeze(0) if arr.shape[0] == 1 else arr[0]
             if arr.shape != tuple(target_hw):
                 arr = _resize_bilinear(arr, target_hw)
             return arr
     from rpx_benchmark.exceptions import AdapterError
+
     raise AdapterError(
         "GeoWizard pipeline returned an unrecognised output shape.",
         hint="Expected one of `depth_np`, `depth`, or `prediction` on the "
-             "pipeline output. Inspect with `print(out)`.",
+        "pipeline output. Inspect with `print(out)`.",
     )
 
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

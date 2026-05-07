@@ -52,6 +52,7 @@ _CONFIGURED = False
 # Public API
 # --------------------------------------------------------------------------- #
 
+
 def get_logger(name: str) -> logging.Logger:
     """Return a module-scoped logger nested under the ``rpx_benchmark`` root.
 
@@ -165,9 +166,11 @@ def set_level(level: str | int) -> None:
 # Internal handler factory
 # --------------------------------------------------------------------------- #
 
+
 def _rich_available() -> bool:
     try:
         import rich  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -185,6 +188,7 @@ def _build_handler(
     if use_rich:
         try:
             from rich.logging import RichHandler
+
             handler: logging.Handler = RichHandler(
                 level=level,
                 show_time=False,

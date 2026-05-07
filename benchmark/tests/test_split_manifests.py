@@ -11,7 +11,6 @@ import json
 from pathlib import Path
 
 import pandas as pd
-import pytest
 
 from rpx_benchmark.dataset_hub.split_manifests import write_split_manifests
 
@@ -21,29 +20,31 @@ def _make_parquet(tmp_path: Path) -> Path:
     rows = []
     for scene, splits in [
         ("scene_alpha.foo.bar", ["easy", "easy", "medium"]),
-        ("scene_beta.baz.qux",  ["hard", "hard", "easy"]),
+        ("scene_beta.baz.qux", ["hard", "hard", "easy"]),
     ]:
         for phase_idx, split in enumerate(splits):
-            for frame_idx in range(8):                 # 8 frames per phase: enough for pair stride
+            for frame_idx in range(8):  # 8 frames per phase: enough for pair stride
                 fname = f"{frame_idx:05d}.png"
-                rows.append({
-                    "scene_id":       scene,
-                    "scene_type":     "multi_object",
-                    "phase":          phase_idx,
-                    "frame_idx":      frame_idx,
-                    "frame_filename": fname,
-                    "split":          split,
-                    "has_rgb":        True,
-                    "shard_rgb":      f"scenes/{scene}/{phase_idx}/rgb.tar",
-                    "has_depth":      True,
-                    "shard_depth":    f"scenes/{scene}/{phase_idx}/depth.tar",
-                    "has_fisheye":    True,
-                    "shard_fisheye":  f"scenes/{scene}/{phase_idx}/fisheye.tar",
-                    "has_masks":      True,
-                    "shard_masks":    f"scenes/{scene}/{phase_idx}/labels/masks/v1.tar",
-                    "has_cam_pose":   True,
-                    "shard_cam_pose": f"scenes/{scene}/{phase_idx}/labels/cam_pose/v1.tar",
-                })
+                rows.append(
+                    {
+                        "scene_id": scene,
+                        "scene_type": "multi_object",
+                        "phase": phase_idx,
+                        "frame_idx": frame_idx,
+                        "frame_filename": fname,
+                        "split": split,
+                        "has_rgb": True,
+                        "shard_rgb": f"scenes/{scene}/{phase_idx}/rgb.tar",
+                        "has_depth": True,
+                        "shard_depth": f"scenes/{scene}/{phase_idx}/depth.tar",
+                        "has_fisheye": True,
+                        "shard_fisheye": f"scenes/{scene}/{phase_idx}/fisheye.tar",
+                        "has_masks": True,
+                        "shard_masks": f"scenes/{scene}/{phase_idx}/labels/masks/v1.tar",
+                        "has_cam_pose": True,
+                        "shard_cam_pose": f"scenes/{scene}/{phase_idx}/labels/cam_pose/v1.tar",
+                    }
+                )
     df = pd.DataFrame(rows)
     out = tmp_path / "manifest" / "frames_v1.parquet"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -52,6 +53,7 @@ def _make_parquet(tmp_path: Path) -> Path:
 
 
 # ────────────────────────  Schema basics  ────────────────────────────
+
 
 def test_writer_emits_per_task_per_split(tmp_path):
     _make_parquet(tmp_path)
@@ -79,6 +81,7 @@ def test_scene_wise_split_mode_aggregation(tmp_path):
 # `_load_ground_truth` will index by, and that those keys point at the
 # right (subdir, extension) on disk.
 
+
 def _load_one(written, recipe_key: str, split: str) -> dict:
     payload = json.loads(written[(recipe_key, split)].read_text())
     assert payload["samples"], f"{recipe_key}/{split}: no samples"
@@ -89,13 +92,13 @@ def test_monocular_depth_entry_shape(tmp_path):
     _make_parquet(tmp_path)
     w = write_split_manifests(tmp_path, tasks=["monocular_depth"])
     p = _load_one(w, "monocular_depth", "easy")
-    assert p["task"] == "monocular_depth"           # TaskType.value
+    assert p["task"] == "monocular_depth"  # TaskType.value
     s = p["samples"][0]
-    assert "rgb"   in s
+    assert "rgb" in s
     assert "depth" in s
     assert s["rgb"].endswith(".png")
     assert s["depth"].endswith(".png")
-    assert "/rgb/"   in s["rgb"]
+    assert "/rgb/" in s["rgb"]
     assert "/depth/" in s["depth"]
 
 
@@ -103,7 +106,7 @@ def test_segmentation_uses_singular_mask_key(tmp_path):
     _make_parquet(tmp_path)
     w = write_split_manifests(tmp_path, tasks=["segmentation"])
     p = _load_one(w, "segmentation", "easy")
-    assert p["task"] == "object_segmentation"      # NOT "segmentation"
+    assert p["task"] == "object_segmentation"  # NOT "segmentation"
     s = p["samples"][0]
     assert "mask" in s, "loader expects entry['mask'] (singular)"
     assert "masks" not in s
@@ -118,20 +121,20 @@ def test_rgbd_segmentation_carries_depth(tmp_path):
     p = _load_one(w, "rgbd_segmentation", "easy")
     assert p["task"] == "object_segmentation"
     s = p["samples"][0]
-    assert "rgb"   in s
+    assert "rgb" in s
     assert "depth" in s
-    assert "mask"  in s
+    assert "mask" in s
 
 
 def test_stereo_depth_splits_fisheye(tmp_path):
     _make_parquet(tmp_path)
     w = write_split_manifests(tmp_path, tasks=["stereo_depth"])
     p = _load_one(w, "stereo_depth", "easy")
-    assert p["task"] == "monocular_depth"          # depth GT
+    assert p["task"] == "monocular_depth"  # depth GT
     s = p["samples"][0]
-    assert "fisheye_left"  in s
+    assert "fisheye_left" in s
     assert "fisheye_right" in s
-    assert "/fisheye/left/"  in s["fisheye_left"]
+    assert "/fisheye/left/" in s["fisheye_left"]
     assert "/fisheye/right/" in s["fisheye_right"]
 
 
@@ -139,12 +142,12 @@ def test_relative_pose_entries_are_paired(tmp_path):
     _make_parquet(tmp_path)
     w = write_split_manifests(tmp_path, tasks=["relative_pose"])
     p = _load_one(w, "relative_pose", "easy")
-    assert p["task"] == "relative_camera_pose"     # NOT "relative_pose"
+    assert p["task"] == "relative_camera_pose"  # NOT "relative_pose"
     s = p["samples"][0]
     # Loader's _load_relative_pose reads pose_a + pose_b; sample carries
     # rgb + rgb_b for the paired-frame contract.
-    assert "rgb"    in s
-    assert "rgb_b"  in s
+    assert "rgb" in s
+    assert "rgb_b" in s
     assert "pose_a" in s
     assert "pose_b" in s
     assert s["pose_a"].endswith(".npz"), "cam_pose is .npz, not .png"
@@ -158,10 +161,10 @@ def test_rgbd_relative_pose_adds_depth_to_pair(tmp_path):
     p = _load_one(w, "rgbd_relative_pose", "easy")
     assert p["task"] == "relative_camera_pose"
     s = p["samples"][0]
-    assert "depth"   in s
+    assert "depth" in s
     assert "depth_b" in s
-    assert "pose_a"  in s
-    assert "pose_b"  in s
+    assert "pose_a" in s
+    assert "pose_b" in s
 
 
 def test_object_tracking_references_tracklets_json(tmp_path):

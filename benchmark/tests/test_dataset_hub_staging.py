@@ -25,14 +25,19 @@ def splits_src(tmp_path: Path) -> Path:
     (src / "easy.txt").write_text("scene1\nscene2\n", encoding="utf-8")
     (src / "medium.txt").write_text("scene3\n", encoding="utf-8")
     (src / "hard.txt").write_text("scene4\n", encoding="utf-8")
-    (src / SCENE_SPLITS_JSON).write_text(json.dumps({
-        "schema_version": 2,
-        "splits": {
-            "easy": ["scene1", "scene2"],
-            "medium": ["scene3"],
-            "hard": ["scene4"],
-        },
-    }), encoding="utf-8")
+    (src / SCENE_SPLITS_JSON).write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "splits": {
+                    "easy": ["scene1", "scene2"],
+                    "medium": ["scene3"],
+                    "hard": ["scene4"],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     return src
 
 
@@ -56,6 +61,7 @@ def test_stage_splits_repo_paths_are_forward_slashed(tmp_path: Path, splits_src:
 def test_stage_splits_default_src_is_benchmark_data_splits(tmp_path: Path):
     """Default splits_src should resolve under the installed package."""
     from rpx_benchmark.dataset_hub.staging import _default_splits_src
+
     default = _default_splits_src()
     assert default.parts[-2:] == ("data", "splits")
     assert default.parts[-3] == "benchmark"
@@ -63,22 +69,22 @@ def test_stage_splits_default_src_is_benchmark_data_splits(tmp_path: Path):
 
 def test_stage_splits_missing_src_raises_config_error(tmp_path: Path):
     with pytest.raises(ConfigError, match="splits source dir does not exist"):
-        stage_splits(tmp_path / "stage",
-                      splits_src=tmp_path / "no_such_dir")
+        stage_splits(tmp_path / "stage", splits_src=tmp_path / "no_such_dir")
 
 
 def test_stage_splits_missing_files_raises_when_required(tmp_path: Path):
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     (src / "easy.txt").write_text("scene1\n", encoding="utf-8")
     with pytest.raises(DatasetError, match="missing splits files"):
         stage_splits(tmp_path / "stage", splits_src=src)
 
 
 def test_stage_splits_allow_missing_yields_partial_set(tmp_path: Path):
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     (src / "easy.txt").write_text("scene1\n", encoding="utf-8")
-    staged = stage_splits(tmp_path / "stage", splits_src=src,
-                            require_all=False)
+    staged = stage_splits(tmp_path / "stage", splits_src=src, require_all=False)
     assert len(staged) == 1
     assert staged[0].repo_path == "splits/easy.txt"
 
@@ -101,8 +107,7 @@ def test_load_scene_splits_normalises_canonical_shape(tmp_path: Path, splits_src
     staging = tmp_path / "stage"
     stage_splits(staging, splits_src=splits_src)
     flat = load_scene_splits(staging)
-    assert flat == {"scene1": "easy", "scene2": "easy",
-                     "scene3": "medium", "scene4": "hard"}
+    assert flat == {"scene1": "easy", "scene2": "easy", "scene3": "medium", "scene4": "hard"}
 
 
 def test_load_scene_splits_accepts_flat_shape(tmp_path: Path):
@@ -122,14 +127,16 @@ def test_load_scene_splits_missing_file_raises(tmp_path: Path):
 
 
 def test_stage_paths_lands_files_at_specified_subdir(tmp_path: Path):
-    src = tmp_path / "extras"; src.mkdir()
+    src = tmp_path / "extras"
+    src.mkdir()
     (src / "doc.md").write_text("docs", encoding="utf-8")
     (src / "rpx_croissant.json").write_text("{}", encoding="utf-8")
 
     staging = tmp_path / "stage"
     staged = stage_paths(
         [src / "doc.md", src / "rpx_croissant.json"],
-        staging_root=staging, repo_subdir="",
+        staging_root=staging,
+        repo_subdir="",
     )
     assert (staging / "doc.md").is_file()
     assert (staging / "rpx_croissant.json").is_file()
@@ -137,12 +144,12 @@ def test_stage_paths_lands_files_at_specified_subdir(tmp_path: Path):
 
 
 def test_stage_paths_nests_under_repo_subdir(tmp_path: Path):
-    src = tmp_path / "src"; src.mkdir()
+    src = tmp_path / "src"
+    src.mkdir()
     (src / "preview1.jpg").write_bytes(b"\xff\xd8\xff")
 
     staging = tmp_path / "stage"
-    staged = stage_paths([src / "preview1.jpg"], staging,
-                           repo_subdir="preview")
+    staged = stage_paths([src / "preview1.jpg"], staging, repo_subdir="preview")
     assert (staging / "preview" / "preview1.jpg").is_file()
     assert staged[0].repo_path == "preview/preview1.jpg"
 

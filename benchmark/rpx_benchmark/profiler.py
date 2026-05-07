@@ -27,14 +27,13 @@ FLOPs convention (for reproducibility):
 from __future__ import annotations
 
 import platform
-import sys
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Sequence, Tuple
-
+from typing import Any, Dict, List, Sequence, Tuple
 
 # =========================================================================== #
 # Tier 1: Hardware-agnostic model properties
 # =========================================================================== #
+
 
 @dataclass
 class EfficiencyMetadata:
@@ -49,16 +48,16 @@ class EfficiencyMetadata:
     """
 
     # --- Tier 1: hardware-agnostic ----------------------------------------
-    params_m: float | None = None            # Total parameters in millions
-    flops_g: float | None = None             # FLOPs (giga) at batch=1, FP32
-    macs_g: float | None = None              # MACs (giga) = FLOPs / 2
-    actmem_gb_fp16: float | None = None      # Activation memory at FP16 (GB)
-    memory_traffic_gb: float | None = None   # Estimated DRAM read+write (GB)
+    params_m: float | None = None  # Total parameters in millions
+    flops_g: float | None = None  # FLOPs (giga) at batch=1, FP32
+    macs_g: float | None = None  # MACs (giga) = FLOPs / 2
+    actmem_gb_fp16: float | None = None  # Activation memory at FP16 (GB)
+    memory_traffic_gb: float | None = None  # Estimated DRAM read+write (GB)
     arithmetic_intensity: float | None = None  # FLOPs / Bytes (FLOP/Byte)
 
     latency_ms_per_sample: float | None = None  # Filled post-run by the task runner
-    model_type: str = "local"                # "local" | "api"
-    notes: str = ""                          # e.g. precision mode, resolution override
+    model_type: str = "local"  # "local" | "api"
+    notes: str = ""  # e.g. precision mode, resolution override
 
     # --- Tier 2: roofline bounds (computed on demand) ---------------------
     roofline: Dict[str, "RooflineBound"] | None = None
@@ -90,10 +89,12 @@ class EfficiencyMetadata:
             param_bytes = self.params_m * 1e6 * 4  # FP32
             self.memory_traffic_gb = round(param_bytes * 3 / 1e9, 4)
 
-        if (self.arithmetic_intensity is None
-                and self.flops_g is not None
-                and self.memory_traffic_gb is not None
-                and self.memory_traffic_gb > 0):
+        if (
+            self.arithmetic_intensity is None
+            and self.flops_g is not None
+            and self.memory_traffic_gb is not None
+            and self.memory_traffic_gb > 0
+        ):
             total_flops = self.flops_g * 1e9
             total_bytes = self.memory_traffic_gb * 1e9
             self.arithmetic_intensity = round(total_flops / total_bytes, 2)
@@ -163,6 +164,7 @@ class EfficiencyMetadata:
 # =========================================================================== #
 # Tier 2: GPU specs + Roofline bounds
 # =========================================================================== #
+
 
 @dataclass(frozen=True)
 class GPUSpec:
@@ -294,6 +296,7 @@ class RooflineBound:
 # Tier 3: System Card (attached to measured results)
 # =========================================================================== #
 
+
 @dataclass
 class SystemCard:
     """Full hardware/software description for reproducibility.
@@ -343,18 +346,20 @@ class SystemCard:
         # RAM
         try:
             import psutil  # noqa: PLC0415
-            card.ram_gb = round(psutil.virtual_memory().total / (1024 ** 3), 1)
+
+            card.ram_gb = round(psutil.virtual_memory().total / (1024**3), 1)
         except ImportError:
             pass
 
         # GPU (torch)
         try:
             import torch  # noqa: PLC0415
+
             card.pytorch_version = torch.__version__
             if torch.cuda.is_available():
                 props = torch.cuda.get_device_properties(0)
                 card.gpu_name = props.name
-                card.gpu_memory_gb = round(props.total_memory / (1024 ** 3), 1)
+                card.gpu_memory_gb = round(props.total_memory / (1024**3), 1)
                 card.gpu_count = torch.cuda.device_count()
                 card.cuda_version = torch.version.cuda or ""
                 # Driver version from nvidia-smi is not in torch; leave blank
@@ -398,6 +403,7 @@ class SystemCard:
 # Memory traffic estimation
 # =========================================================================== #
 
+
 def estimate_memory_traffic_gb(
     model: Any,
     input_shape: Tuple[int, ...] = (3, 480, 640),
@@ -433,6 +439,7 @@ def estimate_memory_traffic_gb(
     # Strategy 1: torch.profiler
     try:
         import torch  # noqa: PLC0415
+
         if device != "cpu" and torch.cuda.is_available():
             dummy = torch.zeros(1, *input_shape, device=device)
             with torch.profiler.profile(
@@ -461,10 +468,7 @@ def estimate_memory_traffic_gb(
 
     # Strategy 2: analytical estimate
     try:
-        params_bytes = sum(
-            p.numel() * p.element_size()
-            for p in model.parameters()
-        )
+        params_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
         # Heuristic: activations ~ 2x param memory for typical vision
         # models (each layer reads previous activation, writes new one).
         activation_bytes = params_bytes * 2
@@ -480,12 +484,14 @@ def estimate_memory_traffic_gb(
 # Memory profiler — CPU / CUDA / MPS backends
 # --------------------------------------------------------------------------- #
 
+
 def _cpu_peak_rss_mb() -> float | None:
     """Current process peak RSS in MB; None if neither psutil nor resource
     can produce a number."""
     # psutil first (cross-platform, no import of ``resource``).
     try:
         import psutil  # noqa: PLC0415
+
         proc = psutil.Process()
         info = proc.memory_info()
         # ``peak_wset`` (Windows) or ``peak_rss`` (macOS 12+) are rare;
@@ -498,6 +504,7 @@ def _cpu_peak_rss_mb() -> float | None:
         pass
     try:
         import resource  # noqa: PLC0415 — POSIX only
+
         usage = resource.getrusage(resource.RUSAGE_SELF)
         # ``ru_maxrss`` units: KB on Linux, bytes on macOS. We normalise
         # by checking the magnitude — a process using hundreds of GB is
@@ -575,6 +582,7 @@ class MemoryProfiler:
         if self.sample_cuda:
             try:
                 import torch  # noqa: PLC0415
+
                 if hasattr(torch, "cuda") and torch.cuda.is_available():
                     torch.cuda.reset_peak_memory_stats()
             except ImportError:
@@ -595,6 +603,7 @@ class MemoryProfiler:
 # --------------------------------------------------------------------------- #
 # Latency profiler — percentiles + mean
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class LatencyProfiler:
@@ -625,11 +634,12 @@ class LatencyProfiler:
         Returns ``{k: None for k in keys}`` when fewer than one sample
         exists after warmup trimming.
         """
-        trimmed = self._samples_ms[self.warmup:] or self._samples_ms
+        trimmed = self._samples_ms[self.warmup :] or self._samples_ms
         if not trimmed:
             return {"p50_ms": None, "p95_ms": None, "p99_ms": None, "mean_ms": None}
         try:
             import numpy as np  # noqa: PLC0415
+
             p50, p95, p99 = np.percentile(trimmed, [50, 95, 99])
             return {
                 "p50_ms": round(float(p50), 3),
@@ -671,6 +681,7 @@ def count_parameters(model: Any) -> float:
     # JAX / Flax: model may expose a ``params`` pytree
     try:
         import jax
+
         leaves = jax.tree_util.tree_leaves(model.params)
         params = sum(leaf.size for leaf in leaves)
         return round(params / 1e6, 3)
@@ -702,6 +713,7 @@ def count_flops_torch(
     Returns:
         FLOPs in giga-ops, or None if neither backend is available.
     """
+
     def _try_flop_count(mod: Any, dev: str) -> float | None:
         try:
             import torch  # noqa: PLC0415
@@ -713,6 +725,7 @@ def count_flops_torch(
         # PyTorch 2.1+ native counter
         try:
             from torch.utils.flop_counter import FlopCounterMode  # noqa: PLC0415
+
             with torch.no_grad():
                 with FlopCounterMode(display=False) as fcm:
                     mod(dummy)
@@ -725,6 +738,7 @@ def count_flops_torch(
         # fvcore fallback
         try:
             from fvcore.nn import FlopCountAnalysis  # noqa: PLC0415
+
             flops = FlopCountAnalysis(mod, dummy)
             return round(flops.total() / 1e9, 3)
         except ImportError:
@@ -755,7 +769,6 @@ def count_flops_torch(
     # independent.  Move the model to CPU, count, then move it back.
     if device != "cpu":
         try:
-            import torch  # noqa: PLC0415
             original_device = next(model.parameters()).device
             model_cpu = model.cpu()
             result = _try_flop_count(model_cpu, "cpu")

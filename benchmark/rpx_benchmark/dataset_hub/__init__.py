@@ -41,14 +41,11 @@ from .manifest import (
     build_frame_manifest,
     read_frame_manifest,
 )
-from .split_manifests import (
-    write_split_manifests,
-)
 from .packer import (
     RAW_MODALITIES,
+    PackedShard,
     PackPlan,
     PackResult,
-    PackedShard,
     SharedArtefact,
     pack_capture_tree,
     pack_objects_meta,
@@ -64,13 +61,16 @@ from .recipes import (
 from .scanner import (
     ModalityInventory,
     PhaseInventory,
-    SceneInventory,
     ScanResult,
+    SceneInventory,
     scan_capture_root,
 )
+from .split_manifests import (
+    write_split_manifests,
+)
 from .staging import (
-    SPLIT_TIER_FILES,
     SCENE_SPLITS_JSON,
+    SPLIT_TIER_FILES,
     StagedFile,
     load_scene_splits,
     stage_paths,

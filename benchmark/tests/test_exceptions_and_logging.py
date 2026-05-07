@@ -52,18 +52,16 @@ def test_monocular_depth_config_raises_config_error_on_no_model():
 
 def test_monocular_depth_config_rejects_bad_split():
     import numpy as np
-    bm = rpx.make_numpy_depth_model(
-        lambda rgb: np.zeros(rgb.shape[:2], dtype=np.float32)
-    )
+
+    bm = rpx.make_numpy_depth_model(lambda rgb: np.zeros(rgb.shape[:2], dtype=np.float32))
     with pytest.raises(ConfigError, match="Unknown split"):
         rpx.MonocularDepthRunConfig(model=bm, split="super-hard")
 
 
 def test_monocular_depth_config_rejects_zero_batch_size():
     import numpy as np
-    bm = rpx.make_numpy_depth_model(
-        lambda rgb: np.zeros(rgb.shape[:2], dtype=np.float32)
-    )
+
+    bm = rpx.make_numpy_depth_model(lambda rgb: np.zeros(rgb.shape[:2], dtype=np.float32))
     with pytest.raises(ConfigError, match="batch_size"):
         rpx.MonocularDepthRunConfig(model=bm, split="hard", batch_size=0)
 
@@ -94,6 +92,7 @@ def test_configure_logging_respects_env_var(monkeypatch):
 # --------------------------------------------------------------------------- #
 # Invariant: library code never raises bare stdlib exceptions.
 # --------------------------------------------------------------------------- #
+
 
 def test_no_bare_stdlib_raises_in_library():
     """Every ``raise`` in rpx_benchmark/ must use an RPXError subclass.

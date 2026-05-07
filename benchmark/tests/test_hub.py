@@ -15,10 +15,10 @@ from rpx_benchmark import hub
 from rpx_benchmark.api import Difficulty, TaskType
 from rpx_benchmark.exceptions import DownloadError, ManifestError
 
-
 # --------------------------------------------------------------------------- #
 # Pure helpers
 # --------------------------------------------------------------------------- #
+
 
 def test_manifest_repo_path_with_enums_and_strings():
     assert (
@@ -26,8 +26,7 @@ def test_manifest_repo_path_with_enums_and_strings():
         == "manifests/monocular_depth/hard.json"
     )
     assert (
-        hub._manifest_repo_path("monocular_depth", "easy")
-        == "manifests/monocular_depth/easy.json"
+        hub._manifest_repo_path("monocular_depth", "easy") == "manifests/monocular_depth/easy.json"
     )
 
 
@@ -82,6 +81,7 @@ def test_build_allow_patterns_expands_modalities_per_pair():
 # Error wrapping
 # --------------------------------------------------------------------------- #
 
+
 def test_fetch_manifest_wraps_hf_exception_as_download_error(monkeypatch):
     """hf_hub_download failures must surface as DownloadError."""
 
@@ -97,7 +97,8 @@ def test_fetch_manifest_wraps_hf_exception_as_download_error(monkeypatch):
 
 
 def test_fetch_manifest_bad_json_raises_manifest_error(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ):
     """Manifest file that exists but is garbage JSON → ManifestError."""
     bogus = tmp_path / "bogus.json"
@@ -114,7 +115,8 @@ def test_fetch_manifest_bad_json_raises_manifest_error(
 
 
 def test_download_split_raises_when_manifest_has_no_scenes(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ):
     """Well-formed manifest that references no scenes → ManifestError."""
     empty_manifest = tmp_path / "empty.json"
@@ -124,6 +126,7 @@ def test_download_split_raises_when_manifest_has_no_scenes(
         @staticmethod
         def hf_hub_download(**kwargs):
             return str(empty_manifest)
+
         @staticmethod
         def snapshot_download(**kwargs):
             raise AssertionError("snapshot_download should not have been called")
@@ -134,18 +137,24 @@ def test_download_split_raises_when_manifest_has_no_scenes(
 
 
 def test_download_split_wraps_snapshot_download_failure(
-    tmp_path: Path, monkeypatch,
+    tmp_path: Path,
+    monkeypatch,
 ):
     good_manifest = tmp_path / "good.json"
-    good_manifest.write_text(json.dumps({
-        "scenes": [{"scene": "scene_000", "phase": "0"}],
-        "samples": [],
-    }))
+    good_manifest.write_text(
+        json.dumps(
+            {
+                "scenes": [{"scene": "scene_000", "phase": "0"}],
+                "samples": [],
+            }
+        )
+    )
 
     class _FakeHub:
         @staticmethod
         def hf_hub_download(**kwargs):
             return str(good_manifest)
+
         @staticmethod
         def snapshot_download(**kwargs):
             raise PermissionError("simulated 403")

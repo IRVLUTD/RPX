@@ -22,7 +22,6 @@ import numpy as np
 
 from ..exceptions import ConfigError
 
-
 __all__ = [
     "DEPTH_MIN_M",
     "DEPTH_MAX_M",
@@ -54,8 +53,11 @@ def default_valid_mask(pred: np.ndarray, gt_m: np.ndarray) -> np.ndarray:
     * Prediction is positive.
     """
     return (
-        np.isfinite(gt_m) & (gt_m > DEPTH_MIN_M) & (gt_m < DEPTH_MAX_M)
-        & np.isfinite(pred) & (pred > 0)
+        np.isfinite(gt_m)
+        & (gt_m > DEPTH_MIN_M)
+        & (gt_m < DEPTH_MAX_M)
+        & np.isfinite(pred)
+        & (pred > 0)
     )
 
 

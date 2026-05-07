@@ -40,6 +40,7 @@ def _force_propagate_for_caplog():
     Forcing propagate=True per-test isolates that side effect.
     """
     import logging
+
     logger = logging.getLogger("rpx_benchmark")
     saved = logger.propagate
     logger.propagate = True
@@ -52,6 +53,7 @@ def _force_propagate_for_caplog():
 # --------------------------------------------------------------------------- #
 # Helpers — write one synthetic phase dir
 # --------------------------------------------------------------------------- #
+
 
 def _save_rgb(path: Path, luma: int, h: int = 8, w: int = 8) -> None:
     arr = np.full((h, w, 3), luma, dtype=np.uint8)
@@ -69,8 +71,7 @@ def _save_mask(path: Path, mask: np.ndarray) -> None:
 
 
 def _save_pose(path: Path, position: np.ndarray, orientation: np.ndarray) -> None:
-    np.savez(path, position=position.astype(np.float64),
-             orientation=orientation.astype(np.float64))
+    np.savez(path, position=position.astype(np.float64), orientation=orientation.astype(np.float64))
 
 
 def _build_phase(
@@ -115,8 +116,9 @@ def _identity_quat() -> np.ndarray:
     return np.array([0.0, 0.0, 0.0, 1.0])
 
 
-def _trivial_frame(stem: str, h: int = 8, w: int = 8, *,
-                   luma: int = 128, position=(0.0, 0.0, 0.0)) -> dict:
+def _trivial_frame(
+    stem: str, h: int = 8, w: int = 8, *, luma: int = 128, position=(0.0, 0.0, 0.0)
+) -> dict:
     return {
         "stem": stem,
         "luma": luma,
@@ -131,6 +133,7 @@ def _trivial_frame(stem: str, h: int = 8, w: int = 8, *,
 # Schema / smoke
 # --------------------------------------------------------------------------- #
 
+
 def test_feature_names_count_matches_appendix():
     # 19 from the new paper + 8 resurrected from old draft (RPX-overleaf.bak.pdf):
     # area_drop (§3.4 eq 15), trans_p90/rot_p90 (§3.5 eqs 20,22), and the 5
@@ -140,8 +143,9 @@ def test_feature_names_count_matches_appendix():
 
 
 def test_extract_returns_all_18_features(tmp_path):
-    pdir = _build_phase(tmp_path, "sceneA.lab.area", 0,
-                        [_trivial_frame("00000"), _trivial_frame("00001")])
+    pdir = _build_phase(
+        tmp_path, "sceneA.lab.area", 0, [_trivial_frame("00000"), _trivial_frame("00001")]
+    )
     pf = extract_phase_features(pdir)
     assert pf.scene_id == "sceneA.lab.area"
     assert pf.phase == 0
@@ -156,7 +160,9 @@ def test_empty_phase_yields_zeroed_features(tmp_path):
     pf = extract_phase_features(pdir)
     assert pf.n_frames_used == 0
     import math
+
     from rpx_benchmark.data.esd import _NAN_WHEN_ABSENT
+
     for k in FEATURE_NAMES:
         if k in _NAN_WHEN_ABSENT:
             assert math.isnan(pf.features[k]), f"{k} should be NaN when absent"
@@ -168,9 +174,9 @@ def test_empty_phase_yields_zeroed_features(tmp_path):
 # Annotation effort
 # --------------------------------------------------------------------------- #
 
+
 def test_iter_counts_default_to_one(tmp_path):
-    pdir = _build_phase(tmp_path, "scene1.x.y", 0,
-                        [_trivial_frame(f"{i:05d}") for i in range(3)])
+    pdir = _build_phase(tmp_path, "scene1.x.y", 0, [_trivial_frame(f"{i:05d}") for i in range(3)])
     pf = extract_phase_features(pdir)
     # No iter*_faulty.txt files → every frame accepted on first pass.
     assert pf.features["iter_mean"] == 1.0
@@ -183,7 +189,9 @@ def test_iter_counts_increment_per_iter_file(tmp_path):
     Mean = (4 + 2 + 1) / 3 = 7/3; max = 4.
     """
     pdir = _build_phase(
-        tmp_path, "s.x.y", 0,
+        tmp_path,
+        "s.x.y",
+        0,
         [_trivial_frame(f"{i:05d}") for i in range(3)],
         iter_faulty={
             1: ["00000", "00001"],
@@ -198,7 +206,9 @@ def test_iter_counts_increment_per_iter_file(tmp_path):
 
 def test_iter_files_tolerate_paths_and_extensions(tmp_path):
     pdir = _build_phase(
-        tmp_path, "s.x.y", 0,
+        tmp_path,
+        "s.x.y",
+        0,
         [_trivial_frame("00000"), _trivial_frame("00001")],
         iter_faulty={1: ["00000.png", "/some/abs/path/00001.png"]},
     )
@@ -211,6 +221,7 @@ def test_iter_files_tolerate_paths_and_extensions(tmp_path):
 # Scene complexity
 # --------------------------------------------------------------------------- #
 
+
 def test_obj_consist_is_one_when_all_objects_visible_every_frame(tmp_path):
     h, w = 8, 8
     mask = np.zeros((h, w), dtype=np.uint16)
@@ -222,8 +233,7 @@ def test_obj_consist_is_one_when_all_objects_visible_every_frame(tmp_path):
         fr["mask"] = mask.copy()
         frames.append(fr)
 
-    pdir = _build_phase(tmp_path, "s.x.y", 0, frames,
-                        mask_to_object={"1": "a", "2": "b"})
+    pdir = _build_phase(tmp_path, "s.x.y", 0, frames, mask_to_object={"1": "a", "2": "b"})
     pf = extract_phase_features(pdir)
     assert pf.features["obj_mean"] == 2.0
     assert pf.features["obj_std"] == 0.0
@@ -243,8 +253,7 @@ def test_obj_consist_drops_when_one_object_disappears(tmp_path):
     frames[0]["mask"] = full
     frames[1]["mask"] = half
 
-    pdir = _build_phase(tmp_path, "s.x.y", 0, frames,
-                        mask_to_object={"1": "a", "2": "b"})
+    pdir = _build_phase(tmp_path, "s.x.y", 0, frames, mask_to_object={"1": "a", "2": "b"})
     pf = extract_phase_features(pdir)
     assert pf.features["obj_mean"] == pytest.approx(1.5)
     assert pf.features["obj_consist"] == 0.5
@@ -253,6 +262,7 @@ def test_obj_consist_drops_when_one_object_disappears(tmp_path):
 # --------------------------------------------------------------------------- #
 # Occlusion
 # --------------------------------------------------------------------------- #
+
 
 def test_occlusion_zero_when_objects_disjoint(tmp_path):
     h, w = 16, 16
@@ -273,8 +283,8 @@ def test_occlusion_full_overlap_yields_one(tmp_path):
     """Two objects with identical bboxes → each is fully occluded by the other."""
     h, w = 16, 16
     mask = np.zeros((h, w), dtype=np.uint16)
-    mask[0:4, 0:4] = 1     # object 1 occupies [0,4)×[0,4)
-    mask[2, 2] = 2         # object 2's mask is one pixel inside object 1's bbox
+    mask[0:4, 0:4] = 1  # object 1 occupies [0,4)×[0,4)
+    mask[2, 2] = 2  # object 2's mask is one pixel inside object 1's bbox
     # Make object 2's bbox identical to object 1's by adding corner pixels.
     mask[0, 0] = 2
     mask[3, 3] = 2
@@ -289,6 +299,7 @@ def test_occlusion_full_overlap_yields_one(tmp_path):
 # --------------------------------------------------------------------------- #
 # Depth quality
 # --------------------------------------------------------------------------- #
+
 
 def test_depth_invalid_fraction(tmp_path):
     h, w = 4, 4
@@ -321,12 +332,15 @@ def test_depth_std_mask_only_uses_pixels_inside_mask(tmp_path):
     h, w = 8, 8
     depth = np.full((h, w), 1000, dtype=np.uint16)  # background depth = 1.0 m
     # Inside a 4×4 mask region, set varying depths so in-mask std > 0.
-    depth[0:4, 0:4] = np.asarray([
-        [1500, 1600, 1700, 1800],
-        [1500, 1600, 1700, 1800],
-        [1500, 1600, 1700, 1800],
-        [1500, 1600, 1700, 1800],
-    ], dtype=np.uint16)
+    depth[0:4, 0:4] = np.asarray(
+        [
+            [1500, 1600, 1700, 1800],
+            [1500, 1600, 1700, 1800],
+            [1500, 1600, 1700, 1800],
+            [1500, 1600, 1700, 1800],
+        ],
+        dtype=np.uint16,
+    )
     mask = np.zeros((h, w), dtype=np.uint16)
     mask[0:4, 0:4] = 1
     fr = _trivial_frame("00000", h=h, w=w)
@@ -338,9 +352,7 @@ def test_depth_std_mask_only_uses_pixels_inside_mask(tmp_path):
     # In-mask values are 1.5, 1.6, 1.7, 1.8 m (4× repeated rows of the same 4 values).
     # Population std of the 4 unique values: sqrt(((-0.15)² + (-0.05)² + 0.05² + 0.15²) / 4)
     # = sqrt(0.05/4) = sqrt(0.0125) ≈ 0.1118.
-    expected_in_mask_std = float(np.std(np.asarray(
-        [1.5, 1.6, 1.7, 1.8] * 4, dtype=np.float32
-    )))
+    expected_in_mask_std = float(np.std(np.asarray([1.5, 1.6, 1.7, 1.8] * 4, dtype=np.float32)))
     assert pf.features["depth_std_mask"] == pytest.approx(expected_in_mask_std, abs=1e-5)
     # Whole-image std should be larger (background ≠ foreground).
     assert pf.features["depth_std"] > pf.features["depth_std_mask"]
@@ -364,8 +376,7 @@ def test_depth_std_mask_zero_when_no_valid_in_mask(tmp_path):
 
 
 def test_depth_std_zero_for_constant_depth(tmp_path):
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame("00000"), _trivial_frame("00001")])
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame("00000"), _trivial_frame("00001")])
     pf = extract_phase_features(pdir)
     assert pf.features["depth_std"] == 0.0
 
@@ -373,6 +384,7 @@ def test_depth_std_zero_for_constant_depth(tmp_path):
 # --------------------------------------------------------------------------- #
 # Photometric–depth conflict
 # --------------------------------------------------------------------------- #
+
 
 def test_specular_counts_bright_pixels_with_invalid_depth(tmp_path):
     h, w = 4, 4
@@ -394,6 +406,7 @@ def test_specular_counts_bright_pixels_with_invalid_depth(tmp_path):
 # --------------------------------------------------------------------------- #
 # Temporal annotation stability
 # --------------------------------------------------------------------------- #
+
 
 def test_area_cv_zero_when_areas_constant(tmp_path):
     h, w = 8, 8
@@ -427,9 +440,9 @@ def test_vis_instability_counts_visibility_flips(tmp_path):
 # Camera motion
 # --------------------------------------------------------------------------- #
 
+
 def test_zero_motion_when_pose_is_constant(tmp_path):
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame(f"{i:05d}") for i in range(4)])
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame(f"{i:05d}") for i in range(4)])
     pf = extract_phase_features(pdir)
     assert pf.features["trans_mean"] == 0.0
     assert pf.features["rot_mean"] == 0.0
@@ -452,9 +465,9 @@ def test_rotation_angle_from_quaternion(tmp_path):
     """90° rotation about z between consecutive frames → rot_mean ≈ π/2."""
     half = np.sqrt(2) / 2  # cos(45°), sin(45°) — quat for 90° about z
     quats = [
-        np.array([0.0, 0.0, 0.0, 1.0]),       # identity
-        np.array([0.0, 0.0, half, half]),     # +90° about z
-        np.array([0.0, 0.0, 1.0, 0.0]),       # +180° about z
+        np.array([0.0, 0.0, 0.0, 1.0]),  # identity
+        np.array([0.0, 0.0, half, half]),  # +90° about z
+        np.array([0.0, 0.0, 1.0, 0.0]),  # +180° about z
     ]
     frames = []
     for i, q in enumerate(quats):
@@ -470,18 +483,19 @@ def test_rotation_angle_from_quaternion(tmp_path):
 # iter_phase_dirs
 # --------------------------------------------------------------------------- #
 
+
 def test_misaligned_frames_logged_and_dropped(tmp_path, caplog):
     """If a frame is missing from one modality it gets dropped; a warning fires once."""
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame("00000"), _trivial_frame("00001")])
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame("00000"), _trivial_frame("00001")])
     # Remove the depth file for 00001 only.
     (pdir / "depth" / "00001.png").unlink()
 
     import logging
+
     with caplog.at_level(logging.WARNING, logger="rpx_benchmark.data.esd"):
         pf = extract_phase_features(pdir)
     assert pf.n_frames_total == 2  # rgb still has 2
-    assert pf.n_frames_used == 1   # only the aligned frame
+    assert pf.n_frames_used == 1  # only the aligned frame
     assert any("modality misalignment" in rec.message for rec in caplog.records)
 
 
@@ -497,12 +511,12 @@ def test_multichannel_mask_collapses_to_first_channel(tmp_path, caplog):
     Image.fromarray(rgb_mask, mode="RGB").save(pdir / "sam2/masks" / "00000.png")
 
     import logging
+
     with caplog.at_level(logging.WARNING, logger="rpx_benchmark.data.esd"):
         pf = extract_phase_features(pdir)
     multichannel_warnings = [r for r in caplog.records if "multi-channel" in r.message]
     assert len(multichannel_warnings) == 1, (
-        "multi-channel warning should fire once per directory, got "
-        f"{len(multichannel_warnings)}"
+        f"multi-channel warning should fire once per directory, got {len(multichannel_warnings)}"
     )
     assert pf.features["obj_mean"] == 1.0
 
@@ -514,14 +528,12 @@ def test_multichannel_warning_dedupes_across_many_frames(tmp_path, caplog):
     rgb_mask[0:2, 0:2, :] = 1
 
     n_frames = 12
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame(f"{i:05d}") for i in range(n_frames)])
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame(f"{i:05d}") for i in range(n_frames)])
     for i in range(n_frames):
-        Image.fromarray(rgb_mask, mode="RGB").save(
-            pdir / "sam2/masks" / f"{i:05d}.png"
-        )
+        Image.fromarray(rgb_mask, mode="RGB").save(pdir / "sam2/masks" / f"{i:05d}.png")
 
     import logging
+
     with caplog.at_level(logging.WARNING, logger="rpx_benchmark.data.esd"):
         extract_phase_features(pdir)
     multichannel_warnings = [r for r in caplog.records if "multi-channel" in r.message]
@@ -546,6 +558,7 @@ def test_malformed_mask_to_object_json_falls_back(tmp_path):
 
 def test_iter_phase_dirs_raises_on_missing_root(tmp_path):
     from rpx_benchmark.exceptions import DatasetError
+
     with pytest.raises(DatasetError):
         list(iter_phase_dirs(tmp_path / "does_not_exist"))
 
@@ -553,6 +566,7 @@ def test_iter_phase_dirs_raises_on_missing_root(tmp_path):
 # --------------------------------------------------------------------------- #
 # Old-draft features: area_drop, trans_p90/rot_p90, fisheye_*
 # --------------------------------------------------------------------------- #
+
 
 def test_area_drop_zero_when_areas_constant(tmp_path):
     h, w = 8, 8
@@ -570,9 +584,9 @@ def test_area_drop_counts_50pct_collapse(tmp_path):
     """Object 1 has 4 px → 4 px → 1 px (75% drop): one drop event in T=3 frames."""
     h, w = 8, 8
     full = np.zeros((h, w), dtype=np.uint16)
-    full[0:2, 0:2] = 1   # area = 4
+    full[0:2, 0:2] = 1  # area = 4
     small = np.zeros((h, w), dtype=np.uint16)
-    small[0, 0] = 1      # area = 1
+    small[0, 0] = 1  # area = 1
     frames = [_trivial_frame(f"{i:05d}") for i in range(3)]
     frames[0]["mask"] = full
     frames[1]["mask"] = full
@@ -605,8 +619,8 @@ def test_rot_p90_present_when_rotation_present(tmp_path):
     half = math.sqrt(2) / 2
     quats = [
         np.array([0.0, 0.0, 0.0, 1.0]),
-        np.array([0.0, 0.0, half, half]),     # +90° about z
-        np.array([0.0, 0.0, 1.0, 0.0]),       # +180° about z
+        np.array([0.0, 0.0, half, half]),  # +90° about z
+        np.array([0.0, 0.0, 1.0, 0.0]),  # +180° about z
     ]
     frames = []
     for i, q in enumerate(quats):
@@ -623,11 +637,16 @@ def test_fisheye_features_nan_when_dir_missing(tmp_path):
     so percentile normalization maps them to 0.5 (neutral) instead of
     biasing toward low difficulty."""
     import math
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame("00000"), _trivial_frame("00001")])
+
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame("00000"), _trivial_frame("00001")])
     pf = extract_phase_features(pdir)
-    for key in ("fisheye_dark", "fisheye_bright", "fisheye_sharpness",
-                "fisheye_corr", "fisheye_texture"):
+    for key in (
+        "fisheye_dark",
+        "fisheye_bright",
+        "fisheye_sharpness",
+        "fisheye_corr",
+        "fisheye_texture",
+    ):
         assert math.isnan(pf.features[key]), f"{key} should be NaN when absent"
 
 
@@ -646,7 +665,7 @@ def _add_fisheye(pdir: Path, layout: str, h: int = 16, w: int = 16) -> None:
         if layout == "subdirs":
             (fish / "left").mkdir(exist_ok=True)
             (fish / "right").mkdir(exist_ok=True)
-            Image.fromarray(L).save(fish / "left"  / f"{t:05d}.png")
+            Image.fromarray(L).save(fish / "left" / f"{t:05d}.png")
             Image.fromarray(R).save(fish / "right" / f"{t:05d}.png")
         elif layout == "suffix":
             Image.fromarray(L).save(fish / f"{t:05d}_L.png")
@@ -659,26 +678,25 @@ def _add_fisheye(pdir: Path, layout: str, h: int = 16, w: int = 16) -> None:
 
 @pytest.mark.parametrize("layout", ["subdirs", "suffix"])
 def test_fisheye_features_with_stereo_pairs(tmp_path, layout):
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame(f"{i:05d}") for i in range(3)])
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame(f"{i:05d}") for i in range(3)])
     _add_fisheye(pdir, layout)
     pf = extract_phase_features(pdir)
     # Random images: dark/bright fractions both small (uniform [0,255]); sharpness
     # and texture both non-zero; correlation high (R = L + small noise).
     assert pf.features["fisheye_sharpness"] > 0
-    assert pf.features["fisheye_texture"]   > 0
-    assert pf.features["fisheye_corr"]      > 0.9   # near-identical L/R
+    assert pf.features["fisheye_texture"] > 0
+    assert pf.features["fisheye_corr"] > 0.9  # near-identical L/R
 
 
 def test_fisheye_corr_is_zero_when_no_right_pair(tmp_path, caplog):
-    pdir = _build_phase(tmp_path, "s.x.y", 0,
-                        [_trivial_frame(f"{i:05d}") for i in range(3)])
+    pdir = _build_phase(tmp_path, "s.x.y", 0, [_trivial_frame(f"{i:05d}") for i in range(3)])
     _add_fisheye(pdir, "single")
     import logging
+
     with caplog.at_level(logging.WARNING, logger="rpx_benchmark.data.esd"):
         pf = extract_phase_features(pdir)
-    assert pf.features["fisheye_corr"]      == 0.0  # no pairs available
-    assert pf.features["fisheye_sharpness"] > 0      # left-only stats still computed
+    assert pf.features["fisheye_corr"] == 0.0  # no pairs available
+    assert pf.features["fisheye_sharpness"] > 0  # left-only stats still computed
     assert any("no stereo pairs" in rec.message for rec in caplog.records)
 
 

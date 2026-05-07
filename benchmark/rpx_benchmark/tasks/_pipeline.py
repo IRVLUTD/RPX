@@ -12,9 +12,9 @@ The toolkit does not ship models. Users supply a
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 from ..adapters import BenchmarkableModel
 from ..api import Difficulty, TaskType
@@ -65,8 +65,7 @@ class TaskRunConfig:
                 self.split = Difficulty(self.split)
             except ValueError as e:
                 raise ConfigError(
-                    f"Unknown split {self.split!r}. "
-                    f"Use one of: {[d.value for d in Difficulty]}",
+                    f"Unknown split {self.split!r}. Use one of: {[d.value for d in Difficulty]}",
                 ) from e
         if self.batch_size < 1:
             raise ConfigError(f"batch_size must be >= 1, got {self.batch_size}")
@@ -124,8 +123,11 @@ def run_pipeline(
     log.info("pipeline: task=%s split=%s device=%s", task.value, split_name, cfg.device)
 
     manifest_path = download_split(
-        task=task, split=cfg.split, repo_id=repo_id,
-        cache_dir=cfg.cache_dir, revision=cfg.revision,
+        task=task,
+        split=cfg.split,
+        repo_id=repo_id,
+        cache_dir=cfg.cache_dir,
+        revision=cfg.revision,
     )
     dataset = RPXDataset.from_manifest(manifest_path, batch_size=cfg.batch_size)
     log.info("loaded %d samples from %s", len(dataset), manifest_path)
@@ -139,13 +141,17 @@ def run_pipeline(
         log.info("model %s: %.2f M params", name, efficiency.params_m)
 
     runner = BenchmarkRunner(
-        model=model, dataset=dataset,
-        metric_suite=MetricSuite.for_task(task), call_setup=False,
+        model=model,
+        dataset=dataset,
+        metric_suite=MetricSuite.for_task(task),
+        call_setup=False,
     )
     result, dr_report = runner.run_with_deployment_readiness(
-        primary_metric=primary_metric, model_name=name,
+        primary_metric=primary_metric,
+        model_name=name,
         efficiency=efficiency,
-        compute_ts=compute_ts, compute_sgc_flag=compute_sgc,
+        compute_ts=compute_ts,
+        compute_sgc_flag=compute_sgc,
         progress=cfg.progress,
     )
 
@@ -157,13 +163,21 @@ def run_pipeline(
 
     write_json(
         json_path,
-        task=task.value, model_name=name, split=split_name,
-        repo_id=repo_id, result=result, dr_report=dr_report,
+        task=task.value,
+        model_name=name,
+        split=split_name,
+        repo_id=repo_id,
+        result=result,
+        dr_report=dr_report,
     )
     md_path.write_text(
         format_markdown_summary(
-            task=task.value, model_name=name, split=split_name,
-            repo_id=repo_id, result=result, dr_report=dr_report,
+            task=task.value,
+            model_name=name,
+            split=split_name,
+            repo_id=repo_id,
+            result=result,
+            dr_report=dr_report,
         ),
         encoding="utf-8",
     )

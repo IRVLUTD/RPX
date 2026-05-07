@@ -32,9 +32,9 @@ import pytest
 
 # We need a packed mock dataset to drive this test. The dataset_hub's
 # mock generator already produces one, so we use it.
-from rpx_benchmark.dataset_hub.mock import generate_mock, MockSpec
+from rpx_benchmark.dataset_hub.mock import MockSpec, generate_mock
+from rpx_benchmark.dataset_hub.packer import PackPlan, pack_capture_tree
 from rpx_benchmark.dataset_hub.scanner import scan_capture_root
-from rpx_benchmark.dataset_hub.packer import pack_capture_tree, PackPlan
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def staged_dataset(tmp_path):
     spec = MockSpec(
         multi_object_scenes=2,
         single_object_scenes=0,
-        frames_per_phase=4,         # enough rows that every (task, split) hits ≥ 1
+        frames_per_phase=4,  # enough rows that every (task, split) hits ≥ 1
         image_size=32,
     )
     generate_mock(src, spec)
@@ -70,19 +70,21 @@ def with_manifests(staged_dataset, tmp_path):
 
     # 1. Build the all-frames parquet (with a per-scene split mapping
     #    so write_split_manifests has rows to filter on).
-    from rpx_benchmark.dataset_hub.scanner import scan_capture_root
     from rpx_benchmark.dataset_hub.cli import _rehydrate_pack_result
     from rpx_benchmark.dataset_hub.manifest import build_frame_manifest
+    from rpx_benchmark.dataset_hub.scanner import scan_capture_root
 
     scan = scan_capture_root(src)
     pack = _rehydrate_pack_result(scan, staging)
 
-    splits = {scene.scene_id: ("easy" if i % 2 == 0 else "hard")
-              for i, scene in enumerate(scan.scenes)}
+    splits = {
+        scene.scene_id: ("easy" if i % 2 == 0 else "hard") for i, scene in enumerate(scan.scenes)
+    }
     build_frame_manifest(scan, pack, staging, splits=splits)
 
     # 2. Per-task per-split JSONs (the writer under test).
     from rpx_benchmark.dataset_hub.split_manifests import write_split_manifests
+
     written = write_split_manifests(staging)
     assert written, "writer produced no manifests — splits weren't applied"
 
@@ -97,6 +99,7 @@ def _resolve_paths_for_loader(staging: Path, manifest_path: Path) -> Path:
     `root: None` (filled at download time). Set root to the staging
     dir + materialise extracted layout so the loader can resolve."""
     from rpx_benchmark.hub import _extract_snapshot_tars
+
     _extract_snapshot_tars(staging)
 
     payload = json.loads(manifest_path.read_text())
@@ -106,15 +109,18 @@ def _resolve_paths_for_loader(staging: Path, manifest_path: Path) -> Path:
     return out
 
 
-@pytest.mark.parametrize("recipe_key,split", [
-    ("monocular_depth",  "easy"),
-    ("segmentation",     "easy"),
-    ("rgbd_segmentation","easy"),
-    ("stereo_depth",     "easy"),
-    ("relative_pose",    "easy"),
-    ("rgbd_relative_pose","easy"),
-    ("object_tracking",  "easy"),
-])
+@pytest.mark.parametrize(
+    "recipe_key,split",
+    [
+        ("monocular_depth", "easy"),
+        ("segmentation", "easy"),
+        ("rgbd_segmentation", "easy"),
+        ("stereo_depth", "easy"),
+        ("relative_pose", "easy"),
+        ("rgbd_relative_pose", "easy"),
+        ("object_tracking", "easy"),
+    ],
+)
 def test_round_trip_load(with_manifests, recipe_key, split):
     """Every supported (task, split) pair produced by the writer must
     parse through `RPXDataset.from_manifest` without errors AND yield
@@ -156,6 +162,7 @@ def test_extraction_layout_matches_manifest_paths(with_manifests):
     (e.g. `masks/` vs `sam2/masks/`, `cam_pose/.png` vs `cam_pose/.npz`)."""
     _src, staging, written = with_manifests
     from rpx_benchmark.hub import _extract_snapshot_tars
+
     n_new, _ = _extract_snapshot_tars(staging)
     assert n_new > 0, "extraction produced zero files"
 
@@ -163,10 +170,10 @@ def test_extraction_layout_matches_manifest_paths(with_manifests):
     if ("monocular_depth", "easy") not in written:
         pytest.skip("no monocular_depth/easy in this mock")
     payload = json.loads(written[("monocular_depth", "easy")].read_text())
-    for s in payload["samples"][:5]:                    # spot-check first 5
-        rgb_path   = staging / s["rgb"]
+    for s in payload["samples"][:5]:  # spot-check first 5
+        rgb_path = staging / s["rgb"]
         depth_path = staging / s["depth"]
-        assert rgb_path.is_file(),   f"missing extracted rgb:   {rgb_path}"
+        assert rgb_path.is_file(), f"missing extracted rgb:   {rgb_path}"
         assert depth_path.is_file(), f"missing extracted depth: {depth_path}"
 
 
@@ -176,6 +183,7 @@ def test_re_extraction_is_idempotent(with_manifests):
     times."""
     _src, staging, _w = with_manifests
     from rpx_benchmark.hub import _extract_snapshot_tars
+
     n_new1, n_skip1 = _extract_snapshot_tars(staging)
     n_new2, n_skip2 = _extract_snapshot_tars(staging)
     # First run: some new, maybe some skipped; second run: zero new.

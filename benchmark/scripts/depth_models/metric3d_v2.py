@@ -29,9 +29,9 @@ class Metric3DV2:
     """Universal metric depth: rgb → depth (metres)."""
 
     DEFAULT_HUB_ENTRY = "metric3d_vit_giant2"
-    DEFAULT_HUB_REPO  = "YvanYin/Metric3D"
+    DEFAULT_HUB_REPO = "YvanYin/Metric3D"
 
-    native_alignment: str = "none"           # metric
+    native_alignment: str = "none"  # metric
     native_precision: str = "fp32"
 
     def __init__(
@@ -39,7 +39,7 @@ class Metric3DV2:
         device: str = "cuda",
         batch_size: int = 1,
         hub_entry: str = DEFAULT_HUB_ENTRY,
-        hub_repo:  str = DEFAULT_HUB_REPO,
+        hub_repo: str = DEFAULT_HUB_REPO,
         dtype: Optional[str] = None,
     ) -> None:
         try:
@@ -50,19 +50,21 @@ class Metric3DV2:
         self.batch_size = int(batch_size)
         self._torch = torch
         self.hub_entry = hub_entry
-        self.hub_repo  = hub_repo
+        self.hub_repo = hub_repo
 
         try:
-            model = torch.hub.load(hub_repo, hub_entry, pretrain=True,
-                                   trust_repo=True, source="github")
+            model = torch.hub.load(
+                hub_repo, hub_entry, pretrain=True, trust_repo=True, source="github"
+            )
         except Exception as e:
             from rpx_benchmark.exceptions import AdapterError
+
             raise AdapterError(
                 f"Metric3D V2 hub.load failed: {e}",
                 hint="First-load needs internet access (torch.hub clones the "
-                     "repo + downloads weights to ~/.cache/torch/hub/). Once "
-                     "loaded, re-runs are offline. Verify the repo name with "
-                     "`torch.hub.list('YvanYin/Metric3D')`.",
+                "repo + downloads weights to ~/.cache/torch/hub/). Once "
+                "loaded, re-runs are offline. Verify the repo name with "
+                "`torch.hub.list('YvanYin/Metric3D')`.",
             ) from e
         if dtype:
             target_dtype = getattr(torch, dtype) if isinstance(dtype, str) else dtype
@@ -85,14 +87,15 @@ class Metric3DV2:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                 )
 
         # Metric3D's hub model expects [B, 3, H, W] float in [0, 1].
         tensors = [
-            torch.from_numpy(np.asarray(r, dtype=np.uint8))
-                 .permute(2, 0, 1).contiguous().float() / 255.0
+            torch.from_numpy(np.asarray(r, dtype=np.uint8)).permute(2, 0, 1).contiguous().float()
+            / 255.0
             for r in rgbs
         ]
         x = torch.stack(tensors, dim=0).to(self.device)
@@ -110,10 +113,10 @@ class Metric3DV2:
             depth_t = pred
         if depth_t is None:
             from rpx_benchmark.exceptions import AdapterError
+
             raise AdapterError(
                 "Metric3D V2 returned no depth tensor.",
-                hint="Inspect the hub model's output dict keys with "
-                     "`torch.hub.help(repo, entry)`.",
+                hint="Inspect the hub model's output dict keys with `torch.hub.help(repo, entry)`.",
             )
         if depth_t.dim() == 4:
             depth_t = depth_t.squeeze(1)
@@ -130,6 +133,7 @@ class Metric3DV2:
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

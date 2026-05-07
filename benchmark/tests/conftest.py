@@ -36,17 +36,23 @@ def synthetic_depth_dataset(tmp_path: Path) -> RPXDataset:
         for difficulty in ("easy", "hard"):
             frame = f"0{difficulty[0]}"
             _write_phase(tmp_path, "scene_000", phase_idx, [frame])
-            samples.append({
-                "id": f"scene_000_{phase_name}_{frame}",
-                "rgb":   f"scenes/scene_000/{phase_idx}/rgb/{frame}.png",
-                "depth": f"scenes/scene_000/{phase_idx}/depth/{frame}.png",
-                "phase": phase_name,
-                "difficulty": difficulty,
-            })
+            samples.append(
+                {
+                    "id": f"scene_000_{phase_name}_{frame}",
+                    "rgb": f"scenes/scene_000/{phase_idx}/rgb/{frame}.png",
+                    "depth": f"scenes/scene_000/{phase_idx}/depth/{frame}.png",
+                    "phase": phase_name,
+                    "difficulty": difficulty,
+                }
+            )
     manifest_path = tmp_path / "manifest.json"
-    manifest_path.write_text(json.dumps({
-        "task": "monocular_depth",
-        "root": str(tmp_path),
-        "samples": samples,
-    }))
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "task": "monocular_depth",
+                "root": str(tmp_path),
+                "samples": samples,
+            }
+        )
+    )
     return RPXDataset.from_manifest(manifest_path, batch_size=1)

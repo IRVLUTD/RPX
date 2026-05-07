@@ -5,20 +5,18 @@ from __future__ import annotations
 import pytest
 
 from rpx_benchmark.deployment import (
-    DeploymentReadinessResult,
     OperatingPoint,
     _efficiency_score,
     compute_drs,
     compute_sweep_drs,
 )
 
-
 # ------------------------------------------------------------------ #
 # Efficiency score
 # ------------------------------------------------------------------ #
 
-class TestEfficiencyScore:
 
+class TestEfficiencyScore:
     def test_at_median_returns_half(self) -> None:
         """Model at exactly the median FLOPs → E = 0.5."""
         assert _efficiency_score(100.0, 100.0) == pytest.approx(0.5)
@@ -62,19 +60,29 @@ class TestEfficiencyScore:
 # OperatingPoint
 # ------------------------------------------------------------------ #
 
-class TestOperatingPoint:
 
+class TestOperatingPoint:
     def test_higher_is_better_tp(self) -> None:
         op = OperatingPoint(
-            precision="fp32", task_metric=0.95, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.05, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.95,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.05,
+            flops_g=50.0,
+            params_m=100.0,
         )
         assert op.task_performance() == pytest.approx(0.95)
 
     def test_lower_is_better_tp(self) -> None:
         op = OperatingPoint(
-            precision="fp32", task_metric=0.05, task_metric_name="absrel",
-            higher_is_better=False, str_score=0.0, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.05,
+            task_metric_name="absrel",
+            higher_is_better=False,
+            str_score=0.0,
+            flops_g=50.0,
+            params_m=100.0,
         )
         # exp(-0.05) ≈ 0.951
         tp = op.task_performance()
@@ -83,29 +91,49 @@ class TestOperatingPoint:
     def test_lower_is_better_large_error_penalized(self) -> None:
         """AbsRel of 1.0 should give a low TP."""
         op = OperatingPoint(
-            precision="fp32", task_metric=1.0, task_metric_name="absrel",
-            higher_is_better=False, str_score=0.0, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=1.0,
+            task_metric_name="absrel",
+            higher_is_better=False,
+            str_score=0.0,
+            flops_g=50.0,
+            params_m=100.0,
         )
         assert op.task_performance() < 0.4  # exp(-1) ≈ 0.368
 
     def test_robustness_perfect(self) -> None:
         op = OperatingPoint(
-            precision="fp32", task_metric=0.9, task_metric_name="delta1",
-            higher_is_better=True, str_score=0.0, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.9,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=0.0,
+            flops_g=50.0,
+            params_m=100.0,
         )
         assert op.robustness() == 1.0
 
     def test_robustness_with_drop(self) -> None:
         op = OperatingPoint(
-            precision="fp32", task_metric=0.9, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.3, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.9,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.3,
+            flops_g=50.0,
+            params_m=100.0,
         )
         assert op.robustness() == pytest.approx(0.7)
 
     def test_robustness_clips_to_zero(self) -> None:
         op = OperatingPoint(
-            precision="fp32", task_metric=0.9, task_metric_name="delta1",
-            higher_is_better=True, str_score=-1.5, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.9,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-1.5,
+            flops_g=50.0,
+            params_m=100.0,
         )
         assert op.robustness() == 0.0
 
@@ -114,12 +142,17 @@ class TestOperatingPoint:
 # compute_drs
 # ------------------------------------------------------------------ #
 
-class TestComputeDRS:
 
+class TestComputeDRS:
     def test_single_op(self) -> None:
         op = OperatingPoint(
-            precision="fp32", task_metric=0.95, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.02, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.95,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.02,
+            flops_g=50.0,
+            params_m=100.0,
         )
         result = compute_drs([op], f_median_g=100.0)
         assert result.drs > 0
@@ -133,12 +166,22 @@ class TestComputeDRS:
         """FP16 with slightly lower accuracy but same FLOPs should tie;
         FP32 with same accuracy should also tie. Best = highest DRS."""
         op_fp32 = OperatingPoint(
-            precision="fp32", task_metric=0.90, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.05, flops_g=100.0, params_m=300.0,
+            precision="fp32",
+            task_metric=0.90,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.05,
+            flops_g=100.0,
+            params_m=300.0,
         )
         op_fp16 = OperatingPoint(
-            precision="fp16", task_metric=0.89, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.05, flops_g=100.0, params_m=300.0,
+            precision="fp16",
+            task_metric=0.89,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.05,
+            flops_g=100.0,
+            params_m=300.0,
         )
         result = compute_drs([op_fp32, op_fp16], f_median_g=100.0)
         # FP32 has 0.90 vs FP16 0.89 — same FLOPs — FP32 wins
@@ -147,12 +190,22 @@ class TestComputeDRS:
     def test_fp16_wins_when_accuracy_equal(self) -> None:
         """If FP16 and FP32 have same accuracy and same FLOPs, either wins (tied DRS)."""
         op_fp32 = OperatingPoint(
-            precision="fp32", task_metric=0.90, task_metric_name="delta1",
-            higher_is_better=True, str_score=0.0, flops_g=100.0, params_m=300.0,
+            precision="fp32",
+            task_metric=0.90,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=0.0,
+            flops_g=100.0,
+            params_m=300.0,
         )
         op_fp16 = OperatingPoint(
-            precision="fp16", task_metric=0.90, task_metric_name="delta1",
-            higher_is_better=True, str_score=0.0, flops_g=100.0, params_m=300.0,
+            precision="fp16",
+            task_metric=0.90,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=0.0,
+            flops_g=100.0,
+            params_m=300.0,
         )
         result = compute_drs([op_fp32, op_fp16], f_median_g=100.0)
         # Tied — first one wins (FP32). That's fine.
@@ -166,12 +219,22 @@ class TestComputeDRS:
     def test_fragile_model_penalized(self) -> None:
         """A model with large STR gets low DRS even if accurate."""
         robust_op = OperatingPoint(
-            precision="fp32", task_metric=0.85, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.02, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.85,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.02,
+            flops_g=50.0,
+            params_m=100.0,
         )
         fragile_op = OperatingPoint(
-            precision="fp32", task_metric=0.95, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.50, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.95,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.50,
+            flops_g=50.0,
+            params_m=100.0,
         )
         robust_result = compute_drs([robust_op], f_median_g=50.0)
         fragile_result = compute_drs([fragile_op], f_median_g=50.0)
@@ -181,12 +244,22 @@ class TestComputeDRS:
     def test_heavy_model_penalized(self) -> None:
         """A model with 10× FLOPs gets lower DRS even if equally accurate."""
         light_op = OperatingPoint(
-            precision="fp32", task_metric=0.90, task_metric_name="delta1",
-            higher_is_better=True, str_score=0.0, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.90,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=0.0,
+            flops_g=50.0,
+            params_m=100.0,
         )
         heavy_op = OperatingPoint(
-            precision="fp32", task_metric=0.90, task_metric_name="delta1",
-            higher_is_better=True, str_score=0.0, flops_g=500.0, params_m=1000.0,
+            precision="fp32",
+            task_metric=0.90,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=0.0,
+            flops_g=500.0,
+            params_m=1000.0,
         )
         light_result = compute_drs([light_op], f_median_g=100.0)
         heavy_result = compute_drs([heavy_op], f_median_g=100.0)
@@ -195,16 +268,26 @@ class TestComputeDRS:
     def test_multiplicative_kills_any_zero(self) -> None:
         """If any component is 0, DRS = 0."""
         zero_acc = OperatingPoint(
-            precision="fp32", task_metric=0.0, task_metric_name="delta1",
-            higher_is_better=True, str_score=0.0, flops_g=50.0, params_m=100.0,
+            precision="fp32",
+            task_metric=0.0,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=0.0,
+            flops_g=50.0,
+            params_m=100.0,
         )
         result = compute_drs([zero_acc], f_median_g=100.0)
         assert result.drs == 0.0
 
     def test_to_dict_round_trip(self) -> None:
         op = OperatingPoint(
-            precision="fp16", task_metric=0.92, task_metric_name="delta1",
-            higher_is_better=True, str_score=-0.03, flops_g=45.0, params_m=335.0,
+            precision="fp16",
+            task_metric=0.92,
+            task_metric_name="delta1",
+            higher_is_better=True,
+            str_score=-0.03,
+            flops_g=45.0,
+            params_m=335.0,
         )
         result = compute_drs([op], f_median_g=100.0)
         d = result.to_dict()
@@ -220,23 +303,44 @@ class TestComputeDRS:
 # compute_sweep_drs
 # ------------------------------------------------------------------ #
 
-class TestComputeSweepDRS:
 
+class TestComputeSweepDRS:
     def test_sweep_median_anchoring(self) -> None:
         """The median FLOPs should be computed from the sweep itself."""
         models = {
-            "light": [OperatingPoint(
-                precision="fp32", task_metric=0.90, task_metric_name="delta1",
-                higher_is_better=True, str_score=0.0, flops_g=10.0, params_m=25.0,
-            )],
-            "medium": [OperatingPoint(
-                precision="fp32", task_metric=0.90, task_metric_name="delta1",
-                higher_is_better=True, str_score=0.0, flops_g=100.0, params_m=300.0,
-            )],
-            "heavy": [OperatingPoint(
-                precision="fp32", task_metric=0.90, task_metric_name="delta1",
-                higher_is_better=True, str_score=0.0, flops_g=1000.0, params_m=800.0,
-            )],
+            "light": [
+                OperatingPoint(
+                    precision="fp32",
+                    task_metric=0.90,
+                    task_metric_name="delta1",
+                    higher_is_better=True,
+                    str_score=0.0,
+                    flops_g=10.0,
+                    params_m=25.0,
+                )
+            ],
+            "medium": [
+                OperatingPoint(
+                    precision="fp32",
+                    task_metric=0.90,
+                    task_metric_name="delta1",
+                    higher_is_better=True,
+                    str_score=0.0,
+                    flops_g=100.0,
+                    params_m=300.0,
+                )
+            ],
+            "heavy": [
+                OperatingPoint(
+                    precision="fp32",
+                    task_metric=0.90,
+                    task_metric_name="delta1",
+                    higher_is_better=True,
+                    str_score=0.0,
+                    flops_g=1000.0,
+                    params_m=800.0,
+                )
+            ],
         }
         results = compute_sweep_drs(models)
         # Median of [10, 100, 1000] = 100
@@ -251,14 +355,28 @@ class TestComputeSweepDRS:
     def test_sweep_all_same_flops(self) -> None:
         """When all models have same FLOPs, efficiency is equal — accuracy decides."""
         models = {
-            "better": [OperatingPoint(
-                precision="fp32", task_metric=0.95, task_metric_name="delta1",
-                higher_is_better=True, str_score=0.0, flops_g=50.0, params_m=100.0,
-            )],
-            "worse": [OperatingPoint(
-                precision="fp32", task_metric=0.80, task_metric_name="delta1",
-                higher_is_better=True, str_score=0.0, flops_g=50.0, params_m=100.0,
-            )],
+            "better": [
+                OperatingPoint(
+                    precision="fp32",
+                    task_metric=0.95,
+                    task_metric_name="delta1",
+                    higher_is_better=True,
+                    str_score=0.0,
+                    flops_g=50.0,
+                    params_m=100.0,
+                )
+            ],
+            "worse": [
+                OperatingPoint(
+                    precision="fp32",
+                    task_metric=0.80,
+                    task_metric_name="delta1",
+                    higher_is_better=True,
+                    str_score=0.0,
+                    flops_g=50.0,
+                    params_m=100.0,
+                )
+            ],
         }
         results = compute_sweep_drs(models)
         assert results["better"].drs > results["worse"].drs

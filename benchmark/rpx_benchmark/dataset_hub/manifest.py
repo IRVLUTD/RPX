@@ -46,7 +46,7 @@ from typing import Dict, List, Mapping, Optional
 
 from ..exceptions import DatasetError
 from ..logging_utils import get_logger
-from .packer import PackResult, PackedShard
+from .packer import PackedShard, PackResult
 from .recipes import (
     CAM_POSE,
     DEPTH,
@@ -66,12 +66,12 @@ SCHEMA_VERSION = "v1"
 # Modality → ("has_X", "shard_X") column-name pair. Order is the canonical
 # column order in the Parquet table.
 _COLUMNS: Dict[str, tuple[str, str]] = {
-    RGB:        ("has_rgb",        "shard_rgb"),
-    DEPTH:      ("has_depth",      "shard_depth"),
-    FISHEYE:    ("has_fisheye",    "shard_fisheye"),
-    CAM_POSE:   ("has_cam_pose",   "shard_cam_pose"),
-    MASKS:      ("has_masks",      "shard_masks"),
-    MASKS_AUX:  ("has_masks_aux",  "shard_masks_aux"),
+    RGB: ("has_rgb", "shard_rgb"),
+    DEPTH: ("has_depth", "shard_depth"),
+    FISHEYE: ("has_fisheye", "shard_fisheye"),
+    CAM_POSE: ("has_cam_pose", "shard_cam_pose"),
+    MASKS: ("has_masks", "shard_masks"),
+    MASKS_AUX: ("has_masks_aux", "shard_masks_aux"),
     "sam2_meta": ("has_sam2_meta", "shard_sam2_meta"),
 }
 
@@ -109,7 +109,9 @@ def _index_shards_by_phase(
 
 
 def _frame_filenames_for(
-    scan: ScanResult, scene_id: str, phase_index: int,
+    scan: ScanResult,
+    scene_id: str,
+    phase_index: int,
 ) -> List[str]:
     """Pick one modality (rgb, then depth, then anything) and return its
     sorted filenames as the canonical frame list for that phase.
@@ -151,10 +153,15 @@ def build_frame_manifest(
     """
     pa, pq = _arrow()
     splits = dict(splits or {})
-    label_versions = dict(label_versions or {
-        MASKS: "v1", MASKS_AUX: "v1",
-        "sam2_meta": "v1", CAM_POSE: "v1",
-    })
+    label_versions = dict(
+        label_versions
+        or {
+            MASKS: "v1",
+            MASKS_AUX: "v1",
+            "sam2_meta": "v1",
+            CAM_POSE: "v1",
+        }
+    )
     out_dir = Path(out_dir)
     (out_dir / "manifest").mkdir(parents=True, exist_ok=True)
 
@@ -162,8 +169,12 @@ def build_frame_manifest(
 
     # Build the table column-by-column for memory efficiency.
     cols: Dict[str, list] = {
-        "scene_id": [], "scene_type": [], "phase": [],
-        "frame_idx": [], "frame_filename": [], "split": [],
+        "scene_id": [],
+        "scene_type": [],
+        "phase": [],
+        "frame_idx": [],
+        "frame_filename": [],
+        "split": [],
     }
     for has_col, shard_col in _COLUMNS.values():
         cols[has_col] = []
@@ -173,12 +184,12 @@ def build_frame_manifest(
         for phase in scene.phases:
             shards_here = shard_index.get((scene.scene_id, phase.phase_index), {})
             filenames = _frame_filenames_for(
-                scan, scene.scene_id, phase.phase_index,
+                scan,
+                scene.scene_id,
+                phase.phase_index,
             )
             split_label = (
-                splits.get(scene.scene_id)
-                if scene.scene_type is SceneType.MULTI_OBJECT
-                else None
+                splits.get(scene.scene_id) if scene.scene_type is SceneType.MULTI_OBJECT else None
             )
             for idx, fname in enumerate(filenames):
                 cols["scene_id"].append(scene.scene_id)
@@ -192,16 +203,18 @@ def build_frame_manifest(
                     cols[has_col].append(shard is not None)
                     cols[shard_col].append(shard.repo_path if shard else None)
 
-    schema = pa.schema([
-        ("scene_id",      pa.string()),
-        ("scene_type",    pa.string()),
-        ("phase",         pa.int32()),
-        ("frame_idx",     pa.int32()),
-        ("frame_filename", pa.string()),
-        ("split",         pa.string()),
-        *[(c, pa.bool_()) for (c, _) in _COLUMNS.values()],
-        *[(c, pa.string()) for (_, c) in _COLUMNS.values()],
-    ])
+    schema = pa.schema(
+        [
+            ("scene_id", pa.string()),
+            ("scene_type", pa.string()),
+            ("phase", pa.int32()),
+            ("frame_idx", pa.int32()),
+            ("frame_filename", pa.string()),
+            ("split", pa.string()),
+            *[(c, pa.bool_()) for (c, _) in _COLUMNS.values()],
+            *[(c, pa.string()) for (_, c) in _COLUMNS.values()],
+        ]
+    )
     table = pa.table({k: cols[k] for k in schema.names}, schema=schema)
 
     parquet_path = out_dir / "manifest" / f"frames_{SCHEMA_VERSION}.parquet"
@@ -209,9 +222,7 @@ def build_frame_manifest(
 
     current_path = out_dir / "manifest" / "current.json"
     current_path.write_text(
-        json.dumps({"label_versions": label_versions,
-                     "schema_version": SCHEMA_VERSION},
-                    indent=2),
+        json.dumps({"label_versions": label_versions, "schema_version": SCHEMA_VERSION}, indent=2),
         encoding="utf-8",
     )
     log.info("wrote manifest: %d rows → %s", len(table), parquet_path)

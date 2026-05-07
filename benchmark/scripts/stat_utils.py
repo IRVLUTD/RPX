@@ -16,7 +16,6 @@ from typing import Iterable, Mapping, Sequence
 
 import numpy as np
 
-
 #: Asymptotic-normal critical value for a 95% two-sided CI. For n>30
 #: this matches the t-distribution to <1%; for small n the bootstrap
 #: CI is the trustworthy one and we report both.
@@ -48,38 +47,44 @@ def summarize_with_ci(values: Iterable[float]) -> dict:
     n = int(a.size)
     if n == 0:
         return {
-            "mean": 0.0, "median": 0.0, "std": 0.0,
-            "p5": 0.0, "p95": 0.0,
-            "ci95_low_t": 0.0, "ci95_high_t": 0.0,
-            "ci95_low_boot": 0.0, "ci95_high_boot": 0.0, "n": 0,
+            "mean": 0.0,
+            "median": 0.0,
+            "std": 0.0,
+            "p5": 0.0,
+            "p95": 0.0,
+            "ci95_low_t": 0.0,
+            "ci95_high_t": 0.0,
+            "ci95_low_boot": 0.0,
+            "ci95_high_boot": 0.0,
+            "n": 0,
         }
 
     mean = float(a.mean())
-    std  = float(a.std(ddof=1)) if n > 1 else 0.0
-    se   = (std / (n ** 0.5)) if n > 0 else 0.0
-    ci_low_t  = mean - Z_CRITICAL_95 * se
+    std = float(a.std(ddof=1)) if n > 1 else 0.0
+    se = (std / (n**0.5)) if n > 0 else 0.0
+    ci_low_t = mean - Z_CRITICAL_95 * se
     ci_high_t = mean + Z_CRITICAL_95 * se
 
     if n > 1:
         rng = np.random.default_rng(_BOOTSTRAP_SEED)
         idx = rng.integers(0, n, size=(_BOOTSTRAP_REPLICATES, n))
         boot_means = a[idx].mean(axis=1)
-        ci_low_boot  = float(np.percentile(boot_means,  2.5))
+        ci_low_boot = float(np.percentile(boot_means, 2.5))
         ci_high_boot = float(np.percentile(boot_means, 97.5))
     else:
         ci_low_boot, ci_high_boot = mean, mean
 
     return {
-        "mean":           mean,
-        "median":         float(np.median(a)),
-        "std":            std,
-        "p5":             float(np.percentile(a,  5)),
-        "p95":            float(np.percentile(a, 95)),
-        "ci95_low_t":     ci_low_t,
-        "ci95_high_t":    ci_high_t,
-        "ci95_low_boot":  ci_low_boot,
+        "mean": mean,
+        "median": float(np.median(a)),
+        "std": std,
+        "p5": float(np.percentile(a, 5)),
+        "p95": float(np.percentile(a, 95)),
+        "ci95_low_t": ci_low_t,
+        "ci95_high_t": ci_high_t,
+        "ci95_low_boot": ci_low_boot,
         "ci95_high_boot": ci_high_boot,
-        "n":              n,
+        "n": n,
     }
 
 
@@ -95,9 +100,13 @@ def aggregate_per_sample_with_ci(
     keys = sorted({k for r in rows for k in r if k not in set(drop_keys)})
     out: dict = {}
     for k in keys:
-        vals = [r[k] for r in rows
-                if k in r and isinstance(r[k], (int, float))
-                and not (isinstance(r[k], float) and np.isnan(r[k]))]
+        vals = [
+            r[k]
+            for r in rows
+            if k in r
+            and isinstance(r[k], (int, float))
+            and not (isinstance(r[k], float) and np.isnan(r[k]))
+        ]
         if vals:
             out[k] = summarize_with_ci(vals)
     return out

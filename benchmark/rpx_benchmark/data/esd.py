@@ -63,6 +63,7 @@ log = get_logger(__name__)
 # installed; tests run on PIL so behaviour stays identical.
 try:
     import cv2  # type: ignore
+
     _HAS_CV2 = True
 except ImportError:  # pragma: no cover
     _HAS_CV2 = False
@@ -72,26 +73,46 @@ except ImportError:  # pragma: no cover
 # Tests should diff against this list to catch silent additions / renames.
 FEATURE_NAMES: Tuple[str, ...] = (
     # Annotation effort
-    "iter_mean", "iter_max",
+    "iter_mean",
+    "iter_max",
     # Scene complexity
-    "obj_mean", "obj_std", "obj_consist",
+    "obj_mean",
+    "obj_std",
+    "obj_consist",
     # Occlusion
-    "occ_mean", "occ_p90", "occ_heavy",
+    "occ_mean",
+    "occ_p90",
+    "occ_heavy",
     # Depth quality
-    "depth_invalid", "depth_invalid_mask", "depth_std", "depth_std_mask",
+    "depth_invalid",
+    "depth_invalid_mask",
+    "depth_std",
+    "depth_std_mask",
     # Photometric--depth conflict (D435 RGB + invalid depth)
-    "specular", "dark",
+    "specular",
+    "dark",
     # Image quality (D435 RGB) — grounded in CEMS (Zhao et al. 2024)
-    "rgb_blur", "rgb_texture",
+    "rgb_blur",
+    "rgb_texture",
     # Object size distribution
-    "mask_area_mean", "mask_area_std",
+    "mask_area_mean",
+    "mask_area_std",
     # Temporal annotation stability
-    "area_cv", "area_drop", "vis_instability",
+    "area_cv",
+    "area_drop",
+    "vis_instability",
     # Camera motion (MAD-filtered)
-    "trans_mean", "trans_p90", "rot_mean", "rot_p90", "jerk",
+    "trans_mean",
+    "trans_p90",
+    "rot_mean",
+    "rot_p90",
+    "jerk",
     # Fisheye / stereo (T265 fisheye pairs) — NaN if no fisheye dir present
-    "fisheye_dark", "fisheye_bright", "fisheye_sharpness",
-    "fisheye_corr", "fisheye_texture",
+    "fisheye_dark",
+    "fisheye_bright",
+    "fisheye_sharpness",
+    "fisheye_corr",
+    "fisheye_texture",
 )
 
 # Threshold used by ``occ-heavy`` (appendix §"Occlusion").
@@ -109,10 +130,10 @@ _AREA_DROP_THRESHOLD: float = 0.5
 class PhaseFeatures:
     """Features and provenance for one (scene, phase) pair."""
 
-    scene_id: str               # full scene-dir basename
-    phase: int                  # 0 / 1 / 2 (clutter / interaction / clean)
-    n_frames_total: int         # frames present in rgb/
-    n_frames_used: int          # frames where every required modality was present
+    scene_id: str  # full scene-dir basename
+    phase: int  # 0 / 1 / 2 (clutter / interaction / clean)
+    n_frames_total: int  # frames present in rgb/
+    n_frames_used: int  # frames where every required modality was present
     features: Dict[str, float] = field(default_factory=dict)
 
     def as_json(self) -> Dict[str, object]:
@@ -122,6 +143,7 @@ class PhaseFeatures:
 # --------------------------------------------------------------------------- #
 # Frame discovery / loaders
 # --------------------------------------------------------------------------- #
+
 
 def _stem_set(d: Path, suffix: str) -> set[str]:
     if not d.is_dir():
@@ -135,24 +157,26 @@ def _aligned_frames(phase_dir: Path) -> List[str]:
     Logs a warning summarising any per-modality misalignment so silent
     data loss is visible without spamming the log per missing frame.
     """
-    rgb   = _stem_set(phase_dir / "rgb",        ".png")
-    depth = _stem_set(phase_dir / "depth",      ".png")
+    rgb = _stem_set(phase_dir / "rgb", ".png")
+    depth = _stem_set(phase_dir / "depth", ".png")
     masks = _stem_set(phase_dir / "sam2/masks", ".png")
-    pose  = _stem_set(phase_dir / "cam_pose",   ".npz")
+    pose = _stem_set(phase_dir / "cam_pose", ".npz")
     common = rgb & depth & masks & pose
 
     union = rgb | depth | masks | pose
     if union and len(common) < len(union):
         missing = {
-            "rgb":   len(union - rgb),
+            "rgb": len(union - rgb),
             "depth": len(union - depth),
-            "mask":  len(union - masks),
-            "pose":  len(union - pose),
+            "mask": len(union - masks),
+            "pose": len(union - pose),
         }
         gaps = ", ".join(f"{k}:{v}" for k, v in missing.items() if v > 0)
         log.warning(
             "%s: dropped %d frames due to modality misalignment (missing in: %s)",
-            phase_dir, len(union) - len(common), gaps,
+            phase_dir,
+            len(union) - len(common),
+            gaps,
         )
     return sorted(common)
 
@@ -169,7 +193,8 @@ def _warn_multichannel_once(parent_dir: str, n_channels: int) -> None:
     log.warning(
         "%s: multi-channel PNGs detected (%d ch); using first channel "
         "(further warnings for this directory suppressed)",
-        parent_dir, n_channels,
+        parent_dir,
+        n_channels,
     )
 
 
@@ -183,8 +208,9 @@ def _decode_png_gray(path: Path) -> np.ndarray:
     if _HAS_CV2:
         arr = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
         if arr is None:
-            raise DatasetError(f"failed to decode PNG: {path}",
-                               hint="file may be corrupt or zero-byte.")
+            raise DatasetError(
+                f"failed to decode PNG: {path}", hint="file may be corrupt or zero-byte."
+            )
         if arr.ndim == 3:
             _warn_multichannel_once(str(path.parent), arr.shape[2])
             arr = arr[..., 0]
@@ -214,8 +240,9 @@ def _load_rgb_luma(path: Path) -> np.ndarray:
     if _HAS_CV2:
         arr = cv2.imread(str(path), cv2.IMREAD_COLOR)  # BGR
         if arr is None:
-            raise DatasetError(f"failed to decode PNG: {path}",
-                               hint="file may be corrupt or zero-byte.")
+            raise DatasetError(
+                f"failed to decode PNG: {path}", hint="file may be corrupt or zero-byte."
+            )
         # cv2 returns BGR; BT.601 weights stay the same when applied to channels.
         b, g, r = arr[..., 0], arr[..., 1], arr[..., 2]
         return (0.114 * b + 0.587 * g + 0.299 * r).astype(np.uint8)
@@ -235,6 +262,7 @@ def _load_pose(path: Path) -> Tuple[np.ndarray, np.ndarray]:
 # --------------------------------------------------------------------------- #
 # Annotation-effort extractor (no per-frame I/O — reads small txt files only)
 # --------------------------------------------------------------------------- #
+
 
 def _annotation_effort(phase_dir: Path, frame_stems: List[str]) -> Dict[str, float]:
     """``iter-mean`` / ``iter-max``.
@@ -268,6 +296,7 @@ def _annotation_effort(phase_dir: Path, frame_stems: List[str]) -> Dict[str, flo
 # --------------------------------------------------------------------------- #
 # Geometry helpers
 # --------------------------------------------------------------------------- #
+
 
 def _bbox_xywh(binary_mask: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
     """Tight bbox of a boolean mask, or None if empty."""
@@ -314,11 +343,12 @@ def _occlusion_from_per_frame_bboxes(
         return {"occ_mean": 0.0, "occ_p90": 0.0, "occ_heavy": 0.0}
 
     per_object_mean = np.asarray(
-        [float(np.mean(v)) for v in per_object.values()], dtype=np.float32,
+        [float(np.mean(v)) for v in per_object.values()],
+        dtype=np.float32,
     )
     return {
-        "occ_mean":  float(per_object_mean.mean()),
-        "occ_p90":   float(np.percentile(per_object_mean, 90)),
+        "occ_mean": float(per_object_mean.mean()),
+        "occ_p90": float(np.percentile(per_object_mean, 90)),
         "occ_heavy": float((per_object_mean > _OCC_HEAVY_THRESHOLD).mean()),
     }
 
@@ -365,8 +395,8 @@ def _temporal_stability_from_areas(areas_T_by_id: np.ndarray) -> Dict[str, float
                 drops.append(n_drop / T)
 
     return {
-        "area_cv":         float(np.mean(cvs))           if cvs           else 0.0,
-        "area_drop":       float(np.mean(drops))         if drops         else 0.0,
+        "area_cv": float(np.mean(cvs)) if cvs else 0.0,
+        "area_drop": float(np.mean(drops)) if drops else 0.0,
         "vis_instability": float(np.mean(instabilities)) if instabilities else 0.0,
     }
 
@@ -403,7 +433,8 @@ def _mad_filter(arr: np.ndarray, k: float = 5.0) -> np.ndarray:
 
 
 def _camera_motion_from_arrays(
-    positions: np.ndarray, quats: np.ndarray,
+    positions: np.ndarray,
+    quats: np.ndarray,
 ) -> Dict[str, float]:
     """Camera motion features with MAD outlier filtering.
 
@@ -416,9 +447,7 @@ def _camera_motion_from_arrays(
     dominate the p90 and jerk features.
     """
     if positions.shape[0] < 2:
-        return {"trans_mean": 0.0, "trans_p90": 0.0,
-                "rot_mean":   0.0, "rot_p90":   0.0,
-                "jerk":       0.0}
+        return {"trans_mean": 0.0, "trans_p90": 0.0, "rot_mean": 0.0, "rot_p90": 0.0, "jerk": 0.0}
 
     delta_t = np.linalg.norm(np.diff(positions, axis=0), axis=1)
     delta_r = np.asarray(
@@ -432,10 +461,10 @@ def _camera_motion_from_arrays(
 
     return {
         "trans_mean": float(delta_t.mean()),
-        "trans_p90":  float(np.percentile(delta_t, 90)),
-        "rot_mean":   float(delta_r.mean()),
-        "rot_p90":    float(np.percentile(delta_r, 90)),
-        "jerk":       float(jerk.mean()) if jerk.size else 0.0,
+        "trans_p90": float(np.percentile(delta_t, 90)),
+        "rot_mean": float(delta_r.mean()),
+        "rot_p90": float(np.percentile(delta_r, 90)),
+        "jerk": float(jerk.mean()) if jerk.size else 0.0,
     }
 
 
@@ -444,8 +473,11 @@ def _camera_motion_from_arrays(
 # --------------------------------------------------------------------------- #
 
 _FISHEYE_FEATURE_NAMES: Tuple[str, ...] = (
-    "fisheye_dark", "fisheye_bright", "fisheye_sharpness",
-    "fisheye_corr", "fisheye_texture",
+    "fisheye_dark",
+    "fisheye_bright",
+    "fisheye_sharpness",
+    "fisheye_corr",
+    "fisheye_texture",
 )
 # Regex for ``*_L.png`` / ``*_R.png`` style fisheye pairs.
 _FISHEYE_LR_RE = re.compile(r"^(?P<stem>.+?)[_-](?P<side>[LRlr])$")
@@ -471,14 +503,15 @@ def _discover_fisheye(
     # Layout A: left/ + right/ subdirectories.
     ld, rd = fisheye_dir / "left", fisheye_dir / "right"
     if ld.is_dir() and rd.is_dir():
-        left  = {p.stem: p for p in ld.iterdir() if p.suffix.lower() in (".png", ".jpg")}
+        left = {p.stem: p for p in ld.iterdir() if p.suffix.lower() in (".png", ".jpg")}
         right = {p.stem: p for p in rd.iterdir() if p.suffix.lower() in (".png", ".jpg")}
         common = sorted(set(left) & set(right))
         return common, left, right
 
     # Layout B: <stem>_L.png + <stem>_R.png.
-    files = [p for p in fisheye_dir.iterdir()
-             if p.is_file() and p.suffix.lower() in (".png", ".jpg")]
+    files = [
+        p for p in fisheye_dir.iterdir() if p.is_file() and p.suffix.lower() in (".png", ".jpg")
+    ]
     left, right = {}, {}
     for f in files:
         m = _FISHEYE_LR_RE.match(f.stem)
@@ -506,8 +539,7 @@ def _laplacian_var(img: np.ndarray) -> float:
         lap = cv2.Laplacian(img, cv2.CV_32F)
         return float(lap.var())
     f = img.astype(np.float32)
-    lap = (np.roll(f, 1, 0) + np.roll(f, -1, 0)
-           + np.roll(f, 1, 1) + np.roll(f, -1, 1) - 4.0 * f)
+    lap = np.roll(f, 1, 0) + np.roll(f, -1, 0) + np.roll(f, 1, 1) + np.roll(f, -1, 1) - 4.0 * f
     return float(lap.var())
 
 
@@ -548,7 +580,7 @@ def _fisheye_features(phase_dir: Path) -> Dict[str, float]:
     Logs a warning when stereo pairs are missing (``fisheye_corr`` then
     aggregates only over frames that DO have pairs; if none, → NaN).
     """
-    empty = {name: float('nan') for name in _FISHEYE_FEATURE_NAMES}
+    empty = {name: float("nan") for name in _FISHEYE_FEATURE_NAMES}
     stems, left_paths, right_paths = _discover_fisheye(phase_dir / "fisheye")
     if not stems:
         return empty
@@ -560,11 +592,11 @@ def _fisheye_features(phase_dir: Path) -> Dict[str, float]:
             phase_dir,
         )
 
-    dark_acc:   List[float] = []
+    dark_acc: List[float] = []
     bright_acc: List[float] = []
-    sharp_acc:  List[float] = []
-    tex_acc:    List[float] = []
-    corr_acc:   List[float] = []
+    sharp_acc: List[float] = []
+    tex_acc: List[float] = []
+    corr_acc: List[float] = []
 
     for s in stems:
         try:
@@ -588,17 +620,18 @@ def _fisheye_features(phase_dir: Path) -> Dict[str, float]:
                 log.warning("fisheye-R decode failed for %s: %s", right_paths[s], e)
 
     return {
-        "fisheye_dark":      float(np.mean(dark_acc))   if dark_acc   else 0.0,
-        "fisheye_bright":    float(np.mean(bright_acc)) if bright_acc else 0.0,
-        "fisheye_sharpness": float(np.mean(sharp_acc))  if sharp_acc  else 0.0,
-        "fisheye_corr":      float(np.mean(corr_acc))   if corr_acc   else 0.0,
-        "fisheye_texture":   float(np.mean(tex_acc))    if tex_acc    else 0.0,
+        "fisheye_dark": float(np.mean(dark_acc)) if dark_acc else 0.0,
+        "fisheye_bright": float(np.mean(bright_acc)) if bright_acc else 0.0,
+        "fisheye_sharpness": float(np.mean(sharp_acc)) if sharp_acc else 0.0,
+        "fisheye_corr": float(np.mean(corr_acc)) if corr_acc else 0.0,
+        "fisheye_texture": float(np.mean(tex_acc)) if tex_acc else 0.0,
     }
 
 
 # --------------------------------------------------------------------------- #
 # Top-level driver — streaming, single I/O pass
 # --------------------------------------------------------------------------- #
+
 
 def _scene_phase_from_dir(phase_dir: Path) -> Tuple[str, int]:
     scene_id = phase_dir.parent.name
@@ -608,21 +641,25 @@ def _scene_phase_from_dir(phase_dir: Path) -> Tuple[str, int]:
         raise DatasetError(
             f"phase dir name must be an integer, got {phase_dir.name!r}",
             hint="phase_dir is expected to be <data_root>/<scene>/<phase_idx>; "
-                 "rename or pass a deeper path.",
+            "rename or pass a deeper path.",
         ) from e
     return scene_id, phase_idx
 
 
 # Features that should be NaN (not 0) when their modality is absent.
-_NAN_WHEN_ABSENT: frozenset = frozenset({
-    "fisheye_dark", "fisheye_bright", "fisheye_sharpness",
-    "fisheye_corr", "fisheye_texture",
-})
+_NAN_WHEN_ABSENT: frozenset = frozenset(
+    {
+        "fisheye_dark",
+        "fisheye_bright",
+        "fisheye_sharpness",
+        "fisheye_corr",
+        "fisheye_texture",
+    }
+)
 
 
 def _empty_features() -> Dict[str, float]:
-    return {k: (float('nan') if k in _NAN_WHEN_ABSENT else 0.0)
-            for k in FEATURE_NAMES}
+    return {k: (float("nan") if k in _NAN_WHEN_ABSENT else 0.0) for k in FEATURE_NAMES}
 
 
 def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
@@ -645,9 +682,13 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
 
     if not stems:
         log.warning("no aligned frames found for %s/%d", scene_id, phase_idx)
-        return PhaseFeatures(scene_id=scene_id, phase=phase_idx,
-                             n_frames_total=n_total, n_frames_used=0,
-                             features=_empty_features())
+        return PhaseFeatures(
+            scene_id=scene_id,
+            phase=phase_idx,
+            n_frames_total=n_total,
+            n_frames_used=0,
+            features=_empty_features(),
+        )
 
     T = len(stems)
 
@@ -655,27 +696,27 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     feats: Dict[str, float] = dict(_annotation_effort(phase_dir, stems))
 
     # Streaming accumulators.
-    obj_counts          = np.zeros(T, dtype=np.int32)
-    depth_invalid_frac  = np.zeros(T, dtype=np.float64)
+    obj_counts = np.zeros(T, dtype=np.int32)
+    depth_invalid_frac = np.zeros(T, dtype=np.float64)
     depth_inv_mask_frac = np.full(T, np.nan, dtype=np.float64)  # NaN → no mask pixels
     depth_std_per_frame = np.full(T, np.nan, dtype=np.float64)  # NaN → all-invalid
     depth_std_mask_per_frame = np.full(T, np.nan, dtype=np.float64)  # NaN → no valid depth in mask
-    spec_frac           = np.zeros(T, dtype=np.float64)
-    dark_frac           = np.zeros(T, dtype=np.float64)
-    rgb_blur_per_frame  = np.zeros(T, dtype=np.float64)   # Laplacian variance
-    rgb_tex_per_frame   = np.zeros(T, dtype=np.float64)   # gradient magnitude mean
+    spec_frac = np.zeros(T, dtype=np.float64)
+    dark_frac = np.zeros(T, dtype=np.float64)
+    rgb_blur_per_frame = np.zeros(T, dtype=np.float64)  # Laplacian variance
+    rgb_tex_per_frame = np.zeros(T, dtype=np.float64)  # gradient magnitude mean
     bboxes_per_frame: List[Dict[int, Tuple[int, int, int, int]]] = []
     # Per-frame dense bincount of mask values (length varies by frame max ID);
     # zipped at the end into a (T, max_id) matrix for area_cv / vis_instability.
     bincount_per_frame: List[np.ndarray] = []
     positions = np.zeros((T, 3), dtype=np.float64)
-    quats     = np.zeros((T, 4), dtype=np.float64)
+    quats = np.zeros((T, 4), dtype=np.float64)
 
     for t, s in enumerate(stems):
-        depth_m  = _load_depth_m(phase_dir / "depth"      / f"{s}.png")
-        mask     = _load_mask   (phase_dir / "sam2/masks" / f"{s}.png")
-        rgb_luma = _load_rgb_luma(phase_dir / "rgb"       / f"{s}.png")
-        pos, q   = _load_pose   (phase_dir / "cam_pose"   / f"{s}.npz")
+        depth_m = _load_depth_m(phase_dir / "depth" / f"{s}.png")
+        mask = _load_mask(phase_dir / "sam2/masks" / f"{s}.png")
+        rgb_luma = _load_rgb_luma(phase_dir / "rgb" / f"{s}.png")
+        pos, q = _load_pose(phase_dir / "cam_pose" / f"{s}.npz")
 
         # ── Depth-quality features ────────────────────────────────────────
         invalid = depth_m <= 0
@@ -698,18 +739,18 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
 
         # ── Photometric-conflict features ─────────────────────────────────
         spec_frac[t] = float(((rgb_luma > _SPECULAR_LUMA_MIN) & invalid).mean())
-        dark_frac[t] = float(((rgb_luma < _DARK_LUMA_MAX)     & invalid).mean())
+        dark_frac[t] = float(((rgb_luma < _DARK_LUMA_MAX) & invalid).mean())
 
         # ── Image quality (D435 RGB) — grounded in CEMS (Zhao et al. 2024) ──
         rgb_blur_per_frame[t] = _laplacian_var(rgb_luma)
-        rgb_tex_per_frame[t]  = _gradient_magnitude_mean(rgb_luma)
+        rgb_tex_per_frame[t] = _gradient_magnitude_mean(rgb_luma)
 
         # ── Mask-derived features (one bincount per frame, reused 3×) ─────
         flat = mask.ravel()
         # Drop negative IDs (defensive — masks should be unsigned).
         if flat.min() < 0:
             flat = flat[flat >= 0]
-        counts = np.bincount(flat)        # counts[i] = pixel count for ID i
+        counts = np.bincount(flat)  # counts[i] = pixel count for ID i
         ids = np.flatnonzero(counts[1:]) + 1 if counts.size > 1 else np.empty(0, dtype=np.int64)
         obj_counts[t] = ids.size
         bincount_per_frame.append(counts)
@@ -723,7 +764,7 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
 
         # ── Pose ──────────────────────────────────────────────────────────
         positions[t] = pos
-        quats[t]     = q
+        quats[t] = q
 
     # ── n_total_objects: prefer mask_to_object.json, else union of observed ──
     obj_json = phase_dir / "sam2" / "mask_to_object.json"
@@ -733,16 +774,20 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
         except (ValueError, OSError) as e:
             log.warning("%s: cannot parse, falling back to observed IDs (%s)", obj_json, e)
             n_total_objects = max(
-                (int(c.size - 1) for c in bincount_per_frame if c.size > 1), default=0,
+                (int(c.size - 1) for c in bincount_per_frame if c.size > 1),
+                default=0,
             )
     else:
-        all_ids = {int(i) for c in bincount_per_frame
-                   for i in (np.flatnonzero(c[1:]) + 1 if c.size > 1 else ())}
+        all_ids = {
+            int(i)
+            for c in bincount_per_frame
+            for i in (np.flatnonzero(c[1:]) + 1 if c.size > 1 else ())
+        }
         n_total_objects = len(all_ids)
 
     # ── Scene-complexity features ────────────────────────────────────────
     feats["obj_mean"] = float(obj_counts.mean())
-    feats["obj_std"]  = float(obj_counts.std())
+    feats["obj_std"] = float(obj_counts.std())
     feats["obj_consist"] = (
         float((obj_counts == n_total_objects).mean()) if n_total_objects > 0 else 0.0
     )
@@ -751,26 +796,25 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     feats.update(_occlusion_from_per_frame_bboxes(bboxes_per_frame))
 
     # ── Depth aggregates (NaN means "skip frame for this aggregate") ─────
-    feats["depth_invalid"]      = float(depth_invalid_frac.mean())
+    feats["depth_invalid"] = float(depth_invalid_frac.mean())
     feats["depth_invalid_mask"] = (
-        float(np.nanmean(depth_inv_mask_frac))
-        if not np.isnan(depth_inv_mask_frac).all() else 0.0
+        float(np.nanmean(depth_inv_mask_frac)) if not np.isnan(depth_inv_mask_frac).all() else 0.0
     )
     feats["depth_std"] = (
-        float(np.nanmean(depth_std_per_frame))
-        if not np.isnan(depth_std_per_frame).all() else 0.0
+        float(np.nanmean(depth_std_per_frame)) if not np.isnan(depth_std_per_frame).all() else 0.0
     )
     feats["depth_std_mask"] = (
         float(np.nanmean(depth_std_mask_per_frame))
-        if not np.isnan(depth_std_mask_per_frame).all() else 0.0
+        if not np.isnan(depth_std_mask_per_frame).all()
+        else 0.0
     )
 
     # ── Photometric ──────────────────────────────────────────────────────
     feats["specular"] = float(spec_frac.mean())
-    feats["dark"]     = float(dark_frac.mean())
+    feats["dark"] = float(dark_frac.mean())
 
     # ── Image quality (D435 RGB) ─────────────────────────────────────
-    feats["rgb_blur"]    = float(rgb_blur_per_frame.mean())
+    feats["rgb_blur"] = float(rgb_blur_per_frame.mean())
     feats["rgb_texture"] = float(rgb_tex_per_frame.mean())
 
     # ── Compute max_id once for reuse by object-size and temporal-stability ─
@@ -785,7 +829,7 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
         for _t, _c in enumerate(bincount_per_frame):
             _n = min(int(_c.size) - 1, max_id)
             if _n > 0:
-                _areas_for_size[_t, :_n] = _c[1:1 + _n]
+                _areas_for_size[_t, :_n] = _c[1 : 1 + _n]
         _present = _areas_for_size > 0
         _per_inst_mean = []
         for _j in range(max_id):
@@ -794,13 +838,13 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
                 _per_inst_mean.append(float(_vis.mean()) / max(_frame_pixels, 1))
         if _per_inst_mean:
             feats["mask_area_mean"] = float(np.mean(_per_inst_mean))
-            feats["mask_area_std"]  = float(np.std(_per_inst_mean))
+            feats["mask_area_std"] = float(np.std(_per_inst_mean))
         else:
             feats["mask_area_mean"] = 0.0
-            feats["mask_area_std"]  = 0.0
+            feats["mask_area_std"] = 0.0
     else:
         feats["mask_area_mean"] = 0.0
-        feats["mask_area_std"]  = 0.0
+        feats["mask_area_std"] = 0.0
 
     # ── Temporal stability: build dense (T, max_id) area matrix ──────────
     if max_id >= 1:
@@ -808,7 +852,7 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
         for t, c in enumerate(bincount_per_frame):
             n = min(int(c.size) - 1, max_id)
             if n > 0:
-                areas[t, :n] = c[1:1 + n]
+                areas[t, :n] = c[1 : 1 + n]
         feats.update(_temporal_stability_from_areas(areas))
     else:
         feats["area_cv"] = 0.0
@@ -825,13 +869,15 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     # Missing fisheye features → NaN (not 0) so percentile normalization
     # can exclude them instead of biasing toward low difficulty.
     feats = {
-        k: float(feats.get(k, float('nan') if k in _NAN_WHEN_ABSENT else 0.0))
+        k: float(feats.get(k, float("nan") if k in _NAN_WHEN_ABSENT else 0.0))
         for k in FEATURE_NAMES
     }
 
     return PhaseFeatures(
-        scene_id=scene_id, phase=phase_idx,
-        n_frames_total=n_total, n_frames_used=T,
+        scene_id=scene_id,
+        phase=phase_idx,
+        n_frames_total=n_total,
+        n_frames_used=T,
         features=feats,
     )
 
@@ -844,8 +890,9 @@ def iter_phase_dirs(data_root: Path) -> Iterator[Path]:
     """
     data_root = Path(data_root)
     if not data_root.is_dir():
-        raise DatasetError(f"data_root is not a directory: {data_root}",
-                           hint="check the --data-root argument.")
+        raise DatasetError(
+            f"data_root is not a directory: {data_root}", hint="check the --data-root argument."
+        )
     for scene_dir in sorted(p for p in data_root.iterdir() if p.is_dir()):
         for child in sorted(scene_dir.iterdir()):
             if child.is_dir() and child.name.isdigit() and (child / "rgb").is_dir():

@@ -5,17 +5,17 @@ from __future__ import annotations
 import pytest
 
 from rpx_benchmark.profiler import (
+    REFERENCE_GPUS,
     EfficiencyMetadata,
     GPUSpec,
-    REFERENCE_GPUS,
     RooflineBound,
     SystemCard,
 )
 
-
 # --------------------------------------------------------------------------- #
 # GPUSpec + RooflineBound
 # --------------------------------------------------------------------------- #
+
 
 class TestRooflineBound:
     """Roofline latency bound computation."""
@@ -24,7 +24,7 @@ class TestRooflineBound:
         """A model with high FLOPs and low traffic should be compute-bound."""
         gpu = GPUSpec(name="TestGPU", peak_tflops=10.0, memory_bw_gbps=1000.0, memory_gb=24.0)
         bound = RooflineBound.from_model_and_gpu(
-            flops_g=100.0,    # 100 GFLOP
+            flops_g=100.0,  # 100 GFLOP
             traffic_gb=0.01,  # 10 MB — very low traffic
             gpu=gpu,
         )
@@ -37,8 +37,8 @@ class TestRooflineBound:
         """A model with low FLOPs and high traffic should be memory-bound."""
         gpu = GPUSpec(name="TestGPU", peak_tflops=100.0, memory_bw_gbps=100.0, memory_gb=24.0)
         bound = RooflineBound.from_model_and_gpu(
-            flops_g=1.0,      # 1 GFLOP — tiny compute
-            traffic_gb=1.0,   # 1 GB — lots of traffic
+            flops_g=1.0,  # 1 GFLOP — tiny compute
+            traffic_gb=1.0,  # 1 GB — lots of traffic
             gpu=gpu,
         )
         assert bound.bottleneck == "memory"
@@ -64,6 +64,7 @@ class TestRooflineBound:
 # --------------------------------------------------------------------------- #
 # EfficiencyMetadata — Tier 1 derivation
 # --------------------------------------------------------------------------- #
+
 
 class TestEfficiencyMetadataTier1:
     """Tier 1: derived fields (MACs, traffic, arithmetic intensity)."""
@@ -114,7 +115,7 @@ class TestEfficiencyMetadataRoofline:
         assert "A100-80GB" in bounds
         assert "RTX 4090" in bounds
         assert "Jetson Orin 64GB" in bounds
-        for name, b in bounds.items():
+        for _name, b in bounds.items():
             assert b.latency_ms > 0
             assert b.bottleneck in ("compute", "memory")
 
@@ -172,6 +173,7 @@ class TestEfficiencyMetadataTableRow:
 # --------------------------------------------------------------------------- #
 # SystemCard
 # --------------------------------------------------------------------------- #
+
 
 class TestSystemCard:
     """SystemCard auto-detection and serialization."""

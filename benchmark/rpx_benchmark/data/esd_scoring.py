@@ -66,26 +66,29 @@ CONFIDENCE_LABELS: Tuple[str, str, str] = ("high", "medium", "low")
 # category. Used to compute the per-category sub-score vector that surfaces
 # the multi-faceted nature of difficulty (data story §S4).
 FEATURE_CATEGORIES: Dict[str, Tuple[str, ...]] = {
-    "annotation_effort":    ("iter_mean", "iter_max"),
-    "scene_complexity":     ("obj_mean", "obj_std", "obj_consist"),
-    "occlusion":            ("occ_mean", "occ_p90", "occ_heavy"),
-    "depth_quality":        ("depth_invalid", "depth_invalid_mask",
-                             "depth_std", "depth_std_mask"),
+    "annotation_effort": ("iter_mean", "iter_max"),
+    "scene_complexity": ("obj_mean", "obj_std", "obj_consist"),
+    "occlusion": ("occ_mean", "occ_p90", "occ_heavy"),
+    "depth_quality": ("depth_invalid", "depth_invalid_mask", "depth_std", "depth_std_mask"),
     "photometric_conflict": ("specular", "dark"),
-    "image_quality":        ("rgb_blur", "rgb_texture"),
-    "object_size":          ("mask_area_mean", "mask_area_std"),
-    "temporal_stability":   ("area_cv", "area_drop", "vis_instability"),
-    "camera_motion":        ("trans_mean", "trans_p90", "rot_mean",
-                             "rot_p90", "jerk"),
-    "fisheye_stereo":       ("fisheye_dark", "fisheye_bright",
-                             "fisheye_sharpness", "fisheye_corr",
-                             "fisheye_texture"),
+    "image_quality": ("rgb_blur", "rgb_texture"),
+    "object_size": ("mask_area_mean", "mask_area_std"),
+    "temporal_stability": ("area_cv", "area_drop", "vis_instability"),
+    "camera_motion": ("trans_mean", "trans_p90", "rot_mean", "rot_p90", "jerk"),
+    "fisheye_stereo": (
+        "fisheye_dark",
+        "fisheye_bright",
+        "fisheye_sharpness",
+        "fisheye_corr",
+        "fisheye_texture",
+    ),
 }
 
 
 # --------------------------------------------------------------------------- #
 # Provenance
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class ScoringProvenance:
@@ -94,27 +97,27 @@ class ScoringProvenance:
 
     input_sha256: str
     feature_set_version: str
-    scoring_version: str                 # "uniform_v1" | "mi_v1"
-    primary_method: str                  # one of SCORING_METHODS
-    weights: Dict[str, float]            # {feature_name: weight} for primary scoring
-    feature_names: List[str]             # the 27 feature names, in canonical order
+    scoring_version: str  # "uniform_v1" | "mi_v1"
+    primary_method: str  # one of SCORING_METHODS
+    weights: Dict[str, float]  # {feature_name: weight} for primary scoring
+    feature_names: List[str]  # the 27 feature names, in canonical order
     n_entries: int
     generated_at_utc: str
-    script_version: str = "unknown"      # caller fills with `git rev-parse HEAD`
+    script_version: str = "unknown"  # caller fills with `git rev-parse HEAD`
     extra: Dict[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, object]:
         return {
-            "input_sha256":        self.input_sha256,
+            "input_sha256": self.input_sha256,
             "feature_set_version": self.feature_set_version,
-            "scoring_version":     self.scoring_version,
-            "primary_method":      self.primary_method,
-            "weights":             self.weights,
-            "feature_names":       self.feature_names,
-            "n_entries":           self.n_entries,
-            "generated_at_utc":    self.generated_at_utc,
-            "script_version":      self.script_version,
-            "extra":               self.extra,
+            "scoring_version": self.scoring_version,
+            "primary_method": self.primary_method,
+            "weights": self.weights,
+            "feature_names": self.feature_names,
+            "n_entries": self.n_entries,
+            "generated_at_utc": self.generated_at_utc,
+            "script_version": self.script_version,
+            "extra": self.extra,
         }
 
 
@@ -131,6 +134,7 @@ def sha256_of_file(path: Path) -> str:
 # Weights
 # --------------------------------------------------------------------------- #
 
+
 def uniform_weights(feature_names: List[str]) -> Dict[str, float]:
     """``wᵢ = 1/F`` — the always-reproducible baseline.
 
@@ -140,8 +144,10 @@ def uniform_weights(feature_names: List[str]) -> Dict[str, float]:
     "no-prior" reference point for the sensitivity analysis.
     """
     if not feature_names:
-        raise ConfigError("uniform_weights requires a non-empty feature list",
-                          hint="check that FEATURE_NAMES is populated.")
+        raise ConfigError(
+            "uniform_weights requires a non-empty feature list",
+            hint="check that FEATURE_NAMES is populated.",
+        )
     w = 1.0 / len(feature_names)
     return {name: w for name in feature_names}
 
@@ -183,18 +189,21 @@ def effort_stratified_weights(
     ``alpha = 1`` the score depends only on annotation effort.
     """
     if not feature_names:
-        raise ConfigError("effort_stratified_weights requires a non-empty feature list",
-                          hint="check that FEATURE_NAMES is populated.")
+        raise ConfigError(
+            "effort_stratified_weights requires a non-empty feature list",
+            hint="check that FEATURE_NAMES is populated.",
+        )
     if not (0.0 <= alpha <= 1.0):
-        raise ConfigError(f"alpha must be in [0, 1], got {alpha}",
-                          hint="alpha controls the convex combination of effort vs perception.")
+        raise ConfigError(
+            f"alpha must be in [0, 1], got {alpha}",
+            hint="alpha controls the convex combination of effort vs perception.",
+        )
 
     effort = [n for n in feature_names if n in effort_features]
-    other  = [n for n in feature_names if n not in effort_features]
+    other = [n for n in feature_names if n not in effort_features]
     if not effort:
         raise ConfigError(
-            f"no effort features found in feature list "
-            f"(looked for {effort_features})",
+            f"no effort features found in feature list (looked for {effort_features})",
             hint="check that FEATURE_NAMES includes iter_mean / iter_max.",
         )
     if not other:
@@ -203,7 +212,7 @@ def effort_stratified_weights(
         return uniform_weights(feature_names)
 
     w_effort = alpha / len(effort)
-    w_other  = (1.0 - alpha) / len(other)
+    w_other = (1.0 - alpha) / len(other)
     weights = {n: (w_effort if n in effort_features else w_other) for n in feature_names}
     # Sanity: weights sum to 1 (modulo floating-point).
     total = sum(weights.values())
@@ -212,7 +221,8 @@ def effort_stratified_weights(
 
 
 def load_mi_weights(
-    path: Path, feature_names: List[str],
+    path: Path,
+    feature_names: List[str],
 ) -> Tuple[Dict[str, float], Dict[str, object]]:
     """Load mutual-information-derived weights from a JSON artifact.
 
@@ -232,8 +242,10 @@ def load_mi_weights(
     """
     path = Path(path)
     if not path.is_file():
-        raise DatasetError(f"MI weights file not found: {path}",
-                           hint="pass --weights-mi to point at the calibration artifact.")
+        raise DatasetError(
+            f"MI weights file not found: {path}",
+            hint="pass --weights-mi to point at the calibration artifact.",
+        )
     payload = json.loads(path.read_text())
     raw = payload.get("weights")
     if not isinstance(raw, dict):
@@ -259,6 +271,7 @@ def load_mi_weights(
 # Percentile-normalisation
 # --------------------------------------------------------------------------- #
 
+
 def percentile_normalize(matrix: np.ndarray) -> np.ndarray:
     """Per-column rank divided by N (matches paper §3.2 ``f̃ᵢ``).
 
@@ -272,8 +285,10 @@ def percentile_normalize(matrix: np.ndarray) -> np.ndarray:
     biased toward low difficulty.
     """
     if matrix.ndim != 2:
-        raise ConfigError(f"percentile_normalize expects 2D array, got shape {matrix.shape}",
-                          hint="reshape to (n_rows, n_features) before calling.")
+        raise ConfigError(
+            f"percentile_normalize expects 2D array, got shape {matrix.shape}",
+            hint="reshape to (n_rows, n_features) before calling.",
+        )
     n_rows, n_cols = matrix.shape
     out = np.empty_like(matrix, dtype=np.float64)
     for j in range(n_cols):
@@ -306,6 +321,7 @@ def percentile_normalize(matrix: np.ndarray) -> np.ndarray:
 # Tertile cut
 # --------------------------------------------------------------------------- #
 
+
 def tertile_cut(scores: np.ndarray) -> np.ndarray:
     """Bottom 33% / middle 33% / top 34% → 'easy' / 'medium' / 'hard'.
 
@@ -323,9 +339,9 @@ def tertile_cut(scores: np.ndarray) -> np.ndarray:
     ranks = np.argsort(np.argsort(scores, kind="mergesort")) + 1
     p = ranks / n
     out = np.empty(n, dtype=object)
-    out[p <= 1.0 / 3.0]                 = TERTILE_LABELS[0]
-    out[(p > 1.0 / 3.0) & (p <= 2.0/3)] = TERTILE_LABELS[1]
-    out[p > 2.0 / 3.0]                  = TERTILE_LABELS[2]
+    out[p <= 1.0 / 3.0] = TERTILE_LABELS[0]
+    out[(p > 1.0 / 3.0) & (p <= 2.0 / 3)] = TERTILE_LABELS[1]
+    out[p > 2.0 / 3.0] = TERTILE_LABELS[2]
     return out
 
 
@@ -341,6 +357,7 @@ def percentile_rank(scores: np.ndarray) -> np.ndarray:
 # --------------------------------------------------------------------------- #
 # Scoring methods (each returns continuous score; tertile_cut applied separately)
 # --------------------------------------------------------------------------- #
+
 
 def score_mean_pn(pn: np.ndarray, weights: np.ndarray) -> np.ndarray:
     """Weighted mean of percentile-normalised features. Default primary method.
@@ -375,8 +392,10 @@ def score_pca_pc1(pn: np.ndarray) -> np.ndarray:
     try:
         from sklearn.decomposition import PCA  # noqa: PLC0415
     except ImportError as e:
-        raise ConfigError("score_pca_pc1 requires scikit-learn",
-                          hint="install with: pip install 'rpx-benchmark[analysis]'") from e
+        raise ConfigError(
+            "score_pca_pc1 requires scikit-learn",
+            hint="install with: pip install 'rpx-benchmark[analysis]'",
+        ) from e
     pca = PCA(n_components=1)
     pc1 = pca.fit_transform(pn - pn.mean(axis=0)).ravel()
     if np.corrcoef(pc1, pn.mean(axis=1))[0, 1] < 0:
@@ -395,8 +414,10 @@ def score_kmeans3(pn: np.ndarray, *, seed: int = 0) -> np.ndarray:
         from sklearn.cluster import KMeans  # noqa: PLC0415
         from sklearn.decomposition import PCA  # noqa: PLC0415
     except ImportError as e:
-        raise ConfigError("score_kmeans3 requires scikit-learn",
-                          hint="install with: pip install 'rpx-benchmark[analysis]'") from e
+        raise ConfigError(
+            "score_kmeans3 requires scikit-learn",
+            hint="install with: pip install 'rpx-benchmark[analysis]'",
+        ) from e
     n_rows = pn.shape[0]
     if n_rows < 3:
         log.warning("score_kmeans3: <3 rows; degenerate clustering, returning zeros")
@@ -418,6 +439,7 @@ def score_kmeans3(pn: np.ndarray, *, seed: int = 0) -> np.ndarray:
 # --------------------------------------------------------------------------- #
 # Locality Preserving Projections (LPP) — He & Niyogi, NeurIPS 2003
 # --------------------------------------------------------------------------- #
+
 
 def lpp_embedding(
     X: np.ndarray,
@@ -455,15 +477,19 @@ def lpp_embedding(
     embedding of the training points.
     """
     try:
-        from sklearn.neighbors import NearestNeighbors  # noqa: PLC0415
         from scipy.linalg import eigh  # noqa: PLC0415
+        from sklearn.neighbors import NearestNeighbors  # noqa: PLC0415
     except ImportError as e:
-        raise ConfigError("lpp_embedding requires scikit-learn and scipy",
-                          hint="install with: pip install 'rpx-benchmark[analysis]'") from e
+        raise ConfigError(
+            "lpp_embedding requires scikit-learn and scipy",
+            hint="install with: pip install 'rpx-benchmark[analysis]'",
+        ) from e
 
     if X.ndim != 2:
-        raise ConfigError(f"lpp_embedding expects 2D array, got shape {X.shape}",
-                          hint="reshape to (n_rows, n_features) before calling.")
+        raise ConfigError(
+            f"lpp_embedding expects 2D array, got shape {X.shape}",
+            hint="reshape to (n_rows, n_features) before calling.",
+        )
     n, d = X.shape
     if n_neighbors >= n:
         raise ConfigError(
@@ -475,18 +501,18 @@ def lpp_embedding(
     nn = NearestNeighbors(n_neighbors=n_neighbors + 1).fit(X)
     distances, indices = nn.kneighbors(X)
     distances = distances[:, 1:]  # drop self
-    indices   = indices[:, 1:]
+    indices = indices[:, 1:]
 
     # Step 2: heat-kernel weights, symmetrised affinity matrix W.
     if heat_t is None:
-        heat_t = float(np.median(distances ** 2))
+        heat_t = float(np.median(distances**2))
         if heat_t <= 0:
             heat_t = 1.0  # degenerate fallback (e.g., duplicated points)
 
     W = np.zeros((n, n), dtype=np.float64)
     for i in range(n):
         for j_idx, j in enumerate(indices[i]):
-            w = float(np.exp(-distances[i, j_idx] ** 2 / heat_t))
+            w = float(np.exp(-(distances[i, j_idx] ** 2) / heat_t))
             # Symmetrise: take max so the affinity is consistent under
             # asymmetric kNN.
             W[i, j] = max(W[i, j], w)
@@ -514,6 +540,7 @@ def lpp_embedding(
 # Driver — run all methods at once
 # --------------------------------------------------------------------------- #
 
+
 def all_methods(
     pn: np.ndarray,
     weights: np.ndarray,
@@ -527,9 +554,9 @@ def all_methods(
     the available subset.
     """
     out: Dict[str, np.ndarray] = {}
-    out["mean_pn"]   = score_mean_pn(pn, weights)
+    out["mean_pn"] = score_mean_pn(pn, weights)
     out["median_pn"] = score_median_pn(pn)
-    out["max_pn"]    = score_max_pn(pn)
+    out["max_pn"] = score_max_pn(pn)
     try:
         out["pca_pc1"] = score_pca_pc1(pn)
     except ConfigError as e:
@@ -587,6 +614,7 @@ def compute_consensus_tier(
     conservative choice for downstream evaluation.
     """
     from collections import Counter
+
     excluded = set(exclude_methods or ())
     voting = {m: t for m, t in method_tiers.items() if m not in excluded}
     if not voting:
@@ -680,33 +708,35 @@ def aggregate_to_scene_splits(
         tier_here = str(phase_tiers[i]) if phase_tiers is not None else None
         per_scene[sid][ph] = (float(scores[i]), tier_here)
 
-    per_scene_mean = {sid: float(np.mean([v[0] for v in info.values()]))
-                       for sid, info in per_scene.items()}
+    per_scene_mean = {
+        sid: float(np.mean([v[0] for v in info.values()])) for sid, info in per_scene.items()
+    }
 
     # Sort scenes ascending by mean score; tertile-cut.
     ordered = sorted(per_scene_mean, key=per_scene_mean.get)
     n = len(ordered)
     n_easy = n // 3
-    n_med  = n // 3
-    easy   = sorted(ordered[:n_easy])
+    n_med = n // 3
+    easy = sorted(ordered[:n_easy])
     medium = sorted(ordered[n_easy : n_easy + n_med])
-    hard   = sorted(ordered[n_easy + n_med :])
+    hard = sorted(ordered[n_easy + n_med :])
     splits = {"easy": easy, "medium": medium, "hard": hard}
 
     # Reverse map for "which tier does this scene belong to".
-    scene_to_tier = {**{s: "easy" for s in easy},
-                     **{s: "medium" for s in medium},
-                     **{s: "hard" for s in hard}}
+    scene_to_tier = {
+        **{s: "easy" for s in easy},
+        **{s: "medium" for s in medium},
+        **{s: "hard" for s in hard},
+    }
 
     scene_detail: Dict[str, Dict[str, object]] = {}
     for sid, info in per_scene.items():
         # Sort phases by index so output is deterministic (capture order).
         ordered_phases = sorted(info)
         phase_scores = [info[p][0] for p in ordered_phases]
-        phase_tiers_out = [info[p][1] for p in ordered_phases
-                            if info[p][1] is not None]
+        phase_tiers_out = [info[p][1] for p in ordered_phases if info[p][1] is not None]
         detail: Dict[str, object] = {
-            "scene_tier":  scene_to_tier[sid],
+            "scene_tier": scene_to_tier[sid],
             "scene_score": per_scene_mean[sid],
             "phase_scores": phase_scores,
         }
@@ -739,7 +769,7 @@ def compute_confidence(
     rng = np.random.default_rng(seed)
     F = pn.shape[1]
     base_score = pn.mean(axis=1)
-    base_tier  = tertile_cut(base_score)
+    base_tier = tertile_cut(base_score)
 
     flips = np.zeros(pn.shape[0], dtype=np.int32)
     for _ in range(n_perturb):
@@ -748,7 +778,7 @@ def compute_confidence(
     flip_rate = flips.astype(np.float64) / float(n_perturb)
 
     label = np.empty(pn.shape[0], dtype=object)
-    label[flip_rate <  high_max]                                 = "high"
-    label[(flip_rate >= high_max) & (flip_rate < medium_max)]    = "medium"
-    label[flip_rate >= medium_max]                               = "low"
+    label[flip_rate < high_max] = "high"
+    label[(flip_rate >= high_max) & (flip_rate < medium_max)] = "medium"
+    label[flip_rate >= medium_max] = "low"
     return flip_rate, label

@@ -28,6 +28,7 @@ log = get_logger(__name__)
 # Abstract base
 # --------------------------------------------------------------------------- #
 
+
 class MetricCalculator(ABC):
     """Abstract base for a family of metrics bound to a single task.
 
@@ -129,13 +130,11 @@ def register_metric(
     def decorator(cls: Type[MetricCalculator]) -> Type[MetricCalculator]:
         if not (isinstance(cls, type) and issubclass(cls, MetricCalculator)):
             raise MetricError(
-                f"@register_metric can only decorate MetricCalculator "
-                f"subclasses; got {cls!r}",
+                f"@register_metric can only decorate MetricCalculator subclasses; got {cls!r}",
             )
         instance = cls()
         _CALCULATORS[task].append(instance)
-        log.debug("registered metric %s for task %s",
-                  instance.name or cls.__name__, task.value)
+        log.debug("registered metric %s for task %s", instance.name or cls.__name__, task.value)
         return cls
 
     return decorator
@@ -180,9 +179,7 @@ def available_metrics() -> Dict[TaskType, List[str]]:
         ``{TaskType: [calculator_name, ...]}``. Only tasks with at
         least one registered calculator appear.
     """
-    return {task: [c.name for c in calcs]
-            for task, calcs in _CALCULATORS.items()
-            if calcs}
+    return {task: [c.name for c in calcs] for task, calcs in _CALCULATORS.items() if calcs}
 
 
 def compute_metrics(
@@ -228,6 +225,7 @@ def compute_metrics(
 # --------------------------------------------------------------------------- #
 # Facade: MetricSuite
 # --------------------------------------------------------------------------- #
+
 
 @dataclass
 class BenchmarkResult:
@@ -309,15 +307,16 @@ class MetricSuite:
         if not per_sample:
             return {}
         numeric_keys = [
-            k for k, v in per_sample[0].items()
+            k
+            for k, v in per_sample[0].items()
             if isinstance(v, (int, float)) and not isinstance(v, bool)
         ]
         out: Dict[str, float] = {}
         for k in numeric_keys:
             vals = [
-                m[k] for m in per_sample
-                if isinstance(m.get(k), (int, float))
-                and not isinstance(m.get(k), bool)
+                m[k]
+                for m in per_sample
+                if isinstance(m.get(k), (int, float)) and not isinstance(m.get(k), bool)
             ]
             if vals:
                 out[k] = float(np.mean(vals))

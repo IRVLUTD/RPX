@@ -27,17 +27,19 @@ def run_segmentation(cfg: SegmentationRunConfig) -> PipelineResult:
 
 def _temporal_stability_hook(predictions, samples, camera_poses):
     from ..deployment import compute_temporal_stability_seg
+
     return compute_temporal_stability_seg([p.mask for p in predictions], camera_poses)
 
 
 def _geometric_coherence_hook(predictions, samples):
     """SGC needs paired mask + depth. Depth arrives via sample.metadata."""
     import numpy as np
+
     from ..deployment import compute_sgc
 
     pairs = [
         (p.mask, s.metadata["depth_map"])
-        for p, s in zip(predictions, samples)
+        for p, s in zip(predictions, samples, strict=False)
         if s.metadata and s.metadata.get("depth_map") is not None
     ]
     if not pairs:

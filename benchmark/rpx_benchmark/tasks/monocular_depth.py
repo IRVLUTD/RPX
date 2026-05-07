@@ -27,6 +27,7 @@ def run_monocular_depth(cfg: MonocularDepthRunConfig) -> PipelineResult:
 
 def _temporal_stability_hook(predictions, samples, camera_poses):
     from ..deployment import compute_temporal_stability_depth
+
     return compute_temporal_stability_depth([p.depth_map for p in predictions], camera_poses)
 
 

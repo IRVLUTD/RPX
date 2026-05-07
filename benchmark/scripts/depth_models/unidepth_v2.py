@@ -86,10 +86,11 @@ class UniDepthV2:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                     hint="Adapter contract: each input must be a (H, W, 3) "
-                         "uint8 numpy array. Got an unexpected ndim or channel count.",
+                    "uint8 numpy array. Got an unexpected ndim or channel count.",
                 )
 
         # UniDepth's `.infer(rgb)` expects [3, H, W] uint8 torch tensor (or
@@ -107,7 +108,7 @@ class UniDepthV2:
         # Output: dict with key "depth" of shape [B, 1, H, W] in metres.
         depth_t = out["depth"]
         if depth_t.dim() == 4:
-            depth_t = depth_t.squeeze(1)               # [B, H, W]
+            depth_t = depth_t.squeeze(1)  # [B, H, W]
 
         depths_np: list[np.ndarray] = []
         for i, r in enumerate(rgbs):
@@ -121,6 +122,7 @@ class UniDepthV2:
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

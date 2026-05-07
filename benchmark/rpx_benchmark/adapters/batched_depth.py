@@ -59,7 +59,6 @@ from PIL import Image
 
 from ..api import DepthPrediction, Sample, TaskType
 
-
 __all__ = ["BatchedDepthBenchmarkModel"]
 
 
@@ -134,14 +133,10 @@ class BatchedDepthBenchmarkModel:
         # Read alignment off the adapter if it declared one, else fall
         # back to the constructor arg, else "none" (metric assumption).
         self.native_alignment: str = (
-            native_alignment
-            or getattr(adapter, "native_alignment", None)
-            or "none"
+            native_alignment or getattr(adapter, "native_alignment", None) or "none"
         )
         self.native_precision: str = (
-            native_precision
-            or getattr(adapter, "native_precision", None)
-            or "fp32"
+            native_precision or getattr(adapter, "native_precision", None) or "fp32"
         )
         # Profiler walker reaches the underlying nn.Module via this attr.
         self.model = adapter
@@ -152,20 +147,20 @@ class BatchedDepthBenchmarkModel:
 
     def predict(self, batch: Sequence[Sample]) -> List[DepthPrediction]:
         rgbs = [np.asarray(s.rgb, dtype=np.uint8) for s in batch]
-        depths = self._adapter(rgbs)                  # one batched forward
+        depths = self._adapter(rgbs)  # one batched forward
         if not isinstance(depths, (list, tuple)):
             depths = [depths]
         if len(depths) != len(batch):
             from ..exceptions import AdapterError
+
             raise AdapterError(
-                f"adapter returned {len(depths)} depths for a batch of "
-                f"{len(batch)}",
+                f"adapter returned {len(depths)} depths for a batch of {len(batch)}",
                 hint="Check the adapter's batched contract: it must return "
-                     "one depth map per input RGB.",
+                "one depth map per input RGB.",
             )
 
         preds: List[DepthPrediction] = []
-        for sample, depth in zip(batch, depths):
+        for sample, depth in zip(batch, depths, strict=False):
             d_raw = np.asarray(depth, dtype=np.float32)
             target_hw = np.asarray(sample.rgb).shape[:2]
             if d_raw.shape != target_hw:
@@ -187,7 +182,9 @@ class BatchedDepthBenchmarkModel:
                 gt_arr = _extract_gt_depth(sample)
                 if gt_arr is not None:
                     d_for_runner = _align_pred_to_gt(
-                        d_raw, gt_arr, mode=self.native_alignment,
+                        d_raw,
+                        gt_arr,
+                        mode=self.native_alignment,
                     )
             preds.append(DepthPrediction(depth_map=d_for_runner))
         return preds

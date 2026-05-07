@@ -170,8 +170,7 @@ def format_markdown_summary(
             ]
         if dr_report.temporal_stability is not None:
             lines += [
-                f"- **Temporal stability (TS):** "
-                f"{dr_report.temporal_stability.ts_score:.4f}",
+                f"- **Temporal stability (TS):** {dr_report.temporal_stability.ts_score:.4f}",
             ]
 
     if dr_report is not None:
@@ -181,9 +180,7 @@ def format_markdown_summary(
         if dr_report.flops_g is not None:
             eff_rows.append(("FLOPs (G)", f"{dr_report.flops_g:.2f}"))
         if dr_report.latency_ms_per_sample is not None:
-            eff_rows.append(
-                ("latency (ms/sample)", f"{dr_report.latency_ms_per_sample:.1f}")
-            )
+            eff_rows.append(("latency (ms/sample)", f"{dr_report.latency_ms_per_sample:.1f}"))
         if dr_report.peak_memory_mb is not None:
             eff_rows.append(("peak memory (MB)", f"{dr_report.peak_memory_mb:.1f}"))
         if eff_rows:

@@ -78,7 +78,7 @@ def to_torch_dataloader(
 
     return DataLoader(
         _RPXIterableDataset(rpx_iterable),
-        batch_size=None,       # the source already yields batches
+        batch_size=None,  # the source already yields batches
         num_workers=num_workers,
         pin_memory=pin_memory,
         collate_fn=rpx_collate,

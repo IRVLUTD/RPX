@@ -98,7 +98,10 @@ def load_hf(
 
     log.info(
         "loading HF dataset repo=%s config=%s split=%s streaming=%s",
-        repo_id, task_enum.value, split_name, streaming,
+        repo_id,
+        task_enum.value,
+        split_name,
+        streaming,
     )
     try:
         hf_ds = _load_dataset(

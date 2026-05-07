@@ -44,12 +44,12 @@ class Lotus:
         model_id: str = DEFAULT_MODEL_ID,
         device: str = "cuda",
         batch_size: int = 1,
-        num_inference_steps: int = 1,        # Lotus is single-step by design
+        num_inference_steps: int = 1,  # Lotus is single-step by design
         dtype: Optional[str] = None,
     ) -> None:
         try:
             import torch
-            from diffusers import AutoPipelineForImage2Image, DiffusionPipeline
+            from diffusers import DiffusionPipeline
         except ImportError as e:
             raise ImportError(
                 "Lotus needs `diffusers`. Install with: "
@@ -61,22 +61,27 @@ class Lotus:
         self.num_inference_steps = int(num_inference_steps)
         self._torch = torch
 
-        torch_dtype = (getattr(torch, dtype) if isinstance(dtype, str)
-                       else (torch.float16 if self.native_precision == "fp16"
-                             else torch.float32))
+        torch_dtype = (
+            getattr(torch, dtype)
+            if isinstance(dtype, str)
+            else (torch.float16 if self.native_precision == "fp16" else torch.float32)
+        )
         # Use the generic DiffusionPipeline so checkpoint-specific config
         # (custom_pipeline / scheduler) is honoured automatically.
         try:
             self._pipe = DiffusionPipeline.from_pretrained(
-                model_id, torch_dtype=torch_dtype, trust_remote_code=True,
+                model_id,
+                torch_dtype=torch_dtype,
+                trust_remote_code=True,
             ).to(device)
         except Exception as e:
             from rpx_benchmark.exceptions import AdapterError
+
             raise AdapterError(
                 f"Lotus pipeline load failed for {model_id!r}: {e}",
                 hint="The Lotus checkpoint name has changed across releases; "
-                     "verify the current id at https://huggingface.co/jingheya "
-                     "and pass `model_id=...` explicitly.",
+                "verify the current id at https://huggingface.co/jingheya "
+                "and pass `model_id=...` explicitly.",
             ) from e
         if hasattr(self._pipe, "set_progress_bar_config"):
             self._pipe.set_progress_bar_config(disable=True)
@@ -97,6 +102,7 @@ class Lotus:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                 )
@@ -107,7 +113,7 @@ class Lotus:
             # Lotus pipelines vary in their public call signature. The
             # consistent path: one image at a time + result.images[0] as
             # a PIL Image whose pixel values encode depth.
-            for r, img in zip(rgbs, pil_imgs):
+            for r, img in zip(rgbs, pil_imgs, strict=False):
                 out = self._pipe(img, num_inference_steps=self.num_inference_steps)
                 d = self._extract_depth(out, r.shape[:2])
                 depths.append(d.astype(np.float32))
@@ -121,7 +127,6 @@ class Lotus:
         ``out.images[0]`` (PIL), ``out.prediction`` (numpy), ``out["depth"]``
         (tensor). Try them in order.
         """
-        from PIL import Image
         # Tensor / numpy paths
         for attr in ("prediction", "depth"):
             v = getattr(out, attr, None)
@@ -131,8 +136,7 @@ class Lotus:
                 except Exception:
                     v = None
             if v is not None:
-                arr = np.asarray(v if not hasattr(v, "cpu") else v.cpu().numpy(),
-                                 dtype=np.float32)
+                arr = np.asarray(v if not hasattr(v, "cpu") else v.cpu().numpy(), dtype=np.float32)
                 if arr.ndim == 4 and arr.shape[-1] == 1:
                     arr = arr.squeeze(-1)
                 if arr.ndim == 4:
@@ -150,16 +154,17 @@ class Lotus:
                 d = _resize_bilinear(d, target_hw)
             return d
         from rpx_benchmark.exceptions import AdapterError
+
         raise AdapterError(
-            "Lotus pipeline returned an unrecognised shape — couldn't "
-            "extract depth.",
+            "Lotus pipeline returned an unrecognised shape — couldn't extract depth.",
             hint="Inspect the pipeline's return type; expected one of "
-                 "`images[0]` (PIL), `prediction` (tensor/np), `depth` (tensor).",
+            "`images[0]` (PIL), `prediction` (tensor/np), `depth` (tensor).",
         )
 
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

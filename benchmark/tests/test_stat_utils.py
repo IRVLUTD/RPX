@@ -15,21 +15,30 @@ import pytest
 # stat_utils lives under scripts/, not in the rpx_benchmark package.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from rpx_benchmark.determinism import RPX_SEED  # noqa: E402
 from stat_utils import (  # noqa: E402
     Z_CRITICAL_95,
     aggregate_per_sample_with_ci,
     summarize_with_ci,
 )
 
+from rpx_benchmark.determinism import RPX_SEED  # noqa: E402
+
 
 def test_summarize_empty_returns_zero_filled_dict():
     s = summarize_with_ci([])
     assert s["n"] == 0
     # Every numeric field is 0 (no NaNs / no Nones — keeps JSON clean).
-    for k in ("mean", "median", "std", "p5", "p95",
-              "ci95_low_t", "ci95_high_t",
-              "ci95_low_boot", "ci95_high_boot"):
+    for k in (
+        "mean",
+        "median",
+        "std",
+        "p5",
+        "p95",
+        "ci95_low_t",
+        "ci95_high_t",
+        "ci95_low_boot",
+        "ci95_high_boot",
+    ):
         assert s[k] == 0.0
 
 
@@ -53,7 +62,7 @@ def test_t_ci_matches_textbook_formula():
     expected_se = a.std(ddof=1) / np.sqrt(a.size)
     expected_lo = a.mean() - Z_CRITICAL_95 * expected_se
     expected_hi = a.mean() + Z_CRITICAL_95 * expected_se
-    assert s["ci95_low_t"]  == pytest.approx(expected_lo, rel=1e-9)
+    assert s["ci95_low_t"] == pytest.approx(expected_lo, rel=1e-9)
     assert s["ci95_high_t"] == pytest.approx(expected_hi, rel=1e-9)
 
 
@@ -68,8 +77,8 @@ def test_bootstrap_ci_brackets_t_ci_for_normal_data():
     xs = rng.normal(loc=0.0, scale=1.0, size=1000).tolist()
     s = summarize_with_ci(xs)
 
-    t_half  = (s["ci95_high_t"]    - s["ci95_low_t"])    / 2
-    b_half  = (s["ci95_high_boot"] - s["ci95_low_boot"]) / 2
+    t_half = (s["ci95_high_t"] - s["ci95_low_t"]) / 2
+    b_half = (s["ci95_high_boot"] - s["ci95_low_boot"]) / 2
     assert abs(b_half - t_half) / t_half < 0.10
 
 
@@ -109,9 +118,9 @@ def test_aggregate_per_sample_handles_missing_keys_gracefully():
     """Rows missing a key just get skipped for that key, not the whole row."""
     rows = [
         {"absrel": 0.10, "rmse": 0.20},
-        {"absrel": 0.12},               # rmse missing
-        {"rmse":   0.22},               # absrel missing
+        {"absrel": 0.12},  # rmse missing
+        {"rmse": 0.22},  # absrel missing
     ]
     out = aggregate_per_sample_with_ci(rows)
     assert out["absrel"]["n"] == 2
-    assert out["rmse"]["n"]   == 2
+    assert out["rmse"]["n"] == 2

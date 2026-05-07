@@ -30,13 +30,14 @@ from rpx_benchmark.deployment import (
     WeightedPhaseScore,
     compute_embodied_readiness,
 )
-from rpx_benchmark.exceptions import MetricError
 
 
 def _wps_at(value: float, metric_key: str = "x") -> WeightedPhaseScore:
     """Build a WeightedPhaseScore whose every phase score equals ``value``."""
+
     def phase() -> ESDResult:
         return ESDResult(easy=value, medium=value, hard=value, metric_key=metric_key)
+
     return WeightedPhaseScore(clutter=phase(), interaction=phase(), clean=phase())
 
 
@@ -48,15 +49,17 @@ def _full_report(
     latency_ms: float | None = 10.0,
     peak_mem_mb: float | None = 500.0,
 ) -> DeploymentReadinessReport:
-    ts_res = (
-        TemporalStabilityResult(ts_score=ts, num_pairs=10) if ts is not None else None
-    )
+    ts_res = TemporalStabilityResult(ts_score=ts, num_pairs=10) if ts is not None else None
     str_res = StateTransitionRobustnessResult(
-        str_c_to_i=str_drop, str_i_to_l=0.0,
-        metric_clutter=0.0, metric_interaction=0.0, metric_clean=0.0,
+        str_c_to_i=str_drop,
+        str_i_to_l=0.0,
+        metric_clutter=0.0,
+        metric_interaction=0.0,
+        metric_clean=0.0,
     )
     return DeploymentReadinessReport(
-        task="monocular_depth", model_name="test",
+        task="monocular_depth",
+        model_name="test",
         weighted_phase_score=_wps_at(wps_overall),
         temporal_stability=ts_res,
         state_transition=str_res,
@@ -70,10 +73,15 @@ def _full_report(
 # Formula corners
 # --------------------------------------------------------------------------- #
 
+
 def test_perfect_report_gives_max_ers() -> None:
     report = _full_report(
-        wps_overall=1.0, ts=1.0, str_drop=0.0,
-        flops_g=0.0, latency_ms=0.0, peak_mem_mb=0.0,
+        wps_overall=1.0,
+        ts=1.0,
+        str_drop=0.0,
+        flops_g=0.0,
+        latency_ms=0.0,
+        peak_mem_mb=0.0,
     )
     ers = compute_embodied_readiness(report, higher_is_better=True)
     assert ers.score == pytest.approx(1.0)
@@ -86,7 +94,9 @@ def test_perfect_report_gives_max_ers() -> None:
 
 def test_terrible_report_gives_zero_ers() -> None:
     report = _full_report(
-        wps_overall=0.0, ts=0.0, str_drop=1.0,
+        wps_overall=0.0,
+        ts=0.0,
+        str_drop=1.0,
         flops_g=DEFAULT_ERS_BUDGETS["flops_g"] * 10,
         latency_ms=DEFAULT_ERS_BUDGETS["latency_ms"] * 10,
         peak_mem_mb=DEFAULT_ERS_BUDGETS["memory_mb"] * 10,
@@ -98,9 +108,10 @@ def test_terrible_report_gives_zero_ers() -> None:
 def test_ers_drops_missing_components_and_renormalises() -> None:
     """Report without TS / STR / mem / flops still produces a score."""
     report = DeploymentReadinessReport(
-        task="monocular_depth", model_name="t",
+        task="monocular_depth",
+        model_name="t",
         weighted_phase_score=_wps_at(0.5),
-        latency_ms_per_sample=50.0,   # half of latency budget
+        latency_ms_per_sample=50.0,  # half of latency budget
     )
     ers = compute_embodied_readiness(report, higher_is_better=True)
     w_acc = DEFAULT_ERS_WEIGHTS["accuracy"]
@@ -116,7 +127,9 @@ def test_lower_is_better_accuracy_decay() -> None:
     """WPS = 0 → accuracy 1; WPS = 1 → accuracy ≈ exp(-1)."""
     ers_zero = compute_embodied_readiness(
         DeploymentReadinessReport(
-            task="t", model_name="m", weighted_phase_score=_wps_at(0.0),
+            task="t",
+            model_name="m",
+            weighted_phase_score=_wps_at(0.0),
         ),
         higher_is_better=False,
     )
@@ -124,7 +137,9 @@ def test_lower_is_better_accuracy_decay() -> None:
 
     ers_one = compute_embodied_readiness(
         DeploymentReadinessReport(
-            task="t", model_name="m", weighted_phase_score=_wps_at(1.0),
+            task="t",
+            model_name="m",
+            weighted_phase_score=_wps_at(1.0),
         ),
         higher_is_better=False,
     )
@@ -146,7 +161,8 @@ def test_empty_report_still_scores_zero_accuracy() -> None:
 def test_explicit_accuracy_wins() -> None:
     """Passing ``accuracy`` overrides the wps-based derivation."""
     report = DeploymentReadinessReport(
-        task="t", model_name="m",
+        task="t",
+        model_name="m",
         weighted_phase_score=_wps_at(0.0),
         latency_ms_per_sample=0.0,
     )
@@ -158,8 +174,7 @@ def test_custom_weights_applied() -> None:
     report = _full_report(latency_ms=50.0)
     ers = compute_embodied_readiness(
         report,
-        weights={"accuracy": 0.0, "robustness": 0.0, "latency": 1.0,
-                 "memory": 0.0, "compute": 0.0},
+        weights={"accuracy": 0.0, "robustness": 0.0, "latency": 1.0, "memory": 0.0, "compute": 0.0},
     )
     # With only latency weighted, composite equals the latency component.
     assert ers.score == pytest.approx(ers.latency)
@@ -174,6 +189,7 @@ def test_ers_exposed_on_top_level() -> None:
 # Runner integration: per-sample latency lands in metric rows
 # --------------------------------------------------------------------------- #
 
+
 def _tiny_depth_manifest(root: Path, n: int = 3) -> Path:
     rgb = root / "rgb"
     depth = root / "depth"
@@ -183,14 +199,25 @@ def _tiny_depth_manifest(root: Path, n: int = 3) -> Path:
     for i in range(n):
         Image.fromarray(np.full((16, 16, 3), 100, np.uint8)).save(rgb / f"{i}.png")
         Image.fromarray(np.full((16, 16), 2000, np.uint16)).save(depth / f"{i}.png")
-        samples.append({
-            "id": f"s{i}", "rgb": f"rgb/{i}.png", "depth": f"depth/{i}.png",
-            "phase": "clutter", "difficulty": "easy",
-        })
+        samples.append(
+            {
+                "id": f"s{i}",
+                "rgb": f"rgb/{i}.png",
+                "depth": f"depth/{i}.png",
+                "phase": "clutter",
+                "difficulty": "easy",
+            }
+        )
     manifest = root / "manifest.json"
-    manifest.write_text(json.dumps({
-        "task": "monocular_depth", "root": str(root), "samples": samples,
-    }))
+    manifest.write_text(
+        json.dumps(
+            {
+                "task": "monocular_depth",
+                "root": str(root),
+                "samples": samples,
+            }
+        )
+    )
     return manifest
 
 
@@ -207,7 +234,8 @@ def test_runner_attaches_per_sample_latency(tmp_path: Path) -> None:
     model = rpx.make_numpy_depth_model(constant_depth)
     runner = BenchmarkRunner(model=model, dataset=ds)
     result, report = runner.run_with_deployment_readiness(
-        primary_metric="absrel", model_name="unit",
+        primary_metric="absrel",
+        model_name="unit",
     )
 
     assert all("latency_ms" in row for row in result.per_sample)

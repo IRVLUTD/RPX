@@ -32,10 +32,10 @@ from .deployment import OperatingPoint, _efficiency_score
 class SensitivityReport:
     """Result of all three sensitivity tests."""
 
-    exponent_taus: Dict[str, float]      # {(α,β,γ) str: τ}
-    efficiency_taus: Dict[str, float]    # {func_name: τ}
-    anchor_taus: Dict[float, float]      # {multiplier: τ}
-    baseline_ranking: List[str]          # model names in DRS order
+    exponent_taus: Dict[str, float]  # {(α,β,γ) str: τ}
+    efficiency_taus: Dict[str, float]  # {func_name: τ}
+    anchor_taus: Dict[float, float]  # {multiplier: τ}
+    baseline_ranking: List[str]  # model names in DRS order
 
     def to_markdown(self) -> str:
         lines = ["# DRS Sensitivity Analysis\n"]
@@ -46,8 +46,9 @@ class SensitivityReport:
         for key in sorted(self.exponent_taus, key=lambda k: -self.exponent_taus[k]):
             lines.append(f"| {key} | {self.exponent_taus[key]:.3f} |")
         taus = list(self.exponent_taus.values())
-        lines.append(f"\nMin τ = {min(taus):.3f}, Mean τ = {np.mean(taus):.3f}, "
-                      f"Max τ = {max(taus):.3f}\n")
+        lines.append(
+            f"\nMin τ = {min(taus):.3f}, Mean τ = {np.mean(taus):.3f}, Max τ = {max(taus):.3f}\n"
+        )
 
         lines.append("## Alternative efficiency functions\n")
         lines.append("| Function | Kendall τ |")
@@ -127,12 +128,18 @@ def _rank_models(
     scores = {}
     for name, ops in models.items():
         scores[name] = _compute_drs_custom(
-            ops, f_median, alpha, beta, gamma, efficiency_fn,
+            ops,
+            f_median,
+            alpha,
+            beta,
+            gamma,
+            efficiency_fn,
         )
     return sorted(scores, key=lambda n: -scores[n])
 
 
 # ── Alternative efficiency functions ──────────────────────────────
+
 
 def _e_exponential(f: float, f_med: float) -> float:
     if f_med <= 0 or f <= 0:
@@ -164,6 +171,7 @@ def _e_linear(f: float, f_med: float, f_max: float = None) -> float:
 
 
 # ── Main entry point ─────────────────────────────────────────────
+
 
 def run_sensitivity(
     models: Dict[str, List[OperatingPoint]],

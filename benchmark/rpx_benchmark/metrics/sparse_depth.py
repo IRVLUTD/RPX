@@ -34,8 +34,7 @@ class SparseDepthError(MetricCalculator):
     ) -> Dict[str, float]:
         if not isinstance(prediction, SparseDepthPrediction):
             raise MetricError(
-                f"SparseDepthError expected SparseDepthPrediction, got "
-                f"{type(prediction).__name__}",
+                f"SparseDepthError expected SparseDepthPrediction, got {type(prediction).__name__}",
             )
         if not isinstance(ground_truth, SparseDepthGroundTruth):
             raise MetricError(
@@ -43,6 +42,7 @@ class SparseDepthError(MetricCalculator):
                 f"{type(ground_truth).__name__}",
             )
         from ..evaluators import sparse_depth_metrics
+
         return sparse_depth_metrics(
             pred_coords=prediction.coordinates,
             pred_depths=prediction.depths,

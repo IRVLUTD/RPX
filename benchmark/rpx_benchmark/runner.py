@@ -5,8 +5,6 @@ from __future__ import annotations
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-import numpy as np
-
 from .api import BenchmarkModel, Difficulty, Phase, TaskType, validate_prediction
 from .deployment import (
     DeploymentReadinessReport,
@@ -128,6 +126,7 @@ class BenchmarkRunner:
         """
         try:
             from .tasks.registry import get_task_spec  # noqa: PLC0415 — lazy
+
             return get_task_spec(self.model.task)
         except Exception:
             return None
@@ -171,7 +170,7 @@ class BenchmarkRunner:
                     f"a batch of {len(batch)} samples — must return one "
                     "prediction per sample.",
                 )
-            for sample, pred in zip(batch, predictions):
+            for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
                 metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
                 per_sample.append(metrics)
@@ -257,7 +256,7 @@ class BenchmarkRunner:
                 )
             latency.add_batch_seconds(batch_seconds, len(batch))
 
-            for sample, pred in zip(batch, predictions):
+            for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
                 metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
                 metrics.update(_sample_meta(sample))
@@ -275,7 +274,7 @@ class BenchmarkRunner:
         # produces one entry per sample (batch timing amortised evenly
         # across the batch's samples).
         per_sample_latencies = latency.samples_ms()
-        for row, lat_ms in zip(per_sample_metrics, per_sample_latencies):
+        for row, lat_ms in zip(per_sample_metrics, per_sample_latencies, strict=False):
             row["latency_ms"] = float(lat_ms)
 
         result = self.metric_suite.build_result(per_sample_metrics)
@@ -292,11 +291,13 @@ class BenchmarkRunner:
             metric_key=primary_metric,
         )
 
-        str_result = compute_str({
-            Phase.CLUTTER: wps.s_clutter,
-            Phase.INTERACTION: wps.s_interaction,
-            Phase.CLEAN: wps.s_clean,
-        })
+        str_result = compute_str(
+            {
+                Phase.CLUTTER: wps.s_clutter,
+                Phase.INTERACTION: wps.s_interaction,
+                Phase.CLEAN: wps.s_clean,
+            }
+        )
 
         # --- Deployment-readiness hooks dispatched via TaskSpec ---
         # The runner no longer branches on task identity. Each task
@@ -313,15 +314,13 @@ class BenchmarkRunner:
             and spec.temporal_stability_fn is not None
         ):
             ts_result = spec.temporal_stability_fn(
-                all_predictions, all_samples, per_sample_poses,
+                all_predictions,
+                all_samples,
+                per_sample_poses,
             )
 
         sgc_result: StackGeometricCoherenceResult | None = None
-        if (
-            compute_sgc_flag
-            and spec is not None
-            and spec.geometric_coherence_fn is not None
-        ):
+        if compute_sgc_flag and spec is not None and spec.geometric_coherence_fn is not None:
             sgc_result = spec.geometric_coherence_fn(all_predictions, all_samples)
 
         # Merge counted FLOPs + measured latency + memory into the
@@ -357,7 +356,6 @@ class BenchmarkRunner:
         # Serialise roofline bounds for the report
         roofline_dict = None
         if eff.roofline:
-            from dataclasses import asdict
             roofline_dict = {
                 name: {
                     "compute_ms": b.compute_ms,
@@ -397,7 +395,8 @@ class BenchmarkRunner:
         higher_is_better = bool(getattr(spec, "higher_is_better", True))
         try:
             report.embodied_readiness = compute_embodied_readiness(
-                report, higher_is_better=higher_is_better,
+                report,
+                higher_is_better=higher_is_better,
             )
         except ValueError:
             pass
@@ -407,15 +406,16 @@ class BenchmarkRunner:
         # compute_sweep_drs(); here we store the raw operating point
         # so downstream code has everything it needs.
         from .deployment import OperatingPoint  # noqa: PLC0415
+
         if wps is not None and eff.flops_g is not None:
             # Precision: prefer the model's declared native_precision,
             # fall back to the system card, default to fp32.
-            precision = (
-                getattr(self.model, "native_precision", None)
-                or (eff.system_card.get("precision", "fp32")
-                    if isinstance(eff.system_card, dict) else
-                    getattr(eff.system_card, "precision", "fp32")
-                    if eff.system_card else "fp32")
+            precision = getattr(self.model, "native_precision", None) or (
+                eff.system_card.get("precision", "fp32")
+                if isinstance(eff.system_card, dict)
+                else getattr(eff.system_card, "precision", "fp32")
+                if eff.system_card
+                else "fp32"
             )
             str_val = 0.0
             if str_result is not None:

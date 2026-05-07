@@ -49,9 +49,12 @@ DEFAULT_INTRINSICS = {"fx": 605.0, "fy": 605.0, "cx": 320.0, "cy": 240.0}
 
 def load_intrinsics(path: Path | None) -> Dict[str, float]:
     if path is None:
-        print("[warn] --intrinsics not provided; falling back to approximate "
-              "D435 640x480 defaults. Not suitable for publication-quality "
-              "evaluation.", file=sys.stderr)
+        print(
+            "[warn] --intrinsics not provided; falling back to approximate "
+            "D435 640x480 defaults. Not suitable for publication-quality "
+            "evaluation.",
+            file=sys.stderr,
+        )
         return dict(DEFAULT_INTRINSICS)
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
@@ -112,9 +115,11 @@ def sample_pair_keypoints(
     H, W = depth_a.shape
     ys, xs = np.where(depth_a > 0)
     if len(ys) == 0:
-        return (np.zeros((num_points, 2), np.float32),
-                np.zeros((num_points, 2), np.float32),
-                np.zeros((num_points,), bool))
+        return (
+            np.zeros((num_points, 2), np.float32),
+            np.zeros((num_points, 2), np.float32),
+            np.zeros((num_points,), bool),
+        )
 
     k = min(num_points, len(ys))
     idx = rng.choice(len(ys), size=k, replace=False)
@@ -128,9 +133,11 @@ def sample_pair_keypoints(
     coords_b, depths_reproj = project(pts3d_b, K)
 
     in_bounds = (
-        (coords_b[:, 0] >= 0) & (coords_b[:, 0] < W) &
-        (coords_b[:, 1] >= 0) & (coords_b[:, 1] < H) &
-        (depths_reproj > 0)
+        (coords_b[:, 0] >= 0)
+        & (coords_b[:, 0] < W)
+        & (coords_b[:, 1] >= 0)
+        & (coords_b[:, 1] < H)
+        & (depths_reproj > 0)
     )
     visibility = in_bounds.copy()
 
@@ -141,21 +148,24 @@ def sample_pair_keypoints(
     depth_diff = np.abs(observed - depths_reproj)
     occluded = (observed > 0) & (depth_diff > occlusion_threshold)
     visibility &= ~occluded
-    visibility &= (observed > 0)
+    visibility &= observed > 0
 
     def _pad(a: np.ndarray, shape: Tuple[int, ...], dtype) -> np.ndarray:
         out = np.zeros(shape, dtype=dtype)
         out[: len(a)] = a
         return out
 
-    return (_pad(coords_a, (num_points, 2), np.float32),
-            _pad(coords_b.astype(np.float32), (num_points, 2), np.float32),
-            _pad(visibility, (num_points,), bool))
+    return (
+        _pad(coords_a, (num_points, 2), np.float32),
+        _pad(coords_b.astype(np.float32), (num_points, 2), np.float32),
+        _pad(visibility, (num_points,), bool),
+    )
 
 
 def main() -> int:
     try:
         from rpx_benchmark.banner import show_banner
+
         show_banner(subtitle="scripts/generate_keypoint_pairs.py")
     except ImportError:
         pass
@@ -166,9 +176,14 @@ def main() -> int:
     parser.add_argument("--num-points", type=int, default=512)
     # Default to the project-wide canonical seed (MMDDYYYY 05/06/2026).
     from rpx_benchmark.determinism import RPX_SEED
+
     parser.add_argument("--seed", type=int, default=RPX_SEED)
-    parser.add_argument("--occlusion-threshold", type=float, default=0.05,
-                        help="Max |d_reproj - d_observed| (m) still counted visible")
+    parser.add_argument(
+        "--occlusion-threshold",
+        type=float,
+        default=0.05,
+        help="Max |d_reproj - d_observed| (m) still counted visible",
+    )
     parser.add_argument("--min-t", type=float, default=0.05)
     parser.add_argument("--max-t", type=float, default=0.60)
     parser.add_argument("--min-r", type=float, default=2.0)
@@ -188,8 +203,10 @@ def main() -> int:
 
     K = load_intrinsics(args.intrinsics)
     cfg = _pairs.PairConfig(
-        min_t=args.min_t, max_t=args.max_t,
-        min_r=args.min_r, max_r=args.max_r,
+        min_t=args.min_t,
+        max_t=args.max_t,
+        min_r=args.min_r,
+        max_r=args.max_r,
         src_stride=args.src_stride,
     )
 
@@ -218,8 +235,7 @@ def main() -> int:
             continue
 
         frame_ids = seq["frame_ids"]
-        poses = [_pairs.load_pose_npz(phase_dir / "pose" / f"{fid}.npz")
-                 for fid in frame_ids]
+        poses = [_pairs.load_pose_npz(phase_dir / "pose" / f"{fid}.npz") for fid in frame_ids]
         pairs = _pairs.sample_pairs(poses, cfg)
         if not pairs:
             continue
@@ -240,8 +256,14 @@ def main() -> int:
 
             rng = np.random.default_rng(_frame_seed(args.seed, scene, phase, fa, fb))
             p0, p1, vis = sample_pair_keypoints(
-                depth_a, depth_b, poses[i], poses[j], K,
-                args.num_points, rng, args.occlusion_threshold,
+                depth_a,
+                depth_b,
+                poses[i],
+                poses[j],
+                K,
+                args.num_points,
+                rng,
+                args.occlusion_threshold,
             )
 
             base = f"{fa}_{fb}"
@@ -249,17 +271,19 @@ def main() -> int:
             np.save(out_dir / f"{base}_points1.npy", p1)
             np.save(out_dir / f"{base}_visibility.npy", vis)
 
-            manifests[difficulty]["samples"].append({
-                "id": f"{scene}_{phase_name}_{base}",
-                "scene": scene,
-                "phase": phase_name,
-                "difficulty": difficulty,
-                "rgb":        f"scenes/{scene}/{phase}/rgb/{fa}.png",
-                "rgb_b":      f"scenes/{scene}/{phase}/rgb/{fb}.png",
-                "points0":    f"scenes/{scene}/{phase}/keypoints/{base}_points0.npy",
-                "points1":    f"scenes/{scene}/{phase}/keypoints/{base}_points1.npy",
-                "visibility": f"scenes/{scene}/{phase}/keypoints/{base}_visibility.npy",
-            })
+            manifests[difficulty]["samples"].append(
+                {
+                    "id": f"{scene}_{phase_name}_{base}",
+                    "scene": scene,
+                    "phase": phase_name,
+                    "difficulty": difficulty,
+                    "rgb": f"scenes/{scene}/{phase}/rgb/{fa}.png",
+                    "rgb_b": f"scenes/{scene}/{phase}/rgb/{fb}.png",
+                    "points0": f"scenes/{scene}/{phase}/keypoints/{base}_points0.npy",
+                    "points1": f"scenes/{scene}/{phase}/keypoints/{base}_points1.npy",
+                    "visibility": f"scenes/{scene}/{phase}/keypoints/{base}_visibility.npy",
+                }
+            )
             pair_count += 1
 
     out_root = local_root / "manifests" / "keypoint_matching"
@@ -269,8 +293,9 @@ def main() -> int:
             continue
         with (out_root / f"{diff}.json").open("w", encoding="utf-8") as f:
             json.dump(m, f)
-        print(f"  keypoint_matching  {diff:<6} {len(m['samples'])} pairs "
-              f"({len(m['scenes'])} phases)")
+        print(
+            f"  keypoint_matching  {diff:<6} {len(m['samples'])} pairs ({len(m['scenes'])} phases)"
+        )
     print(f"total: {pair_count} pairs")
     return 0
 

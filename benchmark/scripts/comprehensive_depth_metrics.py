@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 import tarfile
 from io import BytesIO
 from pathlib import Path
@@ -72,9 +71,9 @@ def _valid(pred: np.ndarray, gt_m: np.ndarray) -> np.ndarray:
     hole isn't penalised, and a per-frame coverage number is available.
     """
     finite_gt = np.isfinite(gt_m)
-    in_range  = (gt_m > DEPTH_MIN_M) & (gt_m < DEPTH_MAX_M)
+    in_range = (gt_m > DEPTH_MIN_M) & (gt_m < DEPTH_MAX_M)
     finite_pr = np.isfinite(pred)
-    pos_pr    = pred > 0
+    pos_pr = pred > 0
     return finite_gt & in_range & finite_pr & pos_pr
 
 
@@ -97,22 +96,24 @@ def _align(pred: np.ndarray, gt: np.ndarray, valid: np.ndarray, mode: str) -> np
 
 # ───────────────────────────  Error / accuracy  ─────────────────────────────
 
+
 def _errors(pred: np.ndarray, gt: np.ndarray, valid: np.ndarray) -> dict:
     p, g = pred[valid], gt[valid]
     eps = 1e-6
     log_p, log_g = np.log(np.maximum(p, eps)), np.log(np.maximum(g, eps))
     e = log_p - log_g
     return {
-        "abs_rel":  float(np.mean(np.abs(p - g) / g)),
-        "sq_rel":   float(np.mean((p - g) ** 2 / g)),
-        "rmse":     float(np.sqrt(np.mean((p - g) ** 2))),
-        "rmse_log": float(np.sqrt(np.mean(e ** 2))),
-        "silog":    float(100.0 * np.sqrt(max(np.mean(e ** 2) - np.mean(e) ** 2, 0.0))),
-        "log10":    float(np.mean(np.abs(np.log10(np.maximum(p, eps)) -
-                                         np.log10(np.maximum(g, eps))))),
-        "mae":      float(np.mean(np.abs(p - g))),
-        "irmse":    float(np.sqrt(np.mean((1.0 / p - 1.0 / g) ** 2))),
-        "imae":     float(np.mean(np.abs(1.0 / p - 1.0 / g))),
+        "abs_rel": float(np.mean(np.abs(p - g) / g)),
+        "sq_rel": float(np.mean((p - g) ** 2 / g)),
+        "rmse": float(np.sqrt(np.mean((p - g) ** 2))),
+        "rmse_log": float(np.sqrt(np.mean(e**2))),
+        "silog": float(100.0 * np.sqrt(max(np.mean(e**2) - np.mean(e) ** 2, 0.0))),
+        "log10": float(
+            np.mean(np.abs(np.log10(np.maximum(p, eps)) - np.log10(np.maximum(g, eps))))
+        ),
+        "mae": float(np.mean(np.abs(p - g))),
+        "irmse": float(np.sqrt(np.mean((1.0 / p - 1.0 / g) ** 2))),
+        "imae": float(np.mean(np.abs(1.0 / p - 1.0 / g))),
     }
 
 
@@ -121,8 +122,8 @@ def _accuracy(pred: np.ndarray, gt: np.ndarray, valid: np.ndarray) -> dict:
     ratio = np.maximum(p / g, g / p)
     return {
         "delta1": float(np.mean(ratio < 1.25)),
-        "delta2": float(np.mean(ratio < 1.25 ** 2)),
-        "delta3": float(np.mean(ratio < 1.25 ** 3)),
+        "delta2": float(np.mean(ratio < 1.25**2)),
+        "delta3": float(np.mean(ratio < 1.25**3)),
     }
 
 
@@ -144,6 +145,7 @@ def _basket(pred, gt, valid) -> dict:
 # prediction here is nominally OK but the sensor only saw 30% of the
 # object".
 
+
 def _per_object_rows(pred, gt, valid, mask) -> list[dict]:
     """Return a list of per-instance metric rows.
 
@@ -162,7 +164,7 @@ def _per_object_rows(pred, gt, valid, mask) -> list[dict]:
     ids = ids[ids > 0]
     rows: list[dict] = []
     for inst in ids:
-        obj = (mask == inst)
+        obj = mask == inst
         n_pixels = int(obj.sum())
         if n_pixels < MIN_OBJECT_PIXELS:
             continue
@@ -171,9 +173,9 @@ def _per_object_rows(pred, gt, valid, mask) -> list[dict]:
         coverage = float(n_valid / n_pixels) if n_pixels else 0.0
         row: dict = {
             "instance_id": int(inst),
-            "n_pixels":    n_pixels,
-            "n_valid":     n_valid,
-            "coverage":    coverage,
+            "n_pixels": n_pixels,
+            "n_valid": n_valid,
+            "coverage": coverage,
         }
         if n_valid >= MIN_VALID_PIXELS:
             row.update(_errors(pred, gt, obj_valid))
@@ -191,11 +193,15 @@ def _per_object_aggregate(rows: list[dict]) -> dict:
     """
     if not rows:
         return {}
-    metric_keys = sorted({
-        k for r in rows for k in r
-        if k not in {"instance_id", "n_pixels", "n_valid", "coverage"}
-        and isinstance(r[k], (int, float))
-    })
+    metric_keys = sorted(
+        {
+            k
+            for r in rows
+            for k in r
+            if k not in {"instance_id", "n_pixels", "n_valid", "coverage"}
+            and isinstance(r[k], (int, float))
+        }
+    )
     out: dict = {f"per_object/n_objects": len(rows)}
     if rows:
         out["per_object/mean_coverage"] = float(np.mean([r["coverage"] for r in rows]))
@@ -208,6 +214,7 @@ def _per_object_aggregate(rows: list[dict]) -> dict:
 
 
 # ───────────────────────────  Hole / coverage stats  ───────────────────────
+
 
 def _hole_stats(gt: np.ndarray, mask: np.ndarray | None) -> dict:
     """Per-frame hole statistics — what fraction of the GT is missing.
@@ -224,18 +231,15 @@ def _hole_stats(gt: np.ndarray, mask: np.ndarray | None) -> dict:
     if mask is not None and mask.size == gt.size:
         in_obj = mask > 0
         if in_obj.any():
-            out["holes/in_mask_fraction"] = float(
-                (holes & in_obj).sum() / max(in_obj.sum(), 1)
-            )
+            out["holes/in_mask_fraction"] = float((holes & in_obj).sum() / max(in_obj.sum(), 1))
         out_obj = mask == 0
         if out_obj.any():
-            out["holes/out_mask_fraction"] = float(
-                (holes & out_obj).sum() / max(out_obj.sum(), 1)
-            )
+            out["holes/out_mask_fraction"] = float((holes & out_obj).sum() / max(out_obj.sum(), 1))
     return out
 
 
 # ───────────────────────────  Stratification  ───────────────────────────────
+
 
 def _by_depth_band(pred, gt, valid) -> dict:
     bands = {"near": (0.3, 1.0), "mid": (1.0, 3.0), "far": (3.0, DEPTH_MAX_M)}
@@ -261,6 +265,7 @@ def _by_mask(pred, gt, valid, mask) -> dict:
 
 # ───────────────────────────  Boundary / ORD  ───────────────────────────────
 
+
 def _edge_pixels(mask: np.ndarray) -> np.ndarray:
     """3-pixel-thick boundary set of a labelled instance mask."""
     if mask.size == 0:
@@ -268,14 +273,14 @@ def _edge_pixels(mask: np.ndarray) -> np.ndarray:
     # Differences with neighbours; any neighbour with a different label = edge.
     e = np.zeros_like(mask, dtype=bool)
     e[:-1] |= mask[:-1] != mask[1:]
-    e[1:]  |= mask[1:]  != mask[:-1]
+    e[1:] |= mask[1:] != mask[:-1]
     e[:, :-1] |= mask[:, :-1] != mask[:, 1:]
-    e[:, 1:]  |= mask[:, 1:]  != mask[:, :-1]
+    e[:, 1:] |= mask[:, 1:] != mask[:, :-1]
     # Slight dilation (3x3 OR) so the band is not a single pixel wide.
     out = e.copy()
-    out[1:]  |= e[:-1]
+    out[1:] |= e[:-1]
     out[:-1] |= e[1:]
-    out[:, 1:]  |= e[:, :-1]
+    out[:, 1:] |= e[:, :-1]
     out[:, :-1] |= e[:, 1:]
     return out
 
@@ -288,21 +293,21 @@ def _boundary_metrics(pred, gt, valid, mask, depth_jump_m: float = 0.05) -> dict
     # GT depth jump along edges (max neighbour difference).
     gt_jump = np.zeros_like(gt)
     gt_jump[:-1] = np.maximum(gt_jump[:-1], np.abs(gt[:-1] - gt[1:]))
-    gt_jump[1:]  = np.maximum(gt_jump[1:],  np.abs(gt[1:]  - gt[:-1]))
+    gt_jump[1:] = np.maximum(gt_jump[1:], np.abs(gt[1:] - gt[:-1]))
     gt_jump[:, :-1] = np.maximum(gt_jump[:, :-1], np.abs(gt[:, :-1] - gt[:, 1:]))
-    gt_jump[:, 1:]  = np.maximum(gt_jump[:, 1:],  np.abs(gt[:, 1:]  - gt[:, :-1]))
+    gt_jump[:, 1:] = np.maximum(gt_jump[:, 1:], np.abs(gt[:, 1:] - gt[:, :-1]))
     pred_jump = np.zeros_like(pred)
     pred_jump[:-1] = np.maximum(pred_jump[:-1], np.abs(pred[:-1] - pred[1:]))
-    pred_jump[1:]  = np.maximum(pred_jump[1:],  np.abs(pred[1:]  - pred[:-1]))
+    pred_jump[1:] = np.maximum(pred_jump[1:], np.abs(pred[1:] - pred[:-1]))
     pred_jump[:, :-1] = np.maximum(pred_jump[:, :-1], np.abs(pred[:, :-1] - pred[:, 1:]))
-    pred_jump[:, 1:]  = np.maximum(pred_jump[:, 1:],  np.abs(pred[:, 1:]  - pred[:, :-1]))
+    pred_jump[:, 1:] = np.maximum(pred_jump[:, 1:], np.abs(pred[:, 1:] - pred[:, :-1]))
 
     is_gt_edge = edges & (gt_jump > depth_jump_m)
     is_pred_edge_at_gt = edges & (pred_jump > depth_jump_m)
 
     if is_gt_edge.sum() < 50:
         return {}
-    accuracy = float(np.mean(is_pred_edge_at_gt[edges]))   # pred edges that are real
+    accuracy = float(np.mean(is_pred_edge_at_gt[edges]))  # pred edges that are real
     completeness = float(np.mean(is_pred_edge_at_gt[is_gt_edge]))  # GT edges recovered
     f_score = 2 * accuracy * completeness / max(accuracy + completeness, 1e-9)
     return {
@@ -321,6 +326,7 @@ def _ord(pred, gt, valid, mask, max_pairs: int = 4000) -> dict:
         return {}
     # Project-wide canonical seed: MMDDYYYY 05/06/2026 → 5_062_026.
     from rpx_benchmark.determinism import RPX_SEED  # noqa: PLC0415
+
     rng = np.random.default_rng(RPX_SEED)
     correct = 0
     total = 0
@@ -334,7 +340,7 @@ def _ord(pred, gt, valid, mask, max_pairs: int = 4000) -> dict:
         j = rng.integers(len(yb))
         ga, gb = float(gt[ya[i], xa[i]]), float(gt[yb[j], xb[j]])
         pa, pb = float(pred[ya[i], xa[i]]), float(pred[yb[j], xb[j]])
-        if abs(ga - gb) < 0.05:   # ambiguous gt ordering
+        if abs(ga - gb) < 0.05:  # ambiguous gt ordering
             continue
         if (ga < gb) == (pa < pb):
             correct += 1
@@ -346,8 +352,10 @@ def _ord(pred, gt, valid, mask, max_pairs: int = 4000) -> dict:
 
 # ───────────────────────────  Mask loading from tars  ──────────────────────
 
-def _load_mask_from_cache(snapshot_root: Path, scene: str, phase: int,
-                           frame_filename: str) -> Optional[np.ndarray]:
+
+def _load_mask_from_cache(
+    snapshot_root: Path, scene: str, phase: int, frame_filename: str
+) -> Optional[np.ndarray]:
     """Read a single instance mask from the cached ``masks/v1.tar``.
 
     Tar layout: ``sam2/masks/<frame>.png`` (the SAM2 outputs sit under a
@@ -375,13 +383,18 @@ def _load_mask_from_cache(snapshot_root: Path, scene: str, phase: int,
 
 def _hf_snapshot_root(repo_id: str = "itaykadosh/rpx-test") -> Path:
     import os as _os
+
     cache = Path(_os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
-    snaps = sorted((cache / f"datasets--{repo_id.replace('/', '--')}" / "snapshots").iterdir(),
-                   key=lambda p: p.stat().st_mtime, reverse=True)
+    snaps = sorted(
+        (cache / f"datasets--{repo_id.replace('/', '--')}" / "snapshots").iterdir(),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     return snaps[0]
 
 
 # ───────────────────────────  Per-run aggregation  ─────────────────────────
+
 
 def compute_run(
     predictions_dir: Path,
@@ -422,15 +435,23 @@ def compute_run(
 
         pred_aligned = _align(pred, gt_m, valid, alignment) if valid.any() else pred
 
-        row: dict = {"id": sid, "scene_id": s.get("scene_id"),
-                     "phase": s.get("phase"), "alignment": alignment}
+        row: dict = {
+            "id": sid,
+            "scene_id": s.get("scene_id"),
+            "phase": s.get("phase"),
+            "alignment": alignment,
+        }
         row.update(_basket(pred_aligned, gt_m, valid))
         row.update(_by_depth_band(pred_aligned, gt_m, valid))
 
         # Mask-dependent metrics, if a mask is reachable from the cache.
-        mask = _load_mask_from_cache(snapshot, str(s.get("scene_id", "")),
-                                      int(s.get("phase", 0)),
-                                      Path(s["rgb"]).name) if s.get("scene_id") is not None else None
+        mask = (
+            _load_mask_from_cache(
+                snapshot, str(s.get("scene_id", "")), int(s.get("phase", 0)), Path(s["rgb"]).name
+            )
+            if s.get("scene_id") is not None
+            else None
+        )
         # Hole statistics — independent of model quality. Reported even
         # when there's no mask (just the overall hole fraction then).
         row.update(_hole_stats(gt_m, mask))
@@ -442,21 +463,32 @@ def compute_run(
             # Per-object detail and per-frame aggregate.
             obj_rows = _per_object_rows(pred_aligned, gt_m, valid, mask)
             for obj in obj_rows:
-                per_object_rows_all.append({
-                    "id": sid, "scene_id": s.get("scene_id"),
-                    "phase": s.get("phase"), **obj,
-                })
+                per_object_rows_all.append(
+                    {
+                        "id": sid,
+                        "scene_id": s.get("scene_id"),
+                        "phase": s.get("phase"),
+                        **obj,
+                    }
+                )
             row.update(_per_object_aggregate(obj_rows))
         per_sample.append(row)
 
     if not per_sample:
-        return {"alignment": alignment, "per_sample": [], "per_object": [],
-                "aggregated": {}, "aggregated_with_ci": {},
-                "per_object_aggregated": {},
-                "per_object_aggregated_with_ci": {}}
+        return {
+            "alignment": alignment,
+            "per_sample": [],
+            "per_object": [],
+            "aggregated": {},
+            "aggregated_with_ci": {},
+            "per_object_aggregated": {},
+            "per_object_aggregated_with_ci": {},
+        }
 
     # Plain mean (preserved for backward compat)…
-    keys = sorted({k for r in per_sample for k in r if k not in {"id", "scene_id", "phase", "alignment"}})
+    keys = sorted(
+        {k for r in per_sample for k in r if k not in {"id", "scene_id", "phase", "alignment"}}
+    )
     aggregated = {}
     for k in keys:
         vals = [r[k] for r in per_sample if k in r and isinstance(r[k], (int, float))]
@@ -466,6 +498,7 @@ def compute_run(
     # …and the same basket with 95% CIs (t-based + bootstrap), std, p5/p95.
     # Used by the paper tables and any downstream significance test.
     from stat_utils import aggregate_per_sample_with_ci  # noqa: PLC0415
+
     aggregated_with_ci = aggregate_per_sample_with_ci(per_sample)
 
     # Per-object aggregation: every object instance is one observation
@@ -475,14 +508,17 @@ def compute_run(
     per_object_aggregated = {}
     per_object_aggregated_with_ci = {}
     if per_object_rows_all:
-        obj_keys = sorted({
-            k for r in per_object_rows_all for k in r
-            if k not in {"id", "scene_id", "phase", "instance_id"}
-            and isinstance(r[k], (int, float))
-        })
+        obj_keys = sorted(
+            {
+                k
+                for r in per_object_rows_all
+                for k in r
+                if k not in {"id", "scene_id", "phase", "instance_id"}
+                and isinstance(r[k], (int, float))
+            }
+        )
         for k in obj_keys:
-            vals = [r[k] for r in per_object_rows_all
-                    if k in r and isinstance(r[k], (int, float))]
+            vals = [r[k] for r in per_object_rows_all if k in r and isinstance(r[k], (int, float))]
             if vals:
                 per_object_aggregated[k] = float(np.mean(vals))
         per_object_aggregated_with_ci = aggregate_per_sample_with_ci(
@@ -491,23 +527,25 @@ def compute_run(
         )
 
     return {
-        "alignment":                     alignment,
-        "per_sample":                    per_sample,
-        "aggregated":                    aggregated,
-        "aggregated_with_ci":            aggregated_with_ci,
-        "per_object":                    per_object_rows_all,
-        "per_object_aggregated":         per_object_aggregated,
+        "alignment": alignment,
+        "per_sample": per_sample,
+        "aggregated": aggregated,
+        "aggregated_with_ci": aggregated_with_ci,
+        "per_object": per_object_rows_all,
+        "per_object_aggregated": per_object_aggregated,
         "per_object_aggregated_with_ci": per_object_aggregated_with_ci,
     }
 
 
 def _cli():
     import argparse
+
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--predictions-dir", type=Path, required=True)
     ap.add_argument("--manifest", type=Path, required=True)
-    ap.add_argument("--alignment", default="none",
-                    choices=["none", "median", "ls_affine", "ls_disparity"])
+    ap.add_argument(
+        "--alignment", default="none", choices=["none", "median", "ls_affine", "ls_disparity"]
+    )
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
     extras = compute_run(args.predictions_dir, args.manifest, alignment=args.alignment)

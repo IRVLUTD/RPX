@@ -60,6 +60,7 @@ def test_register_and_unregister_custom_metric():
     @register_metric(TaskType.MONOCULAR_DEPTH)
     class AlwaysFortyTwo(MetricCalculator):
         name = "always_forty_two"
+
         def compute(self, prediction, ground_truth):
             return {"always_forty_two": 42.0}
 

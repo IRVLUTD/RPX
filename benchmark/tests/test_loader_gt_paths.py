@@ -24,10 +24,10 @@ from rpx_benchmark.api import (
 )
 from rpx_benchmark.loader import RPXDataset
 
-
 # --------------------------------------------------------------------------- #
 # Test helpers
 # --------------------------------------------------------------------------- #
+
 
 def _write_rgb(path: Path, h: int = 20, w: int = 30) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,11 +46,15 @@ def _write_pose(path: Path, position=(0, 0, 0), orientation=(0, 0, 0, 1)) -> Non
 
 def _manifest(tmp_path: Path, task: str, samples: list) -> Path:
     p = tmp_path / "manifest.json"
-    p.write_text(json.dumps({
-        "task": task,
-        "root": str(tmp_path),
-        "samples": samples,
-    }))
+    p.write_text(
+        json.dumps(
+            {
+                "task": task,
+                "root": str(tmp_path),
+                "samples": samples,
+            }
+        )
+    )
     return p
 
 
@@ -58,16 +62,16 @@ def _manifest(tmp_path: Path, task: str, samples: list) -> Path:
 # Object tracking → _load_tracklets
 # --------------------------------------------------------------------------- #
 
+
 def test_load_tracklets(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "0.png")
     tracks = [
-        {"track_id": "t1",
-         "boxes": [[10, 10, 20, 20], [12, 12, 22, 22]],
-         "scores": [0.9, 0.8]},
+        {"track_id": "t1", "boxes": [[10, 10, 20, 20], [12, 12, 22, 22]], "scores": [0.9, 0.8]},
     ]
     (tmp_path / "tracks.json").write_text(json.dumps(tracks))
     manifest = _manifest(
-        tmp_path, "object_tracking",
+        tmp_path,
+        "object_tracking",
         [{"id": "t", "rgb": "rgb/0.png", "tracks": "tracks.json"}],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
@@ -83,6 +87,7 @@ def test_load_tracklets(tmp_path: Path):
 # Relative camera pose → _load_relative_pose
 # --------------------------------------------------------------------------- #
 
+
 def test_load_relative_pose(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "a.png")
     _write_rgb(tmp_path / "rgb" / "b.png")
@@ -90,14 +95,17 @@ def test_load_relative_pose(tmp_path: Path):
     _write_pose(tmp_path / "pose" / "b.npz", position=(1, 0, 0))
 
     manifest = _manifest(
-        tmp_path, "relative_camera_pose",
-        [{
-            "id": "pair",
-            "rgb": "rgb/a.png",
-            "rgb_b": "rgb/b.png",
-            "pose_a": "pose/a.npz",
-            "pose_b": "pose/b.npz",
-        }],
+        tmp_path,
+        "relative_camera_pose",
+        [
+            {
+                "id": "pair",
+                "rgb": "rgb/a.png",
+                "rgb_b": "rgb/b.png",
+                "pose_a": "pose/a.npz",
+                "pose_b": "pose/b.npz",
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     sample = next(iter(ds))[0]
@@ -114,16 +122,20 @@ def test_load_relative_pose(tmp_path: Path):
 # Visual grounding → _load_visual_grounding
 # --------------------------------------------------------------------------- #
 
+
 def test_load_visual_grounding_inline_boxes(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "0.png")
     manifest = _manifest(
-        tmp_path, "visual_grounding",
-        [{
-            "id": "g0",
-            "rgb": "rgb/0.png",
-            "text": "the red cup",
-            "boxes": [[10, 10, 30, 30]],
-        }],
+        tmp_path,
+        "visual_grounding",
+        [
+            {
+                "id": "g0",
+                "rgb": "rgb/0.png",
+                "text": "the red cup",
+                "boxes": [[10, 10, 30, 30]],
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     sample = next(iter(ds))[0]
@@ -136,7 +148,8 @@ def test_load_visual_grounding_inline_boxes(tmp_path: Path):
 def test_load_visual_grounding_missing_boxes_defaults_to_empty(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "0.png")
     manifest = _manifest(
-        tmp_path, "visual_grounding",
+        tmp_path,
+        "visual_grounding",
         [{"id": "g0", "rgb": "rgb/0.png", "text": "nothing here"}],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
@@ -148,6 +161,7 @@ def test_load_visual_grounding_missing_boxes_defaults_to_empty(tmp_path: Path):
 # Sparse depth → _load_sparse_depth
 # --------------------------------------------------------------------------- #
 
+
 def test_load_sparse_depth_from_npy(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "0.png")
     (tmp_path / "sparse").mkdir()
@@ -157,13 +171,16 @@ def test_load_sparse_depth_from_npy(tmp_path: Path):
     np.save(tmp_path / "sparse" / "depths.npy", depths)
 
     manifest = _manifest(
-        tmp_path, "sparse_depth",
-        [{
-            "id": "s0",
-            "rgb": "rgb/0.png",
-            "coordinates": "sparse/coords.npy",
-            "depths": "sparse/depths.npy",
-        }],
+        tmp_path,
+        "sparse_depth",
+        [
+            {
+                "id": "s0",
+                "rgb": "rgb/0.png",
+                "coordinates": "sparse/coords.npy",
+                "depths": "sparse/depths.npy",
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     gt = next(iter(ds))[0].ground_truth
@@ -175,13 +192,16 @@ def test_load_sparse_depth_from_npy(tmp_path: Path):
 def test_load_sparse_depth_inline_arrays(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "0.png")
     manifest = _manifest(
-        tmp_path, "sparse_depth",
-        [{
-            "id": "s0",
-            "rgb": "rgb/0.png",
-            "coordinates": [[1, 2], [3, 4]],
-            "depths": [1.0, 2.0],
-        }],
+        tmp_path,
+        "sparse_depth",
+        [
+            {
+                "id": "s0",
+                "rgb": "rgb/0.png",
+                "coordinates": [[1, 2], [3, 4]],
+                "depths": [1.0, 2.0],
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     gt = next(iter(ds))[0].ground_truth
@@ -192,17 +212,21 @@ def test_load_sparse_depth_inline_arrays(tmp_path: Path):
 # Novel view synthesis → _load_nvs
 # --------------------------------------------------------------------------- #
 
+
 def test_load_nvs_reads_target_rgb(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "source.png")
     _write_rgb(tmp_path / "rgb" / "target.png")
 
     manifest = _manifest(
-        tmp_path, "novel_view_synthesis",
-        [{
-            "id": "nvs0",
-            "rgb": "rgb/source.png",
-            "target_rgb": "rgb/target.png",
-        }],
+        tmp_path,
+        "novel_view_synthesis",
+        [
+            {
+                "id": "nvs0",
+                "rgb": "rgb/source.png",
+                "target_rgb": "rgb/target.png",
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     gt = next(iter(ds))[0].ground_truth
@@ -216,13 +240,16 @@ def test_load_nvs_target_pose_from_npz(tmp_path: Path):
     _write_pose(tmp_path / "pose" / "target.npz", position=(0.5, 0, 0))
 
     manifest = _manifest(
-        tmp_path, "novel_view_synthesis",
-        [{
-            "id": "nvs0",
-            "rgb": "rgb/source.png",
-            "target_rgb": "rgb/target.png",
-            "target_pose": "pose/target.npz",
-        }],
+        tmp_path,
+        "novel_view_synthesis",
+        [
+            {
+                "id": "nvs0",
+                "rgb": "rgb/source.png",
+                "target_rgb": "rgb/target.png",
+                "target_pose": "pose/target.npz",
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     gt = next(iter(ds))[0].ground_truth
@@ -236,6 +263,7 @@ def test_load_nvs_target_pose_from_npz(tmp_path: Path):
 # Keypoint matching → _load_keypoints
 # --------------------------------------------------------------------------- #
 
+
 def test_load_keypoints_from_npy(tmp_path: Path):
     _write_rgb(tmp_path / "rgb" / "a.png")
     _write_rgb(tmp_path / "rgb" / "b.png")
@@ -248,15 +276,18 @@ def test_load_keypoints_from_npy(tmp_path: Path):
     np.save(tmp_path / "kp" / "vis.npy", visibility)
 
     manifest = _manifest(
-        tmp_path, "keypoint_matching",
-        [{
-            "id": "k0",
-            "rgb": "rgb/a.png",
-            "rgb_b": "rgb/b.png",
-            "points0": "kp/p0.npy",
-            "points1": "kp/p1.npy",
-            "visibility": "kp/vis.npy",
-        }],
+        tmp_path,
+        "keypoint_matching",
+        [
+            {
+                "id": "k0",
+                "rgb": "rgb/a.png",
+                "rgb_b": "rgb/b.png",
+                "points0": "kp/p0.npy",
+                "points1": "kp/p1.npy",
+                "visibility": "kp/vis.npy",
+            }
+        ],
     )
     ds = RPXDataset.from_manifest(manifest, batch_size=1)
     sample = next(iter(ds))[0]

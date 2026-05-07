@@ -13,10 +13,15 @@ from rpx_benchmark.dataset_hub.scanner import scan_capture_root
 
 @pytest.fixture
 def small_mock(tmp_path: Path) -> Path:
-    return generate_mock(tmp_path / "ds", MockSpec(
-        multi_object_scenes=2, single_object_scenes=3,
-        phases_per_multi=3, frames_per_phase=4,
-    ))
+    return generate_mock(
+        tmp_path / "ds",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=3,
+            phases_per_multi=3,
+            frames_per_phase=4,
+        ),
+    )
 
 
 def test_scan_classifies_scene_types(small_mock: Path):
@@ -59,9 +64,15 @@ def test_sam2_split_into_subdirs(small_mock: Path):
     phase = res.scenes[0].phases[0]
     sam2_keys = [k for k in phase.modalities if k.startswith("sam2/")]
     assert "sam2/masks" in sam2_keys
-    assert "sam2/_meta" in sam2_keys     # JSON + txts
-    aux = {"sam2/bbox_overlay", "sam2/contour_gt_masks", "sam2/dino_output",
-            "sam2/masks_contour_with_hidden", "sam2/palette", "sam2/rgb_and_mask"}
+    assert "sam2/_meta" in sam2_keys  # JSON + txts
+    aux = {
+        "sam2/bbox_overlay",
+        "sam2/contour_gt_masks",
+        "sam2/dino_output",
+        "sam2/masks_contour_with_hidden",
+        "sam2/palette",
+        "sam2/rgb_and_mask",
+    }
     assert aux.issubset(set(sam2_keys))
 
 
@@ -91,9 +102,12 @@ def test_modality_totals_aggregate_correctly(small_mock: Path):
 
 
 def test_scan_skips_non_scene_directories(tmp_path: Path):
-    small = generate_mock(tmp_path / "ds", MockSpec(
-        multi_object_scenes=1, single_object_scenes=1,
-        phases_per_multi=1, frames_per_phase=1))
+    small = generate_mock(
+        tmp_path / "ds",
+        MockSpec(
+            multi_object_scenes=1, single_object_scenes=1, phases_per_multi=1, frames_per_phase=1
+        ),
+    )
     (small / "README.md").write_text("docs", encoding="utf-8")
     (small / "trash").mkdir()
     # A stray file inside mos/ should also be skipped (only directories

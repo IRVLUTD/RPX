@@ -71,11 +71,14 @@ class Marigold:
         self.ensemble_size = int(ensemble_size)
         self._torch = torch
 
-        torch_dtype = (getattr(torch, dtype) if isinstance(dtype, str)
-                       else (torch.float16 if self.native_precision == "fp16"
-                             else torch.float32))
+        torch_dtype = (
+            getattr(torch, dtype)
+            if isinstance(dtype, str)
+            else (torch.float16 if self.native_precision == "fp16" else torch.float32)
+        )
         self._pipe = MarigoldDepthPipeline.from_pretrained(
-            model_id, variant="fp16" if torch_dtype == torch.float16 else None,
+            model_id,
+            variant="fp16" if torch_dtype == torch.float16 else None,
             torch_dtype=torch_dtype,
         ).to(device)
         # Slim down: don't generate the visualisation map every call.
@@ -99,10 +102,10 @@ class Marigold:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
-                    hint="Adapter contract: each input must be a (H, W, 3) "
-                         "uint8 numpy array.",
+                    hint="Adapter contract: each input must be a (H, W, 3) uint8 numpy array.",
                 )
 
         pil_imgs = [Image.fromarray(np.asarray(r, dtype=np.uint8)) for r in rgbs]
@@ -121,7 +124,7 @@ class Marigold:
             preds = preds.squeeze(-1)
 
         depths: list[np.ndarray] = []
-        for r, d in zip(rgbs, preds):
+        for r, d in zip(rgbs, preds, strict=False):
             target_hw = np.asarray(r).shape[:2]
             if d.shape != target_hw:
                 d = _resize_bilinear(d, target_hw)
@@ -131,6 +134,7 @@ class Marigold:
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

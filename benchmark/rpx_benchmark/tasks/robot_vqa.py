@@ -44,15 +44,13 @@ from __future__ import annotations
 import hashlib
 import random
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
-import numpy as np
 
 
 @dataclass
 class RobotQA:
     """One robot-grounded QA pair."""
+
     scene_id: str
     phase: int
     frame_id: str
@@ -80,11 +78,14 @@ def _shuffle(correct: str, distractors: List[str], seed: int) -> Tuple[List[str]
 
 # ── T1: In-Context Recognition ─────────────────────────────────────────────
 
+
 def generate_incontext_recognition(
     visible_objects: List[Dict],
     single_object_refs: Dict[str, str],  # {category: path_to_reference_image}
     absent_categories: List[str],  # categories NOT in this frame
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[RobotQA]:
     """T1: 'Here is a photo of the target. Is it in this scene?'
 
@@ -100,19 +101,30 @@ def generate_incontext_recognition(
             continue
         s = _seed(scene_id, phase, frame_id, f"t1_yes_{cat}")
         q = "The reference image shows an object. Is this exact object present in the current scene?"
-        opts, idx = _shuffle("yes, it is visible", [
-            "no, it is not in this scene",
-            "a similar but different object is present",
-            "cannot determine from this viewpoint",
-        ], s)
-        pairs.append(RobotQA(
-            scene_id=scene_id, phase=phase, frame_id=frame_id,
-            task_type="T1_incontext", robot_operation="object_registration",
-            question=q, correct_answer="yes, it is visible",
-            options=opts, correct_index=idx,
-            reference_image=single_object_refs[cat],
-            metadata={"category": cat, "present": True},
-        ))
+        opts, idx = _shuffle(
+            "yes, it is visible",
+            [
+                "no, it is not in this scene",
+                "a similar but different object is present",
+                "cannot determine from this viewpoint",
+            ],
+            s,
+        )
+        pairs.append(
+            RobotQA(
+                scene_id=scene_id,
+                phase=phase,
+                frame_id=frame_id,
+                task_type="T1_incontext",
+                robot_operation="object_registration",
+                question=q,
+                correct_answer="yes, it is visible",
+                options=opts,
+                correct_index=idx,
+                reference_image=single_object_refs[cat],
+                metadata={"category": cat, "present": True},
+            )
+        )
 
     # Negative: objects NOT in this frame but that have reference images
     neg_count = 0
@@ -121,19 +133,30 @@ def generate_incontext_recognition(
             continue
         s = _seed(scene_id, phase, frame_id, f"t1_no_{cat}")
         q = "The reference image shows an object. Is this exact object present in the current scene?"
-        opts, idx = _shuffle("no, it is not in this scene", [
-            "yes, it is visible",
-            "a similar but different object is present",
-            "partially occluded but present",
-        ], s)
-        pairs.append(RobotQA(
-            scene_id=scene_id, phase=phase, frame_id=frame_id,
-            task_type="T1_incontext", robot_operation="object_registration",
-            question=q, correct_answer="no, it is not in this scene",
-            options=opts, correct_index=idx,
-            reference_image=single_object_refs[cat],
-            metadata={"category": cat, "present": False},
-        ))
+        opts, idx = _shuffle(
+            "no, it is not in this scene",
+            [
+                "yes, it is visible",
+                "a similar but different object is present",
+                "partially occluded but present",
+            ],
+            s,
+        )
+        pairs.append(
+            RobotQA(
+                scene_id=scene_id,
+                phase=phase,
+                frame_id=frame_id,
+                task_type="T1_incontext",
+                robot_operation="object_registration",
+                question=q,
+                correct_answer="no, it is not in this scene",
+                options=opts,
+                correct_index=idx,
+                reference_image=single_object_refs[cat],
+                metadata={"category": cat, "present": False},
+            )
+        )
         neg_count += 1
 
     return pairs
@@ -141,10 +164,13 @@ def generate_incontext_recognition(
 
 # ── T2: Attribute Grounding ────────────────────────────────────────────────
 
+
 def generate_attribute_grounding(
     visible_objects: List[Dict],
     all_objects: List[Dict],
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[RobotQA]:
     """T2: 'Pick the red mug' — which object matches this description?
 
@@ -155,6 +181,7 @@ def generate_attribute_grounding(
     pairs = []
     # Find categories with multiple visible instances
     from collections import Counter
+
     cat_counts = Counter(o["category"] for o in visible_objects)
     ambiguous_cats = [c for c, n in cat_counts.items() if n >= 2]
 
@@ -173,22 +200,32 @@ def generate_attribute_grounding(
             while len(distractors) < 3:
                 distractors.append("none of the visible objects")
             opts, idx = _shuffle(gt, distractors[:3], s)
-            pairs.append(RobotQA(
-                scene_id=scene_id, phase=phase, frame_id=frame_id,
-                task_type="T2_attribute", robot_operation="language_grounding",
-                question=q, correct_answer=gt,
-                options=opts, correct_index=idx,
-                metadata={"category": cat, "target_color": color},
-            ))
+            pairs.append(
+                RobotQA(
+                    scene_id=scene_id,
+                    phase=phase,
+                    frame_id=frame_id,
+                    task_type="T2_attribute",
+                    robot_operation="language_grounding",
+                    question=q,
+                    correct_answer=gt,
+                    options=opts,
+                    correct_index=idx,
+                    metadata={"category": cat, "target_color": color},
+                )
+            )
 
     return pairs
 
 
 # ── T3: Spatial Grounding ──────────────────────────────────────────────────
 
+
 def generate_spatial_grounding(
     visible_objects: List[Dict],  # must include bbox_cx, bbox_cy
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[RobotQA]:
     """T3: 'Pick the object to the left of the bowl.'
 
@@ -233,21 +270,33 @@ def generate_spatial_grounding(
             s = _seed(scene_id, phase, frame_id, f"t3_{direction}_{ref['category']}")
             q = f"A robot must pick the object {direction} of the {ref['category']}. What should it pick?"
             gt = best["category"]
-            others = list({o["category"] for o in visible_objects
-                          if o["category"] != gt and o["category"] != ref["category"]})
+            others = list(
+                {
+                    o["category"]
+                    for o in visible_objects
+                    if o["category"] != gt and o["category"] != ref["category"]
+                }
+            )
             others += ["nothing — no object in that direction"]
             rng = random.Random(s)
             distractors = rng.sample(others, min(3, len(others)))
             while len(distractors) < 3:
                 distractors.append("cannot determine")
             opts, idx = _shuffle(gt, distractors[:3], s)
-            pairs.append(RobotQA(
-                scene_id=scene_id, phase=phase, frame_id=frame_id,
-                task_type="T3_spatial", robot_operation="spatial_command",
-                question=q, correct_answer=gt,
-                options=opts, correct_index=idx,
-                metadata={"reference": ref["category"], "direction": direction},
-            ))
+            pairs.append(
+                RobotQA(
+                    scene_id=scene_id,
+                    phase=phase,
+                    frame_id=frame_id,
+                    task_type="T3_spatial",
+                    robot_operation="spatial_command",
+                    question=q,
+                    correct_answer=gt,
+                    options=opts,
+                    correct_index=idx,
+                    metadata={"reference": ref["category"], "direction": direction},
+                )
+            )
             break  # one per ref per direction
 
     return pairs
@@ -255,10 +304,12 @@ def generate_spatial_grounding(
 
 # ── T4: State Verification ─────────────────────────────────────────────────
 
+
 def generate_state_verification(
     clutter_objects: List[Dict],  # objects visible in clutter phase
-    clean_objects: List[Dict],    # objects visible in clean phase
-    scene_id: str, frame_id: str,
+    clean_objects: List[Dict],  # objects visible in clean phase
+    scene_id: str,
+    frame_id: str,
 ) -> List[RobotQA]:
     """T4: 'Did the manipulation succeed? What changed?'
 
@@ -283,13 +334,20 @@ def generate_state_verification(
         while len(distractors) < 3:
             distractors.append("nothing was removed")
         opts, idx = _shuffle(removed_obj, distractors[:3], s)
-        pairs.append(RobotQA(
-            scene_id=scene_id, phase=0, frame_id=frame_id,
-            task_type="T4_state", robot_operation="task_verification",
-            question=q, correct_answer=removed_obj,
-            options=opts, correct_index=idx,
-            metadata={"change_type": "removed", "object": removed_obj},
-        ))
+        pairs.append(
+            RobotQA(
+                scene_id=scene_id,
+                phase=0,
+                frame_id=frame_id,
+                task_type="T4_state",
+                robot_operation="task_verification",
+                question=q,
+                correct_answer=removed_obj,
+                options=opts,
+                correct_index=idx,
+                metadata={"change_type": "removed", "object": removed_obj},
+            )
+        )
 
     # Question: what was added?
     if added:
@@ -300,13 +358,20 @@ def generate_state_verification(
         while len(distractors) < 3:
             distractors.append("nothing was added")
         opts, idx = _shuffle(added_obj, distractors[:3], s)
-        pairs.append(RobotQA(
-            scene_id=scene_id, phase=2, frame_id=frame_id,
-            task_type="T4_state", robot_operation="task_verification",
-            question=q, correct_answer=added_obj,
-            options=opts, correct_index=idx,
-            metadata={"change_type": "added", "object": added_obj},
-        ))
+        pairs.append(
+            RobotQA(
+                scene_id=scene_id,
+                phase=2,
+                frame_id=frame_id,
+                task_type="T4_state",
+                robot_operation="task_verification",
+                question=q,
+                correct_answer=added_obj,
+                options=opts,
+                correct_index=idx,
+                metadata={"change_type": "added", "object": added_obj},
+            )
+        )
 
     # Question: did the count change?
     if len(clutter_cats) != len(clean_cats):
@@ -319,31 +384,46 @@ def generate_state_verification(
             gt = f"increased by {delta}"
         else:
             gt = "stayed the same"
-        opts, idx = _shuffle(gt, [
-            "stayed the same" if delta != 0 else "decreased by 1",
-            f"increased by {abs(delta) + 1}" if delta <= 0 else f"decreased by {delta + 1}",
-            "cannot determine",
-        ], s)
-        pairs.append(RobotQA(
-            scene_id=scene_id, phase=0, frame_id=frame_id,
-            task_type="T4_state", robot_operation="task_verification",
-            question=q, correct_answer=gt,
-            options=opts, correct_index=idx,
-            metadata={"change_type": "count", "delta": delta},
-        ))
+        opts, idx = _shuffle(
+            gt,
+            [
+                "stayed the same" if delta != 0 else "decreased by 1",
+                f"increased by {abs(delta) + 1}" if delta <= 0 else f"decreased by {delta + 1}",
+                "cannot determine",
+            ],
+            s,
+        )
+        pairs.append(
+            RobotQA(
+                scene_id=scene_id,
+                phase=0,
+                frame_id=frame_id,
+                task_type="T4_state",
+                robot_operation="task_verification",
+                question=q,
+                correct_answer=gt,
+                options=opts,
+                correct_index=idx,
+                metadata={"change_type": "count", "delta": delta},
+            )
+        )
 
     return pairs
 
 
 # ── T5: Counting ───────────────────────────────────────────────────────────
 
+
 def generate_counting(
     visible_objects: List[Dict],
-    scene_id: str, phase: int, frame_id: str,
+    scene_id: str,
+    phase: int,
+    frame_id: str,
 ) -> List[RobotQA]:
     """T5: 'How many objects remain to pack?'"""
     pairs = []
     from collections import Counter
+
     counts = Counter(o["category"] for o in visible_objects)
 
     for cat, count in list(counts.items())[:3]:
@@ -355,18 +435,26 @@ def generate_counting(
         while len(distractors) < 3:
             distractors.append("0")
         opts, idx = _shuffle(gt, distractors[:3], s)
-        pairs.append(RobotQA(
-            scene_id=scene_id, phase=phase, frame_id=frame_id,
-            task_type="T5_counting", robot_operation="task_progress",
-            question=q, correct_answer=gt,
-            options=opts, correct_index=idx,
-            metadata={"category": cat, "count": count},
-        ))
+        pairs.append(
+            RobotQA(
+                scene_id=scene_id,
+                phase=phase,
+                frame_id=frame_id,
+                task_type="T5_counting",
+                robot_operation="task_progress",
+                question=q,
+                correct_answer=gt,
+                options=opts,
+                correct_index=idx,
+                metadata={"category": cat, "count": count},
+            )
+        )
 
     return pairs
 
 
 # ── Evaluation ──────────────────────────────────────────────────────────────
+
 
 def evaluate_robot_vqa(
     predictions: List[int],
@@ -379,14 +467,16 @@ def evaluate_robot_vqa(
     by_phase: Dict[int, List[bool]] = {}
     by_operation: Dict[str, List[bool]] = {}
 
-    for pred, qa in zip(predictions, ground_truth):
-        hit = (pred == qa.correct_index)
+    for pred, qa in zip(predictions, ground_truth, strict=False):
+        hit = pred == qa.correct_index
         by_type.setdefault(qa.task_type, []).append(hit)
         by_phase.setdefault(qa.phase, []).append(hit)
         by_operation.setdefault(qa.robot_operation, []).append(hit)
 
     n = len(predictions)
-    correct = sum(1 for p, q in zip(predictions, ground_truth) if p == q.correct_index)
+    correct = sum(
+        1 for p, q in zip(predictions, ground_truth, strict=False) if p == q.correct_index
+    )
 
     result = {
         "accuracy": correct / n if n else 0.0,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 import pytest
@@ -19,10 +18,15 @@ from rpx_benchmark.exceptions import DatasetError
 
 @pytest.fixture
 def scan(tmp_path: Path):
-    src = generate_mock(tmp_path / "src", MockSpec(
-        multi_object_scenes=2, single_object_scenes=3,
-        phases_per_multi=3, frames_per_phase=2,
-    ))
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=3,
+            phases_per_multi=3,
+            frames_per_phase=2,
+        ),
+    )
     return scan_capture_root(src)
 
 
@@ -51,7 +55,7 @@ def test_card_contains_required_yaml_keys(tmp_path: Path, scan):
 def test_card_includes_scene_counts(tmp_path: Path, scan):
     out = write_dataset_card(tmp_path, scan)
     text = out.read_text(encoding="utf-8")
-    n_multi  = sum(1 for s in scan.scenes if s.scene_type.value == "multi_object")
+    n_multi = sum(1 for s in scan.scenes if s.scene_type.value == "multi_object")
     n_single = sum(1 for s in scan.scenes if s.scene_type.value == "single_object")
     assert f"**{n_multi}**" in text
     assert f"**{n_single}**" in text
@@ -80,16 +84,14 @@ def test_card_quick_start_uses_default_repo_id(tmp_path: Path, scan):
 
 
 def test_card_label_versions_block_renders_when_provided(tmp_path: Path, scan):
-    out = write_dataset_card(tmp_path, scan,
-                               label_versions={"masks": "v1", "cam_pose": "v2"})
+    out = write_dataset_card(tmp_path, scan, label_versions={"masks": "v1", "cam_pose": "v2"})
     text = out.read_text(encoding="utf-8")
     assert "| `masks` | `v1` |" in text
     assert "| `cam_pose` | `v2` |" in text
 
 
 def test_card_splits_advertise_tier_counts(tmp_path: Path, scan):
-    multi_ids = [s.scene_id for s in scan.scenes
-                  if s.scene_type.value == "multi_object"]
+    multi_ids = [s.scene_id for s in scan.scenes if s.scene_type.value == "multi_object"]
     splits = {multi_ids[0]: "easy", multi_ids[1]: "hard"}
     out = write_dataset_card(tmp_path, scan, splits=splits)
     text = out.read_text(encoding="utf-8")
@@ -110,8 +112,8 @@ def test_card_overwrite_flag_allows_re_render(tmp_path: Path, scan):
 
 
 def test_size_category_buckets():
-    assert _size_category(500_000)             == "100M<n<1B"
-    assert _size_category(2 * 1024**3)         == "1B<n<10B"
-    assert _size_category(50 * 1024**3)        == "10B<n<100B"
-    assert _size_category(890 * 1024**3)       == "100B<n<1T"
-    assert _size_category(2 * 1024**4)         == "n>1T"
+    assert _size_category(500_000) == "100M<n<1B"
+    assert _size_category(2 * 1024**3) == "1B<n<10B"
+    assert _size_category(50 * 1024**3) == "10B<n<100B"
+    assert _size_category(890 * 1024**3) == "100B<n<1T"
+    assert _size_category(2 * 1024**4) == "n>1T"

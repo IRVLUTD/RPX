@@ -42,13 +42,17 @@ CANDIDATE_OFFSETS = (5, 10, 15, 20, 30, 45)
 # Pose helpers (duplicated from loader to keep this script standalone)
 # ------------------------------------------------------------------ #
 
+
 def quat_xyzw_to_rotmat(q: np.ndarray) -> np.ndarray:
     x, y, z, w = q / np.linalg.norm(q)
-    return np.array([
-        [1 - 2*y*y - 2*z*z,     2*x*y - 2*z*w,     2*x*z + 2*y*w],
-        [    2*x*y + 2*z*w, 1 - 2*x*x - 2*z*z,     2*y*z - 2*x*w],
-        [    2*x*z - 2*y*w,     2*y*z + 2*x*w, 1 - 2*x*x - 2*y*y],
-    ], dtype=np.float64)
+    return np.array(
+        [
+            [1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * z * w, 2 * x * z + 2 * y * w],
+            [2 * x * y + 2 * z * w, 1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * x * w],
+            [2 * x * z - 2 * y * w, 2 * y * z + 2 * x * w, 1 - 2 * x * x - 2 * y * y],
+        ],
+        dtype=np.float64,
+    )
 
 
 def load_pose_npz(path: Path) -> np.ndarray:
@@ -74,13 +78,14 @@ def relative_transform(T_a: np.ndarray, T_b: np.ndarray) -> np.ndarray:
 # Pair sampling
 # ------------------------------------------------------------------ #
 
+
 @dataclass
 class PairConfig:
-    min_t: float = 0.05     # metres
+    min_t: float = 0.05  # metres
     max_t: float = 0.60
-    min_r: float = 2.0      # degrees
+    min_r: float = 2.0  # degrees
     max_r: float = 35.0
-    src_stride: int = 10    # every Nth frame is a candidate source
+    src_stride: int = 10  # every Nth frame is a candidate source
 
 
 def sample_pairs(
@@ -113,6 +118,7 @@ def sample_pairs(
 # Disk scanning
 # ------------------------------------------------------------------ #
 
+
 def discover_pose_sequences(scenes_root: Path) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for scene_dir in sorted(scenes_root.iterdir()):
@@ -123,17 +129,18 @@ def discover_pose_sequences(scenes_root: Path) -> List[Dict[str, Any]]:
             rgb_dir = scene_dir / phase / "rgb"
             if not pose_dir.is_dir() or not rgb_dir.is_dir():
                 continue
-            pose_files = sorted(p for p in pose_dir.iterdir()
-                                if p.suffix == ".npz")
+            pose_files = sorted(p for p in pose_dir.iterdir() if p.suffix == ".npz")
             frame_ids = [p.stem for p in pose_files]
             if len(frame_ids) < max(CANDIDATE_OFFSETS) + 1:
                 continue
-            out.append({
-                "scene": scene_dir.name,
-                "phase": phase,
-                "phase_name": PHASE_NAMES.get(phase, phase),
-                "frame_ids": frame_ids,
-            })
+            out.append(
+                {
+                    "scene": scene_dir.name,
+                    "phase": phase,
+                    "phase_name": PHASE_NAMES.get(phase, phase),
+                    "frame_ids": frame_ids,
+                }
+            )
     return out
 
 
@@ -147,13 +154,18 @@ def load_esd_scores(path: Path) -> Dict[Tuple[str, str], Dict[str, Any]]:
 # Manifest assembly
 # ------------------------------------------------------------------ #
 
+
 def _rel(scene: str, phase: str, sub: str, frame: str, ext: str) -> str:
     return f"scenes/{scene}/{phase}/{sub}/{frame}.{ext}"
 
 
 def build_rel_pose_entry(
-    scene: str, phase: str, phase_name: str,
-    frame_a: str, frame_b: str, difficulty: str,
+    scene: str,
+    phase: str,
+    phase_name: str,
+    frame_a: str,
+    frame_b: str,
+    difficulty: str,
 ) -> Dict[str, Any]:
     return {
         "id": f"{scene}_{phase_name}_{frame_a}_{frame_b}",
@@ -168,8 +180,12 @@ def build_rel_pose_entry(
 
 
 def build_nvs_entry(
-    scene: str, phase: str, phase_name: str,
-    frame_src: str, frame_tgt: str, difficulty: str,
+    scene: str,
+    phase: str,
+    phase_name: str,
+    frame_src: str,
+    frame_tgt: str,
+    difficulty: str,
 ) -> Dict[str, Any]:
     return {
         "id": f"{scene}_{phase_name}_{frame_src}_to_{frame_tgt}",
@@ -195,7 +211,10 @@ def build_manifests(
     for task in tasks:
         for d in ("easy", "medium", "hard"):
             manifests[(task, d)] = {
-                "task": task, "split": d, "scenes": [], "samples": [],
+                "task": task,
+                "split": d,
+                "scenes": [],
+                "samples": [],
             }
 
     for seq in sequences:
@@ -209,8 +228,7 @@ def build_manifests(
 
         # Load pose stream once per (scene, phase).
         phase_dir = scenes_root / scene / phase
-        poses = [load_pose_npz(phase_dir / "pose" / f"{fid}.npz")
-                 for fid in seq["frame_ids"]]
+        poses = [load_pose_npz(phase_dir / "pose" / f"{fid}.npz") for fid in seq["frame_ids"]]
         pairs = sample_pairs(poses, cfg)
         if not pairs:
             continue
@@ -223,10 +241,16 @@ def build_manifests(
             m = manifests[("relative_camera_pose", difficulty)]
             m["scenes"].append(scene_entry)
             for i, j in pairs:
-                m["samples"].append(build_rel_pose_entry(
-                    scene, phase, phase_name,
-                    frame_ids[i], frame_ids[j], difficulty,
-                ))
+                m["samples"].append(
+                    build_rel_pose_entry(
+                        scene,
+                        phase,
+                        phase_name,
+                        frame_ids[i],
+                        frame_ids[j],
+                        difficulty,
+                    )
+                )
 
         if "novel_view_synthesis" in tasks:
             # NVS also needs the source depth, so skip phases missing depth.
@@ -235,10 +259,16 @@ def build_manifests(
             m = manifests[("novel_view_synthesis", difficulty)]
             m["scenes"].append(scene_entry)
             for i, j in pairs:
-                m["samples"].append(build_nvs_entry(
-                    scene, phase, phase_name,
-                    frame_ids[i], frame_ids[j], difficulty,
-                ))
+                m["samples"].append(
+                    build_nvs_entry(
+                        scene,
+                        phase,
+                        phase_name,
+                        frame_ids[i],
+                        frame_ids[j],
+                        difficulty,
+                    )
+                )
 
     return {k: v for k, v in manifests.items() if v["samples"]}
 
@@ -262,25 +292,27 @@ def write_manifests(
 # Entry point
 # ------------------------------------------------------------------ #
 
+
 def main() -> int:
     try:
         from rpx_benchmark.banner import show_banner
+
         show_banner(subtitle="scripts/generate_pair_task_manifests.py")
     except ImportError:
         pass
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--local-root", required=True, type=Path)
-    parser.add_argument("--tasks", nargs="+", choices=PAIR_TASKS,
-                        default=list(PAIR_TASKS))
-    parser.add_argument("--min-t", type=float, default=0.05,
-                        help="Min translation magnitude (metres)")
+    parser.add_argument("--tasks", nargs="+", choices=PAIR_TASKS, default=list(PAIR_TASKS))
+    parser.add_argument(
+        "--min-t", type=float, default=0.05, help="Min translation magnitude (metres)"
+    )
     parser.add_argument("--max-t", type=float, default=0.60)
-    parser.add_argument("--min-r", type=float, default=2.0,
-                        help="Min rotation (degrees)")
+    parser.add_argument("--min-r", type=float, default=2.0, help="Min rotation (degrees)")
     parser.add_argument("--max-r", type=float, default=35.0)
-    parser.add_argument("--src-stride", type=int, default=10,
-                        help="Sample a source frame every N frames")
+    parser.add_argument(
+        "--src-stride", type=int, default=10, help="Sample a source frame every N frames"
+    )
     args = parser.parse_args()
 
     local_root: Path = args.local_root
@@ -291,13 +323,14 @@ def main() -> int:
 
     esd_path = local_root / "esd_scores.json"
     if not esd_path.exists():
-        print(f"error: {esd_path} not found — required for difficulty labels",
-              file=sys.stderr)
+        print(f"error: {esd_path} not found — required for difficulty labels", file=sys.stderr)
         return 2
 
     cfg = PairConfig(
-        min_t=args.min_t, max_t=args.max_t,
-        min_r=args.min_r, max_r=args.max_r,
+        min_t=args.min_t,
+        max_t=args.max_t,
+        min_r=args.min_r,
+        max_r=args.max_r,
         src_stride=args.src_stride,
     )
 
@@ -309,8 +342,10 @@ def main() -> int:
     written = write_manifests(manifests, local_root / "manifests")
     print(f"wrote {len(written)} manifests")
     for (task, diff), m in sorted(manifests.items()):
-        print(f"  {task:<22} {diff:<6} {len(m['samples'])} pairs "
-              f"across {len(m['scenes'])} (scene, phase) groups")
+        print(
+            f"  {task:<22} {diff:<6} {len(m['samples'])} pairs "
+            f"across {len(m['scenes'])} (scene, phase) groups"
+        )
     return 0
 
 

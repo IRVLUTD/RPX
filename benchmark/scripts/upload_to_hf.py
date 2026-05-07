@@ -75,6 +75,7 @@ SINGLE_FRAME_TASKS: Dict[str, Dict[str, Any]] = {
 # Local scanning
 # ------------------------------------------------------------------ #
 
+
 def load_esd_scores(path: Path) -> Dict[Tuple[str, str], Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as f:
         data = json.load(f)
@@ -116,8 +117,7 @@ def scan_phase(scenes_root: Path, scene: str, phase: str) -> Dict[str, Any]:
     for mod in ("rgb", "depth", "mask", "pose", "fisheye_left", "fisheye_right"):
         if (phase_dir / mod).is_dir():
             info["present_modalities"].add(mod)
-    for label in ("tracklets.json", "questionnaires.json",
-                  "spatial_qa.json", "general_qa.json"):
+    for label in ("tracklets.json", "questionnaires.json", "spatial_qa.json", "general_qa.json"):
         if (phase_dir / label).is_file():
             info["present_labels"].add(label)
     if "rgb" in info["present_modalities"]:
@@ -140,6 +140,7 @@ def discover_phases(scenes_root: Path) -> List[Dict[str, Any]]:
 # ------------------------------------------------------------------ #
 # Manifest construction
 # ------------------------------------------------------------------ #
+
 
 def _rel(scene: str, phase: str, modality: str, frame: str, ext: str) -> str:
     return f"scenes/{scene}/{phase}/{modality}/{frame}.{ext}"
@@ -252,17 +253,19 @@ def write_manifests(
 # Upload
 # ------------------------------------------------------------------ #
 
+
 def upload_to_hf(local_root: Path, repo_id: str, private: bool) -> None:
     try:
         from huggingface_hub import HfApi, create_repo
     except ImportError:
-        print("huggingface_hub is required for uploading. "
-              "pip install 'huggingface_hub[hf_xet]'", file=sys.stderr)
+        print(
+            "huggingface_hub is required for uploading. pip install 'huggingface_hub[hf_xet]'",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     api = HfApi()
-    create_repo(repo_id=repo_id, repo_type="dataset",
-                private=private, exist_ok=True)
+    create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True)
 
     # Prefer upload_large_folder for 75k files; fall back to upload_folder
     # on older huggingface_hub versions.
@@ -287,9 +290,11 @@ def upload_to_hf(local_root: Path, repo_id: str, private: bool) -> None:
 # Entry point
 # ------------------------------------------------------------------ #
 
+
 def main() -> int:
     try:
         from rpx_benchmark.banner import show_banner
+
         show_banner(subtitle="scripts/upload_to_hf.py")
     except ImportError:
         pass  # rpx_benchmark not installed; run anyway
@@ -298,16 +303,26 @@ def main() -> int:
     default_card = script_dir.parent / "templates" / "hf_dataset_card.md"
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--local-root", required=True, type=Path,
-                        help="Root containing scenes/, esd_scores.json, splits.json")
+    parser.add_argument(
+        "--local-root",
+        required=True,
+        type=Path,
+        help="Root containing scenes/, esd_scores.json, splits.json",
+    )
     parser.add_argument("--repo-id", default="IRVLUTD/rpx-benchmark")
     parser.add_argument("--private", action="store_true")
-    parser.add_argument("--generate-manifests", action="store_true",
-                        help="Scan scenes/ and write manifests/ under local-root")
-    parser.add_argument("--upload", action="store_true",
-                        help="Push local-root to the HF repo")
-    parser.add_argument("--dataset-card", type=Path, default=default_card,
-                        help="Path to dataset card; copied to <local-root>/README.md")
+    parser.add_argument(
+        "--generate-manifests",
+        action="store_true",
+        help="Scan scenes/ and write manifests/ under local-root",
+    )
+    parser.add_argument("--upload", action="store_true", help="Push local-root to the HF repo")
+    parser.add_argument(
+        "--dataset-card",
+        type=Path,
+        default=default_card,
+        help="Path to dataset card; copied to <local-root>/README.md",
+    )
     args = parser.parse_args()
 
     local_root: Path = args.local_root
@@ -319,8 +334,7 @@ def main() -> int:
     if args.generate_manifests:
         esd_path = local_root / "esd_scores.json"
         if not esd_path.exists():
-            print(f"error: {esd_path} not found — required for manifests",
-                  file=sys.stderr)
+            print(f"error: {esd_path} not found — required for manifests", file=sys.stderr)
             return 2
         esd = load_esd_scores(esd_path)
         splits = load_splits(local_root / "splits.json")
@@ -338,8 +352,7 @@ def main() -> int:
     if args.upload:
         if args.dataset_card and args.dataset_card.is_file():
             dest = local_root / "README.md"
-            dest.write_text(args.dataset_card.read_text(encoding="utf-8"),
-                            encoding="utf-8")
+            dest.write_text(args.dataset_card.read_text(encoding="utf-8"), encoding="utf-8")
             print(f"copied dataset card → {dest}")
         print(f"uploading {local_root} → {args.repo_id}")
         upload_to_hf(local_root, args.repo_id, private=args.private)

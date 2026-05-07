@@ -51,9 +51,9 @@ SCENE_SPLITS_JSON = "scene_splits.json"
 class StagedFile:
     """One file the staging step copied / wrote."""
 
-    repo_path:  str   # path relative to staging root, forward-slashes
-    src:        Optional[Path]
-    bytes_:     int
+    repo_path: str  # path relative to staging root, forward-slashes
+    src: Optional[Path]
+    bytes_: int
 
 
 def stage_splits(
@@ -89,7 +89,7 @@ def stage_splits(
         raise ConfigError(
             f"splits source dir does not exist: {src_root}",
             hint="Run experiments/scripts/build_difficulty_splits.py first, "
-                 "or pass splits_src= explicitly.",
+            "or pass splits_src= explicitly.",
         )
 
     staging_root = Path(staging_root)
@@ -101,8 +101,10 @@ def stage_splits(
     if missing and require_all:
         raise DatasetError(
             f"missing splits files in {src_root}: {missing}",
-            hint=("Re-run build_difficulty_splits.py to regenerate them, or "
-                  "pass require_all=False to ship a partial splits dir."),
+            hint=(
+                "Re-run build_difficulty_splits.py to regenerate them, or "
+                "pass require_all=False to ship a partial splits dir."
+            ),
         )
 
     staged: List[StagedFile] = []
@@ -118,10 +120,13 @@ def stage_splits(
                 hint="Pass overwrite=True or remove the file first.",
             )
         shutil.copy2(src, dst)
-        staged.append(StagedFile(
-            repo_path=f"splits/{name}",
-            src=src, bytes_=dst.stat().st_size,
-        ))
+        staged.append(
+            StagedFile(
+                repo_path=f"splits/{name}",
+                src=src,
+                bytes_=dst.stat().st_size,
+            )
+        )
         log.info("staged splits/%s (%d bytes)", name, dst.stat().st_size)
     return staged
 
@@ -158,9 +163,13 @@ def stage_paths(
             )
         shutil.copy2(src, dst)
         rel = (Path(repo_subdir) / src.name).as_posix() if repo_subdir else src.name
-        staged.append(StagedFile(
-            repo_path=rel, src=src, bytes_=dst.stat().st_size,
-        ))
+        staged.append(
+            StagedFile(
+                repo_path=rel,
+                src=src,
+                bytes_=dst.stat().st_size,
+            )
+        )
         log.info("staged %s (%d bytes)", rel, dst.stat().st_size)
     return staged
 
@@ -182,7 +191,5 @@ def load_scene_splits(staging_root: Path) -> dict[str, str]:
         )
     payload = json.loads(path.read_text(encoding="utf-8"))
     if "splits" in payload and isinstance(payload["splits"], dict):
-        return {sid: tier
-                for tier, ids in payload["splits"].items()
-                for sid in ids}
+        return {sid: tier for tier, ids in payload["splits"].items() for sid in ids}
     return dict(payload)

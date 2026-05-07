@@ -60,16 +60,16 @@ SPATIAL_QA = "spatial_qa.json"
 GENERAL_QA = "general_qa.json"
 
 TASK_MODALITIES: Dict[TaskType, List[str]] = {
-    TaskType.MONOCULAR_DEPTH:      [RGB, DEPTH],
-    TaskType.SPARSE_DEPTH:         [RGB, DEPTH, SPARSE_DEPTH_DIR],
-    TaskType.OBJECT_SEGMENTATION:  [RGB, MASK],
-    TaskType.OBJECT_DETECTION:     [RGB, MASK, TRACKLETS],
+    TaskType.MONOCULAR_DEPTH: [RGB, DEPTH],
+    TaskType.SPARSE_DEPTH: [RGB, DEPTH, SPARSE_DEPTH_DIR],
+    TaskType.OBJECT_SEGMENTATION: [RGB, MASK],
+    TaskType.OBJECT_DETECTION: [RGB, MASK, TRACKLETS],
     TaskType.OPEN_VOCAB_DETECTION: [RGB, MASK, TRACKLETS, QUESTIONNAIRES],
-    TaskType.OBJECT_TRACKING:      [RGB, MASK, TRACKLETS],
+    TaskType.OBJECT_TRACKING: [RGB, MASK, TRACKLETS],
     TaskType.RELATIVE_CAMERA_POSE: [RGB, POSE],
     TaskType.NOVEL_VIEW_SYNTHESIS: [RGB, DEPTH, POSE],
-    TaskType.VISUAL_GROUNDING:     [RGB, QUESTIONNAIRES, SPATIAL_QA],
-    TaskType.KEYPOINT_MATCHING:    [RGB, KEYPOINTS_DIR],
+    TaskType.VISUAL_GROUNDING: [RGB, QUESTIONNAIRES, SPATIAL_QA],
+    TaskType.KEYPOINT_MATCHING: [RGB, KEYPOINTS_DIR],
 }
 
 # QA-only tasks we may add later (not in TaskType enum yet); keep mapping
@@ -83,6 +83,7 @@ EXTRA_TASK_ALIASES: Dict[str, List[str]] = {
 # ------------------------------------------------------------------ #
 # Hub helpers
 # ------------------------------------------------------------------ #
+
 
 def _hub():
     """Lazy-import ``huggingface_hub`` and re-raise as :class:`DownloadError`.
@@ -127,6 +128,7 @@ def _modalities_for(task: TaskType | str) -> List[str]:
 # ------------------------------------------------------------------ #
 # Manifest handling
 # ------------------------------------------------------------------ #
+
 
 def fetch_manifest(
     task: TaskType | str,
@@ -226,6 +228,7 @@ def _build_allow_patterns(
 # Public download API
 # ------------------------------------------------------------------ #
 
+
 def download_split(
     task: TaskType | str,
     split: Difficulty | str,
@@ -242,7 +245,9 @@ def download_split(
     :meth:`RPXDataset.from_manifest`.
     """
     hf = _hub()
-    task_enum = TaskType(task) if isinstance(task, str) and task in TaskType._value2member_map_ else task
+    task_enum = (
+        TaskType(task) if isinstance(task, str) and task in TaskType._value2member_map_ else task
+    )
     split_enum = Difficulty(split) if isinstance(split, str) else split
 
     manifest = fetch_manifest(task_enum, split_enum, repo_id, cache_dir, revision)
@@ -250,10 +255,9 @@ def download_split(
     pairs = _extract_scene_phase_pairs(manifest)
     if not pairs:
         raise ManifestError(
-            f"Manifest {task}/{split} references no scenes; cannot "
-            "derive download patterns.",
+            f"Manifest {task}/{split} references no scenes; cannot derive download patterns.",
             hint="This usually means the manifest was generated against "
-                 "an empty scene list — re-run the upload script.",
+            "an empty scene list — re-run the upload script.",
         )
 
     modalities = list(_modalities_for(task_enum))
@@ -283,7 +287,7 @@ def download_split(
         raise DownloadError(
             f"snapshot_download failed for {repo_id}: {e}",
             hint="Rerun with --cache-dir pointing at a writable directory "
-                 "or set HF_HUB_OFFLINE=1 to use a prebuilt local cache.",
+            "or set HF_HUB_OFFLINE=1 to use a prebuilt local cache.",
         ) from e
 
     # The HF tree ships tar shards; the per-task per-split JSON we just
@@ -293,7 +297,8 @@ def download_split(
     n_extracted, n_skipped = _extract_snapshot_tars(Path(snapshot_root))
     log.info(
         "extracted %d new files (%d already on disk) from tar shards",
-        n_extracted, n_skipped,
+        n_extracted,
+        n_skipped,
     )
 
     resolved = dict(manifest)
@@ -306,7 +311,9 @@ def download_split(
     task_name = task_enum.value if isinstance(task_enum, TaskType) else str(task_enum)
     out_dir = _rpx_cache_dir() / repo_id.replace("/", "__") / "manifests" / task_name
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{split_enum.value if isinstance(split_enum, Difficulty) else split_enum}.json"
+    out_path = (
+        out_dir / f"{split_enum.value if isinstance(split_enum, Difficulty) else split_enum}.json"
+    )
     with out_path.open("w", encoding="utf-8") as f:
         json.dump(resolved, f)
     return out_path
@@ -344,6 +351,7 @@ def load(
 # fsspec mount (preview / debug only — do not use for training)
 # ------------------------------------------------------------------ #
 
+
 def mount(repo_id: str = DEFAULT_REPO_ID):
     """Return an ``HfFileSystem`` rooted at the RPX repo for lazy browsing.
 
@@ -357,6 +365,7 @@ def mount(repo_id: str = DEFAULT_REPO_ID):
 # ------------------------------------------------------------------ #
 # Tar extraction (post-download)
 # ------------------------------------------------------------------ #
+
 
 def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
     """Extract every tar shard under ``snapshot_root`` into ``snapshot_root/extracted/``.
@@ -412,7 +421,7 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
         # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'
         # ('scenes', 'scene1', '0', 'labels', 'masks', 'v1.tar') → same.
         prefix_parts: List[str] = []
-        for p in rel.parts[:-1]:           # stop before the .tar filename
+        for p in rel.parts[:-1]:  # stop before the .tar filename
             prefix_parts.append(p)
             if p.isdigit():
                 break

@@ -40,6 +40,7 @@ def test_numpy_depth_model_returns_depth_prediction():
 
 def test_numpy_depth_model_resizes_when_shape_mismatch():
     """Adapter must resize model output to match sample RGB H×W."""
+
     def fn(rgb):
         return np.ones((20, 30), dtype=np.float32) * 1.5
 
@@ -56,6 +57,7 @@ def test_numpy_depth_model_rejects_non_2d_output():
 
     bm = make_numpy_depth_model(fn)
     from rpx_benchmark.exceptions import AdapterError
+
     with pytest.raises(AdapterError, match="2-D array"):
         bm.predict([_fake_sample()])
 

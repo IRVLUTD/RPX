@@ -62,9 +62,7 @@ def main():
 
     # First rgb tar; pull the matching mask tar from the same (scene, phase).
     scene, phase, rgb_tar = rgb_shards[0]
-    mask_tar = next(
-        (t for s, p, t in mask_shards if s == scene and p == phase), None
-    )
+    mask_tar = next((t for s, p, t in mask_shards if s == scene and p == phase), None)
 
     rgb_name, rgb_bytes = first_member(rgb_tar)
     rgb = np.array(Image.open(BytesIO(rgb_bytes)))

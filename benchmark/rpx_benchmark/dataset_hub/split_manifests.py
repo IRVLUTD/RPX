@@ -62,9 +62,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
-
-from .recipes import MULTI_OBJECT_TASK_RECIPES, TaskRecipe
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -83,13 +81,13 @@ log = logging.getLogger(__name__)
 
 _MODALITY_LAYOUT: Dict[str, Tuple[str, str, str]] = {
     # modality_name → (parquet_col_suffix, extracted_subdir, ext)
-    "rgb":          ("rgb",       "rgb",            ".png"),
-    "depth":        ("depth",     "depth",          ".png"),
-    "fisheye":      ("fisheye",   "fisheye",        ".png"),     # see note for left/right
-    "fisheye_left": ("fisheye",   "fisheye/left",   ".png"),
-    "fisheye_right":("fisheye",   "fisheye/right",  ".png"),
-    "masks":        ("masks",     "sam2/masks",     ".png"),
-    "cam_pose":     ("cam_pose",  "cam_pose",       ".npz"),
+    "rgb": ("rgb", "rgb", ".png"),
+    "depth": ("depth", "depth", ".png"),
+    "fisheye": ("fisheye", "fisheye", ".png"),  # see note for left/right
+    "fisheye_left": ("fisheye", "fisheye/left", ".png"),
+    "fisheye_right": ("fisheye", "fisheye/right", ".png"),
+    "masks": ("masks", "sam2/masks", ".png"),
+    "cam_pose": ("cam_pose", "cam_pose", ".npz"),
 }
 
 
@@ -102,6 +100,7 @@ def _modality_path(scene: str, phase: int, modality: str, frame_stem: str) -> st
     """
     if modality not in _MODALITY_LAYOUT:
         from ..exceptions import ConfigError
+
         raise ConfigError(
             f"unknown modality {modality!r}",
             hint=f"Known modalities: {', '.join(sorted(_MODALITY_LAYOUT))}",
@@ -119,6 +118,7 @@ def _has_col(modality: str) -> str:
 # ---------------------------------------------------------------------- #
 # Per-task spec — links recipe keys → TaskType value + entry-builder
 # ---------------------------------------------------------------------- #
+
 
 class _TaskSpec:
     """How to build manifest entries for one recipe key.
@@ -141,6 +141,7 @@ class _TaskSpec:
 
 class _SingleFrameDepthSpec(_TaskSpec):
     """``monocular_depth``: rgb + depth GT, one entry per frame."""
+
     task_type_value = "monocular_depth"
     required_modalities = ("rgb", "depth")
 
@@ -155,6 +156,7 @@ class _SegmentationSpec(_TaskSpec):
     the entry key is ``mask`` (singular) but the modality directory is
     ``sam2/masks``. We rename the entry key explicitly here.
     """
+
     task_type_value = "object_segmentation"
     required_modalities = ("rgb", "masks")
 
@@ -165,7 +167,7 @@ class _SegmentationSpec(_TaskSpec):
             scene = e["scene_id"]
             phase = e["phase"]
             stem = _frame_stem(row)
-            e["rgb"]  = _modality_path(scene, phase, "rgb",   stem)
+            e["rgb"] = _modality_path(scene, phase, "rgb", stem)
             e["mask"] = _modality_path(scene, phase, "masks", stem)
             rows.append(e)
         return rows
@@ -174,6 +176,7 @@ class _SegmentationSpec(_TaskSpec):
 class _RGBDSegmentationSpec(_TaskSpec):
     """``rgbd_segmentation``: rgb + depth + mask. Loader's task is still
     OBJECT_SEGMENTATION (depth is an extra input the model sees, not GT)."""
+
     task_type_value = "object_segmentation"
     required_modalities = ("rgb", "depth", "masks")
 
@@ -184,9 +187,9 @@ class _RGBDSegmentationSpec(_TaskSpec):
             scene = e["scene_id"]
             phase = e["phase"]
             stem = _frame_stem(row)
-            e["rgb"]   = _modality_path(scene, phase, "rgb",   stem)
+            e["rgb"] = _modality_path(scene, phase, "rgb", stem)
             e["depth"] = _modality_path(scene, phase, "depth", stem)
-            e["mask"]  = _modality_path(scene, phase, "masks", stem)
+            e["mask"] = _modality_path(scene, phase, "masks", stem)
             rows.append(e)
         return rows
 
@@ -197,6 +200,7 @@ class _StereoDepthSpec(_TaskSpec):
     Loader's TaskType is MONOCULAR_DEPTH (depth GT is the same;
     stereo-vs-mono is an input-side distinction).
     """
+
     task_type_value = "monocular_depth"
     required_modalities = ("rgb", "depth", "fisheye")
 
@@ -207,10 +211,10 @@ class _StereoDepthSpec(_TaskSpec):
             scene = e["scene_id"]
             phase = e["phase"]
             stem = _frame_stem(row)
-            e["rgb"]            = _modality_path(scene, phase, "rgb",           stem)
-            e["depth"]          = _modality_path(scene, phase, "depth",         stem)
-            e["fisheye_left"]   = _modality_path(scene, phase, "fisheye_left",  stem)
-            e["fisheye_right"]  = _modality_path(scene, phase, "fisheye_right", stem)
+            e["rgb"] = _modality_path(scene, phase, "rgb", stem)
+            e["depth"] = _modality_path(scene, phase, "depth", stem)
+            e["fisheye_left"] = _modality_path(scene, phase, "fisheye_left", stem)
+            e["fisheye_right"] = _modality_path(scene, phase, "fisheye_right", stem)
             rows.append(e)
         return rows
 
@@ -223,6 +227,7 @@ class _RelativePoseSpec(_TaskSpec):
     frames (~0.5 s at 10 Hz capture; matches existing
     ``scripts/generate_keypoint_pairs.py`` convention).
     """
+
     task_type_value = "relative_camera_pose"
     required_modalities = ("rgb", "cam_pose")
     pair_stride: int = 5
@@ -240,21 +245,21 @@ class _RelativePoseSpec(_TaskSpec):
                 stem_a = _frame_stem(row_a)
                 stem_b = _frame_stem(row_b)
                 e: Dict[str, Any] = {
-                    "id":         f"{scene}__{phase}__{stem_a}__{stem_b}",
-                    "scene_id":   scene,
-                    "phase":      int(phase),
-                    "frame_idx":  int(row_a["frame_idx"]),
-                    "frame_idx_b":int(row_b["frame_idx"]),
+                    "id": f"{scene}__{phase}__{stem_a}__{stem_b}",
+                    "scene_id": scene,
+                    "phase": int(phase),
+                    "frame_idx": int(row_a["frame_idx"]),
+                    "frame_idx_b": int(row_b["frame_idx"]),
                     "difficulty": str(row_a["split"]),
                     "metadata": {
-                        "scene_id":  scene,
+                        "scene_id": scene,
                         "phase_idx": int(phase),
-                        "frame":     stem_a,
-                        "frame_b":   stem_b,
+                        "frame": stem_a,
+                        "frame_b": stem_b,
                         "pair_stride": self.pair_stride,
                     },
-                    "rgb":    _modality_path(scene, int(phase), "rgb",      stem_a),
-                    "rgb_b":  _modality_path(scene, int(phase), "rgb",      stem_b),
+                    "rgb": _modality_path(scene, int(phase), "rgb", stem_a),
+                    "rgb_b": _modality_path(scene, int(phase), "rgb", stem_b),
                     "pose_a": _modality_path(scene, int(phase), "cam_pose", stem_a),
                     "pose_b": _modality_path(scene, int(phase), "cam_pose", stem_b),
                 }
@@ -264,6 +269,7 @@ class _RelativePoseSpec(_TaskSpec):
 
 class _RGBDRelativePoseSpec(_RelativePoseSpec):
     """``rgbd_relative_pose``: paired with depth on both frames."""
+
     required_modalities = ("rgb", "depth", "cam_pose")
 
     def build_entries(self, df) -> List[Dict[str, Any]]:
@@ -274,7 +280,7 @@ class _RGBDRelativePoseSpec(_RelativePoseSpec):
             phase = e["phase"]
             stem_a = e["metadata"]["frame"]
             stem_b = e["metadata"]["frame_b"]
-            e["depth"]   = _modality_path(scene, phase, "depth", stem_a)
+            e["depth"] = _modality_path(scene, phase, "depth", stem_a)
             e["depth_b"] = _modality_path(scene, phase, "depth", stem_b)
         return rows
 
@@ -290,6 +296,7 @@ class _ObjectTrackingSpec(_TaskSpec):
     samples will fail to load — but that's a publishing-side gap, not
     a manifest-shape bug.
     """
+
     task_type_value = "object_tracking"
     required_modalities = ("rgb", "masks")
 
@@ -300,8 +307,8 @@ class _ObjectTrackingSpec(_TaskSpec):
             scene = e["scene_id"]
             phase = e["phase"]
             stem = _frame_stem(row)
-            e["rgb"]    = _modality_path(scene, phase, "rgb",   stem)
-            e["mask"]   = _modality_path(scene, phase, "masks", stem)
+            e["rgb"] = _modality_path(scene, phase, "rgb", stem)
+            e["mask"] = _modality_path(scene, phase, "masks", stem)
             # Per-(scene, phase) aggregated tracklets JSON. Convention:
             # ``extracted/scenes/<scene>/<phase>/tracklets/v1.json``.
             e["tracks"] = f"extracted/scenes/{scene}/{phase}/tracklets/v1.json"
@@ -316,6 +323,7 @@ class _VQASpec(_TaskSpec):
     (tracked separately in `paper-submission/neurips-2026/VQA_DESIGN.md`).
     Logging an explicit warning so this is visible in the upload run.
     """
+
     task_type_value = "visual_grounding"
     required_modalities = ("rgb",)
 
@@ -329,14 +337,14 @@ class _VQASpec(_TaskSpec):
 
 # Recipe-key → spec instance.
 _TASK_SPECS: Dict[str, _TaskSpec] = {
-    "monocular_depth":     _SingleFrameDepthSpec(),
-    "segmentation":        _SegmentationSpec(),
-    "rgbd_segmentation":   _RGBDSegmentationSpec(),
-    "stereo_depth":        _StereoDepthSpec(),
-    "relative_pose":       _RelativePoseSpec(),
-    "rgbd_relative_pose":  _RGBDRelativePoseSpec(),
-    "object_tracking":     _ObjectTrackingSpec(),
-    "vqa":                 _VQASpec(),
+    "monocular_depth": _SingleFrameDepthSpec(),
+    "segmentation": _SegmentationSpec(),
+    "rgbd_segmentation": _RGBDSegmentationSpec(),
+    "stereo_depth": _StereoDepthSpec(),
+    "relative_pose": _RelativePoseSpec(),
+    "rgbd_relative_pose": _RGBDRelativePoseSpec(),
+    "object_tracking": _ObjectTrackingSpec(),
+    "vqa": _VQASpec(),
 }
 
 
@@ -359,15 +367,15 @@ def _base_entry(row) -> Dict[str, Any]:
     phase = int(row["phase"])
     stem = _frame_stem(row)
     return {
-        "id":         f"{scene}__{phase}__{stem}",
-        "scene_id":   scene,
-        "phase":      phase,
-        "frame_idx":  int(row["frame_idx"]),
+        "id": f"{scene}__{phase}__{stem}",
+        "scene_id": scene,
+        "phase": phase,
+        "frame_idx": int(row["frame_idx"]),
         "difficulty": str(row["split"]),
         "metadata": {
-            "scene_id":  scene,
+            "scene_id": scene,
             "phase_idx": phase,
-            "frame":     stem,
+            "frame": stem,
         },
     }
 
@@ -392,10 +400,10 @@ def _parquet_path(staging_root: Path) -> Path:
     matches = list((staging_root / "manifest").glob("frames_*.parquet"))
     if not matches:
         from ..exceptions import DatasetError
+
         raise DatasetError(
             f"no frames Parquet under {staging_root}/manifest/",
-            hint="Run `dataset_hub.cli manifest` first to build the parquet "
-                 "from your captures.",
+            hint="Run `dataset_hub.cli manifest` first to build the parquet from your captures.",
         )
     return matches[-1]
 
@@ -421,6 +429,7 @@ def _filter_required(df, required_cols: Iterable[str]):
 # Public entry point
 # ---------------------------------------------------------------------- #
 
+
 def write_split_manifests(
     staging_root: str | Path,
     *,
@@ -438,8 +447,7 @@ def write_split_manifests(
         import pandas as pd  # noqa: PLC0415
     except ImportError as e:
         raise ImportError(
-            "pandas is required for split_manifests; install via "
-            "`pip install pandas`."
+            "pandas is required for split_manifests; install via `pip install pandas`."
         ) from e
 
     staging_root = Path(staging_root)
@@ -449,7 +457,9 @@ def write_split_manifests(
     # Authoritative scene-wise splits.
     scene_split = _scene_wise_splits(df)
     df = df.drop(columns=["split"]).merge(
-        scene_split.rename("split"), left_on="scene_id", right_index=True,
+        scene_split.rename("split"),
+        left_on="scene_id",
+        right_index=True,
     )
 
     chosen = list(tasks) if tasks is not None else list(_TASK_SPECS.keys())
@@ -467,17 +477,16 @@ def write_split_manifests(
         sub_all = _filter_required(df, required_cols)
         if sub_all is None or sub_all.empty:
             log.info(
-                "no parquet rows satisfy %s's required modalities (%s); "
-                "skipping all splits.",
-                recipe_key, list(spec.required_modalities),
+                "no parquet rows satisfy %s's required modalities (%s); skipping all splits.",
+                recipe_key,
+                list(spec.required_modalities),
             )
             continue
 
         for split in splits:
             sub = sub_all[sub_all["split"].astype(str) == split]
             if sub.empty:
-                log.info("no samples for task=%s split=%s; skipping",
-                         recipe_key, split)
+                log.info("no samples for task=%s split=%s; skipping", recipe_key, split)
                 continue
 
             samples = spec.build_entries(sub)
@@ -486,16 +495,15 @@ def write_split_manifests(
                 continue
 
             payload = {
-                "task":   spec.task_type_value,   # ← TaskType.value, not recipe_key
-                "split":  split,
-                "root":   None,                    # filled at download time
+                "task": spec.task_type_value,  # ← TaskType.value, not recipe_key
+                "split": split,
+                "root": None,  # filled at download time
                 "samples": samples,
             }
             out = manifests_dir / recipe_key / f"{split}.json"
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-            log.info("wrote %s (%d samples, task_type=%s)",
-                     out, len(samples), spec.task_type_value)
+            log.info("wrote %s (%d samples, task_type=%s)", out, len(samples), spec.task_type_value)
             written[(recipe_key, split)] = out
 
     return written

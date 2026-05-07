@@ -25,14 +25,13 @@ from typing import Dict, FrozenSet, Iterable, Optional
 
 from ..exceptions import ConfigError
 
-
 DEFAULT_REPO_ID = "IRVLUTD/RPX"
 
 
 class SceneType(str, Enum):
     """Top-level partition: which scene family a recipe targets."""
 
-    MULTI_OBJECT  = "multi_object"
+    MULTI_OBJECT = "multi_object"
     SINGLE_OBJECT = "single_object"
 
 
@@ -62,16 +61,16 @@ class TaskRecipe:
 # --------------------------------------------------------------------- #
 
 #: Raw modalities — captured once, never re-released.
-RGB           = "rgb"
-DEPTH         = "depth"
-FISHEYE       = "fisheye"
-CAM_POSE      = "cam_pose"
+RGB = "rgb"
+DEPTH = "depth"
+FISHEYE = "fisheye"
+CAM_POSE = "cam_pose"
 
 #: Label modalities — versioned (``labels/<name>/v1``, ``v2``, ...).
-MASKS         = "masks"             # essential SAM2 output (object masks)
-MASKS_AUX     = "masks_aux"         # opt-in viz/derived (bbox_overlay, dino_output, palette, ...)
-QUESTIONNAIRE = "questionnaire"     # FewSOL-style per-scene/object text
-VQA           = "vqa"               # generated Q&A pairs (lands in v1.x)
+MASKS = "masks"  # essential SAM2 output (object masks)
+MASKS_AUX = "masks_aux"  # opt-in viz/derived (bbox_overlay, dino_output, palette, ...)
+QUESTIONNAIRE = "questionnaire"  # FewSOL-style per-scene/object text
+VQA = "vqa"  # generated Q&A pairs (lands in v1.x)
 
 
 # --------------------------------------------------------------------- #
@@ -81,38 +80,54 @@ VQA           = "vqa"               # generated Q&A pairs (lands in v1.x)
 # Multi-object scenes (3 phases each, ESD-stratified).
 MULTI_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
     "monocular_depth": TaskRecipe(
-        name="monocular_depth", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB}), labels=frozenset({DEPTH}),
+        name="monocular_depth",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB}),
+        labels=frozenset({DEPTH}),
         notes="RGB → depth regression. Depth captured by D435 is the GT.",
     ),
     "rgbd_segmentation": TaskRecipe(
-        name="rgbd_segmentation", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB, DEPTH}), labels=frozenset({MASKS}),
+        name="rgbd_segmentation",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB, DEPTH}),
+        labels=frozenset({MASKS}),
     ),
     "segmentation": TaskRecipe(
-        name="segmentation", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB}), labels=frozenset({MASKS}),
+        name="segmentation",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB}),
+        labels=frozenset({MASKS}),
     ),
     "relative_pose": TaskRecipe(
-        name="relative_pose", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB}), labels=frozenset({CAM_POSE}),
+        name="relative_pose",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB}),
+        labels=frozenset({CAM_POSE}),
     ),
     "rgbd_relative_pose": TaskRecipe(
-        name="rgbd_relative_pose", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB, DEPTH}), labels=frozenset({CAM_POSE}),
+        name="rgbd_relative_pose",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB, DEPTH}),
+        labels=frozenset({CAM_POSE}),
     ),
     "stereo_depth": TaskRecipe(
-        name="stereo_depth", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({FISHEYE}), labels=frozenset({DEPTH}),
+        name="stereo_depth",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({FISHEYE}),
+        labels=frozenset({DEPTH}),
         notes="T265 stereo fisheye → depth. D435 depth is the GT after rectification.",
     ),
     "object_tracking": TaskRecipe(
-        name="object_tracking", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB}), labels=frozenset({MASKS}),
+        name="object_tracking",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB}),
+        labels=frozenset({MASKS}),
     ),
     "vqa": TaskRecipe(
-        name="vqa", scene_type=SceneType.MULTI_OBJECT,
-        inputs=frozenset({RGB}), labels=frozenset({VQA, QUESTIONNAIRE}),
+        name="vqa",
+        scene_type=SceneType.MULTI_OBJECT,
+        inputs=frozenset({RGB}),
+        labels=frozenset({VQA, QUESTIONNAIRE}),
         notes="Reserved slot — VQA labels land in v1.x.",
     ),
 }
@@ -120,24 +135,31 @@ MULTI_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
 # Single-object scenes (1 collection, used for in-context / template tasks).
 SINGLE_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
     "object_templates": TaskRecipe(
-        name="object_templates", scene_type=SceneType.SINGLE_OBJECT,
-        inputs=frozenset({RGB}), labels=frozenset({MASKS}),
+        name="object_templates",
+        scene_type=SceneType.SINGLE_OBJECT,
+        inputs=frozenset({RGB}),
+        labels=frozenset({MASKS}),
         notes="360° turntable RGB + mask — feed as reference views for in-context tasks.",
     ),
     "object_templates_rgbd": TaskRecipe(
-        name="object_templates_rgbd", scene_type=SceneType.SINGLE_OBJECT,
-        inputs=frozenset({RGB, DEPTH}), labels=frozenset({MASKS}),
+        name="object_templates_rgbd",
+        scene_type=SceneType.SINGLE_OBJECT,
+        inputs=frozenset({RGB, DEPTH}),
+        labels=frozenset({MASKS}),
     ),
     "object_pose_library": TaskRecipe(
-        name="object_pose_library", scene_type=SceneType.SINGLE_OBJECT,
-        inputs=frozenset({RGB, DEPTH}), labels=frozenset({CAM_POSE, MASKS}),
+        name="object_pose_library",
+        scene_type=SceneType.SINGLE_OBJECT,
+        inputs=frozenset({RGB, DEPTH}),
+        labels=frozenset({CAM_POSE, MASKS}),
         notes="Per-object pose graph for retrieval / pose initialisation.",
     ),
 }
 
 
 def resolve_recipe(
-    task: str, scene_type: Optional[SceneType] = None,
+    task: str,
+    scene_type: Optional[SceneType] = None,
 ) -> TaskRecipe:
     """Look up a recipe by ``task`` name.
 

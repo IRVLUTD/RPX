@@ -32,10 +32,10 @@ import numpy as np
 class MoGe:
     """Geometry-aware depth: rgb → depth (metres if metric checkpoint)."""
 
-    DEFAULT_MODEL_ID = "Ruicheng/moge-2-vitl-normal"     # MoGe-2 (metric)
+    DEFAULT_MODEL_ID = "Ruicheng/moge-2-vitl-normal"  # MoGe-2 (metric)
 
     #: Set per-checkpoint by the registry builders.
-    native_alignment: str = "none"     # default for MoGe-2 metric
+    native_alignment: str = "none"  # default for MoGe-2 metric
     native_precision: str = "fp16"
 
     def __init__(
@@ -52,7 +52,7 @@ class MoGe:
         except ImportError:
             try:
                 import torch
-                from moge.model import MoGeModel as _MoGeV2          # v1 path
+                from moge.model import MoGeModel as _MoGeV2  # v1 path
             except ImportError as e:
                 raise ImportError(
                     "MoGe needs the `moge` package. Install with: "
@@ -84,6 +84,7 @@ class MoGe:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                 )
@@ -91,7 +92,8 @@ class MoGe:
         torch = self._torch
         # MoGe expects [3, H, W] uint8 → float in [0, 1] internally.
         tensors = [
-            torch.from_numpy(np.asarray(r, dtype=np.uint8)).permute(2, 0, 1).contiguous().float() / 255.0
+            torch.from_numpy(np.asarray(r, dtype=np.uint8)).permute(2, 0, 1).contiguous().float()
+            / 255.0
             for r in rgbs
         ]
         x = torch.stack(tensors, dim=0).to(self.device)
@@ -116,6 +118,7 @@ class MoGe:
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

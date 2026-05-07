@@ -67,6 +67,7 @@ __all__ = [
 # Base configuration
 # --------------------------------------------------------------------------- #
 
+
 class _StrictBase(BaseModel):
     """Base for all manifest models.
 
@@ -88,6 +89,7 @@ class _StrictBase(BaseModel):
 # --------------------------------------------------------------------------- #
 # Sample schemas (one per task)
 # --------------------------------------------------------------------------- #
+
 
 class BaseSampleEntry(_StrictBase):
     """Fields common to every per-task sample entry."""
@@ -194,7 +196,7 @@ AnySampleEntry = Union[
 class Manifest(_StrictBase):
     """Typed manifest describing a slice of the RPX dataset.
 
-    Parameters
+    Attributes
     ----------
     task : TaskType
         Task this manifest targets. Determines which
@@ -221,6 +223,7 @@ class Manifest(_StrictBase):
 # --------------------------------------------------------------------------- #
 # Public helpers
 # --------------------------------------------------------------------------- #
+
 
 def validate_manifest(source: str | Path | Dict[str, Any]) -> Manifest:
     """Validate ``source`` against the :class:`Manifest` schema.
@@ -274,9 +277,7 @@ def validate_manifest(source: str | Path | Dict[str, Any]) -> Manifest:
     rebuilt: List[Dict[str, Any]] = []
     for idx, raw in enumerate(manifest.samples):
         try:
-            rebuilt.append(
-                sample_model.model_validate(raw).model_dump(exclude_none=True)
-            )
+            rebuilt.append(sample_model.model_validate(raw).model_dump(exclude_none=True))
         except ValidationError as e:
             for err in e.errors():
                 # Prefix each error's location with the sample index so

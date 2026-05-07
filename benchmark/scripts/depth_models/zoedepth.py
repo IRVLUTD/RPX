@@ -64,7 +64,7 @@ class ZoeDepth:
             task="depth-estimation",
             model=model_id,
             device=device,
-            torch_dtype=dtype,                 # e.g. "float16"
+            torch_dtype=dtype,  # e.g. "float16"
             batch_size=self.batch_size,
         )
 
@@ -89,19 +89,20 @@ class ZoeDepth:
             r = np.asarray(r)
             if r.ndim != 3 or r.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
+
                 raise AdapterError(
                     f"expected H×W×3 RGB uint8, got shape {r.shape}",
                     hint="Adapter contract: each input must be a (H, W, 3) "
-                         "uint8 numpy array. Got an unexpected ndim or channel count.",
+                    "uint8 numpy array. Got an unexpected ndim or channel count.",
                 )
 
         pil_imgs = [Image.fromarray(np.asarray(r, dtype=np.uint8)) for r in rgbs]
-        out = self._pipe(pil_imgs)              # one batched forward
+        out = self._pipe(pil_imgs)  # one batched forward
         if not isinstance(out, list):
             out = [out]
 
         depths = []
-        for r, o in zip(rgbs, out):
+        for r, o in zip(rgbs, out, strict=False):
             d = o["predicted_depth"].detach().cpu().numpy().astype(np.float32)
             if d.ndim == 3:
                 d = d.squeeze(0)
@@ -115,6 +116,7 @@ class ZoeDepth:
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     """Resize a 2D float array to (H, W) without an OpenCV dependency."""
     from PIL import Image
+
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)

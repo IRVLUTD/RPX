@@ -80,19 +80,21 @@ def _write_drs_table(
     rows = []
     for name, res in sorted(results.items(), key=lambda kv: -kv[1].drs):
         op = res.best_op
-        rows.append({
-            "model":            name,
-            "drs":              round(res.drs, 4),
-            "tp":               round(res.tp, 4),
-            "robustness":       round(res.r, 4),
-            "efficiency":       round(res.e, 4),
-            "best_precision":   op.precision if op else "?",
-            "task_metric":      round(op.task_metric, 4) if op else None,
-            "task_metric_name": op.task_metric_name if op else "?",
-            "str_score":        round(op.str_score, 4) if op else None,
-            "flops_g":          round(op.flops_g, 1) if op else None,
-            "params_m":         round(op.params_m, 1) if op else None,
-        })
+        rows.append(
+            {
+                "model": name,
+                "drs": round(res.drs, 4),
+                "tp": round(res.tp, 4),
+                "robustness": round(res.r, 4),
+                "efficiency": round(res.e, 4),
+                "best_precision": op.precision if op else "?",
+                "task_metric": round(op.task_metric, 4) if op else None,
+                "task_metric_name": op.task_metric_name if op else "?",
+                "str_score": round(op.str_score, 4) if op else None,
+                "flops_g": round(op.flops_g, 1) if op else None,
+                "params_m": round(op.params_m, 1) if op else None,
+            }
+        )
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     with out_csv.open("w", newline="", encoding="utf-8") as f:
@@ -106,17 +108,23 @@ def _write_drs_table(
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    ap.add_argument("--results-root", type=Path,
-                    default=Path("./rpx_results"),
-                    help="dir containing <model>/<split>/result.json")
-    ap.add_argument("--split", default="easy",
-                    help="which split to aggregate")
-    ap.add_argument("--out-dir", type=Path, default=None,
-                    help="output dir (default: <results-root>/_sweep)")
-    ap.add_argument("--sensitivity", action="store_true",
-                    help="also run the DRS sensitivity analysis (Kendall's τ "
-                         "across exponent / E-function / anchor perturbations) "
-                         "and emit it to sensitivity.json")
+    ap.add_argument(
+        "--results-root",
+        type=Path,
+        default=Path("./rpx_results"),
+        help="dir containing <model>/<split>/result.json",
+    )
+    ap.add_argument("--split", default="easy", help="which split to aggregate")
+    ap.add_argument(
+        "--out-dir", type=Path, default=None, help="output dir (default: <results-root>/_sweep)"
+    )
+    ap.add_argument(
+        "--sensitivity",
+        action="store_true",
+        help="also run the DRS sensitivity analysis (Kendall's τ "
+        "across exponent / E-function / anchor perturbations) "
+        "and emit it to sensitivity.json",
+    )
     args = ap.parse_args()
 
     out_dir = args.out_dir or args.results_root / "_sweep"
@@ -124,20 +132,23 @@ def main() -> None:
     models = _load_operating_points(args.results_root, args.split)
     if not models:
         from rpx_benchmark import DatasetError
+
         raise DatasetError(
             f"no models with operating_point found under "
             f"{args.results_root}/<model>/{args.split}/result.json",
             hint="Run scripts/run_depth.py for each registered model first; "
-                 "the runner persists OperatingPoint into result.json's "
-                 "deployment_readiness.operating_point.",
+            "the runner persists OperatingPoint into result.json's "
+            "deployment_readiness.operating_point.",
         )
-    print(f"  loaded {sum(len(ops) for ops in models.values())} operating "
-          f"points across {len(models)} models")
+    print(
+        f"  loaded {sum(len(ops) for ops in models.values())} operating "
+        f"points across {len(models)} models"
+    )
 
     from rpx_benchmark import compute_sweep_drs
+
     results = compute_sweep_drs(models)
-    print(f"  computed DRS for {len(results)} models "
-          f"(F_median = median across all OPs)")
+    print(f"  computed DRS for {len(results)} models (F_median = median across all OPs)")
 
     _write_drs_table(
         results,
@@ -155,17 +166,16 @@ def main() -> None:
             sens = run_sensitivity(models)
             out = out_dir / f"sensitivity_{args.split}.json"
             from dataclasses import asdict, is_dataclass
+
             payload = asdict(sens) if is_dataclass(sens) else sens
-            out.write_text(json.dumps(payload, indent=2, default=str),
-                           encoding="utf-8")
+            out.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
             print(f"  wrote {out}")
 
     # Headline print: top-3 DRS for the human reading the terminal.
     print()
     print(f"=== Top-3 by DRS (split={args.split}) ===")
     for name, res in sorted(results.items(), key=lambda kv: -kv[1].drs)[:3]:
-        print(f"  {name:>32}  DRS={res.drs:.4f}  "
-              f"(TP={res.tp:.3f}  R={res.r:.3f}  E={res.e:.3f})")
+        print(f"  {name:>32}  DRS={res.drs:.4f}  (TP={res.tp:.3f}  R={res.r:.3f}  E={res.e:.3f})")
 
 
 if __name__ == "__main__":

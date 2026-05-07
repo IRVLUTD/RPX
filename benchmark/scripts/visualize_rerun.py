@@ -43,8 +43,10 @@ from PIL import Image
 try:
     from tqdm import tqdm
 except ImportError:  # tqdm is optional — fall back to a no-op iterator
+
     def tqdm(it, **_kw):
         return it
+
 
 from rpx_benchmark.dataset_hub import download_for_task
 
@@ -63,22 +65,22 @@ _DEPTH_CMAP = matplotlib.colormaps["cividis"]
 # so the same id always produces the same color across frames and phases
 # (same property the Rerun hash gave, but with curated aesthetics).
 _ROYAL_PALETTE = [
-    ( 65, 105, 225),  # royal blue
-    (218, 165,  32),  # goldenrod
-    (199,  21, 133),  # medium violet red (royal magenta)
-    ( 34, 139,  34),  # forest emerald
-    (139,   0,   0),  # wine
-    (138,  43, 226),  # blue violet (amethyst)
-    (  0, 128, 128),  # teal
-    (255, 215,   0),  # pure gold
-    (220,  20,  60),  # crimson
-    ( 75,   0, 130),  # indigo
-    (210, 105,  30),  # chocolate / bronze
+    (65, 105, 225),  # royal blue
+    (218, 165, 32),  # goldenrod
+    (199, 21, 133),  # medium violet red (royal magenta)
+    (34, 139, 34),  # forest emerald
+    (139, 0, 0),  # wine
+    (138, 43, 226),  # blue violet (amethyst)
+    (0, 128, 128),  # teal
+    (255, 215, 0),  # pure gold
+    (220, 20, 60),  # crimson
+    (75, 0, 130),  # indigo
+    (210, 105, 30),  # chocolate / bronze
     (147, 112, 219),  # medium purple
-    (255, 140,   0),  # royal orange
-    ( 30,  60, 175),  # sapphire
-    (153,  50, 204),  # dark orchid
-    (102,   0,  51),  # dark burgundy
+    (255, 140, 0),  # royal orange
+    (30, 60, 175),  # sapphire
+    (153, 50, 204),  # dark orchid
+    (102, 0, 51),  # dark burgundy
 ]
 
 
@@ -144,9 +146,9 @@ def colorize_depth_mm(depth_mm: np.ndarray, sharpen: bool = True) -> np.ndarray:
     else:
         lo, hi = DEPTH_MIN_MM, DEPTH_MAX_MM
         norm[valid] = np.clip((d[valid] - lo) / max(hi - lo, 1.0), 0.0, 1.0)
-    rgba = _DEPTH_CMAP(norm)                 # float64 (H, W, 4) in [0, 1]
+    rgba = _DEPTH_CMAP(norm)  # float64 (H, W, 4) in [0, 1]
     rgb = (rgba[..., :3] * 255).astype(np.uint8)
-    rgb[~valid] = 0                          # invalid pixels → black
+    rgb[~valid] = 0  # invalid pixels → black
     return rgb
 
 
@@ -243,32 +245,61 @@ Examples:
   python scripts/visualize_rerun.py --scene <id> --phase 1   # specific scene/phase
 """,
     )
-    ap.add_argument("--repo", default="itaykadosh/rpx-test",
-                    help="HuggingFace dataset repo (default: %(default)s)")
-    ap.add_argument("--scene", default=None,
-                    help="scene id (default: first available in cache)")
-    ap.add_argument("--phase", default=None,
-                    help="phase 0|1|2 (default: first available)")
-    ap.add_argument("--max-frames", type=int, default=250,
-                    help="cap frames logged (default: %(default)s = full phase)")
-    ap.add_argument("--stride", type=int, default=1,
-                    help="log every Nth frame (1=all, 3≈80 frames/phase)")
-    ap.add_argument("--jpeg-quality", type=int, default=85,
-                    help="JPEG quality for RGB/fisheye, 1–100 (default: %(default)s)")
-    ap.add_argument("--full", action="store_true",
-                    help="log raw uncompressed images (default: JPEG-compress RGB/fisheye)")
-    ap.add_argument("--no-cividis", action="store_true",
-                    help="use raw DepthImage instead of cividis-colored Image")
-    ap.add_argument("--keep-raw-depth", action="store_true",
-                    help="also log the raw DepthImage (meters readout) alongside cividis")
-    ap.add_argument("--save", action="store_true",
-                    help="also write a portable .rrd to benchmark/site/ (default: stream-only, no disk artifact)")
-    ap.add_argument("--no-spawn", action="store_true",
-                    help="don't open the viewer (default: spawn)")
-    ap.add_argument("--lite", action="store_true",
-                    help="resource-constrained preset: stride=3, jpeg=70 (Pi 4 / Jetson Nano)")
-    ap.add_argument("--all-phases", action="store_true",
-                    help="show all 3 phases (clutter, interaction, clean) side-by-side")
+    ap.add_argument(
+        "--repo",
+        default="itaykadosh/rpx-test",
+        help="HuggingFace dataset repo (default: %(default)s)",
+    )
+    ap.add_argument("--scene", default=None, help="scene id (default: first available in cache)")
+    ap.add_argument("--phase", default=None, help="phase 0|1|2 (default: first available)")
+    ap.add_argument(
+        "--max-frames",
+        type=int,
+        default=250,
+        help="cap frames logged (default: %(default)s = full phase)",
+    )
+    ap.add_argument(
+        "--stride", type=int, default=1, help="log every Nth frame (1=all, 3≈80 frames/phase)"
+    )
+    ap.add_argument(
+        "--jpeg-quality",
+        type=int,
+        default=85,
+        help="JPEG quality for RGB/fisheye, 1–100 (default: %(default)s)",
+    )
+    ap.add_argument(
+        "--full",
+        action="store_true",
+        help="log raw uncompressed images (default: JPEG-compress RGB/fisheye)",
+    )
+    ap.add_argument(
+        "--no-cividis",
+        action="store_true",
+        help="use raw DepthImage instead of cividis-colored Image",
+    )
+    ap.add_argument(
+        "--keep-raw-depth",
+        action="store_true",
+        help="also log the raw DepthImage (meters readout) alongside cividis",
+    )
+    ap.add_argument(
+        "--save",
+        action="store_true",
+        help="also write a portable .rrd to benchmark/site/ (default: stream-only, no disk artifact)",
+    )
+    ap.add_argument(
+        "--no-spawn", action="store_true", help="don't open the viewer (default: spawn)"
+    )
+    ap.add_argument(
+        "--lite",
+        action="store_true",
+        help="resource-constrained preset: stride=3, jpeg=70 (Pi 4 / Jetson Nano)",
+    )
+    ap.add_argument(
+        "--all-phases",
+        action="store_true",
+        help="show all 3 phases (clutter, interaction, clean) side-by-side",
+    )
     args = ap.parse_args()
 
     # --lite preset overrides the relevant knobs unless the user already set them.
@@ -301,14 +332,15 @@ Examples:
 
     # Pick scene/phase.
     candidates = [
-        (p.parent.parent.name, p.parent.name)
-        for p in sorted(local.glob("scenes/*/*/rgb.tar"))
+        (p.parent.parent.name, p.parent.name) for p in sorted(local.glob("scenes/*/*/rgb.tar"))
     ]
     if args.scene:
         scene_phases = sorted({p for s, p in candidates if s == args.scene})
         if not scene_phases:
-            sys.exit(f"scene {args.scene} not in cache; available scenes: "
-                     f"{sorted({s for s, _ in candidates})}")
+            sys.exit(
+                f"scene {args.scene} not in cache; available scenes: "
+                f"{sorted({s for s, _ in candidates})}"
+            )
         scene = args.scene
     else:
         # First scene with at least one fully-modal phase.
@@ -333,9 +365,9 @@ Examples:
 
     # Phase metadata: id, human label, trajectory color (3D), short tag (2D).
     PHASE_META = {
-        "0": ("Clutter",     (180,  50, 200), "P0"),
-        "1": ("Interaction", (240, 130,  50), "P1"),
-        "2": ("Clean",       ( 60, 200, 220), "P2"),
+        "0": ("Clutter", (180, 50, 200), "P0"),
+        "1": ("Interaction", (240, 130, 50), "P1"),
+        "2": ("Clean", (60, 200, 220), "P2"),
     }
     multi = len(phases) > 1
     phase = phases[0]  # for backward-compat output paths / app id
@@ -345,11 +377,11 @@ Examples:
     phase_data: dict[str, dict] = {}
     for ph in phases:
         readers = {
-            "rgb":     TarReader(find_tar(local, scene, ph, "rgb")),
-            "depth":   _opt_tar_reader(find_tar(local, scene, ph, "depth")),
+            "rgb": TarReader(find_tar(local, scene, ph, "rgb")),
+            "depth": _opt_tar_reader(find_tar(local, scene, ph, "depth")),
             "fisheye": _opt_tar_reader(find_tar(local, scene, ph, "fisheye")),
-            "masks":   _opt_tar_reader(find_tar(local, scene, ph, "masks")),
-            "pose":    _opt_tar_reader(find_tar(local, scene, ph, "cam_pose")),
+            "masks": _opt_tar_reader(find_tar(local, scene, ph, "masks")),
+            "pose": _opt_tar_reader(find_tar(local, scene, ph, "cam_pose")),
         }
         idx = {k: members_by_frame(r.names()) if r else {} for k, r in readers.items()}
         phase_data[ph] = {"readers": readers, "idx": idx}
@@ -379,11 +411,11 @@ Examples:
                     name=f"{tag} · Cam Pose",
                     origin=f"world/p{ph}",
                 ),
-                img_view(f"{tag} · RGB · {label}",     f"view/p{ph}/rgb"),
-                img_view(f"{tag} · Depth (cividis)",   f"view/p{ph}/depth_cividis"),
-                img_view(f"{tag} · Masks",             f"view/p{ph}/masks"),
-                img_view(f"{tag} · Fisheye L",         f"view/p{ph}/fisheye_left"),
-                img_view(f"{tag} · Fisheye R",         f"view/p{ph}/fisheye_right"),
+                img_view(f"{tag} · RGB · {label}", f"view/p{ph}/rgb"),
+                img_view(f"{tag} · Depth (cividis)", f"view/p{ph}/depth_cividis"),
+                img_view(f"{tag} · Masks", f"view/p{ph}/masks"),
+                img_view(f"{tag} · Fisheye L", f"view/p{ph}/fisheye_left"),
+                img_view(f"{tag} · Fisheye R", f"view/p{ph}/fisheye_right"),
             )
 
         bp_layout = rr.blueprint.Vertical(
@@ -425,25 +457,28 @@ Examples:
         # rr.init's spawn=True doesn't expose --hide-welcome-screen, so spawn
         # the viewer ourselves with the right flags, then connect over gRPC.
         # This stops the example-gallery overlay from blocking the canvas.
-        import shutil, subprocess
+        import shutil
+        import subprocess
+
         rerun_bin = shutil.which("rerun")
         if rerun_bin is None:
             sys.exit("'rerun' CLI not found on PATH — install with: pip install rerun-sdk")
         # Reuse an existing viewer on :9876 if one is already running; else spawn.
         try:
             import socket
+
             with socket.create_connection(("127.0.0.1", 9876), timeout=0.5):
                 pass
         except OSError:
             subprocess.Popen(
-                [rerun_bin, "--memory-limit", "2GB", "--port", "9876",
-                 "--hide-welcome-screen"],
+                [rerun_bin, "--memory-limit", "2GB", "--port", "9876", "--hide-welcome-screen"],
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
             import time
+
             time.sleep(1.5)  # give the viewer a moment to bind the port
         rr.connect_grpc("rerun+http://127.0.0.1:9876/proxy")
     elif not args.save:
@@ -461,11 +496,7 @@ Examples:
     # (~/.local/share/rerun/blueprints/<app_id>-*.rbl).
     rr.send_blueprint(bp, make_active=True, make_default=True)
 
-    out_rrd = (
-        Path(__file__).resolve().parent.parent
-        / "site"
-        / f"rpx_{scene}_{phase}.rrd"
-    )
+    out_rrd = Path(__file__).resolve().parent.parent / "site" / f"rpx_{scene}_{phase}.rrd"
     if args.save:
         out_rrd.parent.mkdir(exist_ok=True)
         rr.save(str(out_rrd), default_blueprint=bp)
@@ -504,7 +535,8 @@ Examples:
             f"world/p{ph}/camera",
             rr.Pinhole(
                 focal_length=617.0,
-                width=640, height=480,
+                width=640,
+                height=480,
                 principal_point=[320.0, 240.0],
                 camera_xyz=rr.ViewCoordinates.RDF,
             ),
@@ -572,13 +604,16 @@ Examples:
             # Fisheye stereo: log in both single- and all-phases modes.
             if readers["fisheye"] and fid in idx["fisheye"]:
                 for fm in sorted(idx["fisheye"][fid]):
-                    lr = "left" if "left" in fm.lower() or fm.endswith("0.png") else (
-                        "right" if "right" in fm.lower() or fm.endswith("1.png") else "img"
+                    lr = (
+                        "left"
+                        if "left" in fm.lower() or fm.endswith("0.png")
+                        else ("right" if "right" in fm.lower() or fm.endswith("1.png") else "img")
                     )
                     fimg = stretch_contrast(load_image(readers["fisheye"], fm))
                     fimg_arch = (
                         rr.Image(fimg).compress(jpeg_quality=fisheye_jpeg)
-                        if fisheye_jpeg else rr.Image(fimg)
+                        if fisheye_jpeg
+                        else rr.Image(fimg)
                     )
                     rr.log(f"{base}/fisheye_{lr}", fimg_arch)
 

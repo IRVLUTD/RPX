@@ -48,6 +48,7 @@ class KeypointAccuracy(MetricCalculator):
                 f"{type(ground_truth).__name__}",
             )
         from ..evaluators import keypoint_metrics
+
         return keypoint_metrics(
             pred_p0=prediction.points0,
             pred_p1=prediction.points1,

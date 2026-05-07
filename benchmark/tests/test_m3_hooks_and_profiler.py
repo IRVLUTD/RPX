@@ -21,18 +21,15 @@ import pytest
 from PIL import Image
 
 from rpx_benchmark.api import (
-    DepthGroundTruth,
-    DepthPrediction,
-    Sample,
     TaskType,
 )
 from rpx_benchmark.profiler import LatencyProfiler, MemoryProfiler
 from rpx_benchmark.tasks.registry import get_task_spec
 
-
 # --------------------------------------------------------------------------- #
 # Hook registration invariants
 # --------------------------------------------------------------------------- #
+
 
 def test_depth_taskspec_has_ts_hook() -> None:
     spec = get_task_spec(TaskType.MONOCULAR_DEPTH)
@@ -57,6 +54,7 @@ def test_tracking_taskspec_has_no_deployment_hooks() -> None:
 # Runner → hook dispatch
 # --------------------------------------------------------------------------- #
 
+
 def _write_depth_dataset(root: Path, n: int = 3) -> Path:
     """Tiny monocular-depth manifest backed by flat PNGs."""
     root.mkdir(parents=True, exist_ok=True)
@@ -74,20 +72,26 @@ def _write_depth_dataset(root: Path, n: int = 3) -> Path:
             position=np.array([float(i), 0.0, 0.0]),
             orientation=np.array([0.0, 0.0, 0.0, 1.0]),
         )
-        samples.append({
-            "id": f"scene_000_clutter_{i}",
-            "rgb": f"scenes/scene_000/0/rgb/{i}.png",
-            "depth": f"scenes/scene_000/0/depth/{i}.png",
-            "pose": f"scenes/scene_000/0/pose/{i}.npz",
-            "phase": "clutter",
-            "difficulty": "easy",
-        })
+        samples.append(
+            {
+                "id": f"scene_000_clutter_{i}",
+                "rgb": f"scenes/scene_000/0/rgb/{i}.png",
+                "depth": f"scenes/scene_000/0/depth/{i}.png",
+                "pose": f"scenes/scene_000/0/pose/{i}.npz",
+                "phase": "clutter",
+                "difficulty": "easy",
+            }
+        )
     manifest = root / "manifest.json"
-    manifest.write_text(json.dumps({
-        "task": "monocular_depth",
-        "root": str(root),
-        "samples": samples,
-    }))
+    manifest.write_text(
+        json.dumps(
+            {
+                "task": "monocular_depth",
+                "root": str(root),
+                "samples": samples,
+            }
+        )
+    )
     return manifest
 
 
@@ -130,6 +134,7 @@ def test_runner_dispatches_temporal_hook_via_taskspec(tmp_path: Path, monkeypatc
 # Profiler backends
 # --------------------------------------------------------------------------- #
 
+
 def test_latency_percentiles_trivial() -> None:
     lp = LatencyProfiler(warmup=0)
     for s in (0.010, 0.020, 0.030, 0.040, 0.050):
@@ -143,10 +148,10 @@ def test_latency_percentiles_trivial() -> None:
 
 def test_latency_percentiles_trim_warmup() -> None:
     lp = LatencyProfiler(warmup=2)
-    for s in (1.0, 1.0, 0.010, 0.020):   # two warmup outliers trimmed
+    for s in (1.0, 1.0, 0.010, 0.020):  # two warmup outliers trimmed
         lp.add_sample_seconds(s)
     pcs = lp.percentiles()
-    assert pcs["p50_ms"] == pytest.approx(15.0)   # mean of 10 and 20 ms
+    assert pcs["p50_ms"] == pytest.approx(15.0)  # mean of 10 and 20 ms
 
 
 def test_latency_percentiles_empty_returns_none() -> None:
@@ -175,6 +180,7 @@ def test_memory_profiler_cpu_sample_is_nonzero() -> None:
 
 def test_efficiency_metadata_new_fields_round_trip() -> None:
     from rpx_benchmark.profiler import EfficiencyMetadata
+
     em = EfficiencyMetadata(
         params_m=10.0,
         flops_g=5.0,

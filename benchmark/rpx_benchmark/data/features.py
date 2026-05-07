@@ -28,10 +28,10 @@ except ImportError as e:  # pragma: no cover — fail at import time
 
 from ..api import TaskType
 
-
 # --------------------------------------------------------------------------- #
 # Shared columns
 # --------------------------------------------------------------------------- #
+
 
 # Every RPX sample carries these top-level identity columns regardless
 # of task. Grouping them here prevents drift across per-task schemas.
@@ -39,8 +39,8 @@ def _shared_columns() -> Dict[str, Any]:
     return {
         "id": Value("string"),
         "scene": Value("string"),
-        "phase": Value("string"),            # "clutter" | "interaction" | "clean"
-        "difficulty": Value("string"),       # "easy" | "medium" | "hard"
+        "phase": Value("string"),  # "clutter" | "interaction" | "clean"
+        "difficulty": Value("string"),  # "easy" | "medium" | "hard"
         "rgb": Image(decode=True),
         # 4×4 SE(3) camera-to-world, row-major float32. Flattened to a
         # fixed-length Sequence because datasets' Arrow backend stores
@@ -53,86 +53,107 @@ def _shared_columns() -> Dict[str, Any]:
 # Per-task Features
 # --------------------------------------------------------------------------- #
 
+
 def _depth_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        # 16-bit PNG on the wire; PIL-decoded at read time so the
-        # consumer can cast to float32 meters without re-encoding.
-        "depth": Image(decode=True),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            # 16-bit PNG on the wire; PIL-decoded at read time so the
+            # consumer can cast to float32 meters without re-encoding.
+            "depth": Image(decode=True),
+        }
+    )
 
 
 def _detection_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        "boxes": Sequence(Sequence(Value("float32"), length=4)),
-        "labels": Sequence(Value("string")),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "boxes": Sequence(Sequence(Value("float32"), length=4)),
+            "labels": Sequence(Value("string")),
+        }
+    )
 
 
 def _segmentation_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        # Single-channel PNG where pixel values are instance IDs.
-        "mask": Image(decode=True),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            # Single-channel PNG where pixel values are instance IDs.
+            "mask": Image(decode=True),
+        }
+    )
 
 
 def _tracking_features() -> Features:
     # Tracklets are variable-length; a struct-of-sequences layout keeps
     # the Arrow schema cheap while preserving the tracklet grouping.
-    return Features({
-        **_shared_columns(),
-        "tracks": Sequence({
-            "track_id": Value("string"),
-            "boxes": Sequence(Sequence(Value("float32"), length=4)),
-            "scores": Sequence(Value("float32")),
-        }),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "tracks": Sequence(
+                {
+                    "track_id": Value("string"),
+                    "boxes": Sequence(Sequence(Value("float32"), length=4)),
+                    "scores": Sequence(Value("float32")),
+                }
+            ),
+        }
+    )
 
 
 def _relative_pose_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        "rgb_b": Image(decode=True),
-        "pose_a": Sequence(Value("float32"), length=16),
-        "pose_b": Sequence(Value("float32"), length=16),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "rgb_b": Image(decode=True),
+            "pose_a": Sequence(Value("float32"), length=16),
+            "pose_b": Sequence(Value("float32"), length=16),
+        }
+    )
 
 
 def _visual_grounding_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        "text": Value("string"),
-        "boxes": Sequence(Sequence(Value("float32"), length=4)),
-        "labels": Sequence(Value("string")),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "text": Value("string"),
+            "boxes": Sequence(Sequence(Value("float32"), length=4)),
+            "labels": Sequence(Value("string")),
+        }
+    )
 
 
 def _sparse_depth_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        "coordinates": Sequence(Sequence(Value("float32"), length=2)),
-        "depths": Sequence(Value("float32")),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "coordinates": Sequence(Sequence(Value("float32"), length=2)),
+            "depths": Sequence(Value("float32")),
+        }
+    )
 
 
 def _nvs_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        "target_rgb": Image(decode=True),
-        "target_pose": Sequence(Value("float32"), length=16),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "target_rgb": Image(decode=True),
+            "target_pose": Sequence(Value("float32"), length=16),
+        }
+    )
 
 
 def _keypoint_features() -> Features:
-    return Features({
-        **_shared_columns(),
-        "rgb_b": Image(decode=True),
-        "points0": Sequence(Sequence(Value("float32"), length=2)),
-        "points1": Sequence(Sequence(Value("float32"), length=2)),
-        "visibility": Sequence(Value("bool")),
-    })
+    return Features(
+        {
+            **_shared_columns(),
+            "rgb_b": Image(decode=True),
+            "points0": Sequence(Sequence(Value("float32"), length=2)),
+            "points1": Sequence(Sequence(Value("float32"), length=2)),
+            "visibility": Sequence(Value("bool")),
+        }
+    )
 
 
 #: Dispatch table: TaskType → HF `Features` definition.

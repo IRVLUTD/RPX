@@ -48,7 +48,6 @@ from pathlib import Path
 from typing import Optional, Union
 
 import requests
-
 from urllib3.exceptions import InsecureRequestWarning  # noqa: F401  (some envs need silencing)
 
 CACHE_ROOT = Path(os.environ.get("RPX_BOX_CACHE", Path.home() / ".cache" / "rpx-box"))
@@ -61,27 +60,31 @@ LARGE_PULL_GB = 5  # warn if a recursive pull would exceed this
 
 # ────────────────────────────  Box REST API (auth path)  ─────────────────────
 
+
 def _api_get(path: str, params: Optional[dict] = None) -> dict:
     """GET https://api.box.com/2.0{path} with Bearer token. Raises if no token."""
     if not DEV_TOKEN:
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             "BOX_DEVELOPER_TOKEN not set; cannot use Box REST API.",
             hint="Generate a 60-min developer token at "
-                 "https://app.box.com/developers/console and `export "
-                 "BOX_DEVELOPER_TOKEN=...` before re-running.",
+            "https://app.box.com/developers/console and `export "
+            "BOX_DEVELOPER_TOKEN=...` before re-running.",
         )
     r = requests.get(
         f"{BOX_API}{path}",
         headers={"Authorization": f"Bearer {DEV_TOKEN}", "User-Agent": USER_AGENT},
-        params=params or {}, timeout=30,
+        params=params or {},
+        timeout=30,
     )
     if r.status_code == 401:
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             "Box API returned 401 — token expired or invalid.",
             hint="Box developer tokens expire after 60 min. Regenerate at "
-                 "https://app.box.com/developers/console and re-export.",
+            "https://app.box.com/developers/console and re-export.",
         )
     r.raise_for_status()
     return r.json()
@@ -100,12 +103,14 @@ def _api_list_folder(folder_id: str) -> list[dict]:
         for it in entries:
             if it.get("type") not in ("file", "folder"):
                 continue
-            items.append({
-                "id": str(it["id"]),
-                "type": it["type"],
-                "name": it.get("name") or str(it["id"]),
-                "size": int(it.get("size") or 0),
-            })
+            items.append(
+                {
+                    "id": str(it["id"]),
+                    "type": it["type"],
+                    "name": it.get("name") or str(it["id"]),
+                    "size": int(it.get("size") or 0),
+                }
+            )
         if len(entries) < 1000:
             break
         offset += 1000
@@ -121,11 +126,13 @@ def _api_download_file(file_id: str, name: str, size: int, cache_dir: Path) -> P
         return out
     with requests.get(
         f"{BOX_API}/files/{file_id}/content",
-        stream=True, timeout=600,
+        stream=True,
+        timeout=600,
         headers={"Authorization": f"Bearer {DEV_TOKEN}", "User-Agent": USER_AGENT},
     ) as r:
         if r.status_code == 401:
             from rpx_benchmark.exceptions import ConfigError
+
             raise ConfigError(
                 "Box API returned 401 — token expired or invalid.",
                 hint="Box developer tokens expire after 60 min. Regenerate and re-export.",
@@ -140,6 +147,7 @@ def _api_download_file(file_id: str, name: str, size: int, cache_dir: Path) -> P
     if size and out.stat().st_size != size:
         out.unlink(missing_ok=True)
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"size mismatch on {name}: got {out.stat().st_size}, expected {size}",
             hint="The download is corrupt — delete the cached file and re-run.",
@@ -163,23 +171,29 @@ def _api_list_folder_recursive(folder_id: str, prefix: str, recurse: bool) -> li
 
 # ────────────────────────────  Box REST API (writer side)  ───────────────────
 
+
 def _api_post(path: str, payload: dict, base: str = BOX_API) -> dict:
     if not DEV_TOKEN:
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             "BOX_DEVELOPER_TOKEN required for upload operations.",
             hint="Generate a 60-min developer token at "
-                 "https://app.box.com/developers/console and `export BOX_DEVELOPER_TOKEN=...`.",
+            "https://app.box.com/developers/console and `export BOX_DEVELOPER_TOKEN=...`.",
         )
     r = requests.post(
         f"{base}{path}",
-        headers={"Authorization": f"Bearer {DEV_TOKEN}",
-                 "User-Agent": USER_AGENT,
-                 "Content-Type": "application/json"},
-        json=payload, timeout=60,
+        headers={
+            "Authorization": f"Bearer {DEV_TOKEN}",
+            "User-Agent": USER_AGENT,
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=60,
     )
     if r.status_code in (401, 403):
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"Box API {r.status_code} — token expired or insufficient: {r.text[:200]}",
             hint="Token may be expired (60-min window) or lacks permissions for this folder.",
@@ -202,10 +216,11 @@ def _api_ensure_folder(name: str, parent_folder_id: str) -> str:
             if it["type"] == "folder" and it["name"] == name:
                 return it["id"]
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"folder {name!r} reported conflict but not found under {parent_folder_id}",
             hint="Race condition or stale Box state. Re-run; the conflict resolver should pick up "
-                 "the existing folder on retry.",
+            "the existing folder on retry.",
         ) from e
 
 
@@ -228,17 +243,21 @@ def _api_existing_files(folder_id: str) -> dict[str, dict]:
     return out
 
 
-def _api_upload_file(local: Path, parent_folder_id: str,
-                      name: Optional[str] = None,
-                      existing: Optional[dict[str, dict]] = None) -> dict:
+def _api_upload_file(
+    local: Path,
+    parent_folder_id: str,
+    name: Optional[str] = None,
+    existing: Optional[dict[str, dict]] = None,
+) -> dict:
     """Upload one file. If `existing[name]` matches local size, skip. If exists
     with different size, upload as a new version on the same file id."""
     if not DEV_TOKEN:
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             "BOX_DEVELOPER_TOKEN required for upload operations.",
             hint="Generate a 60-min developer token at "
-                 "https://app.box.com/developers/console and `export BOX_DEVELOPER_TOKEN=...`.",
+            "https://app.box.com/developers/console and `export BOX_DEVELOPER_TOKEN=...`.",
         )
     name = name or local.name
     size = local.stat().st_size
@@ -256,12 +275,15 @@ def _api_upload_file(local: Path, parent_folder_id: str,
         attrs = {"name": name, "parent": {"id": str(parent_folder_id)}}
     with local.open("rb") as f:
         r = requests.post(
-            url, headers=headers, timeout=600,
+            url,
+            headers=headers,
+            timeout=600,
             data={"attributes": json.dumps(attrs)},
             files={"file": (name, f)},
         )
     if r.status_code in (401, 403):
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"Box upload {r.status_code}: {r.text[:200]}",
             hint="Check the developer token is fresh and has write access to the target folder.",
@@ -271,8 +293,9 @@ def _api_upload_file(local: Path, parent_folder_id: str,
     return {"id": entry.get("id"), "name": name, "skipped": False}
 
 
-def upload_tree(local_dir: Path, remote_path: str, *,
-                root_folder_id: str = "0", verbose: bool = True) -> dict:
+def upload_tree(
+    local_dir: Path, remote_path: str, *, root_folder_id: str = "0", verbose: bool = True
+) -> dict:
     """Upload every file under `local_dir` to Box at `<root>/<remote_path>`.
 
     Mirrors directory structure. Skips files whose Box copy has identical size.
@@ -300,13 +323,19 @@ def upload_tree(local_dir: Path, remote_path: str, *,
             r = _api_upload_file(f, parent_id, existing=existing)
             if r["skipped"]:
                 n_skip += 1
-                if verbose: sys.stderr.write("skip (already on Box)\n")
+                if verbose:
+                    sys.stderr.write("skip (already on Box)\n")
             else:
                 n_up += 1
                 bytes_up += f.stat().st_size
-                if verbose: sys.stderr.write(f"uploaded ({_human_bytes(f.stat().st_size)})\n")
-    return {"uploaded": n_up, "skipped": n_skip, "bytes_uploaded": bytes_up,
-            "remote_folder_id": base_id}
+                if verbose:
+                    sys.stderr.write(f"uploaded ({_human_bytes(f.stat().st_size)})\n")
+    return {
+        "uploaded": n_up,
+        "skipped": n_skip,
+        "bytes_uploaded": bytes_up,
+        "remote_folder_id": base_id,
+    }
 
 
 # ────────────────────────────  HTML scraping  ────────────────────────────────
@@ -317,8 +346,7 @@ _POSTSTREAM_RE = re.compile(r"Box\.postStreamData\s*=\s*(\{.+?\});", re.DOTALL)
 
 def _scrape(url: str) -> tuple[dict, dict]:
     """Return (prefetchedData, postStreamData) from a Box web page."""
-    r = requests.get(url, timeout=20, headers={"User-Agent": USER_AGENT},
-                     allow_redirects=True)
+    r = requests.get(url, timeout=20, headers={"User-Agent": USER_AGENT}, allow_redirects=True)
     r.raise_for_status()
     pre_m = _PREFETCH_RE.search(r.text)
     post_m = _POSTSTREAM_RE.search(r.text)
@@ -326,6 +354,7 @@ def _scrape(url: str) -> tuple[dict, dict]:
     post = json.loads(post_m.group(1)) if post_m else {}
     if not pre and not post:
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"Box page exposed no metadata (URL: {url}). The link may be "
             "private/password-protected, or Box's page structure changed. "
@@ -336,6 +365,7 @@ def _scrape(url: str) -> tuple[dict, dict]:
 
 
 # ────────────────────────────  URL parsing  ──────────────────────────────────
+
 
 def _origin(url: str) -> str:
     m = re.match(r"(https?://[^/]+)", url)
@@ -365,6 +395,7 @@ def _parse_url(url: str) -> tuple[str, str, str]:
             return kind, item_id, token
 
     from rpx_benchmark.exceptions import ConfigError
+
     raise ConfigError(
         f"could not parse Box URL: {url}\n"
         "Expected one of:\n"
@@ -379,6 +410,7 @@ def _build_folder_url(origin: str, folder_id: str, token: str) -> str:
 
 
 # ────────────────────────────  File metadata  ────────────────────────────────
+
 
 def _file_meta(pre: dict, post: dict, file_id: str) -> dict:
     """Find name/size/can_download for a file id across both prefetch and postStream."""
@@ -404,14 +436,16 @@ def _file_meta(pre: dict, post: dict, file_id: str) -> dict:
                     "downloadable": bool(it.get("canDownload", True)),
                 }
     from rpx_benchmark.exceptions import DatasetError
+
     raise DatasetError(
         f"no metadata for file {file_id} in Box page payload",
         hint="The shared link may be expired, password-protected, or Box's "
-             "page structure changed. Try the BOX_DEVELOPER_TOKEN auth path.",
+        "page structure changed. Try the BOX_DEVELOPER_TOKEN auth path.",
     )
 
 
 # ────────────────────────────  Folder listing  ───────────────────────────────
+
 
 def _folder_items(post: dict) -> list[dict]:
     """Extract item list from a folder page's postStreamData."""
@@ -432,12 +466,14 @@ def _folder_items(post: dict) -> list[dict]:
         kind = it.get("type")
         if kind not in ("file", "folder"):
             continue
-        out.append({
-            "id": str(it["id"]),
-            "type": kind,
-            "name": it.get("name") or str(it["id"]),
-            "size": int(it.get("itemSize") or 0),
-        })
+        out.append(
+            {
+                "id": str(it["id"]),
+                "type": kind,
+                "name": it.get("name") or str(it["id"]),
+                "size": int(it.get("itemSize") or 0),
+            }
+        )
     return out
 
 
@@ -452,6 +488,7 @@ def list_folder(url: str, recurse: bool = False) -> list[dict]:
     kind, folder_id, token = _parse_url(url)
     if kind != "folder":
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             f"not a folder URL: {url}",
             hint="`list_folder` only accepts /folder/<id> or /s/<token-of-folder> URLs.",
@@ -462,8 +499,9 @@ def list_folder(url: str, recurse: bool = False) -> list[dict]:
     return _list_folder_recursive(url, token, origin, prefix="", recurse=recurse)
 
 
-def _list_folder_recursive(url: str, token: str, origin: str,
-                           prefix: str, recurse: bool) -> list[dict]:
+def _list_folder_recursive(
+    url: str, token: str, origin: str, prefix: str, recurse: bool
+) -> list[dict]:
     try:
         _, post = _scrape(url)
     except RuntimeError as e:
@@ -482,8 +520,10 @@ def _list_folder_recursive(url: str, token: str, origin: str,
 
 # ────────────────────────────  Download  ─────────────────────────────────────
 
-def _download_file(origin: str, file_id: str, token: str,
-                   name: str, size: int, cache_dir: Path) -> Path:
+
+def _download_file(
+    origin: str, file_id: str, token: str, name: str, size: int, cache_dir: Path
+) -> Path:
     out_dir = cache_dir / file_id
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / name
@@ -491,8 +531,7 @@ def _download_file(origin: str, file_id: str, token: str,
         return out
 
     download_url = (
-        f"{origin}/index.php"
-        f"?rm=box_download_shared_file&shared_name={token}&file_id=f_{file_id}"
+        f"{origin}/index.php?rm=box_download_shared_file&shared_name={token}&file_id=f_{file_id}"
     )
     headers = {"User-Agent": USER_AGENT}
     if DEV_TOKEN:
@@ -510,10 +549,11 @@ def _download_file(origin: str, file_id: str, token: str,
     if size and out.stat().st_size != size:
         out.unlink(missing_ok=True)
         from rpx_benchmark.exceptions import DatasetError
+
         raise DatasetError(
             f"size mismatch on {name}: got {out.stat().st_size}, expected {size}.",
             hint="Link may have expired or been revoked. Re-fetch the URL or "
-                 "regenerate the share token.",
+            "regenerate the share token.",
         )
     return out
 
@@ -557,10 +597,11 @@ def fetch(
         meta = _file_meta(pre, post, item_id)
         if not meta["downloadable"]:
             from rpx_benchmark.exceptions import DatasetError
+
             raise DatasetError(
                 f"Box reports {meta['name']} is not downloadable.",
                 hint="The shared link may have been revoked or the file is in a "
-                     "permission-restricted state. Check the Box web UI.",
+                "permission-restricted state. Check the Box web UI.",
             )
         return _download_file(origin, item_id, token, meta["name"], meta["size"], cache_dir)
 
@@ -574,13 +615,14 @@ def fetch(
     files = [it for it in items if it["type"] == "file" and (not pat or pat.search(it["path"]))]
     total = sum(f["size"] for f in files)
 
-    if not confirm_large and total > LARGE_PULL_GB * (1024 ** 3):
+    if not confirm_large and total > LARGE_PULL_GB * (1024**3):
         from rpx_benchmark.exceptions import ConfigError
+
         raise ConfigError(
             f"refusing to pull {_human_bytes(total)} ({len(files)} files) without explicit "
             f"confirmation.",
             hint="Re-run with confirm_large=True (or --yes from the CLI), or "
-                 "narrow the scope with --include / --no-recurse / --list first."
+            "narrow the scope with --include / --no-recurse / --list first.",
         )
 
     paths = []
@@ -594,8 +636,8 @@ def fetch(
 
 # ────────────────────────────  CLI  ──────────────────────────────────────────
 
-def fetch_manifest(manifest_path: Path, cache_dir: Optional[Path] = None,
-                   **kwargs) -> list[Path]:
+
+def fetch_manifest(manifest_path: Path, cache_dir: Optional[Path] = None, **kwargs) -> list[Path]:
     paths = []
     for raw in manifest_path.read_text().splitlines():
         line = raw.strip()
@@ -624,20 +666,29 @@ def _cli():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("url", nargs="?", help="Box shared URL (file or folder)")
-    ap.add_argument("--list", action="store_true",
-                    help="list folder contents without downloading")
-    ap.add_argument("--include", default=None,
-                    help="regex; only files whose path matches are downloaded")
-    ap.add_argument("--recurse", action="store_true",
-                    help="descend into subfolders (default: top-level only; "
-                         "subfolders inside an anonymous-shared parent often "
-                         "require their own share links or BOX_DEVELOPER_TOKEN)")
-    ap.add_argument("--yes", action="store_true",
-                    help=f"confirm pulls larger than {LARGE_PULL_GB} GB")
-    ap.add_argument("--manifest", type=Path, default=None,
-                    help="text file with one Box URL per line")
-    ap.add_argument("--to", type=Path, default=None,
-                    help="cache root override (default: $RPX_BOX_CACHE or ~/.cache/rpx-box)")
+    ap.add_argument("--list", action="store_true", help="list folder contents without downloading")
+    ap.add_argument(
+        "--include", default=None, help="regex; only files whose path matches are downloaded"
+    )
+    ap.add_argument(
+        "--recurse",
+        action="store_true",
+        help="descend into subfolders (default: top-level only; "
+        "subfolders inside an anonymous-shared parent often "
+        "require their own share links or BOX_DEVELOPER_TOKEN)",
+    )
+    ap.add_argument(
+        "--yes", action="store_true", help=f"confirm pulls larger than {LARGE_PULL_GB} GB"
+    )
+    ap.add_argument(
+        "--manifest", type=Path, default=None, help="text file with one Box URL per line"
+    )
+    ap.add_argument(
+        "--to",
+        type=Path,
+        default=None,
+        help="cache root override (default: $RPX_BOX_CACHE or ~/.cache/rpx-box)",
+    )
     args = ap.parse_args()
 
     if not args.url and not args.manifest:
