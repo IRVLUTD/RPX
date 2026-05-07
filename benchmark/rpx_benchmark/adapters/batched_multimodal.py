@@ -248,28 +248,103 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
             translation=np.asarray(trans, dtype=np.float64),
         )
 
+    #: CSV columns. 4 ID + 9 rotation + 3 translation = 16 columns.
+    _LOG_COLUMNS: tuple[str, ...] = (
+        "scene_id",
+        "phase",
+        "frame_a",
+        "frame_b",
+        "R00",
+        "R01",
+        "R02",
+        "R10",
+        "R11",
+        "R12",
+        "R20",
+        "R21",
+        "R22",
+        "tx",
+        "ty",
+        "tz",
+    )
+
     def maybe_save(self, sample: Sample, model_output: Any) -> None:
+        """Append one row per pair to ``<save_dir>/predictions.csv``.
+
+        Rationale: paired-pose runs produce ~3 K rows per (model, split);
+        a single CSV is friendlier for Box and analytics than 3 K
+        per-pair ``.npz`` files. Columns: scene_id, phase, frame_a,
+        frame_b, the 9 rotation entries (row-major) and 3 translation
+        components. Header is written exactly once per file (on the
+        first append to an empty / non-existent log).
+        """
         if self._save_dir is None:
             return
+        import csv
+
         meta = getattr(sample, "metadata", None) or {}
-        scene = meta.get("scene_id")
-        phase = meta.get("phase_idx")
-        frame_a = meta.get("frame")
+        scene = meta.get("scene_id") or "unknown"
+        phase = meta.get("phase_idx") if meta.get("phase_idx") is not None else "0"
+        frame_a = meta.get("frame") or str(sample.id)
         frame_b = meta.get("frame_b") or "?"
-        if not (scene and frame_a is not None and phase is not None):
-            scene, phase, frame_a = "unknown", "0", str(sample.id)
-        out = self._save_dir / str(scene) / str(phase) / f"{frame_a}_to_{frame_b}.npz"
-        out.parent.mkdir(parents=True, exist_ok=True)
+
         if isinstance(model_output, dict):
-            np.savez(
-                out,
-                rotation=np.asarray(model_output["rotation"], dtype=np.float64),
-                translation=np.asarray(model_output["translation"], dtype=np.float64),
-            )
+            rot = np.asarray(model_output["rotation"], dtype=np.float64)
+            trans = np.asarray(model_output["translation"], dtype=np.float64)
         else:
             rot, trans = model_output
-            np.savez(
-                out,
-                rotation=np.asarray(rot, dtype=np.float64),
-                translation=np.asarray(trans, dtype=np.float64),
+            rot = np.asarray(rot, dtype=np.float64)
+            trans = np.asarray(trans, dtype=np.float64)
+
+        # Tolerate rotation given as a flat 9-vector or a quaternion.
+        rot = rot.reshape(-1)
+        if rot.size == 4:
+            # Quaternion (x, y, z, w) → 3×3 rotation. We don't depend on
+            # scipy here; build it inline from the unit-quaternion formula.
+            x, y, z, w = rot.tolist()
+            rot = np.asarray(
+                [
+                    1 - 2 * (y * y + z * z),
+                    2 * (x * y - z * w),
+                    2 * (x * z + y * w),
+                    2 * (x * y + z * w),
+                    1 - 2 * (x * x + z * z),
+                    2 * (y * z - x * w),
+                    2 * (x * z - y * w),
+                    2 * (y * z + x * w),
+                    1 - 2 * (x * x + y * y),
+                ],
+                dtype=np.float64,
+            )
+        elif rot.size != 9:
+            from ..exceptions import AdapterError
+
+            raise AdapterError(
+                f"unexpected rotation shape: got {rot.size} entries; "
+                "expected 9 (3×3 matrix) or 4 (xyzw quaternion).",
+            )
+        trans = trans.reshape(-1)
+        if trans.size != 3:
+            from ..exceptions import AdapterError
+
+            raise AdapterError(
+                f"unexpected translation shape: got {trans.size} entries; expected 3.",
+            )
+
+        log_path = self._save_dir / "predictions.csv"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        write_header = not log_path.exists() or log_path.stat().st_size == 0
+        with log_path.open("a", newline="") as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(self._LOG_COLUMNS)
+            writer.writerow(
+                [
+                    scene,
+                    phase,
+                    frame_a,
+                    frame_b,
+                    *(f"{v:.10g}" for v in rot.tolist()),
+                    *(f"{v:.10g}" for v in trans.tolist()),
+                ]
             )
