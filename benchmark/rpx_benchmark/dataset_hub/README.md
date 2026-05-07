@@ -19,15 +19,29 @@ pip install -e 'benchmark[hub]'
 hf auth login
 
 # upload (run on the system that has the ~890 GB captures)
-python -m rpx_benchmark.dataset_hub.cli pack            --src DATA --staging STAGE
+python -m rpx_benchmark.dataset_hub.cli pack            --src DATA --staging STAGE --overwrite
 python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA --staging STAGE \
                                                          --splits benchmark/data/splits/scene_splits.json
-python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE
-python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA --staging STAGE
-python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE
+# `manifest` writes:
+#   1. STAGE/manifest/frames_v1.parquet   (all-frames index)
+#   2. STAGE/manifest/current.json        (schema version + label versions)
+#   3. STAGE/manifests/<recipe>/<split>.json — per-task per-split manifests
+#      for the 7 task recipes the loader supports (monocular_depth,
+#      segmentation, rgbd_segmentation, stereo_depth, relative_pose,
+#      rgbd_relative_pose, object_tracking) × {easy, medium, hard} = 21 JSONs.
+#      The vqa recipe is wired but emits 0 entries until the team's VQA
+#      label-generation pipeline lands (logs a clear warning).
+#  Without --splits the manifest step now FAILS LOUDLY (used to silently
+#  produce 0 per-task JSONs which made the published HF tree unusable).
+python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE --overwrite
+python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA --staging STAGE --overwrite
+python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE --overwrite
 python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE  --repo-id IRVLUTD/RPX
 
-# download (any machine, any time)
+# download (any machine, any time) — fetches the requested split's
+# manifest + tar shards, then extracts the tars into <snapshot>/extracted/
+# automatically (so RPXDataset.from_manifest can consume the JSON
+# without an extra extraction step on the user side).
 python -m rpx_benchmark.dataset_hub.cli download --task segmentation --split easy
 ```
 

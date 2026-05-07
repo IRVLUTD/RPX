@@ -41,6 +41,9 @@ from .manifest import (
     build_frame_manifest,
     read_frame_manifest,
 )
+from .split_manifests import (
+    write_split_manifests,
+)
 from .packer import (
     RAW_MODALITIES,
     PackPlan,
@@ -108,6 +111,8 @@ __all__ = [
     "ManifestPaths",
     "build_frame_manifest",
     "read_frame_manifest",
+    # split manifests (per-task, per-split)
+    "write_split_manifests",
     # uploader
     "DEFAULT_IGNORE_PATTERNS",
     "UploadPlan",

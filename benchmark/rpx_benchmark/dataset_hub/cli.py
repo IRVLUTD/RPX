@@ -170,6 +170,31 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
     paths = build_frame_manifest(scan, pack, staging, splits=splits)
     print(f"[manifest] wrote {paths.parquet_path}")
     print(f"[manifest] wrote {paths.current_json_path}")
+
+    # Per-task per-split JSONs the toolkit's reader (`download_split`)
+    # expects at ``manifests/<task>/<split>.json``. Without these, a
+    # freshly published HF dataset 404s on every benchmark call.
+    from .split_manifests import write_split_manifests  # local import to avoid cycles
+    written = write_split_manifests(staging)
+    if not written:
+        # Loud failure: the published dataset would be unusable.
+        # Most common cause: ``--splits`` was not passed, so every row
+        # in the parquet has ``split=None`` and no per-task JSONs are
+        # produced. The hub README's canonical sequence requires
+        # ``--splits benchmark/data/splits/scene_splits.json``.
+        from ..exceptions import DatasetError
+        raise DatasetError(
+            "no per-task per-split manifests written — published HF tree "
+            "would be unusable for `download_split`. Most likely cause: "
+            "the --splits flag was not passed. Re-run with: "
+            "`--splits benchmark/data/splits/scene_splits.json` (or "
+            "another scene-tier mapping).",
+            hint="If you intentionally want to skip split-manifests for "
+                 "a partial scene set, pass --splits with at least one "
+                 "scene mapped to a tier."
+        )
+    print(f"[manifest] wrote {len(written)} per-task per-split manifests "
+          f"under {staging}/manifests/")
     return 0
 
 

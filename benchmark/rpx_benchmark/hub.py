@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import tarfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
 
@@ -285,6 +286,16 @@ def download_split(
                  "or set HF_HUB_OFFLINE=1 to use a prebuilt local cache.",
         ) from e
 
+    # The HF tree ships tar shards; the per-task per-split JSON we just
+    # downloaded references *extracted* PNG/NPZ paths. Run the extraction
+    # step here so the user can hand the manifest to RPXDataset directly.
+    # Idempotent — files already on disk are skipped.
+    n_extracted, n_skipped = _extract_snapshot_tars(Path(snapshot_root))
+    log.info(
+        "extracted %d new files (%d already on disk) from tar shards",
+        n_extracted, n_skipped,
+    )
+
     resolved = dict(manifest)
     resolved["root"] = str(snapshot_root)
     resolved.setdefault(
@@ -341,3 +352,101 @@ def mount(repo_id: str = DEFAULT_REPO_ID):
     hf = _hub()
     fs = hf.HfFileSystem()
     return fs, f"datasets/{repo_id}"
+
+
+# ------------------------------------------------------------------ #
+# Tar extraction (post-download)
+# ------------------------------------------------------------------ #
+
+def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
+    """Extract every tar shard under ``snapshot_root`` into ``snapshot_root/extracted/``.
+
+    The HF dataset tree ships tar shards (``scenes/<scene>/<phase>/rgb.tar``,
+    ``scenes/<scene>/<phase>/labels/masks/v1.tar``, ...). Per-task per-split
+    manifests reference *extracted* paths
+    (``extracted/scenes/<scene>/<phase>/rgb/<frame>.png``,
+     ``extracted/scenes/<scene>/<phase>/sam2/masks/<frame>.png``, ...). This
+    helper materialises that layout post-download.
+
+    Idempotency
+    -----------
+    For each tar member, we check if the destination file already exists
+    (correct size). Only missing or wrong-size files are extracted. The
+    write is atomic-ish: extract to ``<dest>.part`` then ``rename`` so a
+    half-written file never collides with a re-run.
+
+    Path mapping
+    ------------
+    Tar location ``scenes/<scene>/<phase>/<...>.tar`` → extraction root
+    ``extracted/scenes/<scene>/<phase>/`` (with the tar's *own* member
+    names appended). Examples:
+
+    * ``scenes/scene1/0/rgb.tar``               members ``rgb/00000.png``  → ``extracted/scenes/scene1/0/rgb/00000.png``
+    * ``scenes/scene1/0/labels/masks/v1.tar``   members ``sam2/masks/00000.png`` → ``extracted/scenes/scene1/0/sam2/masks/00000.png``
+    * ``scenes/scene1/0/labels/cam_pose/v1.tar`` members ``cam_pose/00000.npz`` → ``extracted/scenes/scene1/0/cam_pose/00000.npz``
+
+    Parameters
+    ----------
+    snapshot_root
+        Root of an HF snapshot (the path returned by ``snapshot_download``).
+
+    Returns
+    -------
+    (n_extracted, n_skipped)
+        Number of files newly extracted and number already present.
+    """
+    extracted_root = snapshot_root / "extracted"
+    n_new = 0
+    n_skip = 0
+    for tar_path in sorted(snapshot_root.rglob("*.tar")):
+        if extracted_root in tar_path.parents:
+            # Don't re-process artefacts already under extracted/ from a
+            # previous run that happened to leave tars behind.
+            continue
+        try:
+            rel = tar_path.relative_to(snapshot_root)
+        except ValueError:  # symlinks pointing outside; skip
+            continue
+        # Locate the (scene, phase) prefix: the parts up to and including
+        # the first numeric component (the phase index 0/1/2). Example:
+        # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'
+        # ('scenes', 'scene1', '0', 'labels', 'masks', 'v1.tar') → same.
+        prefix_parts: List[str] = []
+        for p in rel.parts[:-1]:           # stop before the .tar filename
+            prefix_parts.append(p)
+            if p.isdigit():
+                break
+        if not prefix_parts or not prefix_parts[-1].isdigit():
+            # Not a per-scene-per-phase shard (e.g. an unrelated tar at
+            # repo root); skip rather than guess.
+            continue
+        out_base = extracted_root.joinpath(*prefix_parts)
+        out_base.mkdir(parents=True, exist_ok=True)
+        try:
+            with tarfile.open(tar_path, "r") as tf:
+                for member in tf.getmembers():
+                    if not member.isfile():
+                        continue
+                    out = out_base / member.name
+                    if out.exists() and out.stat().st_size == member.size:
+                        n_skip += 1
+                        continue
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    tmp = out.with_suffix(out.suffix + ".part")
+                    f = tf.extractfile(member)
+                    if f is None:
+                        continue
+                    with tmp.open("wb") as g:
+                        # Stream-copy in chunks; member.size can be ~MB
+                        # for masks, no point loading whole thing in RAM.
+                        while True:
+                            chunk = f.read(1 << 20)
+                            if not chunk:
+                                break
+                            g.write(chunk)
+                    tmp.rename(out)
+                    n_new += 1
+        except tarfile.TarError as e:
+            log.warning("failed to extract %s: %s", tar_path, e)
+            continue
+    return n_new, n_skip
