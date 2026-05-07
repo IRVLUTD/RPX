@@ -104,12 +104,76 @@ pip install unidepth                        # unidepth_v2
 Per-run output lands under `rpx_results/<DisplayName>/<split>/`:
 - `result.json` — primary metric, full deployment-readiness report (Tier 1/2/3 + DRS OperatingPoint), per-stage timing with 95% CIs.
 - `summary.md` — human-readable.
-- `comprehensive_metrics.json` — full Feynman-spec basket (9 errors + 3 accuracy + alignment modes + depth-band stratification + per-object basket + hole stats + ORD).
+- `comprehensive_metrics.json` — full metric basket (9 errors + 3 accuracy + alignment modes + depth-band stratification + per-object basket + hole stats + ORD).
 - `predictions/<scene>/<phase>/<frame>.npz` — per-frame raw depth (when `--save-predictions`).
 
 Box mirror (when `--upload-to-box`):
 `<box_root>/monocular_depth/<DisplayName>/<split>/...` matches the local
 tree exactly. Idempotent (size-matched skip on re-upload).
+
+#### Run all 19 across all 3 splits (one shell loop)
+
+```bash
+# Sweep loop. Drop --upload-to-box if you don't have a fresh BOX_DEVELOPER_TOKEN.
+for split in easy medium hard; do
+  for model in $(PYTHONPATH=.:scripts python3 -c \
+       "from depth_models import list_models; print(' '.join(list_models()))"); do
+    PYTHONPATH=. python scripts/run_depth.py \
+        --model "$model" --split "$split" \
+        --batch-size 4 \
+        --save-predictions --comprehensive-metrics --upload-to-box \
+      || echo "[skip] $model/$split — see traceback above"
+  done
+done
+```
+
+The `|| echo "[skip] ..."` keeps the sweep going when one adapter
+fails (e.g. an optional package is missing or a checkpoint id has
+shifted). Remaining models still run; the failing one shows up in the
+log and gets fixed in a follow-up.
+
+#### Output schema (`result.json` essentials)
+
+```jsonc
+{
+  "task": "monocular_depth",
+  "model": "ZoeDepth_NK",
+  "split": "easy",
+  "num_samples": 3000,
+  "aggregated":  { "absrel": 0.0848, "delta1": 0.951, "rmse": 0.205, ... },
+  "deployment_readiness": {
+    "params_m": 345.07,
+    "flops_g": 4878.9,
+    "macs_g": 2439.4,
+    "memory_traffic_gb": 4.14,
+    "arithmetic_intensity": 1178.2,
+    "roofline": {
+      "A100-80GB":         { "latency_ms": 250.2, "bottleneck": "compute" },
+      "RTX 4090":          { "latency_ms":  59.1, "bottleneck": "compute" },
+      "Jetson Orin 64GB":  { "latency_ms": 920.5, "bottleneck": "compute" }
+    },
+    "latency_ms_per_sample": 158.5,
+    "system_card": { "gpu_name": "...", "pytorch_version": "...", "cuda_version": "..." },
+    "operating_point": {
+      "precision": "fp32",
+      "task_metric": 0.027,  "task_metric_name": "absrel",  "higher_is_better": false,
+      "str_score": -0.085,  "flops_g": 4878.9, "params_m": 345.07
+    }
+  },
+  "timing": {
+    "data_load":   { "mean": 10.4, "ci95_low_boot": 10.3, "ci95_high_boot": 10.5, "n": 3000 },
+    "model_run":   { "mean": 158.5, "ci95_low_boot": 157.8, "ci95_high_boot": 159.2, "n": 3000 },
+    "metric_calc": { "mean":  1.4, "ci95_low_boot":  1.3, "ci95_high_boot":  1.5, "n": 3000 },
+    "metrics_with_ci": { "absrel": { "mean": 0.085, "ci95_low_boot": 0.083, ... }, ... }
+  }
+}
+```
+
+`comprehensive_metrics.json` adds 9 errors × {none, median, ls_affine,
+ls_disparity} alignments × {near, mid, far} depth bands × {in_mask,
+out_mask}, plus `per_object_aggregated_with_ci` (instance-weighted),
+`holes/{overall,in_mask,out_mask}_fraction`, and ORD pair accuracy —
+each with the same 95%-CI shape as `timing.metrics_with_ci`.
 
 
 ### 3. Aggregate the sweep into the paper table
