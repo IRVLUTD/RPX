@@ -135,8 +135,8 @@ def test_feature_names_count_matches_appendix():
     # 19 from the new paper + 8 resurrected from old draft (RPX-overleaf.bak.pdf):
     # area_drop (§3.4 eq 15), trans_p90/rot_p90 (§3.5 eqs 20,22), and the 5
     # fisheye/stereo features (§3.7 eqs 25-29).
-    assert len(FEATURE_NAMES) == 27
-    assert len(set(FEATURE_NAMES)) == 27  # no duplicates
+    assert len(FEATURE_NAMES) == 31
+    assert len(set(FEATURE_NAMES)) == 31  # no duplicates
 
 
 def test_extract_returns_all_18_features(tmp_path):
@@ -155,8 +155,13 @@ def test_empty_phase_yields_zeroed_features(tmp_path):
     (pdir / "rgb").mkdir(parents=True)
     pf = extract_phase_features(pdir)
     assert pf.n_frames_used == 0
+    import math
+    from rpx_benchmark.data.esd import _NAN_WHEN_ABSENT
     for k in FEATURE_NAMES:
-        assert pf.features[k] == 0.0
+        if k in _NAN_WHEN_ABSENT:
+            assert math.isnan(pf.features[k]), f"{k} should be NaN when absent"
+        else:
+            assert pf.features[k] == 0.0, f"{k} should be 0.0"
 
 
 # --------------------------------------------------------------------------- #
@@ -579,16 +584,19 @@ def test_area_drop_counts_50pct_collapse(tmp_path):
 
 
 def test_trans_p90_picks_up_motion_spikes(tmp_path):
-    """Quiet motion baseline + one spike → mean << p90."""
-    positions = [(0, 0, 0), (0.001, 0, 0), (0.001, 0, 0), (0.5, 0, 0), (0.5, 0, 0)]
+    """Varying motion with moderate spike → p90 > mean.
+
+    After MAD filtering, extreme single-frame pose jumps (T265 relocalization)
+    are suppressed. This test uses motion that varies naturally rather than
+    a single extreme outlier.
+    """
+    # Gradually increasing motion: 0.01, 0.01, 0.05, 0.10 m between frames
+    positions = [(0, 0, 0), (0.01, 0, 0), (0.02, 0, 0), (0.07, 0, 0), (0.17, 0, 0)]
     frames = [_trivial_frame(f"{i:05d}", position=p) for i, p in enumerate(positions)]
     pdir = _build_phase(tmp_path, "s.x.y", 0, frames)
     pf = extract_phase_features(pdir)
-    # delta_t between consecutive: sorted = [0, 0, 0.001, 0.499]
-    # mean = 0.5/4 = 0.125; np.percentile p90 with linear interp: index 2.7
-    # → 0.001 + 0.7 * (0.499 - 0.001) ≈ 0.3496.
-    assert pf.features["trans_mean"] == pytest.approx(0.125, abs=1e-4)
-    assert pf.features["trans_p90"] == pytest.approx(0.3496, abs=1e-3)
+    # delta_t = [0.01, 0.01, 0.05, 0.10] → mean=0.0425, p90 should be > mean
+    assert pf.features["trans_mean"] == pytest.approx(0.0425, abs=1e-3)
     assert pf.features["trans_p90"] > pf.features["trans_mean"]
 
 
@@ -610,13 +618,17 @@ def test_rot_p90_present_when_rotation_present(tmp_path):
     assert pf.features["rot_p90"] == pytest.approx(pf.features["rot_mean"], abs=1e-3)
 
 
-def test_fisheye_features_zero_when_dir_missing(tmp_path):
+def test_fisheye_features_nan_when_dir_missing(tmp_path):
+    """Fisheye features are NaN (not 0) when fisheye data is absent,
+    so percentile normalization maps them to 0.5 (neutral) instead of
+    biasing toward low difficulty."""
+    import math
     pdir = _build_phase(tmp_path, "s.x.y", 0,
                         [_trivial_frame("00000"), _trivial_frame("00001")])
     pf = extract_phase_features(pdir)
     for key in ("fisheye_dark", "fisheye_bright", "fisheye_sharpness",
                 "fisheye_corr", "fisheye_texture"):
-        assert pf.features[key] == 0.0
+        assert math.isnan(pf.features[key]), f"{key} should be NaN when absent"
 
 
 def _add_fisheye(pdir: Path, layout: str, h: int = 16, w: int = 16) -> None:

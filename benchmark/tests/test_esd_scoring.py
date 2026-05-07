@@ -115,15 +115,16 @@ def test_effort_stratified_weights_rejects_missing_effort_feature():
         effort_stratified_weights(["a", "b", "c"], alpha=0.5)
 
 
-def test_effort_stratified_weights_on_real_27_feature_set():
-    """The default for the 27-feature production set."""
+def test_effort_stratified_weights_on_real_31_feature_set():
+    """The default for the 31-feature production set."""
     from rpx_benchmark.data.esd import FEATURE_NAMES
     from rpx_benchmark.data.esd_scoring import effort_stratified_weights
     w = effort_stratified_weights(list(FEATURE_NAMES), alpha=0.5)
-    # 2 effort features × 0.25 + 25 other features × (0.5/25 = 0.02) = 1.0
+    # 2 effort features × 0.25 + 29 other features × (0.5/29 ≈ 0.01724) = 1.0
     assert w["iter_mean"] == pytest.approx(0.25)
     assert w["iter_max"] == pytest.approx(0.25)
-    assert w["depth_invalid"] == pytest.approx(0.02)
+    assert w["depth_invalid"] == pytest.approx(0.5 / 29, abs=1e-6)
+    assert w["rgb_blur"] == pytest.approx(0.5 / 29, abs=1e-6)
     assert sum(w.values()) == pytest.approx(1.0)
 
 

@@ -138,7 +138,7 @@ def test_cli_emits_structured_metric_fields(tmp_path):
     assert payload["schema_version"] >= 2
     assert payload["confidence_labels"] == ["high", "medium", "low"]
     assert "feature_categories" in payload
-    assert len(payload["feature_categories"]) == 8
+    assert len(payload["feature_categories"]) == 10
 
     # Summary block carries new aggregates.
     s = payload["summary"]

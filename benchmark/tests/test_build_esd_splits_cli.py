@@ -84,7 +84,7 @@ def test_cli_clean_run_writes_json_csv_and_log(tmp_path):
     # JSON: schema fields present, all 6 (scene, phase) rows extracted.
     payload = json.loads(json_path.read_text())
     assert payload["schema_version"] >= 2
-    assert len(payload["feature_names"]) == 27
+    assert len(payload["feature_names"]) == 31
     assert payload["summary"]["ok"] is True
     assert payload["summary"]["n_entries"] == 6
     assert payload["summary"]["n_failed"] == 0
@@ -93,7 +93,7 @@ def test_cli_clean_run_writes_json_csv_and_log(tmp_path):
     sample_row = next(iter(payload["phases"].values()))
     assert set(sample_row["features"].keys()) == set(payload["feature_names"])
     # feature_stats block carries one entry per feature.
-    assert len(payload["feature_stats"]) == 27
+    assert len(payload["feature_stats"]) == 31
 
     # CSV: schema-version comment header + DictWriter header + 6 rows.
     csv_path = json_path.with_suffix(".csv")
@@ -105,7 +105,7 @@ def test_cli_clean_run_writes_json_csv_and_log(tmp_path):
     # Per-feature stats CSV alongside.
     stats_csv = out_dir / "phase_esd_splits_feature_stats.csv"
     assert stats_csv.is_file()
-    assert len(stats_csv.read_text().splitlines()) == 1 + 27  # header + features
+    assert len(stats_csv.read_text().splitlines()) == 1 + 31  # header + features
 
     # Log file mirror exists and is non-empty.
     assert log_path.is_file()
