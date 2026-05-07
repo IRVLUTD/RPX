@@ -208,14 +208,26 @@ class DeploymentReadinessReport:
     temporal_stability: TemporalStabilityResult | None = None
     state_transition: StateTransitionRobustnessResult | None = None
     geometric_coherence: StackGeometricCoherenceResult | None = None
-    # Hardware-agnostic efficiency metadata
+
+    # --- Tier 1: hardware-agnostic model properties -----------------------
     params_m: float | None = None                # parameter count in millions
     flops_g: float | None = None                 # FLOPs in giga-ops (batch=1)
+    macs_g: float | None = None                  # MACs (= FLOPs / 2)
     actmem_gb_fp16: float | None = None          # optional activation memory at FP16
+    memory_traffic_gb: float | None = None       # estimated DRAM traffic (GB)
+    arithmetic_intensity: float | None = None    # FLOPs / Bytes (FLOP/Byte)
+
+    # --- Tier 2: roofline bounds ------------------------------------------
+    roofline: Dict | None = None                 # {gpu_name: RooflineBound.to_dict()}
+
+    # --- Tier 3: measured (hardware-specific) ------------------------------
     latency_ms_per_sample: float | None = None   # wall-clock inference latency (p50)
     peak_memory_mb: float | None = None          # peak resident memory (device-agnostic)
-    # Composite
+    system_card: Dict | None = None              # SystemCard.to_dict()
+
+    # --- Composite --------------------------------------------------------
     embodied_readiness: EmbodiedReadinessScore | None = None
+    operating_point: "OperatingPoint | None" = None  # for DRS (compute_sweep_drs post-sweep)
 
     def summary(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {"task": self.task, "model": self.model_name}
@@ -228,14 +240,28 @@ class DeploymentReadinessReport:
             out["str_i_to_l"] = self.state_transition.str_i_to_l
         if self.geometric_coherence:
             out["sgc_score"] = self.geometric_coherence.sgc_score
+        # Tier 1
         if self.params_m is not None:
             out["params_m"] = self.params_m
         if self.flops_g is not None:
             out["flops_g"] = self.flops_g
+        if self.macs_g is not None:
+            out["macs_g"] = self.macs_g
+        if self.memory_traffic_gb is not None:
+            out["memory_traffic_gb"] = self.memory_traffic_gb
+        if self.arithmetic_intensity is not None:
+            out["arithmetic_intensity"] = self.arithmetic_intensity
+        # Tier 2
+        if self.roofline is not None:
+            out["roofline"] = self.roofline
+        # Tier 3
         if self.latency_ms_per_sample is not None:
             out["latency_ms_per_sample"] = self.latency_ms_per_sample
         if self.peak_memory_mb is not None:
             out["peak_memory_mb"] = self.peak_memory_mb
+        if self.system_card is not None:
+            out["system_card"] = self.system_card
+        # Composite
         if self.embodied_readiness is not None:
             out["embodied_readiness_score"] = self.embodied_readiness.score
         return out
@@ -674,6 +700,227 @@ def _warp_mask_approx(
         return warped
     except ImportError:
         return mask  # fall back to unwarped if cv2 not available
+
+
+# ================================================================== #
+# Platform-Independent Deployment Readiness Score (DRS)
+# ================================================================== #
+
+@dataclass
+class OperatingPoint:
+    """One (precision, accuracy, cost) measurement for a model.
+
+    A model may have multiple operating points — e.g., FP32 and FP16.
+    The DRS selects the best one.
+    """
+
+    precision: str                  # "fp32", "fp16", "bf16"
+    # Task performance (primary metric — δ1, mIoU, accuracy, etc.)
+    task_metric: float
+    task_metric_name: str           # e.g. "delta1", "miou"
+    higher_is_better: bool
+    # Robustness
+    str_score: float                # STR value (near 0 = robust)
+    # Hardware-agnostic cost (Tier 1)
+    flops_g: float
+    params_m: float
+    memory_traffic_gb: float | None = None
+
+    def task_performance(self) -> float:
+        """Normalise task metric to [0, 1] where 1 = best."""
+        if self.higher_is_better:
+            return float(np.clip(self.task_metric, 0.0, 1.0))
+        # Lower-is-better: exp decay.  AbsRel ~0.05 → 0.95; ~0.3 → 0.74
+        return float(np.exp(-max(self.task_metric, 0.0)))
+
+    def robustness(self) -> float:
+        """Normalise STR to [0, 1] where 1 = perfectly robust."""
+        return float(np.clip(1.0 - abs(self.str_score), 0.0, 1.0))
+
+
+@dataclass
+class DeploymentReadinessResult:
+    """Platform-independent Deployment Readiness Score (DRS).
+
+    Answers: *"How much deployment-ready value does this model deliver
+    per unit of computational cost?"*
+
+    .. math::
+
+        \\text{DRS} = \\text{TP} \\times \\text{R} \\times \\text{E}
+
+    where:
+
+    - **TP** (Task Performance): primary metric normalised to [0, 1].
+    - **R** (Robustness): ``1 − |STR|``, penalises fragile models.
+    - **E** (Efficiency): ``1 / (1 + log₂(FLOPs / F_median))``,
+      anchored to the median FLOPs across all models in the sweep.
+
+    All components are hardware-agnostic.  The reader projects cost
+    to their platform via ``latency = FLOPs / GPU_peak_TFLOPS``.
+
+    Attributes
+    ----------
+    operating_points : list of OperatingPoint
+        All evaluated (precision, metric, cost) points for this model.
+    best_op : OperatingPoint
+        Operating point with the highest DRS.
+    tp : float
+        Task performance of best_op, in [0, 1].
+    r : float
+        Robustness of best_op, in [0, 1].
+    e : float
+        Efficiency of best_op, in [0, 1].
+    drs : float
+        ``tp * r * e``, the headline score.
+    f_median_g : float
+        Median FLOPs (giga) across the sweep — the efficiency anchor.
+    """
+
+    operating_points: list
+    best_op: OperatingPoint | None
+    tp: float
+    r: float
+    e: float
+    drs: float
+    f_median_g: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {
+            "drs": self.drs,
+            "tp": self.tp,
+            "r": self.r,
+            "e": self.e,
+            "f_median_g": self.f_median_g,
+            "n_operating_points": len(self.operating_points),
+        }
+        if self.best_op is not None:
+            d["best_precision"] = self.best_op.precision
+            d["best_flops_g"] = self.best_op.flops_g
+            d["best_params_m"] = self.best_op.params_m
+            d["best_task_metric"] = self.best_op.task_metric
+            d["best_task_metric_name"] = self.best_op.task_metric_name
+        return d
+
+
+def _efficiency_score(flops_g: float, f_median_g: float) -> float:
+    """Log-scaled efficiency in (0, 1], anchored to the sweep median.
+
+    Uses a sigmoid-like mapping on the log-ratio:
+
+    .. math::
+
+        E = \\frac{1}{1 + (F / F_{\\text{median}})^{\\,\\alpha}}
+
+    with α = 1 (linear in the ratio).  This gives:
+
+    - At median FLOPs → E = 0.50
+    - At 2× median   → E = 0.33
+    - At ½ median     → E = 0.67
+    - At 10× median  → E = 0.09
+    - At 0.1× median → E = 0.91
+
+    Monotonically decreasing, always in (0, 1], no log-domain
+    singularities.
+    """
+    if f_median_g <= 0 or flops_g <= 0:
+        return 0.0
+    ratio = flops_g / f_median_g
+    return float(1.0 / (1.0 + ratio))
+
+
+def compute_drs(
+    operating_points: list[OperatingPoint],
+    f_median_g: float,
+) -> DeploymentReadinessResult:
+    """Compute the platform-independent Deployment Readiness Score.
+
+    Parameters
+    ----------
+    operating_points : list of OperatingPoint
+        One or more (precision, metric, cost) measurements for the
+        model.  Typically 1–3 (FP32, FP16, BF16).
+    f_median_g : float
+        Median FLOPs (giga) across all models in the sweep.  This
+        anchors the efficiency scale so it's benchmark-relative, not
+        arbitrary.  Compute once per sweep, pass to every model.
+
+    Returns
+    -------
+    DeploymentReadinessResult
+    """
+    if not operating_points:
+        return DeploymentReadinessResult(
+            operating_points=[],
+            best_op=None,
+            tp=0.0, r=0.0, e=0.0, drs=0.0,
+            f_median_g=f_median_g,
+        )
+
+    # Score each operating point and pick the best DRS
+    best_op = None
+    best_drs = -1.0
+    best_tp = 0.0
+    best_r = 0.0
+    best_e = 0.0
+
+    for op in operating_points:
+        tp = op.task_performance()
+        r = op.robustness()
+        e = _efficiency_score(op.flops_g, f_median_g)
+        drs = tp * r * e
+        if drs > best_drs:
+            best_drs = drs
+            best_op = op
+            best_tp = tp
+            best_r = r
+            best_e = e
+
+    return DeploymentReadinessResult(
+        operating_points=operating_points,
+        best_op=best_op,
+        tp=best_tp,
+        r=best_r,
+        e=best_e,
+        drs=max(best_drs, 0.0),
+        f_median_g=f_median_g,
+    )
+
+
+def compute_sweep_drs(
+    models: Dict[str, list[OperatingPoint]],
+) -> Dict[str, DeploymentReadinessResult]:
+    """Compute DRS for an entire sweep of models.
+
+    The median FLOPs is computed across all models' operating points,
+    then used as the efficiency anchor for every model.
+
+    Parameters
+    ----------
+    models : dict
+        ``{model_name: [OperatingPoint, ...]}``
+
+    Returns
+    -------
+    dict
+        ``{model_name: DeploymentReadinessResult}``
+    """
+    # Collect all FLOPs across the sweep for the median anchor
+    all_flops = []
+    for ops in models.values():
+        for op in ops:
+            all_flops.append(op.flops_g)
+
+    if not all_flops:
+        f_median_g = 1.0  # fallback
+    else:
+        f_median_g = float(np.median(all_flops))
+
+    results = {}
+    for name, ops in models.items():
+        results[name] = compute_drs(ops, f_median_g)
+
+    return results
 
 
 def _warp_depth_approx(

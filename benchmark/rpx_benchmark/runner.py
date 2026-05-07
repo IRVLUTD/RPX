@@ -187,6 +187,7 @@ class BenchmarkRunner:
         efficiency: EfficiencyMetadata | None = None,
         compute_ts: bool = True,
         compute_sgc_flag: bool = True,
+        skip_flops: bool = False,
         progress: Optional[ProgressCallback] = None,
     ) -> tuple[BenchmarkResult, DeploymentReadinessReport]:
         """Run benchmark and compute all deployment-readiness metrics.
@@ -197,6 +198,10 @@ class BenchmarkRunner:
             efficiency: pre-computed EfficiencyMetadata (params, FLOPs).
             compute_ts: whether to compute Temporal Stability (needs sequential frames).
             compute_sgc_flag: whether to compute SGC (needs both seg + depth predictions).
+            skip_flops: skip the first-batch FLOP counter.  Useful for
+                high-VRAM models on small GPUs where the FLOP-counter
+                dispatch metadata alone may cause OOM even though
+                inference fits.
 
         Returns:
             (BenchmarkResult, DeploymentReadinessReport)
@@ -227,10 +232,18 @@ class BenchmarkRunner:
         first_batch = True
         for batch in self.dataset:
             t0 = time.perf_counter()
-            if first_batch:
-                flops_g, predictions = _count_flops_of(self.model.predict, batch)
-                if flops_g is not None and len(batch) > 0:
-                    first_batch_flops_g = flops_g / len(batch)
+            if first_batch and not skip_flops:
+                # Count FLOPs on a single sample to avoid scaling
+                # the FLOP-counter dispatch overhead by batch size.
+                # FLOPs are per-sample, so counting on one is enough.
+                single = [batch[0]]
+                flops_g, _ = _count_flops_of(self.model.predict, single)
+                first_batch_flops_g = flops_g  # already per-sample
+                # Now run the full batch normally (timed)
+                predictions = self.model.predict(batch)
+                first_batch = False
+            elif first_batch and skip_flops:
+                predictions = self.model.predict(batch)
                 first_batch = False
             else:
                 predictions = self.model.predict(batch)
@@ -333,6 +346,31 @@ class BenchmarkRunner:
         peak_mb_vals = [v for v in memory_peaks.values() if v is not None]
         peak_memory_mb = max(peak_mb_vals) if peak_mb_vals else None
 
+        # Ensure derived Tier-1 fields (MACs, traffic, AI) are populated
+        # now that flops_g may have been filled by the FLOP counter above.
+        eff.derive_tier1()
+
+        # Compute Tier-2 roofline bounds if we have enough data
+        if eff.flops_g is not None and eff.roofline is None:
+            eff.compute_roofline()
+
+        # Serialise roofline bounds for the report
+        roofline_dict = None
+        if eff.roofline:
+            from dataclasses import asdict
+            roofline_dict = {
+                name: {
+                    "compute_ms": b.compute_ms,
+                    "memory_ms": b.memory_ms,
+                    "latency_ms": b.latency_ms,
+                    "bottleneck": b.bottleneck,
+                }
+                for name, b in eff.roofline.items()
+            }
+
+        # Serialise system card if present
+        system_card_dict = eff.system_card.to_dict() if eff.system_card else None
+
         report = DeploymentReadinessReport(
             task=self.model.task.value,
             model_name=model_name,
@@ -340,24 +378,57 @@ class BenchmarkRunner:
             temporal_stability=ts_result,
             state_transition=str_result,
             geometric_coherence=sgc_result,
+            # Tier 1
             params_m=eff.params_m,
             flops_g=eff.flops_g,
+            macs_g=eff.macs_g,
             actmem_gb_fp16=eff.actmem_gb_fp16,
+            memory_traffic_gb=eff.memory_traffic_gb,
+            arithmetic_intensity=eff.arithmetic_intensity,
+            # Tier 2
+            roofline=roofline_dict,
+            # Tier 3
             latency_ms_per_sample=eff.latency_ms_per_sample,
             peak_memory_mb=peak_memory_mb,
+            system_card=system_card_dict,
         )
 
-        # Compose the Embodied Readiness Score. Look up the TaskSpec to
-        # know whether the primary metric is higher-is-better — the ERS
-        # normalisation flips direction on that.
+        # Compose the Embodied Readiness Score (legacy).
         higher_is_better = bool(getattr(spec, "higher_is_better", True))
         try:
             report.embodied_readiness = compute_embodied_readiness(
                 report, higher_is_better=higher_is_better,
             )
         except ValueError:
-            # All ERS components were None — rare, but don't block the
-            # run on a composite we can't compute.
             pass
+
+        # Build an OperatingPoint for the DRS (platform-independent).
+        # The full DRS (with F_median) is computed post-sweep via
+        # compute_sweep_drs(); here we store the raw operating point
+        # so downstream code has everything it needs.
+        from .deployment import OperatingPoint  # noqa: PLC0415
+        if wps is not None and eff.flops_g is not None:
+            # Precision: prefer the model's declared native_precision,
+            # fall back to the system card, default to fp32.
+            precision = (
+                getattr(self.model, "native_precision", None)
+                or (eff.system_card.get("precision", "fp32")
+                    if isinstance(eff.system_card, dict) else
+                    getattr(eff.system_card, "precision", "fp32")
+                    if eff.system_card else "fp32")
+            )
+            str_val = 0.0
+            if str_result is not None:
+                str_val = str_result.str_c_to_i or 0.0
+            report.operating_point = OperatingPoint(
+                precision=precision,
+                task_metric=wps.s_overall,
+                task_metric_name=primary_metric,
+                higher_is_better=higher_is_better,
+                str_score=str_val,
+                flops_g=eff.flops_g,
+                params_m=eff.params_m or 0.0,
+                memory_traffic_gb=eff.memory_traffic_gb,
+            )
 
         return result, report

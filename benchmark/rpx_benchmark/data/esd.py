@@ -68,7 +68,7 @@ except ImportError:  # pragma: no cover
     _HAS_CV2 = False
 
 
-# Names of the 18 features, in the order they appear in the appendix.
+# Names of the 31 features, in the order they appear in the appendix.
 # Tests should diff against this list to catch silent additions / renames.
 FEATURE_NAMES: Tuple[str, ...] = (
     # Annotation effort
@@ -81,11 +81,15 @@ FEATURE_NAMES: Tuple[str, ...] = (
     "depth_invalid", "depth_invalid_mask", "depth_std", "depth_std_mask",
     # Photometric--depth conflict (D435 RGB + invalid depth)
     "specular", "dark",
+    # Image quality (D435 RGB) — grounded in CEMS (Zhao et al. 2024)
+    "rgb_blur", "rgb_texture",
+    # Object size distribution
+    "mask_area_mean", "mask_area_std",
     # Temporal annotation stability
     "area_cv", "area_drop", "vis_instability",
-    # Camera motion
+    # Camera motion (MAD-filtered)
     "trans_mean", "trans_p90", "rot_mean", "rot_p90", "jerk",
-    # Fisheye / stereo (T265 fisheye pairs) — 0.0 if no fisheye dir present
+    # Fisheye / stereo (T265 fisheye pairs) — NaN if no fisheye dir present
     "fisheye_dark", "fisheye_bright", "fisheye_sharpness",
     "fisheye_corr", "fisheye_texture",
 )
@@ -379,17 +383,37 @@ def _quat_angle(q1: np.ndarray, q2: np.ndarray) -> float:
     return float(2.0 * np.arccos(dot))
 
 
+def _mad_filter(arr: np.ndarray, k: float = 5.0) -> np.ndarray:
+    """Median-absolute-deviation outlier filter.
+
+    Replaces values more than ``k`` MADs from the median with the median.
+    This removes T265 pose jumps (relocalization spikes) that would
+    otherwise dominate jerk and trans_p90.
+    """
+    if arr.size < 3:
+        return arr
+    med = float(np.median(arr))
+    mad = float(np.median(np.abs(arr - med)))
+    if mad == 0:
+        return arr  # constant or near-constant signal
+    threshold = med + k * mad * 1.4826  # 1.4826 ≈ consistency constant for normal
+    out = arr.copy()
+    out[out > threshold] = med
+    return out
+
+
 def _camera_motion_from_arrays(
     positions: np.ndarray, quats: np.ndarray,
 ) -> Dict[str, float]:
-    """Camera motion features.
+    """Camera motion features with MAD outlier filtering.
 
     - ``trans_mean`` / ``trans_p90``: per-frame translation magnitude (m)
     - ``rot_mean`` / ``rot_p90``: per-frame rotation angle (rad)
     - ``jerk``: mean |Δtranslation_{t+1} - Δtranslation_t| (m/frame²)
 
-    The p90 features (old paper §3.5 eqs 20, 22) capture heavy-tail motion
-    spikes; mean features alone hide brief but extreme camera jerks.
+    T265 VIO can produce occasional pose jumps from tracking-loss events;
+    MAD filtering removes these before computing statistics so they don't
+    dominate the p90 and jerk features.
     """
     if positions.shape[0] < 2:
         return {"trans_mean": 0.0, "trans_p90": 0.0,
@@ -401,6 +425,9 @@ def _camera_motion_from_arrays(
         [_quat_angle(quats[i], quats[i + 1]) for i in range(quats.shape[0] - 1)],
         dtype=np.float64,
     )
+    # MAD-filter to remove T265 relocalization spikes.
+    delta_t = _mad_filter(delta_t)
+    delta_r = _mad_filter(delta_r)
     jerk = np.abs(np.diff(delta_t)) if delta_t.size >= 2 else np.zeros(0)
 
     return {
@@ -515,11 +542,13 @@ def _pearson_corr_2d(a: np.ndarray, b: np.ndarray) -> Optional[float]:
 def _fisheye_features(phase_dir: Path) -> Dict[str, float]:
     """Compute the 5 fisheye features for one (scene, phase).
 
-    Returns all-zero dict if no fisheye dir / no decodable frames found.
+    Returns all-NaN dict if no fisheye dir / no decodable frames found,
+    so that percentile normalization can exclude missing scenes instead of
+    biasing them toward low difficulty.
     Logs a warning when stereo pairs are missing (``fisheye_corr`` then
-    aggregates only over frames that DO have pairs; if none, → 0).
+    aggregates only over frames that DO have pairs; if none, → NaN).
     """
-    empty = {name: 0.0 for name in _FISHEYE_FEATURE_NAMES}
+    empty = {name: float('nan') for name in _FISHEYE_FEATURE_NAMES}
     stems, left_paths, right_paths = _discover_fisheye(phase_dir / "fisheye")
     if not stems:
         return empty
@@ -584,8 +613,16 @@ def _scene_phase_from_dir(phase_dir: Path) -> Tuple[str, int]:
     return scene_id, phase_idx
 
 
+# Features that should be NaN (not 0) when their modality is absent.
+_NAN_WHEN_ABSENT: frozenset = frozenset({
+    "fisheye_dark", "fisheye_bright", "fisheye_sharpness",
+    "fisheye_corr", "fisheye_texture",
+})
+
+
 def _empty_features() -> Dict[str, float]:
-    return {k: 0.0 for k in FEATURE_NAMES}
+    return {k: (float('nan') if k in _NAN_WHEN_ABSENT else 0.0)
+            for k in FEATURE_NAMES}
 
 
 def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
@@ -625,6 +662,8 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     depth_std_mask_per_frame = np.full(T, np.nan, dtype=np.float64)  # NaN → no valid depth in mask
     spec_frac           = np.zeros(T, dtype=np.float64)
     dark_frac           = np.zeros(T, dtype=np.float64)
+    rgb_blur_per_frame  = np.zeros(T, dtype=np.float64)   # Laplacian variance
+    rgb_tex_per_frame   = np.zeros(T, dtype=np.float64)   # gradient magnitude mean
     bboxes_per_frame: List[Dict[int, Tuple[int, int, int, int]]] = []
     # Per-frame dense bincount of mask values (length varies by frame max ID);
     # zipped at the end into a (T, max_id) matrix for area_cv / vis_instability.
@@ -660,6 +699,10 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
         # ── Photometric-conflict features ─────────────────────────────────
         spec_frac[t] = float(((rgb_luma > _SPECULAR_LUMA_MIN) & invalid).mean())
         dark_frac[t] = float(((rgb_luma < _DARK_LUMA_MAX)     & invalid).mean())
+
+        # ── Image quality (D435 RGB) — grounded in CEMS (Zhao et al. 2024) ──
+        rgb_blur_per_frame[t] = _laplacian_var(rgb_luma)
+        rgb_tex_per_frame[t]  = _gradient_magnitude_mean(rgb_luma)
 
         # ── Mask-derived features (one bincount per frame, reused 3×) ─────
         flat = mask.ravel()
@@ -726,8 +769,40 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     feats["specular"] = float(spec_frac.mean())
     feats["dark"]     = float(dark_frac.mean())
 
-    # ── Temporal stability: build dense (T, max_id) area matrix ──────────
+    # ── Image quality (D435 RGB) ─────────────────────────────────────
+    feats["rgb_blur"]    = float(rgb_blur_per_frame.mean())
+    feats["rgb_texture"] = float(rgb_tex_per_frame.mean())
+
+    # ── Compute max_id once for reuse by object-size and temporal-stability ─
     max_id = max((int(c.size - 1) for c in bincount_per_frame if c.size > 1), default=0)
+
+    # ── Object size distribution ────────────────────────────────────
+    # Per-instance mean mask area fraction (over frames where visible),
+    # then mean/std across instances. Small objects are universally harder.
+    if max_id >= 1 and T > 0:
+        _frame_pixels = bincount_per_frame[0].sum() if bincount_per_frame else 1
+        _areas_for_size = np.zeros((T, max_id), dtype=np.int64)
+        for _t, _c in enumerate(bincount_per_frame):
+            _n = min(int(_c.size) - 1, max_id)
+            if _n > 0:
+                _areas_for_size[_t, :_n] = _c[1:1 + _n]
+        _present = _areas_for_size > 0
+        _per_inst_mean = []
+        for _j in range(max_id):
+            _vis = _areas_for_size[:, _j][_present[:, _j]]
+            if _vis.size > 0:
+                _per_inst_mean.append(float(_vis.mean()) / max(_frame_pixels, 1))
+        if _per_inst_mean:
+            feats["mask_area_mean"] = float(np.mean(_per_inst_mean))
+            feats["mask_area_std"]  = float(np.std(_per_inst_mean))
+        else:
+            feats["mask_area_mean"] = 0.0
+            feats["mask_area_std"]  = 0.0
+    else:
+        feats["mask_area_mean"] = 0.0
+        feats["mask_area_std"]  = 0.0
+
+    # ── Temporal stability: build dense (T, max_id) area matrix ──────────
     if max_id >= 1:
         areas = np.zeros((T, max_id), dtype=np.int64)
         for t, c in enumerate(bincount_per_frame):
@@ -746,8 +821,13 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     # rgb/depth/mask/pose modalities streamed above) ─────────────────────
     feats.update(_fisheye_features(phase_dir))
 
-    # Stable column order matching FEATURE_NAMES; missing keys treated as 0.
-    feats = {k: float(feats.get(k, 0.0)) for k in FEATURE_NAMES}
+    # Stable column order matching FEATURE_NAMES.
+    # Missing fisheye features → NaN (not 0) so percentile normalization
+    # can exclude them instead of biasing toward low difficulty.
+    feats = {
+        k: float(feats.get(k, float('nan') if k in _NAN_WHEN_ABSENT else 0.0))
+        for k in FEATURE_NAMES
+    }
 
     return PhaseFeatures(
         scene_id=scene_id, phase=phase_idx,

@@ -17,6 +17,10 @@ tour.
 from . import exceptions, logging_utils, metrics  # noqa: F401 — side-effect registrations
 from . import hub
 from .adapters import (
+    BatchedDepthBenchmarkModel,
+    BatchedRelativePoseBenchmarkModel,
+    BatchedSegmentationBenchmarkModel,
+    BatchedTaskBenchmarkModel,
     BenchmarkableModel,
     InputAdapter,
     OutputAdapter,
@@ -75,8 +79,12 @@ from .deployment import (
     compute_temporal_stability_depth,
     compute_temporal_stability_seg,
     compute_weighted_phase_score,
+    DeploymentReadinessResult,
+    OperatingPoint,
+    compute_drs,
+    compute_sweep_drs,
 )
-from .determinism import deterministic, seed_all
+from .determinism import RPX_SEED, deterministic, seed_all
 from .evaluators import BenchmarkResult, MetricSuite
 from .exceptions import (
     AdapterError,
@@ -100,9 +108,14 @@ from .loader import RPXDataset
 from .logging_utils import configure_logging, get_logger
 from .profiler import (
     EfficiencyMetadata,
+    GPUSpec,
     LatencyProfiler,
     MemoryProfiler,
+    REFERENCE_GPUS,
+    RooflineBound,
+    SystemCard,
     count_parameters,
+    estimate_memory_traffic_gb,
     profile_model,
 )
 from .reports import format_markdown_summary, write_json
@@ -180,6 +193,11 @@ __all__ = [
     "make_numpy_mask_model", "make_numpy_nvs_model",
     "make_numpy_pose_model", "make_numpy_sparse_depth_model",
     "make_numpy_tracking_model",
+    # Batched-dispatch wrappers (true GPU batching, not stock per-sample loop)
+    "BatchedTaskBenchmarkModel",
+    "BatchedDepthBenchmarkModel",
+    "BatchedSegmentationBenchmarkModel",
+    "BatchedRelativePoseBenchmarkModel",
     # Task runners
     "MonocularDepthRunConfig", "run_monocular_depth",
     "SegmentationRunConfig", "run_segmentation",
@@ -198,7 +216,7 @@ __all__ = [
     # Logging
     "logging_utils", "get_logger", "configure_logging",
     # Determinism
-    "seed_all", "deterministic",
+    "seed_all", "deterministic", "RPX_SEED",
     # Plugin systems
     "metrics",
 ]

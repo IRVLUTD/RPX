@@ -72,6 +72,8 @@ FEATURE_CATEGORIES: Dict[str, Tuple[str, ...]] = {
     "depth_quality":        ("depth_invalid", "depth_invalid_mask",
                              "depth_std", "depth_std_mask"),
     "photometric_conflict": ("specular", "dark"),
+    "image_quality":        ("rgb_blur", "rgb_texture"),
+    "object_size":          ("mask_area_mean", "mask_area_std"),
     "temporal_stability":   ("area_cv", "area_drop", "vis_instability"),
     "camera_motion":        ("trans_mean", "trans_p90", "rot_mean",
                              "rot_p90", "jerk"),
@@ -174,9 +176,9 @@ def effort_stratified_weights(
         iter_mean = iter_max = α / |effort_features|
         other features       = (1 − α) / (F − |effort_features|)
 
-    With ``alpha = 0.25`` (default) and 27 features (2 effort + 25 other),
+    With ``alpha = 0.25`` (default) and 31 features (2 effort + 29 other),
     iter features each carry 12.5 % of the score (25 % combined); each of the
-    25 perception features carries 3 % (75 % combined). At ``alpha = 0`` the
+    29 perception features carries ~2.6 % (75 % combined). At ``alpha = 0`` the
     weighting reduces to uniform over the perception features only; at
     ``alpha = 1`` the score depends only on annotation effort.
     """
@@ -263,6 +265,11 @@ def percentile_normalize(matrix: np.ndarray) -> np.ndarray:
     ``matrix`` shape ``(N, F)``. Output same shape, values in ``[0, 1]``.
     Constant columns (zero variance) are mapped to all-0.5 — informationless
     but non-degenerate; downstream scoring handles them gracefully.
+
+    NaN values (e.g., fisheye features for scenes without fisheye data) are
+    ranked only among non-NaN entries, then set to 0.5 (midpoint) in the
+    output. This prevents missing-modality scenes from being systematically
+    biased toward low difficulty.
     """
     if matrix.ndim != 2:
         raise ConfigError(f"percentile_normalize expects 2D array, got shape {matrix.shape}",
@@ -271,19 +278,27 @@ def percentile_normalize(matrix: np.ndarray) -> np.ndarray:
     out = np.empty_like(matrix, dtype=np.float64)
     for j in range(n_cols):
         col = matrix[:, j]
-        if np.unique(col).size <= 1:
-            out[:, j] = 0.5  # constant column → uninformative midpoint
+        valid_mask = ~np.isnan(col)
+        valid = col[valid_mask]
+        n_valid = valid.size
+
+        if n_valid == 0 or np.unique(valid).size <= 1:
+            out[:, j] = 0.5  # all-NaN or constant → uninformative midpoint
             continue
-        # Average rank handles ties symmetrically; rank ∈ [1, N], normalise to (0, 1].
-        order = np.argsort(col, kind="mergesort")
-        ranks = np.empty(n_rows, dtype=np.float64)
-        ranks[order] = np.arange(1, n_rows + 1, dtype=np.float64)
+
+        # Rank only the non-NaN entries.
+        order = np.argsort(valid, kind="mergesort")
+        ranks = np.empty(n_valid, dtype=np.float64)
+        ranks[order] = np.arange(1, n_valid + 1, dtype=np.float64)
         # Average ranks for tied values.
-        for v in np.unique(col):
-            idx = np.where(col == v)[0]
+        for v in np.unique(valid):
+            idx = np.where(valid == v)[0]
             if idx.size > 1:
                 ranks[idx] = ranks[idx].mean()
-        out[:, j] = ranks / n_rows
+
+        # Write ranked values back; NaN entries get 0.5 (neutral midpoint).
+        out[:, j] = 0.5
+        out[valid_mask, j] = ranks / n_valid
     return out
 
 

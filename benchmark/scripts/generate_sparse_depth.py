@@ -72,7 +72,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--local-root", required=True, type=Path)
     parser.add_argument("--num-samples", type=int, default=256)
-    parser.add_argument("--seed", type=int, default=42)
+    # Default to the project-wide canonical seed (MMDDYYYY 05/06/2026).
+    from rpx_benchmark.determinism import RPX_SEED
+    parser.add_argument("--seed", type=int, default=RPX_SEED)
     parser.add_argument("--stride", type=int, default=5,
                         help="Emit a manifest entry every Nth frame")
     args = parser.parse_args()

@@ -164,7 +164,9 @@ def main() -> int:
     parser.add_argument("--local-root", required=True, type=Path)
     parser.add_argument("--intrinsics", type=Path, default=None)
     parser.add_argument("--num-points", type=int, default=512)
-    parser.add_argument("--seed", type=int, default=42)
+    # Default to the project-wide canonical seed (MMDDYYYY 05/06/2026).
+    from rpx_benchmark.determinism import RPX_SEED
+    parser.add_argument("--seed", type=int, default=RPX_SEED)
     parser.add_argument("--occlusion-threshold", type=float, default=0.05,
                         help="Max |d_reproj - d_observed| (m) still counted visible")
     parser.add_argument("--min-t", type=float, default=0.05)
