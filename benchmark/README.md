@@ -176,7 +176,73 @@ out_mask}, plus `per_object_aggregated_with_ci` (instance-weighted),
 each with the same 95%-CI shape as `timing.metrics_with_ci`.
 
 
-### 3. Aggregate the sweep into the paper table
+### 3. Run the relative-pose benchmark (RCPE — Jishnu / pose lead)
+
+```bash
+PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split <easy|medium|hard> \
+    --save-predictions --comprehensive-metrics --upload-to-box
+```
+
+10 model keys registered. Each adapter raises a clear `ImportError` on
+construct when its optional package isn't installed, so the registry
+loads cleanly even on a bare environment.
+
+| `--model <key>`    | Source                                                      | `native_alignment` | Precision |
+|---------------------|------------------------------------------------------------|--------------------|-----------|
+| `reloc3r`           | `siyan824/reloc3r-512` (PyPI `reloc3r`)                     | `none`             | fp16      |
+| `dust3r`            | `naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt`                 | `none`             | fp16      |
+| `mast3r`            | `naver/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric`    | `none`             | fp16      |
+| `far`               | github `crockwell/far` (CVPR 2024)                          | `none`             | fp32      |
+| `srpose`            | github `frank-mengfei/SRPose` (ECCV 2024)                   | `unit`             | fp32      |
+| `nope_sac`          | github `IRMVLab/NOPE-SAC` (TPAMI 2023)                      | `unit`             | fp32      |
+| `mickey`            | github `nianticlabs/mickey` (CVPR 2024 Oral)                | `none`             | fp16      |
+| `loftr`             | `kornia.feature.LoFTR` + OpenCV `findEssentialMat`           | `unit`             | fp16      |
+| `opencv_baseline`   | SIFT + ratio-test + USAC-MAGSAC `recoverPose`                | `unit`             | fp32      |
+| `icp_open3d`        | Colored ICP (RGBD) — Open3D                                  | `none`             | fp64      |
+
+`native_alignment="unit"` declares that the adapter recovers
+translation only up-to-scale (essential-matrix decomposition); the
+metrics post-processor uses `translation_angular_deg` for those models
+and `translation_l2` for the metric ones.
+
+**Optional install extras:**
+```bash
+pip install kornia opencv-contrib-python   # loftr, opencv_baseline
+pip install open3d                          # icp_open3d
+pip install reloc3r                         # reloc3r
+# dust3r / mast3r / far / srpose / nope_sac / mickey: clone upstream repo + checkpoint
+```
+
+Per-run output lands under `rpx_results/<DisplayName>/<split>/`:
+- `result.json` — primary metric (`rotation_error_deg`), DRS report, timing CIs.
+- `summary.md` — human-readable.
+- `pose_comprehensive_metrics.json` — full pose basket (rotation +
+  translation L2 + translation angular + pose_error_max_deg + AUC@5°/10°/20°,
+  with 95% CIs, by-phase, by-stride breakdown).
+- `predictions.csv` — single CSV when `--save-predictions`. Columns:
+  `scene_id, phase, frame_a, frame_b, R00..R22, tx, ty, tz` (16 cols,
+  resume-safe — header written exactly once).
+
+Box mirror (when `--upload-to-box`):
+`<box_root>/relative_pose/<DisplayName>/<split>/...` matches the local
+tree exactly. Idempotent (size-matched skip on re-upload).
+
+#### Run all 10 across all 3 splits
+
+```bash
+for split in easy medium hard; do
+  for model in $(PYTHONPATH=.:scripts python3 -c \
+       "from pose_models import list_models; print(' '.join(list_models()))"); do
+    PYTHONPATH=. python scripts/run_relative_pose.py \
+        --model "$model" --split "$split" \
+        --save-predictions --comprehensive-metrics --upload-to-box \
+      || echo "[skip] $model/$split — see traceback above"
+  done
+done
+```
+
+
+### 4. Aggregate the sweep into the paper table
 
 ```bash
 # After every model has run on a split:
@@ -189,7 +255,7 @@ Outputs: `rpx_results/_sweep/drs_<split>.{csv,json}` and
 multiplicative `TP × R × E` headline metric — see
 `paper-submission/latex/drs_section.tex` for the axiomatization.
 
-### 4. Where to look
+### 5. Where to look
 
 | Channel | When to consult |
 |---|---|
