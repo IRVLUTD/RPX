@@ -66,7 +66,9 @@ def _run_via_local_manifest(
     max_samples: int | None,
     save_predictions: bool,
 ):
-    from local_manifest import build_local_manifest
+    import json as _json
+
+    from local_manifest import _hf_snapshot_root
 
     from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
     from rpx_benchmark.api import TaskType
@@ -85,16 +87,32 @@ def _run_via_local_manifest(
     device = resolve_device(device)
     print(f"[pose-pipeline] task=relative_pose split={split} device={device}")
 
-    # Build a paired manifest. local_manifest currently routes through the
-    # same _RelativePoseSpec writer the dataset_hub uses, so the entry
-    # shape (rgb, rgb_b, pose_a, pose_b, metadata) is loader-correct.
-    res = build_local_manifest(
-        task="relative_pose",
-        split=split,
-        repo_id=repo_id,
-        max_samples=max_samples,
+    # The canonical manifest shipped from HF (`manifests/relative_pose/<split>.json`)
+    # already has the paired structure (`rgb`, `rgb_b`, `pose_a`, `pose_b`,
+    # `metadata`) + the correct TaskType name (`relative_camera_pose`),
+    # produced by the dataset_hub `_RelativePoseSpec` writer. Use it directly:
+    # paths inside are relative to <snap>/, so we pass `root=<snap>` to
+    # `RPXDataset.from_dict`.
+    snap = _hf_snapshot_root(repo_id)
+    canonical = snap / "manifests" / "relative_pose" / f"{split}.json"
+    if not canonical.is_file():
+        from rpx_benchmark.exceptions import DatasetError
+
+        raise DatasetError(
+            f"missing canonical pose manifest at {canonical}",
+            hint=f"Run `rpx.load('relative_pose', '{split}')` first to "
+            "populate the HF snapshot, or run "
+            "`python -m rpx_benchmark.dataset_hub.cli manifest --tasks relative_pose`.",
+        )
+    with canonical.open("r", encoding="utf-8") as f:
+        manifest = _json.load(f)
+    if max_samples is not None:
+        manifest["samples"] = manifest["samples"][:max_samples]
+    manifest["root"] = str(snap)
+    print(
+        f"[pose-pipeline] manifest: {canonical}  ({len(manifest['samples'])} pairs"
+        f"{f', capped at --max-samples={max_samples}' if max_samples else ''})"
     )
-    print(f"[pose-pipeline] manifest: {res.manifest_path}  ({res.n_samples} pairs)")
 
     out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +123,7 @@ def _run_via_local_manifest(
         name=name,
         save_dir=pred_dir,
     )
-    dataset = RPXDataset.from_manifest(res.manifest_path, batch_size=batch_size)
+    dataset = RPXDataset.from_dict(manifest, batch_size=batch_size)
     print(
         f"[pose-pipeline] batch_size={batch_size}  predictions_csv="
         f"{(out_dir / 'predictions.csv') if save_predictions else 'n/a'}"
@@ -258,10 +276,10 @@ def main() -> None:
         from pose_comprehensive_metrics import compute_run
 
         snap = _hf_snapshot_root(args.repo)
-        manifest_path = snap / "extracted" / "manifests" / "relative_pose" / f"{args.split}.json"
+        manifest_path = snap / "manifests" / "relative_pose" / f"{args.split}.json"
         csv_path = paths["predictions_csv"]
         print(f"\n=== comprehensive pose metrics ===")
-        extras = compute_run(csv_path, manifest_path)
+        extras = compute_run(csv_path, manifest_path, snapshot_root=snap)
         out = paths["out_dir"] / "pose_comprehensive_metrics.json"
         import json as _json
 

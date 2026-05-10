@@ -276,7 +276,10 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
         per-pair ``.npz`` files. Columns: scene_id, phase, frame_a,
         frame_b, the 9 rotation entries (row-major) and 3 translation
         components. Header is written exactly once per file (on the
-        first append to an empty / non-existent log).
+        first append to an empty / non-existent log). Idempotent on
+        ``(scene, phase, frame_a, frame_b)`` within a single process so
+        the runner's deployment-readiness double pass (warmup + measure)
+        doesn't duplicate rows.
         """
         if self._save_dir is None:
             return
@@ -287,6 +290,12 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
         phase = meta.get("phase_idx") if meta.get("phase_idx") is not None else "0"
         frame_a = meta.get("frame") or str(sample.id)
         frame_b = meta.get("frame_b") or "?"
+
+        seen = self.__dict__.setdefault("_pose_csv_seen", set())
+        key = (scene, str(phase), frame_a, frame_b)
+        if key in seen:
+            return
+        seen.add(key)
 
         if isinstance(model_output, dict):
             rot = np.asarray(model_output["rotation"], dtype=np.float64)

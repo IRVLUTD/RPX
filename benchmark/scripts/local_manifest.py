@@ -67,13 +67,31 @@ TASK_MODALITIES = {
 
 # Path inside the tar where each modality's frames live.
 # E.g. rgb.tar contains "rgb/00000.png", depth.tar contains "depth/00000.png",
-# masks/v1.tar contains "masks/00000.png".
+# masks/v1.tar contains "masks/00000.png", cam_pose/v1.tar contains
+# "cam_pose/00000.npz".
 TAR_MEMBER_DIR = {
     "rgb": "rgb",
     "depth": "depth",
     "masks": "masks",
     "cam_pose": "cam_pose",
 }
+
+# parquet's `frame_filename` is always `<idx>.png`. For modalities whose
+# tar shards use a different extension (cam_pose pickles SE(3) into .npz),
+# swap before lookup. Default is to use frame_filename verbatim.
+TAR_MEMBER_EXT = {
+    "cam_pose": ".npz",
+}
+
+
+def _member_filename(modality: str, frame_filename: str) -> str:
+    """Translate parquet's frame_filename → the actual filename inside the
+    modality's tar. Identity for png modalities; ``.npz`` for cam_pose."""
+    ext = TAR_MEMBER_EXT.get(modality)
+    if ext is None:
+        return frame_filename
+    stem = frame_filename.rsplit(".", 1)[0]
+    return f"{stem}{ext}"
 
 
 def _hf_snapshot_root(repo_id: str = "itaykadosh/rpx-test") -> Path:
@@ -264,8 +282,9 @@ def build_local_manifest(
         }
         for m in modalities:
             tar_path = snap / row[f"shard_{m}"]
-            member_name = f"{TAR_MEMBER_DIR.get(m, m)}/{frame}"
-            out_path = _modality_out_path(extracted, scene, phase, m, frame)
+            fname = _member_filename(m, frame)
+            member_name = f"{TAR_MEMBER_DIR.get(m, m)}/{fname}"
+            out_path = _modality_out_path(extracted, scene, phase, m, fname)
             if not out_path.exists():
                 tf = handles[tar_path]
                 f = tf.extractfile(member_name)
