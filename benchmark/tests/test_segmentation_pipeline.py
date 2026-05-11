@@ -153,7 +153,7 @@ def test_segmentation_perfect_prediction_yields_miou_one(synthetic_seg_dataset):
         synthetic_seg_dataset,
         MetricSuite.for_task(TaskType.OBJECT_SEGMENTATION),
     )
-    result, dr = runner.run_with_deployment_readiness(
+    result, dr = runner.run_with_report(
         primary_metric="miou",
         model_name="perfect",
         compute_ts=False,
@@ -173,7 +173,7 @@ def test_segmentation_runner_attaches_metadata(synthetic_seg_dataset):
         synthetic_seg_dataset,
         MetricSuite.for_task(TaskType.OBJECT_SEGMENTATION),
     )
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="miou",
         model_name="unit",
         compute_ts=False,
@@ -190,7 +190,7 @@ def test_segmentation_wrong_prediction_has_nonzero_error(synthetic_seg_dataset):
         synthetic_seg_dataset,
         MetricSuite.for_task(TaskType.OBJECT_SEGMENTATION),
     )
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="miou",
         model_name="allbg",
         compute_ts=False,

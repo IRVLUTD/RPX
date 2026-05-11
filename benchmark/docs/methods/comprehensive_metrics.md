@@ -329,12 +329,22 @@ Published for three reference GPUs: A100-80GB, RTX 4090, Jetson Orin 64GB. Custo
 
 ### Composite + Deployment Metrics
 
+> **Policy (2026-05-11).** RPX reports each model on **three
+> independent axes** — task performance, scene-change robustness,
+> compute cost — and never collapses them into a single composite
+> score. The paper's central finding is that *rankings disagree across
+> axes*. The historical composite scores (DRS, ERS) **have been
+> removed** from the toolkit; the per-axis components they used to
+> combine remain the canonical reporting surface. See
+> [`../../SHARED_CONTEXT.md`](../../SHARED_CONTEXT.md) for the policy
+> log.
+
 | Metric | Description | Status |
 |--------|-------------|--------|
-| **Deployment Readiness Score (DRS)** | Platform-independent: TP × R × E. TP = task accuracy [0,1]; R = 1-\|STR\| [0,1]; E = 1/(1 + FLOPs/F_median) [0,1]. Multiplicative — zero in any component kills the score. Median-anchored efficiency means no arbitrary budgets. | ✅ Implemented |
-| **Embodied Readiness Score (ERS)** | Legacy composite of accuracy + robustness + latency + memory + compute (hardware-dependent) | ✅ Implemented (superseded by DRS for paper) |
-| **Temporal Stability** | Consistency across consecutive frames | ✅ Implemented (depth, seg) |
-| **Geometric Coherence (SGC)** | Depth <-> segmentation consistency | ✅ Implemented (seg) |
+| **Deployment Readiness Score (DRS)** | *Historical:* `TP × R × E`. TP = task performance [0,1]; R = 1-\|STR\| [0,1]; E = 1/(1 + FLOPs/F_median) [0,1]. Multiplicative composite. | ❌ **Removed** — hid axis-level disagreement. |
+| **Embodied Readiness Score (ERS)** | *Historical:* weighted composite of accuracy + robustness + latency + memory + compute. | ❌ **Removed** — same reasoning. |
+| **Temporal Stability** | Consistency across consecutive frames | ✅ Implemented (depth, seg) — part of the scene-change-robustness axis. |
+| **Geometric Coherence (SGC)** | Depth <-> segmentation consistency | ✅ Implemented (seg) — part of the scene-change-robustness axis. |
 | **TensorRT/ONNX compatibility** | Binary: can the model be exported? | Manual flag |
 | **Warm-up frames** | How many frames until stable predictions | Temporal models |
 

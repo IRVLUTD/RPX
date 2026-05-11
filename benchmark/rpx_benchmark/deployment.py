@@ -148,63 +148,6 @@ class WeightedPhaseScore:
 
 
 @dataclass
-class EmbodiedReadinessScore:
-    """Single-number rank for deployment on an embodied platform.
-
-    Composes accuracy + robustness + latency + memory + compute cost
-    into one scalar in ``[0, 1]`` (higher = more deploy-ready). The
-    five components are reported alongside the composite so users can
-    see exactly which axis a model fails on.
-
-    All component scores are in ``[0, 1]`` with 1 = best. Missing
-    components (``None``) are dropped and the remaining weights are
-    re-normalised.
-    """
-
-    score: float  # composite ERS in [0, 1]
-    accuracy: float  # task accuracy in [0, 1]
-    robustness: float | None = None  # TS + STR mean in [0, 1]
-    latency: float | None = None  # 1 − p50_lat / budget, clipped
-    memory: float | None = None  # 1 − peak_mem / budget, clipped
-    compute: float | None = None  # 1 − flops / budget, clipped
-    weights: Dict[str, float] = field(default_factory=dict)
-    budgets: Dict[str, float] = field(default_factory=dict)
-
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "score": self.score,
-            "accuracy": self.accuracy,
-            "robustness": self.robustness,
-            "latency": self.latency,
-            "memory": self.memory,
-            "compute": self.compute,
-            "weights": dict(self.weights),
-            "budgets": dict(self.budgets),
-        }
-
-
-#: Default weights for :func:`compute_embodied_readiness`. Sum to 1.0.
-DEFAULT_ERS_WEIGHTS: Dict[str, float] = {
-    "accuracy": 0.40,
-    "robustness": 0.20,
-    "latency": 0.20,
-    "memory": 0.10,
-    "compute": 0.10,
-}
-
-#: Default embodied-robot budgets — tune for your platform.
-#:
-#: - ``latency_ms``: 100 ms = 10 Hz control loop.
-#: - ``memory_mb``: 8 GB — roughly an Orin-class SoM or a laptop GPU.
-#: - ``flops_g``:   500 GFLOPs — order-of-magnitude edge-inference budget.
-DEFAULT_ERS_BUDGETS: Dict[str, float] = {
-    "latency_ms": 100.0,
-    "memory_mb": 8000.0,
-    "flops_g": 500.0,
-}
-
-
-@dataclass
 class DeploymentReadinessReport:
     """Aggregated deployment-readiness report for a model on a task."""
 
@@ -231,9 +174,8 @@ class DeploymentReadinessReport:
     peak_memory_mb: float | None = None  # peak resident memory (device-agnostic)
     system_card: Dict | None = None  # SystemCard.to_dict()
 
-    # --- Composite --------------------------------------------------------
-    embodied_readiness: EmbodiedReadinessScore | None = None
-    operating_point: "OperatingPoint | None" = None  # for DRS (compute_sweep_drs post-sweep)
+    # --- Operating point (precision × accuracy × cost triple) -------------
+    operating_point: "OperatingPoint | None" = None
 
     def summary(self) -> Dict[str, Any]:
         out: Dict[str, Any] = {"task": self.task, "model": self.model_name}
@@ -267,133 +209,7 @@ class DeploymentReadinessReport:
             out["peak_memory_mb"] = self.peak_memory_mb
         if self.system_card is not None:
             out["system_card"] = self.system_card
-        # Composite
-        if self.embodied_readiness is not None:
-            out["embodied_readiness_score"] = self.embodied_readiness.score
         return out
-
-
-def _default_accuracy(wps_overall: float, higher_is_better: bool) -> float:
-    """Map a weighted phase score onto ``[0, 1]`` given a metric direction.
-
-    - ``higher_is_better`` (mIoU, PSNR, accuracy, MOTA): clip to [0, 1].
-    - lower is better (AbsRel, RMSE, rotation error): ``exp(-wps)`` —
-      smooth decay, hits ``1`` at zero error and ~0.37 at error=1.
-
-    Callers who want a task-specific normalisation (e.g. "depth is
-    useful under 10% relative error") should pass ``accuracy=`` to
-    :func:`compute_embodied_readiness` directly.
-    """
-    if higher_is_better:
-        return float(np.clip(wps_overall, 0.0, 1.0))
-    return float(np.exp(-max(wps_overall, 0.0)))
-
-
-def _budget_component(value: float | None, budget: float) -> float | None:
-    """Return ``1 − value/budget`` clipped to ``[0, 1]``, or ``None``."""
-    if value is None or budget <= 0:
-        return None
-    return float(np.clip(1.0 - value / budget, 0.0, 1.0))
-
-
-def compute_embodied_readiness(
-    report: DeploymentReadinessReport,
-    *,
-    higher_is_better: bool = True,
-    weights: Dict[str, float] | None = None,
-    budgets: Dict[str, float] | None = None,
-    accuracy: float | None = None,
-) -> EmbodiedReadinessScore:
-    """Fold a :class:`DeploymentReadinessReport` into a single ERS.
-
-    Parameters
-    ----------
-    report : DeploymentReadinessReport
-        Report whose fields we score. Missing components (``None``)
-        drop out of the average; remaining weights are re-normalised.
-    higher_is_better : bool, default True
-        Whether the task's primary metric is higher-is-better. Only
-        consulted when ``accuracy`` isn't passed explicitly.
-    weights : dict, optional
-        Per-component weights (keys: ``accuracy``, ``robustness``,
-        ``latency``, ``memory``, ``compute``). Defaults to
-        :data:`DEFAULT_ERS_WEIGHTS`.
-    budgets : dict, optional
-        Hardware budgets (keys: ``latency_ms``, ``memory_mb``,
-        ``flops_g``). Defaults to :data:`DEFAULT_ERS_BUDGETS`.
-    accuracy : float, optional
-        Pre-computed accuracy in ``[0, 1]``. When ``None``, falls back
-        to :func:`_default_accuracy` against
-        ``report.weighted_phase_score.s_overall``.
-
-    Returns
-    -------
-    EmbodiedReadinessScore
-    """
-    w = dict(DEFAULT_ERS_WEIGHTS)
-    if weights:
-        w.update(weights)
-    b = dict(DEFAULT_ERS_BUDGETS)
-    if budgets:
-        b.update(budgets)
-
-    if accuracy is None:
-        wps = report.weighted_phase_score
-        accuracy = _default_accuracy(
-            wps.s_overall if wps is not None else 0.0,
-            higher_is_better=higher_is_better,
-        )
-
-    ts = report.temporal_stability.ts_score if report.temporal_stability else None
-    str_drop = (
-        -report.state_transition.str_c_to_i if report.state_transition else None
-    )  # Drop is negative → invert so larger number = worse → clip separately below.
-    if ts is not None and str_drop is not None:
-        # STR drop ∈ (-∞, +∞); convert to "robustness-ok" via 1 - |drop|, clipped.
-        str_ok = float(np.clip(1.0 - abs(str_drop), 0.0, 1.0))
-        robustness: float | None = float(np.clip((ts + str_ok) / 2.0, 0.0, 1.0))
-    elif ts is not None:
-        robustness = float(np.clip(ts, 0.0, 1.0))
-    elif str_drop is not None:
-        robustness = float(np.clip(1.0 - abs(str_drop), 0.0, 1.0))
-    else:
-        robustness = None
-
-    latency = _budget_component(report.latency_ms_per_sample, b["latency_ms"])
-    memory = _budget_component(report.peak_memory_mb, b["memory_mb"])
-    compute = _budget_component(report.flops_g, b["flops_g"])
-
-    components: Dict[str, float | None] = {
-        "accuracy": accuracy,
-        "robustness": robustness,
-        "latency": latency,
-        "memory": memory,
-        "compute": compute,
-    }
-    active = {k: v for k, v in components.items() if v is not None}
-    if not active:
-        from .exceptions import MetricError  # noqa: PLC0415 — lazy to avoid cycle
-
-        raise MetricError(
-            "Embodied Readiness Score has no active components — the deployment report is empty.",
-            hint="Run `BenchmarkRunner.run_with_deployment_readiness` "
-            "to populate accuracy / robustness / efficiency fields "
-            "before calling compute_embodied_readiness.",
-        )
-
-    total_weight = sum(w[k] for k in active)
-    score = sum(w[k] * active[k] for k in active) / total_weight
-
-    return EmbodiedReadinessScore(
-        score=float(np.clip(score, 0.0, 1.0)),
-        accuracy=accuracy,
-        robustness=robustness,
-        latency=latency,
-        memory=memory,
-        compute=compute,
-        weights=w,
-        budgets=b,
-    )
 
 
 # ------------------------------------------------------------------ #
@@ -715,16 +531,19 @@ def _warp_mask_approx(
 
 
 # ================================================================== #
-# Platform-Independent Deployment Readiness Score (DRS)
+# Operating point (precision × accuracy × cost triple, no composite)
 # ================================================================== #
 
 
 @dataclass
 class OperatingPoint:
-    """One (precision, accuracy, cost) measurement for a model.
+    """One (precision, accuracy, cost) triple for a model.
 
-    A model may have multiple operating points — e.g., FP32 and FP16.
-    The DRS selects the best one.
+    A model can publish multiple operating points — e.g. fp32, fp16,
+    int8 — each reported separately on the three RPX axes (task
+    accuracy, scene-change robustness, compute cost). RPX does not
+    combine these into a single composite score: the reader picks the
+    operating point and the axis their deployment cares about.
     """
 
     precision: str  # "fp32", "fp16", "bf16"
@@ -738,205 +557,6 @@ class OperatingPoint:
     flops_g: float
     params_m: float
     memory_traffic_gb: float | None = None
-
-    def task_performance(self) -> float:
-        """Normalise task metric to [0, 1] where 1 = best."""
-        if self.higher_is_better:
-            return float(np.clip(self.task_metric, 0.0, 1.0))
-        # Lower-is-better: exp decay.  AbsRel ~0.05 → 0.95; ~0.3 → 0.74
-        return float(np.exp(-max(self.task_metric, 0.0)))
-
-    def robustness(self) -> float:
-        """Normalise STR to [0, 1] where 1 = perfectly robust."""
-        return float(np.clip(1.0 - abs(self.str_score), 0.0, 1.0))
-
-
-@dataclass
-class DeploymentReadinessResult:
-    """Platform-independent Deployment Readiness Score (DRS).
-
-    Answers: *"How much deployment-ready value does this model deliver
-    per unit of computational cost?"*
-
-    .. math::
-
-        \\text{DRS} = \\text{TP} \\times \\text{R} \\times \\text{E}
-
-    where:
-
-    - **TP** (Task Performance): primary metric normalised to [0, 1].
-    - **R** (Robustness): ``1 − |STR|``, penalises fragile models.
-    - **E** (Efficiency): ``1 / (1 + log₂(FLOPs / F_median))``,
-      anchored to the median FLOPs across all models in the sweep.
-
-    All components are hardware-agnostic.  The reader projects cost
-    to their platform via ``latency = FLOPs / GPU_peak_TFLOPS``.
-
-    Attributes
-    ----------
-    operating_points : list of OperatingPoint
-        All evaluated (precision, metric, cost) points for this model.
-    best_op : OperatingPoint
-        Operating point with the highest DRS.
-    tp : float
-        Task performance of best_op, in [0, 1].
-    r : float
-        Robustness of best_op, in [0, 1].
-    e : float
-        Efficiency of best_op, in [0, 1].
-    drs : float
-        ``tp * r * e``, the headline score.
-    f_median_g : float
-        Median FLOPs (giga) across the sweep — the efficiency anchor.
-    """
-
-    operating_points: list
-    best_op: OperatingPoint | None
-    tp: float
-    r: float
-    e: float
-    drs: float
-    f_median_g: float
-
-    def to_dict(self) -> Dict[str, Any]:
-        d: Dict[str, Any] = {
-            "drs": self.drs,
-            "tp": self.tp,
-            "r": self.r,
-            "e": self.e,
-            "f_median_g": self.f_median_g,
-            "n_operating_points": len(self.operating_points),
-        }
-        if self.best_op is not None:
-            d["best_precision"] = self.best_op.precision
-            d["best_flops_g"] = self.best_op.flops_g
-            d["best_params_m"] = self.best_op.params_m
-            d["best_task_metric"] = self.best_op.task_metric
-            d["best_task_metric_name"] = self.best_op.task_metric_name
-        return d
-
-
-def _efficiency_score(flops_g: float, f_median_g: float) -> float:
-    """Log-scaled efficiency in (0, 1], anchored to the sweep median.
-
-    Uses a sigmoid-like mapping on the log-ratio:
-
-    .. math::
-
-        E = \\frac{1}{1 + (F / F_{\\text{median}})^{\\,\\alpha}}
-
-    with α = 1 (linear in the ratio).  This gives:
-
-    - At median FLOPs → E = 0.50
-    - At 2× median   → E = 0.33
-    - At ½ median     → E = 0.67
-    - At 10× median  → E = 0.09
-    - At 0.1× median → E = 0.91
-
-    Monotonically decreasing, always in (0, 1], no log-domain
-    singularities.
-    """
-    if f_median_g <= 0 or flops_g <= 0:
-        return 0.0
-    ratio = flops_g / f_median_g
-    return float(1.0 / (1.0 + ratio))
-
-
-def compute_drs(
-    operating_points: list[OperatingPoint],
-    f_median_g: float,
-) -> DeploymentReadinessResult:
-    """Compute the platform-independent Deployment Readiness Score.
-
-    Parameters
-    ----------
-    operating_points : list of OperatingPoint
-        One or more (precision, metric, cost) measurements for the
-        model.  Typically 1–3 (FP32, FP16, BF16).
-    f_median_g : float
-        Median FLOPs (giga) across all models in the sweep.  This
-        anchors the efficiency scale so it's benchmark-relative, not
-        arbitrary.  Compute once per sweep, pass to every model.
-
-    Returns
-    -------
-    DeploymentReadinessResult
-    """
-    if not operating_points:
-        return DeploymentReadinessResult(
-            operating_points=[],
-            best_op=None,
-            tp=0.0,
-            r=0.0,
-            e=0.0,
-            drs=0.0,
-            f_median_g=f_median_g,
-        )
-
-    # Score each operating point and pick the best DRS
-    best_op = None
-    best_drs = -1.0
-    best_tp = 0.0
-    best_r = 0.0
-    best_e = 0.0
-
-    for op in operating_points:
-        tp = op.task_performance()
-        r = op.robustness()
-        e = _efficiency_score(op.flops_g, f_median_g)
-        drs = tp * r * e
-        if drs > best_drs:
-            best_drs = drs
-            best_op = op
-            best_tp = tp
-            best_r = r
-            best_e = e
-
-    return DeploymentReadinessResult(
-        operating_points=operating_points,
-        best_op=best_op,
-        tp=best_tp,
-        r=best_r,
-        e=best_e,
-        drs=max(best_drs, 0.0),
-        f_median_g=f_median_g,
-    )
-
-
-def compute_sweep_drs(
-    models: Dict[str, list[OperatingPoint]],
-) -> Dict[str, DeploymentReadinessResult]:
-    """Compute DRS for an entire sweep of models.
-
-    The median FLOPs is computed across all models' operating points,
-    then used as the efficiency anchor for every model.
-
-    Parameters
-    ----------
-    models : dict
-        ``{model_name: [OperatingPoint, ...]}``
-
-    Returns
-    -------
-    dict
-        ``{model_name: DeploymentReadinessResult}``
-    """
-    # Collect all FLOPs across the sweep for the median anchor
-    all_flops = []
-    for ops in models.values():
-        for op in ops:
-            all_flops.append(op.flops_g)
-
-    if not all_flops:
-        f_median_g = 1.0  # fallback
-    else:
-        f_median_g = float(np.median(all_flops))
-
-    results = {}
-    for name, ops in models.items():
-        results[name] = compute_drs(ops, f_median_g)
-
-    return results
 
 
 def _warp_depth_approx(

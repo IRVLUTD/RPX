@@ -83,7 +83,28 @@ def write_json(
         "per_sample": result.per_sample,
     }
     if dr_report is not None:
-        payload["deployment_readiness"] = _to_jsonable(dr_report)
+        # Split the report into the three top-level RPX axes (no
+        # composite score; see SHARED_CONTEXT.md for the policy).
+        dr_json = _to_jsonable(dr_report)
+        payload["robustness"] = {
+            "weighted_phase_score": dr_json.get("weighted_phase_score"),
+            "temporal_stability":   dr_json.get("temporal_stability"),
+            "state_transition":     dr_json.get("state_transition"),
+            "geometric_coherence":  dr_json.get("geometric_coherence"),
+        }
+        payload["compute_cost"] = {
+            "params_m":              dr_json.get("params_m"),
+            "flops_g":               dr_json.get("flops_g"),
+            "macs_g":                dr_json.get("macs_g"),
+            "actmem_gb_fp16":        dr_json.get("actmem_gb_fp16"),
+            "memory_traffic_gb":     dr_json.get("memory_traffic_gb"),
+            "arithmetic_intensity":  dr_json.get("arithmetic_intensity"),
+            "roofline":              dr_json.get("roofline"),
+            "latency_ms_per_sample": dr_json.get("latency_ms_per_sample"),
+            "peak_memory_mb":        dr_json.get("peak_memory_mb"),
+            "system_card":           dr_json.get("system_card"),
+            "operating_point":       dr_json.get("operating_point"),
+        }
     if extra:
         payload["extra"] = extra
     with path.open("w", encoding="utf-8") as f:
@@ -187,27 +208,5 @@ def format_markdown_summary(
             lines += ["", "## Efficiency", "", "| metric | value |", "|---|---|"]
             for k, v in eff_rows:
                 lines.append(f"| {k} | {v} |")
-
-    if dr_report is not None and dr_report.embodied_readiness is not None:
-        ers = dr_report.embodied_readiness
-        lines += [
-            "",
-            "## Embodied Readiness Score",
-            "",
-            f"**ERS: {ers.score:.4f}** (higher = more deploy-ready)",
-            "",
-            "| component | score |",
-            "|---|---|",
-            f"| accuracy   | {ers.accuracy:.4f} |",
-        ]
-        for k in ("robustness", "latency", "memory", "compute"):
-            v = getattr(ers, k)
-            lines.append(f"| {k:<10} | {'—' if v is None else f'{v:.4f}'} |")
-        lines += [
-            "",
-            f"_weights_: {ers.weights}",
-            "",
-            f"_budgets_: {ers.budgets}",
-        ]
 
     return "\n".join(lines) + "\n"

@@ -32,7 +32,7 @@ def test_runner_attaches_per_sample_metadata(synthetic_depth_dataset):
         synthetic_depth_dataset,
         MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
     )
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="absrel",
         model_name="unit",
         compute_ts=False,
@@ -54,7 +54,7 @@ def test_perfect_prediction_yields_zero_error(synthetic_depth_dataset):
         synthetic_depth_dataset,
         MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
     )
-    result, dr = runner.run_with_deployment_readiness(
+    result, dr = runner.run_with_report(
         primary_metric="absrel",
         model_name="perfect",
         compute_ts=False,
@@ -81,7 +81,7 @@ def test_latency_skips_warmup_and_is_reasonable(synthetic_depth_dataset):
         synthetic_depth_dataset,
         MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
     )
-    _, dr = runner.run_with_deployment_readiness(
+    _, dr = runner.run_with_report(
         primary_metric="absrel",
         model_name="slow",
         compute_ts=False,
@@ -100,7 +100,7 @@ def test_reports_write_json_and_markdown(synthetic_depth_dataset, tmp_path: Path
         synthetic_depth_dataset,
         MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
     )
-    result, dr = runner.run_with_deployment_readiness(
+    result, dr = runner.run_with_report(
         primary_metric="absrel",
         model_name="perfect",
         compute_ts=False,
@@ -150,7 +150,7 @@ def test_progress_callback_fires_once_per_sample(synthetic_depth_dataset):
         synthetic_depth_dataset,
         MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
     )
-    runner.run_with_deployment_readiness(
+    runner.run_with_report(
         primary_metric="absrel",
         model_name="cb_test",
         compute_ts=False,
