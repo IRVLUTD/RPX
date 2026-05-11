@@ -6,7 +6,7 @@ One-page guide to running the canonical sequence on the full dataset.
 
 ```bash
 pip install -e 'benchmark[hub]'
-hf auth login                                    # for HF push (Itay)
+hf auth login                                    # for HF push
 export BOX_DEVELOPER_TOKEN='<60-min-token>'      # https://app.box.com/developers/console (refresh hourly)
 ```
 
@@ -100,7 +100,7 @@ PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split <easy|med
 
 `native_alignment` per adapter: `none` for metric translation, `unit`
 for essential-matrix decomposition (translation up-to-scale). Full
-table in [`README.md`](README.md#3-run-the-relative-pose-benchmark-rcpe--jishnu--pose-lead).
+table in [`README.md`](README.md#3-run-the-relative-pose-benchmark-rcpe).
 
 **Optional install extras**: `pip install kornia opencv-contrib-python`
 (loftr, opencv_baseline), `pip install open3d` (icp_open3d), `pip
@@ -154,10 +154,11 @@ Outputs land at `rpx_results/_sweep/drs_<split>.{csv,json}` and `sensitivity_<sp
 - **VQA recipe** is wired but emits zero entries (waits on the team's VQA label-generation pipeline). All 7 other tasks ship.
 - **Paired-task pair-stride** is fixed at 5 frames (matches `generate_keypoint_pairs.py`'s convention). Override via `_RelativePoseSpec.pair_stride` if needed.
 
-## 7. Coordination
+## 7. Sections by topic
 
-- **Itay**: §1 (HF upload).
-- **Naren / depth lead**: §2 (mono-depth sweep), §4 (DRS aggregation).
-- **Jishnu / pose lead**: §3 (RCPE sweep — 10 pose adapters).
-- **Paper / DRS theory + model survey (Feynman)**: see `docs/methods/` and `benchmark/SHARED_CONTEXT.md`.
-- **Pipeline plumbing, adapter rollout, Box upload**: maintained alongside this PR's surface.
+- §1 — HF dataset upload (one-time per dataset version).
+- §2 — Monocular-depth sweep (per-model + Box upload).
+- §3 — Relative-pose sweep (RCPE — 10 pose adapters).
+- §4 — Sweep aggregation (DRS table per split + sensitivity).
+- §5–6 — Quality gates + known limits.
+- Method/DRS background: see [`docs/methods/`](docs/methods/).

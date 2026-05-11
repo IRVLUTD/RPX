@@ -28,7 +28,7 @@ hf auth login                                    # for HF dataset push
 export BOX_DEVELOPER_TOKEN='<60-min-token>'      # https://app.box.com/developers/console (refresh hourly)
 ```
 
-### 1. Push the dataset to HuggingFace (Itay's path)
+### 1. Push the dataset to HuggingFace
 
 ```bash
 # Run once per dataset version, on the system that holds the ~890 GB captures.
@@ -49,7 +49,7 @@ into `<snapshot>/extracted/scenes/...` (no manual extraction step).
 
 Full details: [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/README.md).
 
-### 2. Run the depth benchmark (Naren / depth lead)
+### 2. Run the depth benchmark
 
 ```bash
 # Per model, per split. Add --upload-to-box to mirror the result dir to UTD Box.
@@ -176,7 +176,7 @@ out_mask}, plus `per_object_aggregated_with_ci` (instance-weighted),
 each with the same 95%-CI shape as `timing.metrics_with_ci`.
 
 
-### 3. Run the relative-pose benchmark (RCPE — Jishnu / pose lead)
+### 3. Run the relative-pose benchmark (RCPE)
 
 ```bash
 PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split <easy|medium|hard> \
