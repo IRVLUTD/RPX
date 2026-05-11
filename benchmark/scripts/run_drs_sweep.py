@@ -127,9 +127,27 @@ def main() -> None:
     )
     args = ap.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.setup("drs-sweep")
+    cli_ux.banner(
+        "DRS sweep — Deployment Readiness Score aggregator",
+        f"split: {args.split}",
+    )
+    cli_ux.config(
+        {
+            "results-root": args.results_root,
+            "split":        args.split,
+            "out-dir":      args.out_dir or (args.results_root / "_sweep"),
+            "sensitivity":  args.sensitivity,
+        }
+    )
+
     out_dir = args.out_dir or args.results_root / "_sweep"
-    print(f"[drs-sweep] split={args.split} reading from {args.results_root}")
-    models = _load_operating_points(args.results_root, args.split)
+
+    cli_ux.section("Loading operating points")
+    with cli_ux.working(f"reading result.json files under {args.results_root}"):
+        models = _load_operating_points(args.results_root, args.split)
     if not models:
         from rpx_benchmark import DatasetError
 
@@ -140,42 +158,49 @@ def main() -> None:
             "the runner persists OperatingPoint into result.json's "
             "deployment_readiness.operating_point.",
         )
-    print(
-        f"  loaded {sum(len(ops) for ops in models.values())} operating "
-        f"points across {len(models)} models"
-    )
+    n_ops = sum(len(ops) for ops in models.values())
+    cli_ux.step(f"loaded {n_ops} operating points across {len(models)} models")
 
+    cli_ux.section("Computing DRS (F_median = median across all OPs)")
     from rpx_benchmark import compute_sweep_drs
 
-    results = compute_sweep_drs(models)
-    print(f"  computed DRS for {len(results)} models (F_median = median across all OPs)")
+    with cli_ux.working(f"computing DRS for {len(models)} models"):
+        results = compute_sweep_drs(models)
 
     _write_drs_table(
         results,
         out_csv=out_dir / f"drs_{args.split}.csv",
         out_json=out_dir / f"drs_{args.split}.json",
     )
+    cli_ux.step(f"wrote {out_dir / f'drs_{args.split}.csv'}")
+    cli_ux.step(f"wrote {out_dir / f'drs_{args.split}.json'}")
 
     if args.sensitivity:
+        cli_ux.section("Sensitivity analysis")
         try:
             from rpx_benchmark.drs_sensitivity import run_sensitivity
         except ImportError:
-            print("  [skip] sensitivity: rpx_benchmark.drs_sensitivity not present")
+            cli_ux.warn("rpx_benchmark.drs_sensitivity not present — skipping")
         else:
-            print(f"[drs-sweep] running sensitivity analysis...")
-            sens = run_sensitivity(models)
+            with cli_ux.working("computing Kendall's τ across perturbations"):
+                sens = run_sensitivity(models)
             out = out_dir / f"sensitivity_{args.split}.json"
             from dataclasses import asdict, is_dataclass
 
             payload = asdict(sens) if is_dataclass(sens) else sens
             out.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
-            print(f"  wrote {out}")
+            cli_ux.step(f"wrote {out}")
 
-    # Headline print: top-3 DRS for the human reading the terminal.
-    print()
-    print(f"=== Top-3 by DRS (split={args.split}) ===")
-    for name, res in sorted(results.items(), key=lambda kv: -kv[1].drs)[:3]:
-        print(f"  {name:>32}  DRS={res.drs:.4f}  (TP={res.tp:.3f}  R={res.r:.3f}  E={res.e:.3f})")
+    # Headline summary: top-3 DRS for the human reading the terminal.
+    top3 = sorted(results.items(), key=lambda kv: -kv[1].drs)[:3]
+    cli_ux.summary(
+        {
+            f"{name}":
+                f"DRS={res.drs:.4f}  (TP={res.tp:.3f}  R={res.r:.3f}  E={res.e:.3f})"
+            for name, res in top3
+        },
+        title=f"Top-3 by DRS (split={args.split})",
+    )
 
 
 if __name__ == "__main__":

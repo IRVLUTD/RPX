@@ -443,40 +443,67 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     configure_logging(level="DEBUG" if args.verbose else "INFO")
 
+    from rpx_benchmark import cli_ux
+    cli_ux.banner(
+        "ESD splits — Stage 2 (tier assignment)",
+        f"features: {args.features}",
+    )
+
     if not args.features.is_file():
-        log.error("--features not found: %s", args.features)
+        cli_ux.error(f"--features not found: {args.features}")
         return 2
 
     out_dir = args.out_dir or args.features.parent
     log_file = args.log_file or (out_dir / "build_difficulty_splits.log")
     _attach_file_handler(log_file)
-    log.info("logging to %s", log_file)
-    log.info("features=%s out_dir=%s primary=%s weights=%s",
-             args.features, out_dir, args.primary,
-             args.weights_mi or "uniform")
 
+    cli_ux.config(
+        {
+            "features":            args.features,
+            "out-dir":             out_dir,
+            "primary":             args.primary,
+            "weighting":           args.weighting,
+            "effort-alpha":        args.effort_alpha,
+            "weights-mi":          args.weights_mi or "(uniform fallback)",
+            "seed":                args.seed,
+            "confidence samples":  args.confidence_n_perturb,
+            "log-file":            log_file,
+        }
+    )
+
+    cli_ux.section("Building splits")
     t0 = time.perf_counter()
     try:
-        payload = build_splits(
-            csv_path=args.features,
-            out_dir=out_dir,
-            primary=args.primary,
-            weights_mi_path=args.weights_mi,
-            seed=args.seed,
-            confidence_n_perturb=args.confidence_n_perturb,
-            weighting=args.weighting,
-            effort_alpha=args.effort_alpha,
-        )
+        with cli_ux.working("scoring + tertile cut + confidence sampling"):
+            payload = build_splits(
+                csv_path=args.features,
+                out_dir=out_dir,
+                primary=args.primary,
+                weights_mi_path=args.weights_mi,
+                seed=args.seed,
+                confidence_n_perturb=args.confidence_n_perturb,
+                weighting=args.weighting,
+                effort_alpha=args.effort_alpha,
+            )
     except SystemExit:
         raise
     except Exception:
         log.exception("fatal error")
+        cli_ux.error("fatal error; see logfile for traceback")
         return 3
 
     summary = payload["summary"]  # type: ignore[index]
-    log.info("DONE in %.1fs — n_entries=%d tertile_counts=%s",
-             time.perf_counter() - t0,
-             summary["n_entries"], summary["tertile_counts"])
+    duration = time.perf_counter() - t0
+    cli_ux.summary(
+        {
+            "entries":         summary["n_entries"],
+            "tertile counts":  summary["tertile_counts"],
+            "elapsed":         cli_ux.fmt_duration(duration),
+            "out-dir":         out_dir,
+            "logfile":         log_file,
+        },
+        title="DONE",
+    )
     return 0
 
 
