@@ -159,14 +159,20 @@ def _cli() -> None:
         return
 
     # Lazy import so --dry-run / --help work without BOX_DEVELOPER_TOKEN.
-    from box_fetch import upload_tree
+    from rpx_benchmark.box_upload import upload_run_dir
 
     totals = {"uploaded": 0, "skipped": 0, "bytes": 0, "runs_ok": 0, "runs_fail": 0}
     for out_dir, task, model, split in runs:
         remote = f"{task}/{model}/{split}"
         print(f"\n=== mirroring {out_dir} → box:{remote} ===")
         try:
-            r = upload_tree(out_dir, remote_path=remote, root_folder_id=args.box_folder_id)
+            r = upload_run_dir(
+                out_dir,
+                task=task,
+                model_name=model,
+                split=split,
+                root_folder_id=args.box_folder_id,
+            )
         except Exception as e:  # noqa: BLE001
             # Don't let one bad run stop the rest. Common cause: 401 if
             # the token aged past 60 min mid-sync.

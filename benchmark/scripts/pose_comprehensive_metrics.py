@@ -53,6 +53,10 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+# NumPy renamed ``trapz`` → ``trapezoid`` in 2.0 and removed the old name
+# entirely. Pick whichever exists so we work across both lines.
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined]
+
 
 # ─────────────────────────  thresholds  ────────────────────────────────────
 
@@ -125,7 +129,7 @@ def auc_pose_error(errors_deg: np.ndarray, thresholds: Tuple[float, ...]) -> Dic
         bins = np.linspace(0.0, float(thr), 101)
         cumulative = (e[None, :] <= bins[:, None]).sum(axis=1).astype(np.float64) / float(e.size)
         # Trapezoidal AUC under the curve, normalised to [0, 1] by dividing by thr.
-        auc = float(np.trapz(cumulative, bins) / float(thr))
+        auc = float(_trapezoid(cumulative, bins) / float(thr))
         out[f"auc_{thr:g}deg"] = auc
     return out
 
