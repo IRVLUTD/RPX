@@ -33,104 +33,91 @@ Readiness Score, all timing CIs, and the full metric basket.
 
 ---
 
-### 🧭 New to robotics? Read this first
+## Why RPX
 
-**What this repo is, in plain English.** A robot perceives the world
-through cameras. Different perception models (e.g. depth estimators,
-segmenters, pose estimators) work differently in *clean lab demos*
-than they do in *real, cluttered, human-shared environments*. RPX is
-a real-world dataset + benchmark to measure that gap honestly — so a
-roboticist picking a model knows which one will actually hold up when
-the robot is deployed.
+Perception models routinely lose 10–30% of their accuracy when they
+leave clean lab demos and meet cluttered, human-shared environments.
+RPX measures that gap on **99 indoor + outdoor scenes** — each captured
+in three phases (clutter → human-interaction → clean) — and scores
+every model on a single **Deployment Readiness Score** combining
+accuracy, robustness across phase changes, and FLOPs-anchored
+efficiency.
 
-**The data flow you'll see across this repo:**
+The dataset lives on HuggingFace. The toolkit is one `pip install`.
+Most users only ever touch `benchmark/`; capture and annotation exist
+to *produce* the dataset, not to consume it.
 
 ```
-   📷 1. CAPTURE              🎨 2. ANNOTATE            🧰 3. BENCHMARK
-   ─────────────              ──────────────            ────────────────
-   D435 (RGB + depth)         SAM2 + GroundingDINO      load → run model →
-   + T265 (6-DoF pose)   ──►  (per-frame instance  ──►  metrics + a single
-                              masks, human-approved)    Deployment Readiness
-                                                        Score
-        │                            │                          │
-        ▼                            ▼                          ▼
-   data_capture/                mask_pipeline/              benchmark/
-   (needs RealSense             (needs CUDA + a few         (any machine —
-    cameras plugged in;          minutes of human            pip install and
-    most users skip this)        review per scene)           run; this is
-                                                             the common case)
+   CAPTURE                 ANNOTATE                 BENCHMARK
+   ───────                 ────────                 ─────────
+   D435 + T265        →    SAM2 + GroundingDINO  →  load → score
+   RGB-D + 6-DoF pose      per-frame instance       DRS = TP × R × E
+                           masks (1 keyframe of
+                           human review per phase)
+
+   data_capture/           mask_pipeline/           benchmark/  ←  start here
 ```
-
-**Already have data? You only need the right-hand column (`benchmark/`).**
-Capture and annotation are how the data was *made*; you don't redo them
-to benchmark a model. The quickstart above is the right starting point.
-
-**Your first 30 minutes — recommended path for a newcomer:**
-
-1. **Run the quickstart above** (~5 min including download). You'll get
-   a `result.json` and a `summary.md`. Open them.
-2. **Skim** [`benchmark/README.md`](benchmark/README.md#bring-your-own-model)
-   → *Bring your own model*. Three lines wraps a numpy function as a
-   benchmarkable model.
-3. **Glance at** the glossary below for the acronyms (ESD, DRS, RCPE,
-   VIO, 6-DoF, phase, manifest, adapter). All defined in one place.
-4. **Pick a path** in the table below based on your goal.
-
-<details>
-<summary><b>📖 Key terms — every acronym used in this repo</b></summary>
-
-| Term | Meaning |
-|---|---|
-| **RGB-D** | Color image + per-pixel depth (distance from camera). The D435 captures both simultaneously. |
-| **Depth** | A grayscale-like image where each pixel value is the distance to the surface, in meters. The depth model's job: predict this from RGB alone. |
-| **6-DoF pose** | The full 3D position + 3D orientation of the camera (6 numbers). The T265 measures this in real-time. |
-| **VIO** | Visual-Inertial Odometry. The T265's algorithm fuses fisheye stereo + IMU to estimate 6-DoF pose at 200 Hz. |
-| **Phase** | One of three capture passes per scene: **clutter** (objects scattered messily), **interaction** (a human reaches into the scene), **clean** (organized state). RPX captures all three for the same scene to test phase-transition robustness. |
-| **ESD** | **E**ffort-**S**tratified **D**ifficulty. Splits the 99 scenes into easy/medium/hard by mixing a `perception_score` (how visually hard the scene is) with an `effort_score` (how much human labor the masks took). |
-| **DRS** | **D**eployment **R**eadiness **S**core. The single headline number: `DRS = TP × R × E` (Task Performance × Robustness × Efficiency). Lets you compare two models on accuracy *and* hardware cost in one number. |
-| **STR** | **S**tate-**T**ransition **R**obustness. How stable a model's output is across the clutter → interaction → clean phase changes of the same scene. |
-| **RCPE** | **R**elative **C**amera **P**ose **E**stimation. Given two RGB frames, estimate the relative 3D rotation + translation between them. One of the 10 benchmark tasks. |
-| **Adapter** | A small Python class that wraps your model so the toolkit can call it uniformly. Three flavors: HF checkpoint, numpy callable, custom class. |
-| **Manifest** | A JSON file that lists which scenes/frames/modalities belong to a given task + split. The loader reads it; you almost never write one by hand. |
-| **Split** | A named subset of the dataset (`easy`, `medium`, `hard`). All three phases of one scene always land in the same split (so STR is measurable). |
-| **BYO (model)** | "Bring Your Own" model. The toolkit ships reference adapters but the primary use case is plugging in *your* model. |
-| **Operating point** | One (precision × accuracy × FLOPs) triple for a model. A model can have several — fp32, fp16, int8 — and DRS picks the best. |
-| **HF** | HuggingFace — where the RPX dataset and most reference checkpoints live. |
-| **`rpx_results/<model>/<split>/`** | Where every script writes its output. `result.json` is the canonical artefact. |
-
-</details>
 
 ---
 
-### Pick your path
+## Get started
 
-|                                  |                                  |                                  |
-|----------------------------------|----------------------------------|----------------------------------|
-| 🧪 **Bring your own model**       | 🤖 **Run the canonical sweep**    | 🛠️  **Contribute**               |
-| Wrap a HuggingFace checkpoint or | Reproduce the full 19-depth +    | Add a task, a metric, an adapter.|
-| any numpy callable in one        | 10-pose sweep behind the paper.  | 552 tests · ruff + mypy clean.   |
-| function — three lines.          |                                  |                                  |
+|                                       |                                       |                                       |
+|---------------------------------------|---------------------------------------|---------------------------------------|
+| **Bring your own model**              | **Reproduce the paper sweep**         | **Contribute to the toolkit**         |
+| Wrap a HuggingFace checkpoint or any  | Run the full 19-depth + 10-pose       | Add a task, a metric, an adapter.     |
+| numpy callable in three lines.        | sweep behind the paper.               | 552 tests · ruff + mypy clean.        |
 | → [`benchmark/README`](benchmark/README.md#bring-your-own-model) | → [`benchmark/TEAM_LAUNCH.md`](benchmark/TEAM_LAUNCH.md) | → [`benchmark/docs/guides/`](benchmark/docs/guides/) |
 
-### How it works
+---
 
-📷 **Capture** real RGB-D + 6-DoF pose with a D435 + T265 rig, in three
-phases (clutter → interaction → clean) of the same scene, with pose
-logged at 200 Hz. → [`data_capture/`](data_capture/README.md)
+## How it works
 
-🎨 **Annotate** with SAM2 + GroundingDINO — a human operator approves
-the bounding boxes for one keyframe per phase; SAM2 propagates masks
-across the rest. → [`mask_pipeline/`](mask_pipeline/README.md)
+**Capture.** Intel RealSense D435 (RGB-D) and T265 (6-DoF VIO at
+200 Hz) record each scene through three phases — a cluttered initial
+state, a human-interaction pass, and a clean organised state — at
+synchronised frame rates. Same scene, three states.
+→ [`data_capture/`](data_capture/README.md)
 
-🧰 **Benchmark** any model against ESD-stratified easy/medium/hard
-splits and score it on a single Deployment Readiness number that
-combines accuracy, robustness, and FLOPs.
+**Annotate.** SAM2 propagates curated bounding boxes through every
+frame in a phase; a human operator approves one keyframe per phase.
+The output is per-frame instance masks aligned to a globally
+consistent object-ID mapping.
+→ [`mask_pipeline/`](mask_pipeline/README.md)
+
+**Benchmark.** Models run against ESD-stratified easy / medium / hard
+splits. Each run emits a `result.json` with the primary metric, the
+deployment-readiness components, and per-stage timing with 95%
+bootstrap CIs.
 → [`benchmark/`](benchmark/README.md)
 
 ---
 
 <details>
-<summary><b>📊 Tasks · metrics · deployment scoring</b></summary>
+<summary><b>Concepts and acronyms</b></summary>
+
+| Term | Meaning |
+|---|---|
+| **RGB-D** | Color image + per-pixel depth (distance from the camera, in metres). The D435 captures both simultaneously. |
+| **Depth** | A per-pixel distance map. The depth model's job: predict it from RGB alone. |
+| **6-DoF pose** | The camera's full 3D position + 3D orientation — six numbers per frame. The T265 measures this in real time. |
+| **VIO** | Visual-Inertial Odometry. The T265 fuses fisheye stereo + IMU to estimate 6-DoF pose at 200 Hz. |
+| **Phase** | One of three capture passes per scene: **clutter** (objects scattered), **interaction** (a human reaches in), **clean** (organised state). Same scene, three states — used to measure phase-transition robustness. |
+| **ESD** | Effort-Stratified Difficulty. Splits the 99 scenes into easy / medium / hard by mixing a `perception_score` (how visually hard the scene is) with an `effort_score` (how much human labor the masks took). |
+| **DRS** | Deployment Readiness Score: `DRS = TP × R × E` (Task Performance × Robustness × Efficiency). One number per model, comparing accuracy *and* hardware cost. |
+| **STR** | State-Transition Robustness. How stable a model's output is across the clutter → interaction → clean phase changes of the same scene. |
+| **RCPE** | Relative Camera Pose Estimation. Given two RGB frames, estimate the relative 3D rotation + translation between them. One of the 10 tasks. |
+| **Adapter** | A small Python class wrapping your model behind the toolkit's uniform interface. Three flavours: HF checkpoint, numpy callable, custom subclass. |
+| **Manifest** | A JSON listing the scenes / frames / modalities for a given task + split. The loader reads it; you almost never write one. |
+| **Split** | A named subset of the dataset (`easy`, `medium`, `hard`). All three phases of one scene always land in the same split so STR is measurable. |
+| **Operating point** | One (precision × accuracy × FLOPs) triple per model. A model can have several — fp32, fp16, int8 — and DRS picks the best. |
+| **HF** | HuggingFace — where the RPX dataset and most reference checkpoints live. |
+| **`rpx_results/<model>/<split>/`** | The canonical output directory. `result.json` is the load-bearing artefact. |
+
+</details>
+
+<details>
+<summary><b>Tasks · metrics · deployment scoring</b></summary>
 
 | | |
 |---|---|
@@ -160,7 +147,7 @@ in the methodology paper (kept local under `paper-submission/`).
 </details>
 
 <details>
-<summary><b>🗺️ Repository map</b></summary>
+<summary><b>Repository map</b></summary>
 
 ```text
 RPX/
@@ -195,7 +182,7 @@ piece of the system.
 </details>
 
 <details>
-<summary><b>🛠️ Data capture prerequisites (RealSense build)</b></summary>
+<summary><b>Data capture prerequisites — RealSense build</b></summary>
 
 Capturing new scenes requires the RealSense SDK built from source
 against v2.47.0 (T265 support was removed afterwards).
@@ -237,7 +224,7 @@ pip install pyrealsense2==2.47.0.3313
 </details>
 
 <details>
-<summary><b>🐳 Docker workflow</b></summary>
+<summary><b>Docker workflow</b></summary>
 
 For a fully reproducible environment (useful for CI, GPU setup,
 multi-machine replays) — see [`docker/`](docker/README.md) for full
@@ -258,7 +245,7 @@ and the mask-generation pipeline already installed.
 </details>
 
 <details>
-<summary><b>⚙️ CI · automated docs · paper</b></summary>
+<summary><b>CI · automated docs · paper</b></summary>
 
 | Workflow | What it does | When it runs |
 |---|---|---|
@@ -286,7 +273,7 @@ experiment tables live in the paper.
 </details>
 
 <details>
-<summary><b>🧪 Contributing · citation · license</b></summary>
+<summary><b>Contributing · citation · license</b></summary>
 
 Each subproject has its own contribution workflow:
 
@@ -315,4 +302,4 @@ scripts, mask generator, docker setup) is **MIT**. The RPX dataset
 
 ---
 
-<sub>📄 Paper: `paper-submission/` (local-only) · ⚖️ Code MIT · Dataset CC BY 4.0 · 🧪 PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md)</sub>
+<sub>Paper: `paper-submission/` (local-only) · Code MIT · Dataset CC BY 4.0 · PRs welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md)</sub>

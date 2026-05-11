@@ -12,14 +12,13 @@
 > come here if you're producing GT masks for newly captured scenes,
 > on a CUDA-capable annotation box.
 
-**What this code does, plain English.** Given a captured scene (raw
-RGB frames + depth), you need *instance masks* — for each frame, which
-pixels belong to which object. Doing this by hand is impossibly slow.
-The pipeline runs **GroundingDINO** to suggest bounding boxes on one
-keyframe per phase (open-vocabulary, no training needed), then **SAM2**
-turns each curated box into a pixel-accurate mask and propagates it
-through every other frame in the phase. A human only touches one frame
-per phase per scene; the rest is automatic.
+**What it does.** Per-frame instance masks are required ground truth
+for the benchmark, and labelling them by hand is impractical at RPX
+scale. The pipeline uses GroundingDINO to suggest open-vocabulary
+bounding boxes on one keyframe per phase, SAM2 to turn each curated
+box into a pixel-accurate mask, and SAM2's temporal propagation to
+extend that mask through every remaining frame in the phase. A human
+reviews one keyframe per phase per scene; the rest is automatic.
 
 ---
 

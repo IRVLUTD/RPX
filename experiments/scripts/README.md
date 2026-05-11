@@ -11,12 +11,12 @@
 > only come here if you're re-running the difficulty labelling on a
 > *new* capture, or studying the labelling methodology itself.
 
-**What this code does, plain English.** Once the dataset is captured
-and masked, every `(scene, phase)` gets scored on 27 features (how
-visually cluttered, how much depth variation, how many mask iterations
-it needed, etc.). The script mixes those into one number, sorts all
-scenes, and cuts them into Easy / Medium / Hard tiers — so when you
-benchmark, you can report numbers stratified by difficulty.
+**What it does.** Each `(scene, phase)` is scored on 27 features
+(visual clutter, depth variation, mask refinement iterations, etc.).
+The scores are combined into a single difficulty number, sorted, and
+cut into Easy / Medium / Hard tiers — so benchmark results can be
+reported stratified by difficulty rather than averaged into a single
+opaque number.
 
 ```
 DATA  →  Stage 1 (extract)  →  phase_esd_splits.csv

@@ -4,7 +4,7 @@
 > Every script is invocable as `PYTHONPATH=. python scripts/<name>.py`,
 > or via a `make` shortcut in the parent [`Makefile`](../Makefile).
 
-**What's in here, by use case (newcomer-friendly):**
+**What's in here, by use case:**
 
 | Use case | Go to |
 |---|---|

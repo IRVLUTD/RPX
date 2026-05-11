@@ -17,51 +17,34 @@ timing with 95% CIs.
 
 ---
 
-### 🚀 Your first benchmark in 5 minutes
-
-A hand-held walkthrough for someone who has never run this before.
+### Quickstart walkthrough
 
 ```bash
-# 1. Install the toolkit and the HuggingFace dataset extras.
 pip install 'rpx-benchmark[hub,depth]'
+hf auth login                      # only if the dataset repo is private
 
-# 2. (Optional) Log in to HuggingFace if the dataset repo is private.
-hf auth login
-
-# 3. Pick a small split and a small model so the first run is fast.
 rpx bench monocular_depth \
     --hf-checkpoint Intel/zoedepth-nyu-kitti \
     --split easy \
-    --max-samples 50      # cap to 50 frames for a smoke run
+    --max-samples 50               # smoke run on 50 frames
 ```
 
-That's it. You'll see the RPX splash, a per-stage progress bar, and a
-final summary panel. The toolkit will:
+The toolkit downloads the easy split into `~/.cache/huggingface/`
+(first run only), fetches the checkpoint, runs the model frame-by-frame,
+and writes `rpx_results/zoedepth-nyu-kitti/easy/{result.json, summary.md}`.
 
-- **Download** the easy split from HuggingFace into `~/.cache/huggingface/`
-  (first run only — subsequent runs are instant).
-- **Fetch the model** from HuggingFace (cached in `~/.cache/huggingface/`).
-- **Run** the model frame-by-frame, writing predictions to memory.
-- **Score** the predictions against the ground-truth depth and write
-  `rpx_results/zoedepth-nyu-kitti/easy/result.json` + `summary.md`.
-
-**What to look at first:**
-
-```bash
-cat rpx_results/zoedepth-nyu-kitti/easy/summary.md
-```
+`summary.md` is the load-bearing sanity check:
 
 ```text
-# zoedepth-nyu-kitti — easy
-Primary metric: AbsRel = 0.0848 (lower is better)
-                δ₁.₂₅  = 0.951  (higher is better; 0–1)
-DRS:            0.62    (TP=0.74, R=0.91, E=0.92)
-Latency:        158.5 ms / sample on RTX 5070 Laptop
+zoedepth-nyu-kitti — easy
+Primary:   AbsRel = 0.0848   (lower is better)
+           δ₁.₂₅  = 0.951    (higher is better)
+DRS:       0.62              (TP=0.74  R=0.91  E=0.92)
+Latency:   158.5 ms / sample (RTX 5070 Laptop)
 ```
 
-That single block is your sanity check: a number you can compare across
-models. If it ran, you have a working RPX install. Now move on to
-[**Bring your own model**](#bring-your-own-model) below.
+If those numbers print, your install is healthy. Move on to
+[**Bring your own model**](#bring-your-own-model).
 
 <details>
 <summary><b>Reading <code>result.json</code> — what every field means</b></summary>

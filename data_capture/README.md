@@ -11,11 +11,10 @@
 > instead. You only come here if you're physically plugging two Intel
 > RealSense cameras into a machine to record new scenes.
 
-**What this code does, plain English.** Two cameras stream into your
-USB ports: a D435 gives you color + depth at 30 fps, a T265 gives you
-the camera's 3D position and orientation at 200 Hz. This directory's
-scripts open both, time-synchronise their frames (within a chosen
-millisecond tolerance), and write one folder per scene with one file
+**What it does.** Two cameras stream over USB: a D435 produces RGB +
+depth at 30 fps, a T265 produces 6-DoF pose at 200 Hz. The scripts
+here open both, time-synchronise their frames within a configurable
+millisecond tolerance, and write one folder per scene with one file
 per modality per frame — the layout the rest of the toolkit expects.
 
 ---
