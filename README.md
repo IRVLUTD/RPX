@@ -9,7 +9,7 @@
 [![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue?logo=python&logoColor=white&style=flat-square)](https://pypi.org/project/rpx-benchmark/)
 [![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![ruff](https://img.shields.io/badge/lint-ruff-000000?logo=ruff&style=flat-square)](https://github.com/astral-sh/ruff)
-[![tests passing](https://img.shields.io/badge/tests-138%20passing-brightgreen?style=flat-square)](benchmark/tests/)
+[![tests passing](https://img.shields.io/badge/tests-552%20passing-brightgreen?style=flat-square)](benchmark/tests/)
 [![tasks](https://img.shields.io/badge/runnable%20tasks-9%20%2F%2010-brightgreen?style=flat-square)](benchmark/README.md#-available-tasks)
 [![dataset](https://img.shields.io/badge/dataset-RGB--D-6366f1?style=flat-square)](#-what-rpx-is)
 [![scope](https://img.shields.io/badge/scope-robot%20learning-ff69b4?style=flat-square)](https://github.com/IRVLUTD/RPX)
@@ -206,7 +206,7 @@ rpx models                # list registered adapters
 rpx bench --help          # list task subcommands (9 runnable)
 ```
 
-**138 tests**, 0 network deps, runs in under a second on CI.
+**552 tests**, 0 network deps, runs in under a second on CI.
 **9 of 10 tasks** are runnable end-to-end; only `object_tracking` is
 deferred pending a sequence-per-sample protocol decision.
 
@@ -282,10 +282,11 @@ and the mask-generation pipeline already installed.
 
 ## 📄 Paper
 
-The NeurIPS 2026 Datasets & Benchmarks submission lives under
-[`paper-submission/neurips-2026/`](paper-submission/neurips-2026/).
-The full model slate rationale, ESD formulation, three-phase
-protocol details, and experiment tables are in the paper.
+The NeurIPS 2026 Datasets & Benchmarks submission is under preparation.
+Paper drafts, briefs, and the overleaf project are kept **local-only**
+under `paper-submission/` on each contributor's box (not in this
+public repo). The full model slate rationale, ESD formulation,
+three-phase protocol details, and experiment tables are in the paper.
 
 ---
 
@@ -293,7 +294,7 @@ protocol details, and experiment tables are in the paper.
 
 | Workflow | What it does | When it runs |
 |---|---|---|
-| [`tests.yml`](.github/workflows/tests.yml) | 138-test pytest suite on Python 3.10 / 3.11 / 3.12 + ruff lint | push / PR touching `benchmark/**` |
+| [`tests.yml`](.github/workflows/tests.yml) | 552-test pytest suite on Python 3.10 / 3.11 / 3.12 + ruff lint | push / PR touching `benchmark/**` |
 | [`docs.yml`](.github/workflows/docs.yml) | `mkdocs build` + deploy to GitHub Pages | push to `main` touching `benchmark/docs/**` or `benchmark/rpx_benchmark/**` |
 
 ### One-time GitHub Pages setup
