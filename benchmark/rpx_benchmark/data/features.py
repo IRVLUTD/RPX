@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 try:
-    from datasets import Array2D, Features, Image, Sequence, Value
+    from datasets import Features, Image, Sequence, Value
 except ImportError as e:  # pragma: no cover — fail at import time
     raise ImportError(
         "rpx_benchmark.data.features requires the `datasets` library. "

@@ -302,6 +302,32 @@ print(paths["json"])                  # result.json
 Same shape for every task: `make_numpy_<task>_model(fn)` →
 `<TaskName>RunConfig(model=...)` → `run_<task>(cfg)`.
 
+#### Mirror outputs to Box automatically
+
+Every `TaskRunConfig` accepts `upload_to_box=True` so analysis artefacts
+(`result.json`, `summary.md`, comprehensive metrics, predictions) are
+pushed to Box right after the run finishes:
+
+```python
+cfg = rpx.MonocularDepthRunConfig(
+    model=model, split="hard",
+    upload_to_box=True,                      # off by default
+    # box_folder_id="380510613151",          # team's RPX-Outputs by default
+)
+result, report, paths = rpx.run_monocular_depth(cfg)
+print(paths["box_remote"])  # "monocular_depth/<name>/hard"
+```
+
+Requires `BOX_DEVELOPER_TOKEN` in the environment (60-min token from
+the Box developer console). Upload is **size-matched idempotent** — safe
+to re-run; files already on Box are skipped. If the upload fails
+(e.g. token expired mid-sweep) the local artefacts on disk are
+preserved and you can recover with the post-hoc sync helper:
+
+```bash
+PYTHONPATH=. python scripts/sync_results_to_box.py    # mirrors everything under rpx_results/
+```
+
 ### Three integration paths
 
 1. **Plain numpy callable.** Ten factories, one per task. Shown above.

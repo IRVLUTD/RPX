@@ -539,7 +539,7 @@ def main() -> None:
             print(f"    {k:>32}: {extras['aggregated'][k]:.4f}")
 
     if args.upload_to_box:
-        from box_fetch import upload_tree
+        from rpx_benchmark.box_upload import upload_run_dir
 
         out_dir = paths.get("out_dir")
         if out_dir is None:
@@ -551,10 +551,15 @@ def main() -> None:
                 "_run_via_official_pipeline / _run_via_local_manifest.",
             )
         # Box layout: <root>/monocular_depth/<model>/<split>/
-        name = getattr(model, "name", "model").replace("/", "__")
-        remote = f"monocular_depth/{name}/{args.split}"
-        print(f"\n=== uploading {out_dir} → Box:{remote} ===")
-        summary = upload_tree(Path(out_dir), remote_path=remote, root_folder_id=args.box_folder_id)
+        name = getattr(model, "name", "model")
+        print(f"\n=== uploading {out_dir} → Box:monocular_depth/{name}/{args.split} ===")
+        summary = upload_run_dir(
+            out_dir,
+            task="monocular_depth",
+            model_name=name,
+            split=args.split,
+            root_folder_id=args.box_folder_id,
+        )
         print(
             f"  uploaded: {summary['uploaded']} files ({_human_bytes(summary['bytes_uploaded'])})"
         )

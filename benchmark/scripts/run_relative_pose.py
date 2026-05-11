@@ -289,16 +289,21 @@ def main() -> None:
             print(f"  {k:>32}: {extras['aggregated'][k]:.4f}")
 
     if args.upload_to_box:
-        from box_fetch import upload_tree
+        from rpx_benchmark.box_upload import upload_run_dir
 
         out_dir = paths.get("out_dir")
         if out_dir is None:
             from rpx_benchmark.exceptions import ConfigError
 
             raise ConfigError("upload requested but no out_dir in artefacts")
-        remote = f"relative_pose/{name}/{args.split}"
-        print(f"\n=== uploading {out_dir} → Box:{remote} ===")
-        summary = upload_tree(Path(out_dir), remote_path=remote, root_folder_id=args.box_folder_id)
+        print(f"\n=== uploading {out_dir} → Box:relative_pose/{name}/{args.split} ===")
+        summary = upload_run_dir(
+            out_dir,
+            task="relative_pose",
+            model_name=name,
+            split=args.split,
+            root_folder_id=args.box_folder_id,
+        )
         print(
             f"  uploaded: {summary['uploaded']} files ({_human_bytes(summary['bytes_uploaded'])})"
         )

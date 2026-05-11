@@ -53,6 +53,15 @@ class TaskRunConfig:
     output_dir: Optional[str] = None
     progress: Optional[ProgressCallback] = None
 
+    #: When True, mirror the per-run output directory to UTD Box at
+    #: ``<box_folder_id>/<task>/<model>/<split>/`` after the run finishes.
+    #: Requires ``BOX_DEVELOPER_TOKEN`` in the environment. Idempotent
+    #: re-uploads (size-matched skip).
+    upload_to_box: bool = False
+    #: Box folder id to root the upload under. Defaults to the team's
+    #: RPX-Outputs folder. Unused unless ``upload_to_box=True``.
+    box_folder_id: Optional[str] = None
+
     def __post_init__(self) -> None:
         if self.model is None:
             raise ConfigError(
@@ -183,7 +192,40 @@ def run_pipeline(
     )
     log.info("wrote %s and %s", json_path, md_path)
 
-    return result, dr_report, {"json": json_path, "markdown": md_path}
+    paths: Dict[str, Path] = {"json": json_path, "markdown": md_path, "out_dir": out_dir}
+
+    if cfg.upload_to_box:
+        # Lazy import keeps Box deps (requests) out of the import path
+        # for users who never upload.
+        from ..box_upload import DEFAULT_BOX_FOLDER_ID, upload_run_dir
+
+        try:
+            summary = upload_run_dir(
+                out_dir,
+                task=task.value,
+                model_name=name,
+                split=split_name,
+                root_folder_id=cfg.box_folder_id or DEFAULT_BOX_FOLDER_ID,
+            )
+            log.info(
+                "box: %d uploaded, %d skipped → box:%s",
+                summary["uploaded"],
+                summary["skipped"],
+                summary["remote_path"],
+            )
+            paths["box_remote"] = summary["remote_path"]
+        except Exception as e:  # noqa: BLE001
+            # Don't lose the result.json on the floor just because the
+            # token expired — log loudly and continue.
+            log.error(
+                "Box upload failed (%s: %s) — local artefacts at %s are intact; "
+                "use `scripts/sync_results_to_box.py` to recover with a fresh token.",
+                type(e).__name__,
+                e,
+                out_dir,
+            )
+
+    return result, dr_report, paths
 
 
 __all__ = ["TaskRunConfig", "PipelineResult", "resolve_device", "run_pipeline"]

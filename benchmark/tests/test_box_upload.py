@@ -211,13 +211,13 @@ def fake_run_dir(tmp_path):
 @pytest.fixture
 def mock_box(monkeypatch):
     box = _MockBox()
-    import box_fetch  # noqa: PLC0415
+    from rpx_benchmark import box_upload  # noqa: PLC0415
 
     # Pretend a token is present so the auth path runs.
-    monkeypatch.setattr(box_fetch, "DEV_TOKEN", "mock-token-XXXX", raising=False)
-    monkeypatch.setattr(box_fetch, "_api_get", _mock_api_get(box))
-    monkeypatch.setattr(box_fetch, "_api_post", _mock_api_post(box))
-    monkeypatch.setattr(box_fetch, "_api_upload_file", _mock_upload_file(box))
+    monkeypatch.setattr(box_upload, "_token", lambda: "mock-token-XXXX")
+    monkeypatch.setattr(box_upload, "_api_get", _mock_api_get(box))
+    monkeypatch.setattr(box_upload, "_api_post", _mock_api_post(box))
+    monkeypatch.setattr(box_upload, "_api_upload_file", _mock_upload_file(box))
     return box
 
 
@@ -227,7 +227,7 @@ def mock_box(monkeypatch):
 def test_upload_tree_mirrors_scene_phase_layout(fake_run_dir, mock_box):
     """The exact tree on Box must match the user-asked
     ``monocular_depth/<model>/<split>/<scene>/<phase>/<frame>.npz`` shape."""
-    from box_fetch import upload_tree
+    from rpx_benchmark.box_upload import upload_tree
 
     summary = upload_tree(
         fake_run_dir,
@@ -264,7 +264,7 @@ def test_upload_tree_mirrors_scene_phase_layout(fake_run_dir, mock_box):
 def test_upload_tree_idempotent_on_rerun(fake_run_dir, mock_box):
     """Re-running upload_tree against the same local dir uploads zero
     new files (every file's Box copy already has the matching size)."""
-    from box_fetch import upload_tree
+    from rpx_benchmark.box_upload import upload_tree
 
     s1 = upload_tree(fake_run_dir, "monocular_depth/M/easy", root_folder_id="0", verbose=False)
     n_uploads_first = len(mock_box.uploads)
@@ -277,3 +277,98 @@ def test_upload_tree_idempotent_on_rerun(fake_run_dir, mock_box):
         f"second run hit upload endpoint {n_uploads_second - n_uploads_first} extra times"
     )
     assert s2["skipped"] == 11
+
+
+# ───────────────  upload_run_dir + TaskRunConfig wiring  ─────────────────
+
+
+def test_upload_run_dir_canonical_path(fake_run_dir, mock_box):
+    """``upload_run_dir`` always lays the canonical
+    ``<task>/<safe_model_name>/<split>/`` path under root_folder_id."""
+    from rpx_benchmark.box_upload import upload_run_dir
+
+    out = upload_run_dir(
+        fake_run_dir,
+        task="monocular_depth",
+        model_name="ZoeDepth_NK",
+        split="easy",
+        root_folder_id="0",
+        verbose=False,
+    )
+    assert out["remote_path"] == "monocular_depth/ZoeDepth_NK/easy"
+    # Every file made it (3 metadata + 8 predictions).
+    assert out["uploaded"] == 11
+
+
+def test_upload_run_dir_escapes_slash_in_model_name(fake_run_dir, mock_box):
+    """HF-style ``namespace/model`` names must collapse to one Box
+    folder, not nested folders that would split runs apart."""
+    from rpx_benchmark.box_upload import upload_run_dir
+
+    out = upload_run_dir(
+        fake_run_dir,
+        task="monocular_depth",
+        model_name="Intel/zoedepth-nyu-kitti",
+        split="hard",
+        root_folder_id="0",
+        verbose=False,
+    )
+    assert out["remote_path"] == "monocular_depth/Intel__zoedepth-nyu-kitti/hard"
+
+
+def test_token_required_raises_with_clear_hint(monkeypatch):
+    """Lazy token read must give a ConfigError that names the env var
+    rather than letting requests emit an auth-header error."""
+    from rpx_benchmark.box_upload import _token
+    from rpx_benchmark.exceptions import ConfigError
+
+    monkeypatch.delenv("BOX_DEVELOPER_TOKEN", raising=False)
+    with pytest.raises(ConfigError, match="BOX_DEVELOPER_TOKEN"):
+        _token()
+
+
+def test_task_run_config_defaults_box_off():
+    """Library-default must not surprise BYO users with a Box upload."""
+    from rpx_benchmark.adapters import BenchmarkableModel
+    from rpx_benchmark.tasks._pipeline import TaskRunConfig
+
+    class _StubModel(BenchmarkableModel):
+        def __init__(self):
+            self.name = "stub"
+            self.model = None
+
+        def setup(self):
+            pass
+
+        def predict(self, batch):
+            return []
+
+    cfg = TaskRunConfig(model=_StubModel(), split="easy")
+    assert cfg.upload_to_box is False
+    assert cfg.box_folder_id is None
+
+
+def test_task_run_config_accepts_box_flags():
+    """Setting the flags should round-trip on the config dataclass."""
+    from rpx_benchmark.adapters import BenchmarkableModel
+    from rpx_benchmark.tasks._pipeline import TaskRunConfig
+
+    class _StubModel(BenchmarkableModel):
+        def __init__(self):
+            self.name = "stub"
+            self.model = None
+
+        def setup(self):
+            pass
+
+        def predict(self, batch):
+            return []
+
+    cfg = TaskRunConfig(
+        model=_StubModel(),
+        split="easy",
+        upload_to_box=True,
+        box_folder_id="123456",
+    )
+    assert cfg.upload_to_box is True
+    assert cfg.box_folder_id == "123456"
