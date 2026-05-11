@@ -1,0 +1,18 @@
+# Configuration for 3D Reconstruction Viewer
+
+# Path to the folder containing the data you want to parse.
+# Update this to point to your data directory.
+BASE_PATH: C:\Users\govin\OneDrive\Robotics Research\RPX_Project\RPX\data\scene1.library.fountain\2
+
+# Number of frames to process
+NUM_FRAMES: 250
+
+# Maximum depth in meters
+MAX_DEPTH_METERS: 2.0
+
+# Maximum number of points to load per frame
+MAX_POINTS_PER_FRAME: 2000
+
+# Maximum number of points to accumulate across all frames
+# This is a hard limit to prevent memory overflow. 
+MAX_ACCUMULATED_POINTS: 4000000
