@@ -65,7 +65,6 @@ def _run_via_local_manifest(
     batch_size: int,
     max_samples: int | None,
     save_predictions: bool,
-    pairs_manifest: Path | None = None,
 ):
     import json as _json
 
@@ -95,37 +94,23 @@ def _run_via_local_manifest(
     # paths inside are relative to <snap>/, so we pass `root=<snap>` to
     # `RPXDataset.from_dict`.
     snap = _hf_snapshot_root(repo_id)
-    if pairs_manifest is not None:
-        manifest_path = Path(pairs_manifest)
-        if not manifest_path.is_file():
-            from rpx_benchmark.exceptions import DatasetError
+    canonical = snap / "manifests" / "relative_pose" / f"{split}.json"
+    if not canonical.is_file():
+        from rpx_benchmark.exceptions import DatasetError
 
-            raise DatasetError(
-                f"--pairs-manifest path not found: {manifest_path}",
-                hint="Pass the absolute path to a pose manifest produced by "
-                "scripts/generate_pose_pairs.py (or any file matching the "
-                "canonical `relative_camera_pose` schema).",
-            )
-    else:
-        manifest_path = snap / "manifests" / "relative_pose" / f"{split}.json"
-        if not manifest_path.is_file():
-            from rpx_benchmark.exceptions import DatasetError
-
-            raise DatasetError(
-                f"missing canonical pose manifest at {manifest_path}",
-                hint=f"Run `rpx.load('relative_pose', '{split}')` first to "
-                "populate the HF snapshot, or run "
-                "`python -m rpx_benchmark.dataset_hub.cli manifest --tasks relative_pose`.",
-            )
-    with manifest_path.open("r", encoding="utf-8") as f:
+        raise DatasetError(
+            f"missing canonical pose manifest at {canonical}",
+            hint=f"Run `rpx.load('relative_pose', '{split}')` first to "
+            "populate the HF snapshot, or run "
+            "`python -m rpx_benchmark.dataset_hub.cli manifest --tasks relative_pose`.",
+        )
+    with canonical.open("r", encoding="utf-8") as f:
         manifest = _json.load(f)
     if max_samples is not None:
         manifest["samples"] = manifest["samples"][:max_samples]
     manifest["root"] = str(snap)
-    sampler = manifest.get("_sampler", {}).get("name", "stride")
     print(
-        f"[pose-pipeline] manifest: {manifest_path}  "
-        f"({len(manifest['samples'])} pairs, sampler={sampler}"
+        f"[pose-pipeline] manifest: {canonical}  ({len(manifest['samples'])} pairs"
         f"{f', capped at --max-samples={max_samples}' if max_samples else ''})"
     )
 
@@ -255,14 +240,6 @@ def main() -> None:
         "per-stride breakdown). Auto-enables --save-predictions.",
     )
     ap.add_argument(
-        "--pairs-manifest",
-        type=Path,
-        default=None,
-        help="override the canonical pair list. Point this at a JSON manifest "
-        "produced by scripts/generate_pose_pairs.py (Poisson-disk sampler over "
-        "(rot_deg, t_m × scale)) when you want non-stride-5 pairs.",
-    )
-    ap.add_argument(
         "--upload-to-box",
         action="store_true",
         help="ship the result dir to UTD Box under "
@@ -292,7 +269,6 @@ def main() -> None:
         batch_size=args.batch_size,
         max_samples=args.max_samples,
         save_predictions=args.save_predictions,
-        pairs_manifest=args.pairs_manifest,
     )
 
     if args.comprehensive_metrics:
@@ -300,11 +276,7 @@ def main() -> None:
         from pose_comprehensive_metrics import compute_run
 
         snap = _hf_snapshot_root(args.repo)
-        manifest_path = (
-            Path(args.pairs_manifest)
-            if args.pairs_manifest is not None
-            else snap / "manifests" / "relative_pose" / f"{args.split}.json"
-        )
+        manifest_path = snap / "manifests" / "relative_pose" / f"{args.split}.json"
         csv_path = paths["predictions_csv"]
         print(f"\n=== comprehensive pose metrics ===")
         extras = compute_run(csv_path, manifest_path, snapshot_root=snap)

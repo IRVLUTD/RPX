@@ -119,20 +119,6 @@ upstream repo. Each adapter raises a clear `ImportError` with the hint.
 
 **Box mirror** (when `--upload-to-box`): `<box_folder_id>/relative_pose/<display>/<split>/`.
 
-**Pair sampling — Poisson-disk replacement for stride-5**: the
-canonical manifest's stride-5 pairs are too short-baseline for AUC to
-discriminate models. Generate a Poisson-disk-sampled replacement once
-per split, then point the runner at it:
-```bash
-PYTHONPATH=. python scripts/generate_pose_pairs.py --split easy
-PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split easy \
-    --pairs-manifest <snap>/manifests/relative_pose_poisson/easy.json \
-    --save-predictions --comprehensive-metrics
-```
-Seeded with `RPX_SEED = 5_062_026`. Knobs: `--radius-deg`,
-`--scale-deg-per-m`, `--pairs-per-phase`, `--max-frame-gap`. See
-README §3 for the full rationale.
-
 ## 4. Sweep aggregation — once all models have run
 
 ```bash
