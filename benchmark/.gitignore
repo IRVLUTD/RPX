@@ -65,3 +65,6 @@ SHARED_CONTEXT.md
 # Jupyter
 # ---------------------------------------------------------------------------
 .ipynb_checkpoints/
+
+# Auto-generated PDFs from docs/methods/*.md sources — keep the .md, drop the artifact
+docs/methods/*.pdf

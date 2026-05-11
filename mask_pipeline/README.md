@@ -122,7 +122,6 @@ python -m visual_grounding_gt.mask_to_object \
 | `maskgen_pipeline/mask_refinement_tools/mask_to_bbox_refinement.py` | Optional follow-up: refine bboxes back from a verified mask. |
 | `visual_grounding_gt/mask_to_object.py` | One-click mask-id ↔ object-name mapping (final step). |
 | `visual_grounding_gt/correspondence_validation_viz.py` | Visual sanity check on the id mapping. |
-| `run_gsam2_reverse_pipeline.py`, `run_sam2_reverse_pipeline.py` | Wrapper scripts that run the iter-1 pipeline in **reverse temporal order** (useful when the last frame is a poor seed). |
 
 The inner `robokit/` directory is the [IRVLUTD/robokit](https://github.com/IRVLUTD/robokit)
 Python library — perception primitives, dataset adapters, evaluation
