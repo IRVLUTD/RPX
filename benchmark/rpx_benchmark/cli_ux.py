@@ -199,27 +199,47 @@ _RPX_COLORS = (BRAND_R, BRAND_P, BRAND_X)
 _RPX_ROWS = 6
 
 
-def _logo_text(n_letters: int = 3) -> Text:
-    """Compose the first ``n_letters`` of the RPX logo as a coloured ``Text``."""
+_RPX_LETTER_WIDTHS: tuple[int, ...] = tuple(len(g[0]) for g in _RPX_GLYPHS)
+_RPX_TOTAL_COLS: int = sum(_RPX_LETTER_WIDTHS)
+
+
+def _logo_text(n_cols: int = _RPX_TOTAL_COLS) -> Text:
+    """Compose the RPX logo revealed up to ``n_cols`` columns from the left.
+
+    The block height stays at ``_RPX_ROWS`` rows regardless of how much is
+    revealed — unfilled columns are padded with blanks so the surrounding
+    layout never reflows mid-animation.
+    """
+    n_cols = max(0, min(n_cols, _RPX_TOTAL_COLS))
     out = Text()
     for row in range(_RPX_ROWS):
-        for li in range(n_letters):
-            out.append(_RPX_GLYPHS[li][row], style=f"bold {_RPX_COLORS[li]}")
-        # Pad the trailing letters with blanks so the block height stays stable
-        # while the animation grows column-by-column (prevents reflow flicker).
-        for li in range(n_letters, 3):
-            out.append(" " * len(_RPX_GLYPHS[li][row]))
+        consumed = 0
+        for li in range(3):
+            w = _RPX_LETTER_WIDTHS[li]
+            if consumed + w <= n_cols:
+                # Letter fully revealed on this row.
+                out.append(_RPX_GLYPHS[li][row], style=f"bold {_RPX_COLORS[li]}")
+            elif consumed < n_cols:
+                # Letter partially revealed — show prefix, pad the rest.
+                visible = n_cols - consumed
+                out.append(_RPX_GLYPHS[li][row][:visible], style=f"bold {_RPX_COLORS[li]}")
+                out.append(" " * (w - visible))
+            else:
+                # Letter still hidden — full-width blank pad.
+                out.append(" " * w)
+            consumed += w
         if row != _RPX_ROWS - 1:
             out.append("\n")
     return out
 
 
 def _animate_logo() -> None:
-    """Letter-by-letter reveal of the RPX logo using ``rich.live``.
+    """Smooth column-wipe reveal of the RPX logo using ``rich.live``.
 
-    Falls back to a single static print under CI / NO_COLOR / RPX_NO_ANIMATION.
-    The full animation budget is ~350 ms so it never feels in the way of an
-    actual CLI startup.
+    Each frame extends the reveal by one column, so the logo appears to be
+    "drawn" left-to-right at ~40 fps. Total budget ~900 ms (26 columns @
+    25 ms + a short hold). Falls back to a single static print under
+    CI / NO_COLOR / RPX_NO_ANIMATION.
     """
     console = _get_console()
     static = (
@@ -230,22 +250,22 @@ def _animate_logo() -> None:
     )
     if static:
         if not _is_quiet():
-            console.print(_logo_text(3))
+            console.print(_logo_text())
         return
 
     from rich.live import Live  # local import: rich.live is a heavier submodule
 
+    frame_delay = 0.025  # ~40 fps — feels fluid on every terminal we've tried
     with Live(
-        _logo_text(1),
+        _logo_text(0),
         console=console,
-        refresh_per_second=30,
+        refresh_per_second=60,
         transient=False,
     ) as live:
-        time.sleep(0.13)
-        live.update(_logo_text(2))
-        time.sleep(0.13)
-        live.update(_logo_text(3))
-        time.sleep(0.08)
+        for cols in range(1, _RPX_TOTAL_COLS + 1):
+            live.update(_logo_text(cols))
+            time.sleep(frame_delay)
+        time.sleep(0.25)  # hold on full logo before handing back to banner()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
