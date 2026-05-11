@@ -32,6 +32,15 @@ Environment
   stays readable in CI consoles.
 - ``RPX_QUIET=1`` — suppress all decoration; only ERROR-level logging
   lines reach stdout. For piping into scripts.
+- ``RPX_NO_ANIMATION=1`` — render the splash logo statically (no
+  letter-by-letter reveal). Useful when piping into tools that don't
+  handle the live-redraw escape sequences gracefully.
+
+Brand palette
+-------------
+Matches the LaTeX draft (see ``paper-submission/overleaf/root.tex``):
+``rpxR = #4F46E5`` (indigo-600), ``rpxP = #DB2777`` (pink-600),
+``rpxX = #C2410C`` (orange-700).
 """
 
 from __future__ import annotations
@@ -76,6 +85,15 @@ __all__ = [
     "fmt_rate",
     "fmt_bytes",
 ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Brand palette (kept in sync with paper-submission/overleaf/root.tex)
+# ─────────────────────────────────────────────────────────────────────────────
+
+BRAND_R = "#4F46E5"   # rpxR — indigo-600
+BRAND_P = "#DB2777"   # rpxP — pink-600
+BRAND_X = "#C2410C"   # rpxX — orange-700
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -143,21 +161,115 @@ def setup(name: str = "rpx", level: int = logging.INFO) -> logging.Logger:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Splash logo (ANSI Shadow R / P / X coloured to match the LaTeX brand palette)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Each letter is 6 rows tall. Rows are constant-width within a letter so the
+# three blocks line up cleanly when concatenated column-wise.
+_RPX_GLYPHS: tuple[tuple[str, ...], ...] = (
+    # R — indigo
+    (
+        " ██████╗ ",
+        " ██╔══██╗",
+        " ██████╔╝",
+        " ██╔══██╗",
+        " ██║  ██║",
+        " ╚═╝  ╚═╝",
+    ),
+    # P — pink
+    (
+        " ██████╗ ",
+        " ██╔══██╗",
+        " ██████╔╝",
+        " ██╔═══╝ ",
+        " ██║     ",
+        " ╚═╝     ",
+    ),
+    # X — orange
+    (
+        "██╗  ██╗",
+        "╚██╗██╔╝",
+        " ╚███╔╝ ",
+        " ██╔██╗ ",
+        "██╔╝ ██╗",
+        "╚═╝  ╚═╝",
+    ),
+)
+_RPX_COLORS = (BRAND_R, BRAND_P, BRAND_X)
+_RPX_ROWS = 6
+
+
+def _logo_text(n_letters: int = 3) -> Text:
+    """Compose the first ``n_letters`` of the RPX logo as a coloured ``Text``."""
+    out = Text()
+    for row in range(_RPX_ROWS):
+        for li in range(n_letters):
+            out.append(_RPX_GLYPHS[li][row], style=f"bold {_RPX_COLORS[li]}")
+        # Pad the trailing letters with blanks so the block height stays stable
+        # while the animation grows column-by-column (prevents reflow flicker).
+        for li in range(n_letters, 3):
+            out.append(" " * len(_RPX_GLYPHS[li][row]))
+        if row != _RPX_ROWS - 1:
+            out.append("\n")
+    return out
+
+
+def _animate_logo() -> None:
+    """Letter-by-letter reveal of the RPX logo using ``rich.live``.
+
+    Falls back to a single static print under CI / NO_COLOR / RPX_NO_ANIMATION.
+    The full animation budget is ~350 ms so it never feels in the way of an
+    actual CLI startup.
+    """
+    console = _get_console()
+    static = (
+        _is_ci()
+        or _is_quiet()
+        or bool(os.environ.get("NO_COLOR"))
+        or bool(os.environ.get("RPX_NO_ANIMATION"))
+    )
+    if static:
+        if not _is_quiet():
+            console.print(_logo_text(3))
+        return
+
+    from rich.live import Live  # local import: rich.live is a heavier submodule
+
+    with Live(
+        _logo_text(1),
+        console=console,
+        refresh_per_second=30,
+        transient=False,
+    ) as live:
+        time.sleep(0.13)
+        live.update(_logo_text(2))
+        time.sleep(0.13)
+        live.update(_logo_text(3))
+        time.sleep(0.08)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Headers / sectioning
 # ─────────────────────────────────────────────────────────────────────────────
 
 
 def banner(title: str, subtitle: Optional[str] = None) -> None:
-    """Top-of-run splash. Use once at the very top of ``main()``."""
+    """Top-of-run splash: animated RPX logo + a brand-coloured title panel.
+
+    Use once at the very top of ``main()``. Honours ``RPX_QUIET=1`` (suppress
+    entirely) and ``RPX_NO_ANIMATION=1`` (render the logo statically).
+    """
     if _is_quiet():
         return
     console = _get_console()
-    text = Text(title, style="bold cyan")
-    body = Text.assemble(text)
+    console.print()
+    _animate_logo()
+    title_text = Text(title, style=f"bold {BRAND_P}")
+    body = Text.assemble(title_text)
     if subtitle:
         body.append("\n")
         body.append(subtitle, style="dim")
-    panel = Panel(body, border_style="cyan", expand=False, padding=(0, 2))
+    panel = Panel(body, border_style=BRAND_R, expand=False, padding=(0, 2))
     console.print()
     console.print(panel)
 
@@ -167,12 +279,12 @@ def section(title: str, subtitle: Optional[str] = None) -> None:
     if _is_quiet():
         return
     console = _get_console()
-    text = Text(title, style="bold cyan")
+    text = Text(title, style=f"bold {BRAND_R}")
     if subtitle:
         text.append("  ", style="")
         text.append(subtitle, style="dim")
     console.print()
-    console.rule(text, style="cyan")
+    console.rule(text, style=BRAND_R)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -198,7 +310,7 @@ def bullet(msg: str) -> None:
     """List bullet, slightly stronger than ``note``."""
     if _is_quiet():
         return
-    _get_console().print(f"  [cyan]•[/] {msg}")
+    _get_console().print(f"  [{BRAND_R}]•[/] {msg}")
 
 
 def warn(msg: str) -> None:
@@ -276,7 +388,7 @@ def working(msg: str, success_msg: Optional[str] = None) -> Iterator[object]:
                 console.print(f"[green]✓[/] {success_msg or msg} ({fmt_duration(time.time() - t0)})")
         return
 
-    status = console.status(f"[cyan]{msg}…[/]", spinner="dots")
+    status = console.status(f"[{BRAND_R}]{msg}…[/]", spinner="dots")
     status.start()
     try:
         yield status
@@ -352,11 +464,11 @@ def summary(rows: Mapping[str, object], title: str = "Summary") -> None:
     if _is_quiet():
         return
     table = Table(show_header=False, box=None, padding=(0, 2))
-    table.add_column("k", style="bold cyan")
+    table.add_column("k", style=f"bold {BRAND_R}")
     table.add_column("v")
     for k, v in rows.items():
         table.add_row(str(k), str(v))
-    panel = Panel(table, title=f"[bold]{title}[/]", border_style="cyan", expand=False)
+    panel = Panel(table, title=f"[bold]{title}[/]", border_style=BRAND_R, expand=False)
     console = _get_console()
     console.print()
     console.print(panel)
