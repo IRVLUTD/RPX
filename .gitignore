@@ -9,6 +9,13 @@ data/
 # ignored.
 !benchmark/rpx_benchmark/data/
 
+# Paper-submission is local-only: strategy briefs, the overleaf LaTeX
+# project, figure artefacts, compiled PDFs. The Croissant ML-metadata
+# template that the dataset_hub code reads has been moved into the
+# benchmark package (rpx_benchmark/dataset_hub/croissant_template.json)
+# so nothing in the toolkit depends on a paper-submission checkout.
+paper-submission/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

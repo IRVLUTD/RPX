@@ -523,7 +523,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cr.add_argument(
         "--src",
         default=None,
-        help="Source JSON path (default: paper-submission/.../rpx_croissant.json).",
+        help="Source JSON path (default: <package>/dataset_hub/croissant_template.json).",
     )
     p_cr.add_argument(
         "--repo-id",
