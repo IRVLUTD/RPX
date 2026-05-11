@@ -15,7 +15,7 @@
 [![scope](https://img.shields.io/badge/scope-robot%20learning-ff69b4?style=flat-square)](https://github.com/IRVLUTD/RPX)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](#-contributing)
 
-[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](data_capture/README.md) · [**Mask Pipeline**](robokit/README.md) · [**Paper**](#-paper)
+[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](data_capture/README.md) · [**Mask Pipeline**](mask_pipeline/README.md) · [**Paper**](#-paper)
 
 </div>
 
@@ -61,7 +61,7 @@ everything behind the benchmark:
 **Components**
 - [🧰 Benchmark toolkit](benchmark/README.md)
 - [📷 Data capture rig](data_capture/README.md)
-- [🎨 Mask pipeline](robokit/README.md)
+- [🎨 Mask pipeline](mask_pipeline/README.md)
 - [🐳 Docker workflow](#-docker-workflow)
 
 </td>
@@ -97,10 +97,10 @@ RPX/
 ├── data_capture/               Data-capture rig scripts (Intel D435 + T265)
 │   └── README.md           Run `save_device_data.py` to capture a scene
 │
-├── robokit/                Ground-truth mask pipeline (SAM2 + GroundingDINO)
+├── mask_pipeline/          Ground-truth mask pipeline (SAM2 + GroundingDINO)
 │   ├── maskgen_pipeline/   Maskgen scripts + bbox / point-prompt utilities
 │   ├── visual_grounding_gt/  Visual-grounding GT helpers
-│   ├── robokit/            Inner Python package (perception, datasets, ...)
+│   ├── robokit/            Inner Python package — `import robokit.perception`
 │   ├── docker/             Maskgen-specific Docker setup
 │   └── README.md           Interactive GSAM2 refinement UI
 │
@@ -168,7 +168,7 @@ python save_device_data.py <task-name> <fps> <sync-threshold>
 > [Data capture prerequisites](#-data-capture-prerequisites)
 > below for install instructions.
 
-### 🎨 2. Mask generation — [`robokit/`](robokit/README.md)
+### 🎨 2. Mask generation — [`mask_pipeline/`](mask_pipeline/README.md)
 
 Ground-truth instance masks are generated via an interactive pipeline
 combining **GroundingDINO** (open-vocabulary detection) and **SAM2**
@@ -177,7 +177,7 @@ for one keyframe per phase; SAM2 propagates masks across the rest of
 the phase.
 
 ```bash
-cd robokit
+cd mask_pipeline
 python -m maskgen_pipeline.interactive_gsam2 --scene_dir /path/to/scene/1
 ```
 
@@ -276,7 +276,7 @@ cd docker
 ```
 
 The container ships with the RealSense SDK, the benchmark toolkit,
-and the robokit mask pipeline already installed.
+and the mask-generation pipeline already installed.
 
 ---
 
@@ -322,7 +322,7 @@ Each subproject has its own contribution workflow:
   installs will silently show stale behaviour.
 - **`data_capture/`** — changes to the capture rig need a real RealSense
   device for smoke testing.
-- **`robokit/`** — mask generation changes need access to the
+- **`mask_pipeline/`** — mask generation changes need access to the
   interactive annotation UI and a CUDA-capable box.
 - **`paper-submission/`** — LaTeX edits through whatever your usual
   Overleaf / local workflow is.
