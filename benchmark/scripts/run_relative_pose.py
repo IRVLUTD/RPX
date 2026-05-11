@@ -70,6 +70,7 @@ def _run_via_local_manifest(
 
     from local_manifest import _hf_snapshot_root
 
+    from rpx_benchmark import cli_ux
     from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
     from rpx_benchmark.api import TaskType
     from rpx_benchmark.evaluators import MetricSuite
@@ -85,7 +86,7 @@ def _run_via_local_manifest(
     from rpx_benchmark.tasks._pipeline import resolve_device
 
     device = resolve_device(device)
-    print(f"[pose-pipeline] task=relative_pose split={split} device={device}")
+    cli_ux.kv("device (resolved)", device)
 
     # The canonical manifest shipped from HF (`manifests/relative_pose/<split>.json`)
     # already has the paired structure (`rgb`, `rgb_b`, `pose_a`, `pose_b`,
@@ -109,9 +110,11 @@ def _run_via_local_manifest(
     if max_samples is not None:
         manifest["samples"] = manifest["samples"][:max_samples]
     manifest["root"] = str(snap)
-    print(
-        f"[pose-pipeline] manifest: {canonical}  ({len(manifest['samples'])} pairs"
-        f"{f', capped at --max-samples={max_samples}' if max_samples else ''})"
+    cli_ux.kv("manifest", canonical)
+    cli_ux.kv(
+        "pairs",
+        f"{len(manifest['samples'])}"
+        + (f"  (capped at --max-samples={max_samples})" if max_samples else ""),
     )
 
     out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
@@ -124,9 +127,10 @@ def _run_via_local_manifest(
         save_dir=pred_dir,
     )
     dataset = RPXDataset.from_dict(manifest, batch_size=batch_size)
-    print(
-        f"[pose-pipeline] batch_size={batch_size}  predictions_csv="
-        f"{(out_dir / 'predictions.csv') if save_predictions else 'n/a'}"
+    cli_ux.kv("batch-size", batch_size)
+    cli_ux.kv(
+        "predictions-csv",
+        (out_dir / "predictions.csv") if save_predictions else "(not saving)",
     )
 
     model.setup()
@@ -141,7 +145,7 @@ def _run_via_local_manifest(
         try:
             eff.params_m = count_parameters(torch_mod)
         except Exception as e:  # noqa: BLE001
-            print(f"[profiler] params count failed: {type(e).__name__}: {e}")
+            cli_ux.warn(f"profiler: params count failed — {type(e).__name__}: {e}")
         try:
             eff.memory_traffic_gb = estimate_memory_traffic_gb(
                 torch_mod,
@@ -149,11 +153,11 @@ def _run_via_local_manifest(
                 device=device,
             )
         except Exception as e:  # noqa: BLE001
-            print(f"[profiler] memory-traffic estimate failed: {type(e).__name__}: {e}")
+            cli_ux.warn(f"profiler: memory-traffic estimate failed — {type(e).__name__}: {e}")
     try:
         eff.system_card = SystemCard.auto_detect(input_resolution="640x480")
     except Exception as e:  # noqa: BLE001
-        print(f"[profiler] system_card failed: {type(e).__name__}: {e}")
+        cli_ux.warn(f"profiler: system_card failed — {type(e).__name__}: {e}")
 
     runner = BenchmarkRunner(
         model=model,
@@ -253,12 +257,37 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    placeholder, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
+    from rpx_benchmark import cli_ux
+
+    cli_ux.setup("run-rcpe")
+    cli_ux.banner(
+        "RCPE — Relative Camera Pose Estimation",
+        f"model: {args.model}  ·  split: {args.split}",
+    )
+    cli_ux.config(
+        {
+            "model":             args.model,
+            "split":             args.split,
+            "repo":              args.repo,
+            "device":            args.device,
+            "batch-size":        args.batch_size,
+            "max-samples":       args.max_samples or "(all)",
+            "save-predictions":  args.save_predictions,
+            "comprehensive":     args.comprehensive_metrics,
+            "upload-to-box":     args.upload_to_box,
+        }
+    )
+
+    with cli_ux.working(f"Loading adapter '{args.model}' (this can pull weights on first run)"):
+        placeholder, adapter = _build_model(
+            args.model, device=args.device, batch_size=args.batch_size
+        )
     name = placeholder.name
 
     if args.comprehensive_metrics:
         args.save_predictions = True
 
+    cli_ux.section("Run")
     result, dr_report, paths = _run_via_local_manifest(
         adapter=adapter,
         name=name,
@@ -275,18 +304,19 @@ def main() -> None:
         from local_manifest import _hf_snapshot_root
         from pose_comprehensive_metrics import compute_run
 
+        cli_ux.section("Comprehensive pose metrics")
         snap = _hf_snapshot_root(args.repo)
         manifest_path = snap / "manifests" / "relative_pose" / f"{args.split}.json"
         csv_path = paths["predictions_csv"]
-        print(f"\n=== comprehensive pose metrics ===")
-        extras = compute_run(csv_path, manifest_path, snapshot_root=snap)
+        with cli_ux.working("computing per-pair metrics + AUC + CIs"):
+            extras = compute_run(csv_path, manifest_path, snapshot_root=snap)
         out = paths["out_dir"] / "pose_comprehensive_metrics.json"
         import json as _json
 
         out.write_text(_json.dumps(extras, indent=2, default=str))
-        print(f"  wrote {out}  ({len(extras['per_pair'])} pairs)")
+        cli_ux.step(f"wrote {out}  ({len(extras['per_pair'])} pairs)")
         for k in sorted(extras.get("aggregated") or {}):
-            print(f"  {k:>32}: {extras['aggregated'][k]:.4f}")
+            cli_ux.kv(k, f"{extras['aggregated'][k]:.4f}")
 
     if args.upload_to_box:
         from rpx_benchmark.box_upload import upload_run_dir
@@ -296,31 +326,28 @@ def main() -> None:
             from rpx_benchmark.exceptions import ConfigError
 
             raise ConfigError("upload requested but no out_dir in artefacts")
-        print(f"\n=== uploading {out_dir} → Box:relative_pose/{name}/{args.split} ===")
-        summary = upload_run_dir(
-            out_dir,
-            task="relative_pose",
-            model_name=name,
-            split=args.split,
-            root_folder_id=args.box_folder_id,
-        )
-        print(
-            f"  uploaded: {summary['uploaded']} files ({_human_bytes(summary['bytes_uploaded'])})"
-        )
-        print(f"  skipped:  {summary['skipped']} files (already on Box)")
-        print(f"  remote folder id: {summary['remote_folder_id']}")
+        cli_ux.section(f"Mirroring to Box: relative_pose/{name}/{args.split}")
+        with cli_ux.working(f"uploading {out_dir}"):
+            upl = upload_run_dir(
+                out_dir,
+                task="relative_pose",
+                model_name=name,
+                split=args.split,
+                root_folder_id=args.box_folder_id,
+                verbose=False,
+            )
+        cli_ux.kv("uploaded", f"{upl['uploaded']} files ({cli_ux.fmt_bytes(upl['bytes_uploaded'])})")
+        cli_ux.kv("skipped",  f"{upl['skipped']} files (already on Box)")
+        cli_ux.kv("remote folder id", upl["remote_folder_id"])
 
-    print()
-    print("=== aggregated metrics ===")
-    for k, v in (result.aggregated or {}).items():
-        if isinstance(v, float):
-            print(f"  {k:>26}: {v:.4f}")
-        else:
-            print(f"  {k:>26}: {v}")
-    print()
-    print("=== artefacts ===")
-    for k, v in paths.items():
-        print(f"  {k}: {v}")
+    cli_ux.summary(
+        {
+            **{k: (f"{v:.4f}" if isinstance(v, float) else v)
+               for k, v in (result.aggregated or {}).items()},
+        },
+        title="Aggregated metrics",
+    )
+    cli_ux.summary({str(k): str(v) for k, v in paths.items()}, title="Artefacts")
 
 
 if __name__ == "__main__":

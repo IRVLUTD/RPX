@@ -1,8 +1,33 @@
 # Benchmark scripts
 
-Utility scripts that run alongside the package. All are runnable directly with
-`PYTHONPATH=. python scripts/<name>.py`, or via the `make` shortcuts in the
-parent `Makefile`.
+> CLI runners and helpers that sit alongside the `rpx_benchmark` package.
+> Every script is invocable as `PYTHONPATH=. python scripts/<name>.py`,
+> or via a `make` shortcut in the parent [`Makefile`](../Makefile).
+
+**What's in here, by use case (newcomer-friendly):**
+
+| Use case | Go to |
+|---|---|
+| 👀 *I want to see what a scene looks like* | [`visualize_rerun.py`](visualize_rerun.py) (`make visualize`) |
+| 🎯 *I want to benchmark a depth model on RPX* | [`run_depth.py`](run_depth.py) — covered in detail in [`../README.md`](../README.md#canonical-sweep) |
+| 📐 *I want to benchmark a relative-pose model* | [`run_relative_pose.py`](run_relative_pose.py) |
+| 📊 *I want to aggregate my sweep into the paper table* | [`run_drs_sweep.py`](run_drs_sweep.py) |
+| ☁️ *I want to mirror my results to UTD Box* | [`sync_results_to_box.py`](sync_results_to_box.py) |
+| 📦 *I want to upload a new dataset version to HuggingFace* | [`upload_to_hf.py`](upload_to_hf.py) + [`build_hf_shards.py`](build_hf_shards.py) |
+| 🔬 *I want to add a new depth model adapter* | [`depth_models/`](depth_models/) + look at `hf_pipeline.py` for the simplest pattern |
+
+For the full BYO-model workflow (the most common reason an external
+user lands in this directory), see
+[`../README.md#bring-your-own-model`](../README.md#bring-your-own-model).
+
+## Contents
+
+- [Visualization](#visualization)
+- [Benchmarking](#benchmarking)
+- [Box helpers (UTD)](#box-helpers-utd)
+- [Other scripts](#other-scripts)
+
+---
 
 ## Visualization
 

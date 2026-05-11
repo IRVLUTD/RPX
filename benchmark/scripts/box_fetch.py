@@ -530,6 +530,14 @@ def _cli():
     )
     args = ap.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "box_fetch — UTD Box pull / list / upload helper",
+        "anonymous shared links + auth-gated content + tree mirroring",
+    )
+    cli_ux.config(vars(args))
+
     if not args.url and not args.manifest:
         ap.error("provide a URL or --manifest")
 

@@ -583,6 +583,14 @@ def main(argv: List[str] | None = None) -> int:
                         help="seed for k-means / GMM")
     args = parser.parse_args(argv)
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "analyze_esd — exploratory ESD feature analysis",
+        "per-(scene, phase) feature table → diagnostic plots + tables",
+    )
+    cli_ux.config(vars(args))
+
     if not args.features.is_file():
         raise SystemExit(f"--features not found: {args.features}")
 

@@ -774,6 +774,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args(argv)
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "difficulty_methodology_study — 11-method comparison",
+        "core ESD validation: agreement, n-cluster sweep, stability, phase signature",
+    )
+    cli_ux.config(vars(args))
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
     (args.out_dir / "agreement").mkdir(exist_ok=True)
     (args.out_dir / "n_clusters").mkdir(exist_ok=True)

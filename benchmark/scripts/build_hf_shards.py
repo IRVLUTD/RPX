@@ -184,6 +184,15 @@ def main() -> None:
         "--out", required=True, type=Path, help="Output directory for the Parquet shards + README."
     )
     args = parser.parse_args()
+
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "build_hf_shards — pack RPX → Parquet shards",
+        "HuggingFace-datasets-ready layout from an RPX manifest",
+    )
+    cli_ux.config(vars(args))
+
     build(args.source_root, args.manifests_root, args.out)
 
 

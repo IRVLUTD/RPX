@@ -340,42 +340,65 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     log_file = args.log_file or args.output.with_suffix(".log")
     _attach_file_handler(log_file)
-    log.info("logging to %s", log_file)
+
+    from rpx_benchmark import cli_ux
+    cli_ux.banner(
+        "ESD splits — Stage 1 (feature extraction)",
+        f"data-root: {args.data_root}",
+    )
+    cli_ux.config(
+        {
+            "data-root":  args.data_root,
+            "output":     args.output,
+            "workers":    args.workers,
+            "log-file":   log_file,
+            "verbose":    args.verbose,
+        }
+    )
 
     if not args.data_root.is_dir():
-        log.error("--data-root not a directory: %s", args.data_root)
+        cli_ux.error(f"--data-root not a directory: {args.data_root}")
         return 2
 
     started = time.gmtime()
     started_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", started)
-    log.info("data-root=%s output=%s workers=%d", args.data_root, args.output, args.workers)
     t0 = time.perf_counter()
 
+    cli_ux.section("Extracting per-(scene, phase) features")
     try:
-        gather = _gather(args.data_root, args.workers)
+        with cli_ux.working(f"scanning + extracting features ({args.workers} workers)"):
+            gather = _gather(args.data_root, args.workers)
     except SystemExit:
         raise
     except Exception:
         log.exception("fatal error during gather")
+        cli_ux.error("fatal error during gather; see logfile for traceback")
         return 3
 
     duration = time.perf_counter() - t0
 
+    cli_ux.section("Writing output")
     try:
         _write_output(gather, args.output, args.data_root, started_iso, duration)
     except OSError:
         log.exception("failed to write output JSON")
+        cli_ux.error("failed to write output JSON; see logfile for traceback")
         return 4
+    cli_ux.step(f"wrote {args.output}")
+    cli_ux.step(f"wrote {args.output.with_suffix('.csv')}")
+    cli_ux.step(f"wrote {args.output.with_name(args.output.stem + '_feature_stats.csv')}")
 
-    if gather.n_failed:
-        log.error("DONE WITH ERRORS: %d ok, %d failed (%.1fs total). "
-                  "See summary.failures in %s for tracebacks.",
-                  gather.n_ok, gather.n_failed, duration, args.output)
-        return 1
-
-    log.info("DONE OK: %d (scene, phase) entries written in %.1fs",
-             gather.n_ok, duration)
-    return 0
+    cli_ux.summary(
+        {
+            "entries written":  gather.n_ok,
+            "failures":         gather.n_failed,
+            "elapsed":          cli_ux.fmt_duration(duration),
+            "rate":             cli_ux.fmt_rate(gather.n_ok, duration),
+            "logfile":          log_file,
+        },
+        title=("DONE OK" if gather.n_failed == 0 else "DONE WITH ERRORS"),
+    )
+    return 1 if gather.n_failed else 0
 
 
 if __name__ == "__main__":

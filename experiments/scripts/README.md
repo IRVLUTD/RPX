@@ -1,13 +1,30 @@
-# RPX Splits Pipeline — Team Execution Guide
+# RPX Splits Pipeline
 
-End-to-end pipeline that turns the captured RPX dataset into the
-**Easy / Medium / Hard scene splits** the benchmark ships.
+> End-to-end pipeline that turns a captured RPX dataset into the
+> **Easy / Medium / Hard scene splits** the benchmark ships.
+
+> [!IMPORTANT]
+> **Most users do not need this directory.** Splits are how the dataset
+> was *labelled* into easy / medium / hard tiers. The benchmark ships
+> the resulting `scene_splits.json` already in
+> `benchmark/data/splits/`, and the runners read it automatically. You
+> only come here if you're re-running the difficulty labelling on a
+> *new* capture, or studying the labelling methodology itself.
+
+**What this code does, plain English.** Once the dataset is captured
+and masked, every `(scene, phase)` gets scored on 27 features (how
+visually cluttered, how much depth variation, how many mask iterations
+it needed, etc.). The script mixes those into one number, sorts all
+scenes, and cuts them into Easy / Medium / Hard tiers — so when you
+benchmark, you can report numbers stratified by difficulty.
 
 ```
 DATA  →  Stage 1 (extract)  →  phase_esd_splits.csv
                              →  Stage 2 (split)
                              →  scene_splits.json   ← deliverable
 ```
+
+---
 
 ## 1. Quick start (one-time setup)
 

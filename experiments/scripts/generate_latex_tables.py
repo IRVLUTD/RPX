@@ -129,6 +129,14 @@ if __name__ == "__main__":
     parser.add_argument("--output-dir", default="../tables", type=Path)
     args = parser.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "generate_latex_tables — paper table fragments",
+        "compiles result JSONs into LaTeX-ready table fragments under <output-dir>",
+    )
+    cli_ux.config(vars(args))
+
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     results = load_results(args.results_dir)

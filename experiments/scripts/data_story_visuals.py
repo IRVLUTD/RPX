@@ -531,6 +531,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "data_story_visuals — 5 publication-quality figures",
+        "the figure arc that walks reviewers through the ESD methodology",
+    )
+    cli_ux.config(vars(args))
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
     setup_style()
 

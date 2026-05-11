@@ -1,14 +1,25 @@
 # `mask_pipeline/` — Ground-truth mask generation
 
-Interactive **GroundingDINO + SAM2** pipeline that turns a captured RPX
-scene into per-frame instance masks. A human operator curates the
-bounding-box set on a single keyframe per phase; **SAM2 propagates**
-the masks across the rest of the frames.
+> Interactive **GroundingDINO + SAM2** pipeline that turns a captured RPX
+> scene into per-frame instance masks. A human operator curates bboxes
+> on one keyframe per phase; **SAM2 propagates** to every other frame.
 
-This is what you run on a **CUDA-capable annotation box** after capture.
-You **don't** need this if you only want to benchmark models against the
-already-published RPX dataset (use [`../benchmark/`](../benchmark/README.md)
-for that).
+> [!IMPORTANT]
+> **Most users do not need this directory.** Mask generation is how
+> the RPX ground truth was *created*. To *benchmark* a model against
+> the already-published RPX dataset (which already has masks),
+> use [`../benchmark/`](../benchmark/README.md) instead. You only
+> come here if you're producing GT masks for newly captured scenes,
+> on a CUDA-capable annotation box.
+
+**What this code does, plain English.** Given a captured scene (raw
+RGB frames + depth), you need *instance masks* — for each frame, which
+pixels belong to which object. Doing this by hand is impossibly slow.
+The pipeline runs **GroundingDINO** to suggest bounding boxes on one
+keyframe per phase (open-vocabulary, no training needed), then **SAM2**
+turns each curated box into a pixel-accurate mask and propagates it
+through every other frame in the phase. A human only touches one frame
+per phase per scene; the rest is automatic.
 
 ---
 

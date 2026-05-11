@@ -29,7 +29,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 import matplotlib
 matplotlib.use("Agg")
@@ -37,8 +37,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.colors import LinearSegmentedColormap
-from scipy.cluster.hierarchy import dendrogram, leaves_list, linkage
-from scipy.spatial.distance import pdist
 from scipy.stats import gaussian_kde
 
 _REPO_ROOT     = Path(__file__).resolve().parents[2]
@@ -398,7 +396,8 @@ def fig_clustermap(df: pd.DataFrame, pn: np.ndarray, tier: np.ndarray,
         block = pn[np.ix_(rows_t, col_order)]
         im = ax_b.imshow(block, aspect="auto", cmap=diverging_cmap,
                           vmin=0, vmax=1, interpolation="nearest")
-        ax_b.set_yticks([]); ax_b.set_xticks([])
+        ax_b.set_yticks([])
+        ax_b.set_xticks([])
         for side in ("top", "right", "bottom"):
             ax_b.spines[side].set_visible(False)
         ax_b.spines["left"].set_color(TIER_COLOR[t])
@@ -523,7 +522,6 @@ def fig_tier_fingerprint(pn: np.ndarray, tier: np.ndarray, out: Path) -> None:
     tiers_order = ["easy", "medium", "hard"]
 
     # Aggregate: per-category mean within each tier.
-    feature_to_cat = {f: c for c, fs in FEATURE_CATEGORIES.items() for f in fs}
     cat_idx = {c: [FEATURE_NAMES.index(f) for f in FEATURE_CATEGORIES[c]
                     if f in FEATURE_NAMES] for c in cats}
 
@@ -715,6 +713,15 @@ def main(argv: Optional[List[str]] = None) -> int:
                 / "supplementary_visuals",
     )
     args = parser.parse_args(argv)
+
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "supplementary_visuals — high-design appendix figures",
+        "raw 297×27 ESD feature table → paper appendix figures",
+    )
+    cli_ux.config(vars(args))
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     setup_style()

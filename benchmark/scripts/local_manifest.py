@@ -348,6 +348,15 @@ def _cli():
         help="override extracted-files root (default: <snapshot>/extracted/)",
     )
     args = ap.parse_args()
+
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "local_manifest — HF cache → task/split manifest",
+        "bridges the dataset_hub gap until HF manifests are published",
+    )
+    cli_ux.config(vars(args))
+
     try:
         result = build_local_manifest(
             task=args.task,

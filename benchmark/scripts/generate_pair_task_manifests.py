@@ -315,6 +315,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "generate_pair_task_manifests — pair-based task manifests",
+        "relative-pose, keypoint matching, etc. — paired (a, b) frame manifests",
+    )
+    cli_ux.config(vars(args))
+
     local_root: Path = args.local_root
     scenes_root = local_root / "scenes"
     if not scenes_root.is_dir():

@@ -302,6 +302,14 @@ Examples:
     )
     args = ap.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "visualize_rerun — RPX → Rerun viewer",
+        "6-panel time series per (scene, phase)",
+    )
+    cli_ux.config(vars(args))
+
     # --lite preset overrides the relevant knobs unless the user already set them.
     if args.lite:
         if args.stride == 1:

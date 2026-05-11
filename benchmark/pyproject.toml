@@ -42,6 +42,7 @@ classifiers = [
 dependencies = [
   "numpy>=1.24",
   "Pillow>=9.0",
+  "rich>=13",       # CLI UX — colored logs, progress bars, sectioned headers
 ]
 
 [project.optional-dependencies]

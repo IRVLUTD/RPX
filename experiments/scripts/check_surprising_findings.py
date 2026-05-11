@@ -195,6 +195,14 @@ if __name__ == "__main__":
     parser.add_argument("--results-dir", default="../results", type=Path)
     args = parser.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "check_surprising_findings — first-look results triage",
+        "fast sanity-check on the day the first experiments come back",
+    )
+    cli_ux.config(vars(args))
+
     results = load_all_results(args.results_dir)
     if not results:
         print(f"No results found in {args.results_dir}.")

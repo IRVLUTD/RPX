@@ -1,13 +1,28 @@
 # RPX Dataset Hub — team guide
 
-This subpackage uploads the RPX captures to
-[`IRVLUTD/RPX`](https://huggingface.co/datasets/IRVLUTD/RPX) on
-HuggingFace, and lets users download just the slice they need
-(by task and split) without pulling the full ~890 GB.
+> Uploads the RPX captures to
+> [`IRVLUTD/RPX`](https://huggingface.co/datasets/IRVLUTD/RPX) on
+> HuggingFace, and lets users download only the slice they need
+> (by task + split) instead of pulling the full ~890 GB.
 
-> **Status**: end-to-end pipeline works on synthetic data. 435 tests
-> green. Real upload pending the team arranging the captures into the
-> wireframe layout (see §3) on the target system.
+> **Status**: end-to-end pipeline works on synthetic data; tests green.
+> Real upload pending team arranging captures into the wireframe layout
+> (see [§3](#3-how-the-captures-must-be-arranged-on-disk)) on the
+> target system.
+
+## Contents
+
+- [1. The 5-minute version](#1-the-5-minute-version)
+- [2. What each command does](#2-what-each-command-does)
+- [3. How the captures must be arranged on disk](#3-how-the-captures-must-be-arranged-on-disk)
+- [4. What ends up on the HuggingFace repo](#4-what-ends-up-on-the-huggingface-repo)
+- [5. Updating the dataset later](#5-updating-the-dataset-later)
+- [6. What is Croissant?](#6-what-is-croissant)
+- [7. Running the full pipeline against the real data](#7-running-the-full-pipeline-against-the-real-data)
+- [8. Troubleshooting](#8-troubleshooting)
+- [9. Where the code lives](#9-where-the-code-lives)
+- [10. Tests](#10-tests)
+- [Owners](#owners)
 
 ---
 
