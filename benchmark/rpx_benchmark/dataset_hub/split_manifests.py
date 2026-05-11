@@ -320,7 +320,7 @@ class _VQASpec(_TaskSpec):
     """``vqa``: not yet wired — needs spatial_qa / questionnaire labels.
 
     Returns no entries until the team's VQA generation pipeline lands
-    (tracked separately in `paper-submission/neurips-2026/VQA_DESIGN.md`).
+    (tracked separately in `paper-submission/VQA_DESIGN.md`).
     Logging an explicit warning so this is visible in the upload run.
     """
 

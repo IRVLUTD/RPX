@@ -3,7 +3,7 @@
 Croissant (https://mlcommons.org/working-groups/croissant/) is the ML
 metadata standard HuggingFace renders alongside dataset cards and that
 search platforms (Kaggle, Papers-with-Code) parse. We already authored
-``paper-submission/neurips-2026/croissant/rpx_croissant.json`` against
+``paper-submission/croissant/rpx_croissant.json`` against
 an earlier dataset URL; this helper:
 
 1. **Copies** the source JSON into ``<staging>/rpx_croissant.json``.
@@ -36,10 +36,10 @@ log = get_logger(__name__)
 
 # Default location of the source JSON, resolved relative to the repo root.
 def _default_croissant_src() -> Path:
-    """``<repo_root>/paper-submission/neurips-2026/croissant/rpx_croissant.json``."""
+    """``<repo_root>/paper-submission/croissant/rpx_croissant.json``."""
     here = Path(__file__).resolve()
     repo_root = here.parents[3]  # .../benchmark/rpx_benchmark/dataset_hub/croissant.py
-    return repo_root / "paper-submission" / "neurips-2026" / "croissant" / "rpx_croissant.json"
+    return repo_root / "paper-submission" / "croissant" / "rpx_croissant.json"
 
 
 @dataclass(frozen=True)
@@ -83,7 +83,7 @@ def stage_croissant(
             f"croissant source JSON does not exist: {src}",
             hint=(
                 "Pass src= explicitly, or check that "
-                "paper-submission/neurips-2026/croissant/ is present "
+                "paper-submission/croissant/ is present "
                 "in the repo."
             ),
         )

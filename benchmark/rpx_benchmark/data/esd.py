@@ -1,7 +1,7 @@
 """Effort-Stratified Difficulty (ESD) feature extraction.
 
 Computes the 18 per-(scene, phase) features defined in
-``paper-submission/neurips-2026/overleaf/text/12_appendix.tex``
+``paper-submission/overleaf/text/12_appendix.tex``
 (``\\section{ESD Feature Definitions}``). The output of this module
 is the raw feature table; weight calibration and tertile assignment
 live downstream.

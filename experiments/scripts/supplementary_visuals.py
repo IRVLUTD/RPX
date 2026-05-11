@@ -57,69 +57,127 @@ from rpx_benchmark.data.esd_scoring import (  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
-# Design system (kept consistent with data_story_visuals.py)
+# Design system — editorial palette for print-quality scientific figures
 # --------------------------------------------------------------------------- #
+#
+# Rationale (the why behind these specific hex codes):
+#
+# 1. Background is warm parchment (#FAF9F7), not pure white. Pure white
+#    bleaches on screen and burns on print; an off-white reduces fatigue and
+#    pairs with the muted ink colours below.
+#
+# 2. Ink is true near-black (#171717) rather than #000 — saturated black on a
+#    cream bg creates harsh edges. Soft/dim/faint variants step down the
+#    luminance scale so secondary type stays in the hierarchy.
+#
+# 3. The 10-category palette is curated for:
+#       (a) cohesion       — every hex is in the same mid-luminance band so
+#                            no single category dominates by sheer brightness;
+#       (b) editorial tone — saturated-but-restrained, the register of a
+#                            scientific journal or financial broadsheet, not
+#                            a kids' chart;
+#       (c) categorical    — adjacent hues are separated by ~30° on the wheel
+#           distinction      and at least one of (hue, saturation, value)
+#                            changes per pair, so a 10-class plot reads
+#                            cleanly even at thumbnail size;
+#       (d) deuteranope-   — every adjacent pair has either a value or a
+#           safe ordering    hue-warmth difference (so the most common form
+#                            of colour-vision deficiency still preserves
+#                            category boundaries).
+#
+# 4. The signature accent (saffron, #C77519) is reserved for two roles:
+#       - the methodology's headline category (annotation_effort);
+#       - the "hard" difficulty tier — the one a reader should notice.
+#    Concentrating the accent in those two places makes the figures *say*
+#    something instead of just rendering.
+#
+# 5. The sequential heatmap is built as a 4-stop ramp through editorial
+#    cream → wheat → saffron → ink, which is perceptually more uniform than
+#    a single-hue interpolation and prints faithfully in greyscale.
 
-# Palette: iTeach signature navy + amber gold ("CLAP-inspired dark + amber").
-# Paper figures use the light-mode tokens but pair the iTeach amber gold
-# with a deep navy so that every figure unmistakably reads as the iTeach
-# blue × gold lab style.
-#
-# iTeach tokens consulted:
-#   light: --bg-dark #faf9f7 · --accent-primary #b8860b · --text-main #1a1a1a
-#   dark : --bg-dark #0a0e14 · --accent-primary #d4a03a · --text-main #e6edf3
-#
-# Tier mapping (deliberate): Easy = navy (cool), Medium = transitional
-# muted gold, Hard = iTeach amber gold. Putting the signature amber on
-# Hard makes the figures use gold for the "headline" tier — the one
-# readers should notice — exactly the role amber plays on iTeach itself.
 PALETTE = {
-    "bg":         "#FAF9F7",   # iTeach light bg
-    "bg_card":    "#FFFFFF",
-    "bg_deeper":  "#F0EEEA",
-    "ink":        "#1A1A1A",   # iTeach text-main (light mode)
-    "ink_soft":   "#4A4A4A",   # iTeach text-soft
-    "ink_dim":    "#7A7A7A",   # iTeach text-dim
-    "ink_faint":  "#9A9A9A",   # iTeach text-faint
-    "rule":       "#E5DDC8",   # amber-tinted hairline
-    "navy":       "#2C5773",   # iTeach navy companion
-    "navy_deep":  "#1F3F55",   # darker navy
-    "amber":      "#B8860B",   # iTeach --accent-primary (light)
-    "amber_deep": "#9A7209",   # iTeach --accent-secondary (light)
-    "amber_dark": "#6B4F0A",   # iTeach --accent-deep
-    "amber_glow": "#F0D896",   # tint for fills
-    "amber_pale": "#F4E3B8",   # very pale amber
-    # Tier colours: navy (cool) → muted gold (transitional) → amber (signature)
-    "easy":       "#2C5773",   # navy
-    "medium":     "#C4A86D",   # muted transitional gold
-    "hard":       "#B8860B",   # iTeach amber gold (signature, on the headline tier)
-    "accent":     "#B8860B",
-    # Back-compat aliases.
-    "neutral":    "#1A1A1A",
-    "neutral_2":  "#9A9A9A",
+    # — Surfaces —
+    "bg":         "#FAF9F7",   # warm parchment (primary canvas)
+    "bg_card":    "#FFFFFF",   # for inset panels that need lift
+    "bg_deeper":  "#F0ECE4",   # subtle structure
+    # — Ink scale (soft black → faint, for typographic hierarchy) —
+    "ink":        "#171717",   # near-black, never pure
+    "ink_soft":   "#3F3F3F",
+    "ink_dim":    "#6B6B6B",
+    "ink_faint":  "#9C9C9C",
+    "rule":       "#E2DCD0",   # hairline divider, parchment-tinted
+    # — Signature accent (saffron) and its supporting tints —
+    "accent":     "#C77519",   # primary editorial accent
+    "accent_2":   "#9C570F",   # deeper saffron for press
+    "accent_3":   "#6E3D08",   # darkest, for outlines on accent fills
+    "accent_pale":"#F1D9A6",   # warm tint for fills
+    "accent_mist":"#FAEED4",   # nearly-bg fill, for subtle banding
+    # — Cool counterpart (steel blue), used as the "easy" tier —
+    "navy":       "#2D5F8B",
+    "navy_deep":  "#1F3F60",
+    # — Tier semantics —
+    #   easy = steel (cool, calm), medium = wheat (transitional),
+    #   hard = saffron (the headline tier that gets the signature colour).
+    "easy":       "#2D5F8B",
+    "medium":     "#BFA376",
+    "hard":       "#C77519",
+    # — Back-compat aliases (kept so existing references keep working) —
+    "neutral":    "#171717",
+    "neutral_2":  "#9C9C9C",
     "background": "#FAF9F7",
-    "muted":      "#E5DDC8",
-    "highlight":  "#B8860B",
+    "muted":      "#E2DCD0",
+    "highlight":  "#C77519",
+    "amber":      "#C77519",
+    "amber_deep": "#9C570F",
+    "amber_dark": "#6E3D08",
+    "amber_glow": "#F1D9A6",
+    "amber_pale": "#FAEED4",
 }
-TIER_COLOR = {"easy": PALETTE["easy"], "medium": PALETTE["medium"],
-              "hard": PALETTE["hard"]}
-# Category palette: every category sits on the iTeach navy ↔ amber axis.
-# Annotation-effort gets the signature gold (it is the methodology's
-# headline category); the others tile the navy / olive / terracotta range.
-CATEGORY_COLOR = {
-    "annotation_effort":    "#B8860B",   # iTeach amber (headline)
-    "scene_complexity":     "#2C5773",   # iTeach navy
-    "occlusion":            "#5B4B7A",   # plum
-    "depth_quality":        "#9A7209",   # deep amber
-    "photometric_conflict": "#A0552B",   # terracotta
-    "temporal_stability":   "#3F6B5F",   # sage
-    "camera_motion":        "#8C3A3A",   # crimson
-    "fisheye_stereo":       "#1F3F55",   # navy deep
+TIER_COLOR = {
+    "easy":   PALETTE["easy"],
+    "medium": PALETTE["medium"],
+    "hard":   PALETTE["hard"],
 }
 
+# Category palette: 10 editorial-grade hues, hand-picked for cohesion,
+# categorical distinction, and colourblind safety. The headline accent
+# (saffron) belongs to annotation_effort — the methodology's signature
+# axis. Everything else tiles a curated wheel from cool blues through
+# earth tones back to deep midnight, with a consistent luminance band so
+# no single category visually dominates.
+CATEGORY_COLOR = {
+    # Headline — signature saffron
+    "annotation_effort":    "#C77519",
+    # Cool quadrant — scene-side properties
+    "scene_complexity":     "#2D5F8B",   # editorial steel blue
+    "occlusion":            "#6B4E8E",   # restrained violet
+    # Earth / quality quadrant — sensor + photometric
+    "depth_quality":        "#B89A36",   # antique brass
+    "photometric_conflict": "#B14F4F",   # subdued brick
+    # Green axis — image/object content
+    "image_quality":        "#4E8C5A",   # forest green
+    "object_size":          "#A56F3A",   # sienna
+    # Cool / motion quadrant
+    "temporal_stability":   "#3E7676",   # teal slate
+    "camera_motion":        "#8E3A52",   # garnet
+    # Deep midnight close — bracket the wheel
+    "fisheye_stereo":       "#1F3A60",   # indigo midnight
+}
+
+# Sequential heatmap: 4-stop ramp (parchment → wheat → saffron → ink).
+# Perceptually closer to uniform than a single-hue interpolation, and
+# the luminance monotonically decreases so the figure greyscales cleanly.
 HEATMAP_CMAP = LinearSegmentedColormap.from_list(
     "rpx_heat",
-    [PALETTE["bg"], PALETTE["accent"], PALETTE["ink"]],
+    [PALETTE["bg"], PALETTE["accent_pale"], PALETTE["accent"], PALETTE["ink"]],
+    N=256,
+)
+
+# Diverging cmap for any "delta vs baseline" panels — cool ↔ saffron,
+# passing through the parchment bg so zero is the natural neutral.
+DIVERGING_CMAP = LinearSegmentedColormap.from_list(
+    "rpx_diverging",
+    [PALETTE["navy_deep"], PALETTE["navy"], PALETTE["bg"], PALETTE["accent"], PALETTE["accent_2"]],
     N=256,
 )
 
@@ -175,6 +233,19 @@ def headline(fig, title: str, subtitle: str = "") -> None:
 
 def load(csv_path: Path):
     df = pd.read_csv(csv_path, comment="#")
+    # Tolerate older CSVs that were generated before FEATURE_NAMES grew:
+    # fill any missing columns with zeros and warn. The plot still renders;
+    # those features just contribute nothing to the analysis. Regenerate
+    # the CSV via experiments/scripts/build_esd_splits.py to recover them.
+    missing = [f for f in FEATURE_NAMES if f not in df.columns]
+    if missing:
+        print(
+            f"[warn] CSV is missing {len(missing)} of the {len(FEATURE_NAMES)} "
+            f"current ESD features — filling with zeros. To recover, regenerate "
+            f"the CSV with the current code. Missing: {missing}"
+        )
+        for m in missing:
+            df[m] = 0.0
     feat = df[list(FEATURE_NAMES)].to_numpy(dtype=np.float64)
     nz = feat.sum(axis=1) > 0
     df, feat = df[nz].reset_index(drop=True), feat[nz]
@@ -660,14 +731,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     fig_clustermap(scene_df, scene_pn, scene_tier,
                     args.out_dir / "fig_supp_clustermap.png")
 
-    print("[info] FIG 2 — tier fingerprint by modality (per-(scene,phase) data)...")
+    print("[info] FIG 2 — per-modality feature distributions...")
+    fig_distributions(pn, args.out_dir / "fig_supp_distributions.png")
+
+    print("[info] FIG 3 — tier fingerprint by modality (per-(scene,phase) data)...")
     fig_tier_fingerprint(pn, tier, args.out_dir / "fig_supp_tier_fingerprint.png")
 
-    print("[info] FIG 3 — combined RPX-DS score axis (the actual cut surface)...")
+    print("[info] FIG 4 — combined RPX-DS score axis (the actual cut surface)...")
     fig_combined_score(pn, tier, scene_pn,
                         args.out_dir / "fig_supp_combined_score.png")
 
-    print(f"\n[done] 3 figures in {args.out_dir}")
+    print(f"\n[done] 4 figures in {args.out_dir}")
     return 0
 
 
