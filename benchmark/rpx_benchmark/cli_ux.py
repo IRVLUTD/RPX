@@ -35,6 +35,11 @@ Environment
 - ``RPX_NO_ANIMATION=1`` — render the splash logo statically (no
   letter-by-letter reveal). Useful when piping into tools that don't
   handle the live-redraw escape sequences gracefully.
+- ``RPX_ANIM=fast|normal|slow|off`` — fine-grained reveal speed knob.
+  ``off`` is equivalent to ``RPX_NO_ANIMATION=1``. ``fast`` ≈ 550ms
+  total, ``slow`` ≈ 1.4s total. Default ``normal`` ≈ 900ms. Honoured
+  only when the terminal supports the animation in the first place
+  (i.e. not in CI or with ``NO_COLOR``).
 
 Brand palette
 -------------
@@ -185,14 +190,14 @@ _RPX_GLYPHS: tuple[tuple[str, ...], ...] = (
         " ██║     ",
         " ╚═╝     ",
     ),
-    # X — orange
+    # X — orange (leading space added so the inter-letter gap matches R→P)
     (
-        "██╗  ██╗",
-        "╚██╗██╔╝",
-        " ╚███╔╝ ",
-        " ██╔██╗ ",
-        "██╔╝ ██╗",
-        "╚═╝  ╚═╝",
+        " ██╗  ██╗",
+        " ╚██╗██╔╝",
+        "  ╚███╔╝ ",
+        "  ██╔██╗ ",
+        " ██╔╝ ██╗",
+        " ╚═╝  ╚═╝",
     ),
 )
 _RPX_COLORS = (BRAND_R, BRAND_P, BRAND_X)
@@ -233,20 +238,57 @@ def _logo_text(n_cols: int = _RPX_TOTAL_COLS) -> Text:
     return out
 
 
+_ANIM_SPEEDS: dict[str, float] = {
+    "fast":   0.015,
+    "normal": 0.025,
+    "slow":   0.045,
+}
+
+
+def _splash_already_seen_this_shell() -> bool:
+    """Per-shell first-run gate. First call within a shell session returns
+    False (and records a marker); subsequent calls within the same parent
+    PID return True so the animation is skipped — first-time delight, never
+    annoying on the 5th invocation.
+
+    Disabled under CI / RPX_QUIET (where it's already disabled by other
+    means) and under ``RPX_FORCE_SPLASH=1`` for screencast capture.
+    """
+    if _is_ci() or _is_quiet() or os.environ.get("RPX_FORCE_SPLASH"):
+        return False
+    from pathlib import Path
+
+    try:
+        marker = Path(f"/tmp/rpx-splash-{os.getppid()}")  # noqa: S108
+    except Exception:
+        return False
+    fresh = marker.exists() and time.time() - marker.stat().st_mtime < 3600
+    if not fresh:
+        try:
+            marker.touch()
+        except OSError:
+            return False  # can't write marker → animate every time
+    return fresh
+
+
 def _animate_logo() -> None:
     """Smooth column-wipe reveal of the RPX logo using ``rich.live``.
 
     Each frame extends the reveal by one column, so the logo appears to be
-    "drawn" left-to-right at ~40 fps. Total budget ~900 ms (26 columns @
-    25 ms + a short hold). Falls back to a single static print under
-    CI / NO_COLOR / RPX_NO_ANIMATION.
+    "drawn" left-to-right at ~40 fps (≈900ms total budget by default).
+    Falls back to a single static print under CI / NO_COLOR /
+    RPX_NO_ANIMATION / RPX_ANIM=off / second-or-later invocation in the
+    same shell session.
     """
     console = _get_console()
+    speed = (os.environ.get("RPX_ANIM") or "normal").lower()
     static = (
         _is_ci()
         or _is_quiet()
         or bool(os.environ.get("NO_COLOR"))
         or bool(os.environ.get("RPX_NO_ANIMATION"))
+        or speed == "off"
+        or _splash_already_seen_this_shell()
     )
     if static:
         if not _is_quiet():
@@ -255,7 +297,7 @@ def _animate_logo() -> None:
 
     from rich.live import Live  # local import: rich.live is a heavier submodule
 
-    frame_delay = 0.025  # ~40 fps — feels fluid on every terminal we've tried
+    frame_delay = _ANIM_SPEEDS.get(speed, _ANIM_SPEEDS["normal"])
     with Live(
         _logo_text(0),
         console=console,
@@ -265,7 +307,7 @@ def _animate_logo() -> None:
         for cols in range(1, _RPX_TOTAL_COLS + 1):
             live.update(_logo_text(cols))
             time.sleep(frame_delay)
-        time.sleep(0.25)  # hold on full logo before handing back to banner()
+        time.sleep(0.18)  # brief settle on full logo before handing back
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -274,24 +316,29 @@ def _animate_logo() -> None:
 
 
 def banner(title: str, subtitle: Optional[str] = None) -> None:
-    """Top-of-run splash: animated RPX logo + a brand-coloured title panel.
+    """Top-of-run splash: animated RPX logo + a tightly-set tagline row.
 
-    Use once at the very top of ``main()``. Honours ``RPX_QUIET=1`` (suppress
-    entirely) and ``RPX_NO_ANIMATION=1`` (render the logo statically).
+    Designed to be the single visual element at the top of every script —
+    no second bordered panel competing with the logo. The script title
+    appears in bold directly under the logo, followed by an optional dim
+    subtitle, separated by a thin indigo rule that visually grounds the
+    splash.
+
+    Honours ``RPX_QUIET=1`` (suppress entirely), ``RPX_NO_ANIMATION=1``
+    (render the logo statically), and ``RPX_ANIM=off`` (alias).
     """
     if _is_quiet():
         return
     console = _get_console()
     console.print()
     _animate_logo()
-    title_text = Text(title, style=f"bold {BRAND_P}")
-    body = Text.assemble(title_text)
-    if subtitle:
-        body.append("\n")
-        body.append(subtitle, style="dim")
-    panel = Panel(body, border_style=BRAND_R, expand=False, padding=(0, 2))
+    # Tagline row — bold title + dim subtitle, sitting directly under the
+    # logo. No bordered panel: the logo itself carries the visual weight.
     console.print()
-    console.print(panel)
+    console.print(Text(f"  {title}", style=f"bold {BRAND_R}"))
+    if subtitle:
+        console.print(Text(f"  {subtitle}", style="dim"))
+    console.rule(style=BRAND_R)
 
 
 def section(title: str, subtitle: Optional[str] = None) -> None:
@@ -535,6 +582,9 @@ def fmt_bytes(n: float) -> str:
 
 
 if __name__ == "__main__":  # pragma: no cover
+    # Force the animation on every smoke-test invocation, regardless of
+    # whether this shell already saw the splash in a real script today.
+    os.environ["RPX_FORCE_SPLASH"] = "1"
     log = setup("demo")
     banner("rpx_benchmark.cli_ux — smoke test", "verify every helper renders")
     section("Imports", "verify rich + helper functions wired correctly")
