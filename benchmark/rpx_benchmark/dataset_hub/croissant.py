@@ -3,7 +3,7 @@
 Croissant (https://mlcommons.org/working-groups/croissant/) is the ML
 metadata standard HuggingFace renders alongside dataset cards and that
 search platforms (Kaggle, Papers-with-Code) parse. We already authored
-``paper-submission/croissant/rpx_croissant.json`` against
+``rpx_benchmark/dataset_hub/croissant_template.json`` against
 an earlier dataset URL; this helper:
 
 1. **Copies** the source JSON into ``<staging>/rpx_croissant.json``.
@@ -34,12 +34,12 @@ from .recipes import DEFAULT_REPO_ID
 log = get_logger(__name__)
 
 
-# Default location of the source JSON, resolved relative to the repo root.
+# Default source of the Croissant template. The JSON ships inside the
+# package so pip-installed users get it without needing any local
+# checkout outside the package.
 def _default_croissant_src() -> Path:
-    """``<repo_root>/paper-submission/croissant/rpx_croissant.json``."""
-    here = Path(__file__).resolve()
-    repo_root = here.parents[3]  # .../benchmark/rpx_benchmark/dataset_hub/croissant.py
-    return repo_root / "paper-submission" / "croissant" / "rpx_croissant.json"
+    """``<package>/dataset_hub/croissant_template.json``."""
+    return Path(__file__).resolve().parent / "croissant_template.json"
 
 
 @dataclass(frozen=True)
@@ -83,7 +83,7 @@ def stage_croissant(
             f"croissant source JSON does not exist: {src}",
             hint=(
                 "Pass src= explicitly, or check that "
-                "paper-submission/croissant/ is present "
+                "croissant_template.json is present in the package "
                 "in the repo."
             ),
         )

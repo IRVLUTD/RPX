@@ -104,6 +104,7 @@ def test_default_src_resolves_under_paper_submission_dir():
     from rpx_benchmark.dataset_hub.croissant import _default_croissant_src
 
     default = _default_croissant_src()
-    assert default.name == "rpx_croissant.json"
-    assert default.parent.name == "croissant"
-    assert "paper-submission" in default.parts
+    assert default.name == "croissant_template.json"
+    # Template ships inside the dataset_hub subpackage so the file
+    # travels with `pip install rpx-benchmark`; no checkout required.
+    assert default.parent.name == "dataset_hub"

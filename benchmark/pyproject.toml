@@ -109,7 +109,10 @@ Changelog = "https://github.com/IRVLUTD/RPX/blob/main/benchmark/CHANGELOG.md"
 include = ["rpx_benchmark*"]
 
 [tool.setuptools.package-data]
-rpx_benchmark = ["py.typed"]
+rpx_benchmark = [
+  "py.typed",
+  "dataset_hub/croissant_template.json",  # Croissant ML-metadata template
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
