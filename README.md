@@ -15,7 +15,7 @@
 [![scope](https://img.shields.io/badge/scope-robot%20learning-ff69b4?style=flat-square)](https://github.com/IRVLUTD/RPX)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](#-contributing)
 
-[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](examples/README.md) · [**Mask Pipeline**](robokit/README.md) · [**Paper**](#-paper)
+[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](data_capture/README.md) · [**Mask Pipeline**](robokit/README.md) · [**Paper**](#-paper)
 
 </div>
 
@@ -60,7 +60,7 @@ everything behind the benchmark:
 
 **Components**
 - [🧰 Benchmark toolkit](benchmark/README.md)
-- [📷 Data capture rig](examples/README.md)
+- [📷 Data capture rig](data_capture/README.md)
 - [🎨 Mask pipeline](robokit/README.md)
 - [🐳 Docker workflow](#-docker-workflow)
 
@@ -94,7 +94,7 @@ RPX/
 │   ├── docs/               MkDocs site (auto-generated from docstrings)
 │   └── README.md           ←★ start here for users
 │
-├── examples/               Data-capture rig scripts (Intel D435 + T265)
+├── data_capture/               Data-capture rig scripts (Intel D435 + T265)
 │   └── README.md           Run `save_device_data.py` to capture a scene
 │
 ├── robokit/                Ground-truth mask pipeline (SAM2 + GroundingDINO)
@@ -149,7 +149,7 @@ the hosted site at <https://irvlutd.github.io/RPX/>.
 
 ## 🧱 The three parts of the system
 
-### 📷 1. Data collection rig — [`examples/`](examples/README.md)
+### 📷 1. Data collection rig — [`data_capture/`](data_capture/README.md)
 
 Two-sensor capture with **Intel RealSense D435 (RGB-D) + T265
 (6-DoF VIO)**. Captures each scene under the three-phase protocol
@@ -157,7 +157,7 @@ Two-sensor capture with **Intel RealSense D435 (RGB-D) + T265
 from T265.
 
 ```bash
-cd examples
+cd data_capture
 python save_device_data.py <task-name> <fps> <sync-threshold>
 ```
 
@@ -320,7 +320,7 @@ Each subproject has its own contribution workflow:
   [`benchmark/docs/guides/`](benchmark/docs/guides/)). **Always use
   the editable (`-e`) install when developing** — frozen wheel
   installs will silently show stale behaviour.
-- **`examples/`** — changes to the capture rig need a real RealSense
+- **`data_capture/`** — changes to the capture rig need a real RealSense
   device for smoke testing.
 - **`robokit/`** — mask generation changes need access to the
   interactive annotation UI and a CUDA-capable box.
