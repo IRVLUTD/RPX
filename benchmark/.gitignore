@@ -57,6 +57,10 @@ ENV/
 rpx_results/
 .rpx_cache/
 
+# Local-only coordination log between parallel work streams. Kept off the
+# public repo — authored attributions belong in conversation, not source.
+SHARED_CONTEXT.md
+
 # ---------------------------------------------------------------------------
 # Jupyter
 # ---------------------------------------------------------------------------

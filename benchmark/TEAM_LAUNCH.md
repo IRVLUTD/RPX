@@ -6,7 +6,7 @@ One-page guide to running the canonical sequence on the full dataset.
 
 ```bash
 pip install -e 'benchmark[hub]'
-hf auth login                                    # for HF push (Itay)
+hf auth login                                    # for HF push
 export BOX_DEVELOPER_TOKEN='<60-min-token>'      # https://app.box.com/developers/console (refresh hourly)
 ```
 
@@ -80,7 +80,46 @@ clear `ImportError` with the install hint when missing.
 
 **Box mirror** (when `--upload-to-box`): `<box_folder_id>/monocular_depth/<display>/<split>/...` matches the local tree exactly.
 
-## 3. Sweep aggregation — once all models have run
+## 3. Relative-pose benchmark sweep — RCPE axis
+
+```bash
+# Single model on a single split (no GPU required for the default key)
+PYTHONPATH=. python scripts/run_relative_pose.py --model opencv_baseline --split easy
+
+# Team-internal: per-pair predictions CSV + comprehensive metrics + Box mirror
+PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split <easy|medium|hard> \
+    --save-predictions --comprehensive-metrics --upload-to-box
+```
+
+**`--model` keys (10 live):**
+
+*Direct pose regression (7)* — `reloc3r`, `dust3r`, `mast3r`, `far`,
+`srpose`, `nope_sac`, `mickey`.
+*Feature matching + solver (1)* — `loftr`.
+*Classical (2)* — `opencv_baseline`, `icp_open3d`.
+
+`native_alignment` per adapter: `none` for metric translation, `unit`
+for essential-matrix decomposition (translation up-to-scale). Full
+table in [`README.md`](README.md#3-run-the-relative-pose-benchmark-rcpe).
+
+**Optional install extras**: `pip install kornia opencv-contrib-python`
+(loftr, opencv_baseline), `pip install open3d` (icp_open3d), `pip
+install reloc3r` (reloc3r). The dust3r / mast3r / far / srpose /
+nope_sac / mickey adapters require a clone + checkpoint of the
+upstream repo. Each adapter raises a clear `ImportError` with the hint.
+
+**Per-run output**: `rpx_results/<display>/<split>/`:
+- `result.json` — `rotation_error_deg` primary, DR report, timing CIs.
+- `summary.md` — human-readable.
+- `pose_comprehensive_metrics.json` — full pose basket (rotation +
+  translation L2 + translation angular + AUC@5°/10°/20° with 95% CIs,
+  by-phase, by-stride breakdown).
+- `predictions.csv` — single CSV (`scene_id, phase, frame_a, frame_b,
+  R00..R22, tx, ty, tz`), header written exactly once, resume-safe.
+
+**Box mirror** (when `--upload-to-box`): `<box_folder_id>/relative_pose/<display>/<split>/`.
+
+## 4. Sweep aggregation — once all models have run
 
 ```bash
 # DRS table per split
@@ -95,28 +134,31 @@ PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity
 
 Outputs land at `rpx_results/_sweep/drs_<split>.{csv,json}` and `sensitivity_<split>.json`.
 
-## 4. Quality gates
+## 5. Quality gates
 
 | Check | Status |
 |---|---|
-| Test suite | 524 passing / 2 expected skips (`pytest tests/`) |
+| Test suite | 545 passing / 2 expected skips (`pytest tests/`) |
 | Data loader | 7 of 8 task recipes round-trip through `RPXDataset.from_manifest` (vqa awaits labels) |
-| 9 mono-depth adapters | reproducible from a single HF / pip URL each |
+| 19 mono-depth adapters | reproducible from a single HF / pip URL each |
+| 10 RCPE pose adapters | registry + base contract covered by import smoke + math tests |
 | Per-stage timing + 95% CIs | bootstrap + t-CI on every aggregated metric |
 | Per-object metrics | mean across SAM2 instances, ≥200 px, with `coverage` (hole-aware) |
 | DRS pipeline | OperatingPoint per run, sweep aggregator computes DRS + sensitivity |
 | Box upload | scene/phase tree mirrored, idempotent (size-matched skip), 2 contract tests |
 
-## 5. Known limits / call-outs
+## 6. Known limits / call-outs
 
 - **`DEPTH_MAX_M = 5.0`** in `rpx_benchmark/metrics/depth_alignment.py`. D435 is unreliable beyond ~6 m; pixels with GT depth >5 m are silently excluded from every metric. **Outdoor scenes (35 of 99) have GT > 5 m**; those models are evaluated only on the <5 m subset of outdoor pixels. Team decision needed: raise the cap, stratify by domain, or document and move on.
 - **Box token expires every 60 min** — every relaunch needs a fresh export. The pipeline raises `ConfigError("Box API 401 — token expired", hint="…regenerate at developer console")` cleanly when stale.
 - **VQA recipe** is wired but emits zero entries (waits on the team's VQA label-generation pipeline). All 7 other tasks ship.
 - **Paired-task pair-stride** is fixed at 5 frames (matches `generate_keypoint_pairs.py`'s convention). Override via `_RelativePoseSpec.pair_stride` if needed.
 
-## 6. Coordination
+## 7. Sections by topic
 
-- **Itay**: §1 (HF upload).
-- **Naren / depth lead**: §2 (per-model sweeps), §3 (DRS aggregation).
-- **Paper / DRS theory + 20-model survey**: see `docs/methods/`.
-- **Pipeline plumbing, adapter rollout, Box upload**: maintained alongside this PR's surface.
+- §1 — HF dataset upload (one-time per dataset version).
+- §2 — Monocular-depth sweep (per-model + Box upload).
+- §3 — Relative-pose sweep (RCPE — 10 pose adapters).
+- §4 — Sweep aggregation (DRS table per split + sensitivity).
+- §5–6 — Quality gates + known limits.
+- Method/DRS background: see [`docs/methods/`](docs/methods/).
