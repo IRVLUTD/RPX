@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
@@ -64,7 +64,7 @@ def _token() -> str:
     return tok
 
 
-def _api_get(path: str, params: Optional[dict] = None) -> dict:
+def _api_get(path: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     r = requests.get(
         f"{BOX_API}{path}",
         headers={"Authorization": f"Bearer {_token()}", "User-Agent": USER_AGENT},
@@ -79,10 +79,10 @@ def _api_get(path: str, params: Optional[dict] = None) -> dict:
             hint="Token may be expired (60-min window) or lacks permissions for this folder.",
         )
     r.raise_for_status()
-    return r.json()
+    return r.json()  # type: ignore[no-any-return]
 
 
-def _api_post(path: str, payload: dict) -> dict:
+def _api_post(path: str, payload: dict[str, Any]) -> dict[str, Any]:
     r = requests.post(
         f"{BOX_API}{path}",
         headers={
@@ -101,11 +101,11 @@ def _api_post(path: str, payload: dict) -> dict:
             hint="Token may be expired (60-min window) or lacks permissions for this folder.",
         )
     r.raise_for_status()
-    return r.json()
+    return r.json()  # type: ignore[no-any-return]
 
 
-def _api_list_folder(folder_id: str) -> list[dict]:
-    items: list[dict] = []
+def _api_list_folder(folder_id: str) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
     offset = 0
     while True:
         data = _api_get(
@@ -140,7 +140,7 @@ def _api_ensure_folder(name: str, parent_folder_id: str) -> str:
             raise
         for it in _api_list_folder(parent_folder_id):
             if it["type"] == "folder" and it["name"] == name:
-                return it["id"]
+                return str(it["id"])
         from .exceptions import DatasetError
 
         raise DatasetError(
@@ -159,7 +159,7 @@ def _api_resolve_path(parts: list[str], root_folder_id: str) -> str:
     return cur
 
 
-def _api_existing_files(folder_id: str) -> dict[str, dict]:
+def _api_existing_files(folder_id: str) -> dict[str, dict[str, Any]]:
     return {it["name"]: it for it in _api_list_folder(folder_id) if it["type"] == "file"}
 
 
@@ -167,8 +167,8 @@ def _api_upload_file(
     local: Path,
     parent_folder_id: str,
     name: Optional[str] = None,
-    existing: Optional[dict[str, dict]] = None,
-) -> dict:
+    existing: Optional[dict[str, dict[str, Any]]] = None,
+) -> dict[str, Any]:
     """Upload one file. If ``existing[name]`` matches local size, skip. If exists
     with different size, upload as a new version on the same file id."""
     name = name or local.name
@@ -178,6 +178,7 @@ def _api_upload_file(
         return {"id": existing[name]["id"], "name": name, "skipped": True}
 
     headers = {"Authorization": f"Bearer {_token()}", "User-Agent": USER_AGENT}
+    attrs: dict[str, Any]
     if name in existing:
         url = f"https://upload.box.com/api/2.0/files/{existing[name]['id']}/content"
         attrs = {"name": name}
@@ -210,7 +211,7 @@ def upload_tree(
     *,
     root_folder_id: str = "0",
     verbose: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     """Upload every file under ``local_dir`` to ``<root>/<remote_path>``.
 
     Mirrors directory structure; size-matched files are skipped (idempotent).
@@ -277,7 +278,7 @@ def upload_run_dir(
     split: str,
     root_folder_id: str = DEFAULT_BOX_FOLDER_ID,
     verbose: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     """Mirror a single per-run output directory to Box.
 
     Lays everything under ``out_dir`` at the canonical path
