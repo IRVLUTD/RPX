@@ -1,13 +1,20 @@
 # `data_capture/` — Intel D435 + T265 capture rig
 
-End-to-end capture pipeline for one RPX scene: synchronized **RGB + depth
-(Intel RealSense D435)** with **6-DoF pose (Intel RealSense T265)**, logged
-into a per-task directory the rest of the toolkit consumes.
+> End-to-end capture for one RPX scene: synchronised **RGB + depth (D435)**
+> with **6-DoF pose (T265)**, logged in the layout the rest of the toolkit
+> consumes.
 
-This is what you run on the **capture machine** — the laptop or workstation
-the cameras are plugged into. You **don't** need this if you're just
-benchmarking models on the already-captured dataset (use
-[`benchmark/`](../benchmark/README.md) for that).
+You only need this on the **capture machine** (where the cameras are
+plugged in). Benchmarking against the already-captured dataset uses
+[`benchmark/`](../benchmark/README.md) and doesn't touch this directory.
+
+## Contents
+
+- [Quick start](#-quick-start-one-scene)
+- [Requirements](#%EF%B8%8F-requirements)
+- [Scripts](#-scripts)
+- [Docker](#-docker)
+- [Related](#-related)
 
 ---
 
@@ -49,7 +56,7 @@ script above.
 
 ---
 
-## 📂 What each script does
+## 📂 Scripts
 
 | Script | Purpose |
 |---|---|

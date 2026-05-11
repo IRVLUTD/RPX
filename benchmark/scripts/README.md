@@ -1,8 +1,17 @@
 # Benchmark scripts
 
-Utility scripts that run alongside the package. All are runnable directly with
-`PYTHONPATH=. python scripts/<name>.py`, or via the `make` shortcuts in the
-parent `Makefile`.
+> CLI runners and helpers that sit alongside the `rpx_benchmark` package.
+> Every script is invocable as `PYTHONPATH=. python scripts/<name>.py`,
+> or via a `make` shortcut in the parent [`Makefile`](../Makefile).
+
+## Contents
+
+- [Visualization](#visualization)
+- [Benchmarking](#benchmarking)
+- [Box helpers (UTD)](#box-helpers-utd)
+- [Other scripts](#other-scripts)
+
+---
 
 ## Visualization
 

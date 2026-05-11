@@ -1,24 +1,38 @@
 # RPX Benchmark Toolkit
 
-**Benchmark robot-perception models on real-world RGB-D data — across clutter, human interaction, and clean phases of the same 99 indoor + outdoor scenes.**
+> Benchmark robot-perception models on real-world RGB-D data — across
+> clutter, human-interaction, and clean phases of the same 99 indoor +
+> outdoor scenes. ESD difficulty splits + deployment-readiness scoring.
 
-`rpx-benchmark` is the reference toolkit for [RPX — Robot Perception
-X](https://github.com/IRVLUTD/RPX). The toolkit core ships the **dataset
-loader, task-specific metrics, hardware-agnostic profiling, and a
-deployment-readiness scoring framework**. The team's reference
-implementations of 19 monocular-depth adapters, 10 relative-pose
-adapters, and the per-task run scripts live alongside it under
-`scripts/` for the paper sweep.
+The toolkit core ships the **dataset loader, task-specific metrics,
+hardware-agnostic profiling, and a deployment-readiness scoring
+framework**. Reference adapters (19 mono-depth, 10 relative-pose) and
+per-task run scripts live under `scripts/` for the team's paper sweep.
 
-External users with their own models: [skip to the BYO-model
-quickstart](#bring-your-own-model). Team members running the canonical
-sweep: [start here](#for-the-team-canonical-sweep).
+| You are… | Go to |
+|---|---|
+| 🧰 **A team member running the canonical sweep** | [Canonical sweep](#for-the-team-canonical-sweep) (or the [single-page version](TEAM_LAUNCH.md)) |
+| 🔌 **An external user with your own model** | [Bring your own model](#bring-your-own-model) |
+| 📚 **A toolkit contributor** | [What the toolkit ships](#what-the-toolkit-ships) |
+
+## Contents
+
+- [For the team — canonical sweep](#for-the-team-canonical-sweep)
+  - [0. One-time setup](#0-one-time-setup)
+  - [1. Push the dataset to HuggingFace](#1-push-the-dataset-to-huggingface)
+  - [2. Run the depth benchmark](#2-run-the-depth-benchmark)
+  - [3. Run the relative-pose benchmark (RCPE)](#3-run-the-relative-pose-benchmark-rcpe)
+  - [4. Aggregate the sweep into the paper table](#4-aggregate-the-sweep-into-the-paper-table)
+  - [5. Where to look](#5-where-to-look)
+  - [Known limits](#known-limits)
+- [Bring your own model](#bring-your-own-model)
+- [What the toolkit ships](#what-the-toolkit-ships)
 
 ---
 
 ## For the team — canonical sweep
 
-This is the day-the-data-lands launch sequence. **Single-page version:
+The day-the-data-lands launch sequence. **One-page version:
 [`TEAM_LAUNCH.md`](TEAM_LAUNCH.md)**.
 
 ### 0. One-time setup
@@ -253,8 +267,8 @@ PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity   # pape
 
 Outputs: `rpx_results/_sweep/drs_<split>.{csv,json}` and
 `sensitivity_<split>.json`. The DRS (Deployment Readiness Score) is the
-multiplicative `TP × R × E` headline metric — see
-`paper-submission/latex/drs_section.tex` for the axiomatization.
+multiplicative `TP × R × E` headline metric — the axiomatization
+lives in the methodology paper (kept local under `paper-submission/`).
 
 ### 5. Where to look
 
@@ -263,7 +277,6 @@ multiplicative `TP × R × E` headline metric — see
 | [`TEAM_LAUNCH.md`](TEAM_LAUNCH.md) | running the sweep — one-page handoff |
 | [`scripts/README.md`](scripts/README.md) | extending the depth zoo or the metric basket |
 | [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/README.md) | HF upload questions |
-| `paper-submission/BRIEF_FOR_ADVISOR.tex` | scope discussions / advisor brief |
 
 ### Known limits
 

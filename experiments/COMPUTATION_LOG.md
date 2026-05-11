@@ -1,4 +1,4 @@
-# RPX NeurIPS 2026 — Computation Log
+# RPX — Computation Log
 
 Track all experiment runs here. Update as results land.
 

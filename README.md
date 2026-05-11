@@ -29,7 +29,7 @@ everything behind the benchmark:
 - 📷 the **data-collection rig** scripts (Intel D435 RGB-D + T265 VIO),
 - 🎨 the **ground-truth mask generator** (SAM2 + GroundingDINO),
 - 🧰 the **benchmark toolkit** (`pip install rpx-benchmark`), and
-- 📄 the **NeurIPS 2026 Datasets & Benchmarks paper** draft.
+- 📄 the **methodology paper** draft.
 
 ## ✨ At a glance
 
@@ -282,11 +282,11 @@ and the mask-generation pipeline already installed.
 
 ## 📄 Paper
 
-The NeurIPS 2026 Datasets & Benchmarks submission is under preparation.
-Paper drafts, briefs, and the overleaf project are kept **local-only**
-under `paper-submission/` on each contributor's box (not in this
-public repo). The full model slate rationale, ESD formulation,
-three-phase protocol details, and experiment tables are in the paper.
+The methodology paper is under preparation. Drafts, briefs, and the
+LaTeX project are kept **local-only** under `paper-submission/` on
+each contributor's box (not in this public repo). The full model
+slate rationale, ESD formulation, three-phase protocol details, and
+experiment tables live in the paper.
 
 ---
 
@@ -333,9 +333,8 @@ Each subproject has its own contribution workflow:
 ## 📑 Citation
 
 If you use RPX (dataset, toolkit, or any part of this repository) in
-your work, please cite the accompanying NeurIPS 2026 Datasets &
-Benchmarks paper. The BibTeX entry will be added here once the
-camera-ready version is released.
+your work, please cite the accompanying paper. The BibTeX entry will
+be added here once the paper is publicly released.
 
 ---
 

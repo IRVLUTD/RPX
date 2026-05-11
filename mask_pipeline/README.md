@@ -1,14 +1,24 @@
 # `mask_pipeline/` — Ground-truth mask generation
 
-Interactive **GroundingDINO + SAM2** pipeline that turns a captured RPX
-scene into per-frame instance masks. A human operator curates the
-bounding-box set on a single keyframe per phase; **SAM2 propagates**
-the masks across the rest of the frames.
+> Interactive **GroundingDINO + SAM2** pipeline that turns a captured RPX
+> scene into per-frame instance masks. A human operator curates bboxes
+> on one keyframe per phase; **SAM2 propagates** to every other frame.
 
-This is what you run on a **CUDA-capable annotation box** after capture.
-You **don't** need this if you only want to benchmark models against the
-already-published RPX dataset (use [`../benchmark/`](../benchmark/README.md)
-for that).
+You only need this on a **CUDA-capable annotation box** (after capture,
+before benchmark). Benchmarking against the already-published RPX
+dataset uses [`../benchmark/`](../benchmark/README.md) and doesn't
+touch this directory.
+
+## Contents
+
+- [Quick start](#-quick-start)
+- [The two-stage pipeline](#-the-two-stage-pipeline)
+  - [Iter 1 — interactive bbox curation + SAM2 propagation](#iteration-1--interactive-bbox-curation--sam2-propagation)
+  - [Iter 2 — automatic refinement](#iteration-2--automatic-refinement-of-faulty-frames)
+  - [Final — object-ID mapping](#final-step--object-id-mapping)
+- [Scripts](#-what-each-script-does)
+- [Docker](#-docker)
+- [Acknowledgments](#-acknowledgments)
 
 ---
 

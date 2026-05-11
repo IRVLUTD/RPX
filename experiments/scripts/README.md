@@ -1,13 +1,23 @@
-# RPX Splits Pipeline — Team Execution Guide
+# RPX Splits Pipeline
 
-End-to-end pipeline that turns the captured RPX dataset into the
-**Easy / Medium / Hard scene splits** the benchmark ships.
+> End-to-end pipeline that turns a captured RPX dataset into the
+> **Easy / Medium / Hard scene splits** the benchmark ships.
 
 ```
 DATA  →  Stage 1 (extract)  →  phase_esd_splits.csv
                              →  Stage 2 (split)
                              →  scene_splits.json   ← deliverable
 ```
+
+## Contents
+
+- [1. Quick start](#1-quick-start-one-time-setup)
+- [2. Run the pipeline](#2-run-the-pipeline)
+- [3. What ships in `benchmark/data/splits/`](#3-what-ships-in-benchmarkdatasplits)
+- [4. Methodology in one paragraph](#4-methodology-in-one-paragraph)
+- [5. Tunable knobs](#5-tunable-knobs)
+
+---
 
 ## 1. Quick start (one-time setup)
 
