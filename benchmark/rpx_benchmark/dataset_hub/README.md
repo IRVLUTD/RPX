@@ -231,7 +231,7 @@ machine-readable form. HuggingFace, Kaggle, OpenML, and Papers-with-Code
 all parse Croissant to render rich previews and search filters.
 
 We already authored ours at
-`paper-submission/neurips-2026/croissant/rpx_croissant.json`. The
+`paper-submission/croissant/rpx_croissant.json`. The
 `stage-croissant` command copies it into the upload tree and patches a
 few fields (URL, version, optional bibtex) to point at the live HF repo.
 

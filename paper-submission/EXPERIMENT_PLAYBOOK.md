@@ -325,7 +325,7 @@ If experiments run late, here's the survival plan:
 ```
 RPX/
 └── experiments/
-    └── neurips-2026/
+    └── paper-submission/
         ├── results/
         │   ├── monocular_depth/
         │   │   ├── depth-anything-v2-large.json

@@ -126,7 +126,7 @@ These were debated and settled; **do not revisit without cause**:
 │   ├── tests/
 │   │   └── test_dataset_hub_*.py                 ← ~120 tests across 10 files
 │   └── pyproject.toml                            ← [hub] extras = huggingface_hub + pyarrow
-└── paper-submission/neurips-2026/
+└── paper-submission/
     └── croissant/rpx_croissant.json              ← the pre-authored Croissant (gets copied+patched)
 ```
 

@@ -8,7 +8,7 @@ small companion files HF Datasets needs alongside them:
   copied from ``benchmark/data/splits/`` so downloaders can resolve a
   split to a scene list before fetching the manifest.
 * ``rpx_croissant.json`` — copied from
-  ``paper-submission/neurips-2026/croissant/`` with path reconciliation
+  ``paper-submission/croissant/`` with path reconciliation
   against the new tar layout (TODO 3 — handled in a sibling helper).
 * ``README.md`` (HF dataset card) — generated from the scan totals
   (TODO 2 — handled in :mod:`.dataset_card`).
