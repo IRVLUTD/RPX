@@ -325,6 +325,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "upload_to_hf — push RPX shards to HuggingFace",
+        "manifests + tar shards + dataset card + Croissant metadata",
+    )
+    cli_ux.config(vars(args))
+
     local_root: Path = args.local_root
     scenes_root = local_root / "scenes"
     if not scenes_root.is_dir():

@@ -548,6 +548,15 @@ def _cli():
     )
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
+
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "comprehensive_depth_metrics — full metric basket",
+        "9 errors × 4 alignment modes × 3 depth bands × in/out-of-mask + per-object",
+    )
+    cli_ux.config(vars(args))
+
     extras = compute_run(args.predictions_dir, args.manifest, alignment=args.alignment)
     out = args.out or args.predictions_dir.parent / "comprehensive_metrics.json"
     out.write_text(json.dumps(extras, indent=2))

@@ -103,6 +103,14 @@ def main() -> None:
     )
     args = ap.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "smoke_depth — ZoeDepth on a few RPX frames",
+        "validates the model adapter without the toolkit pipeline",
+    )
+    cli_ux.config(vars(args))
+
     from rpx_benchmark.dataset_hub import download_for_task
 
     print("== ensuring rgb + depth shards are in the HF cache ==")

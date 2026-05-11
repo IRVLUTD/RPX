@@ -391,6 +391,14 @@ def _cli() -> None:
     ap.add_argument("--auc-thresholds", type=float, nargs="+", default=list(DEFAULT_AUC_DEG))
     args = ap.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "pose_comprehensive_metrics — full RCPE metric basket",
+        "rotation + translation L2/angular + AUC@5°/10°/20° (with 95% CIs, by-phase, by-stride)",
+    )
+    cli_ux.config(vars(args))
+
     extras = compute_run(
         args.predictions_csv,
         args.manifest,

@@ -174,6 +174,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "feature_ablation_study — which features are load-bearing",
+        "rank the 27 ESD features by their contribution to the final tier assignment",
+    )
+    cli_ux.config(vars(args))
+
     if not args.features.is_file():
         raise SystemExit(f"--features not found: {args.features}")
 

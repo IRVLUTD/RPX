@@ -713,6 +713,15 @@ def main(argv: Optional[List[str]] = None) -> int:
                 / "supplementary_visuals",
     )
     args = parser.parse_args(argv)
+
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "supplementary_visuals — high-design appendix figures",
+        "raw 297×27 ESD feature table → paper appendix figures",
+    )
+    cli_ux.config(vars(args))
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     setup_style()

@@ -543,6 +543,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--n-perturb", type=int, default=1000)
     args = parser.parse_args(argv)
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "data_story_analysis — auto-generated narrative",
+        "297×27 ESD feature table → paper-ready data-story analytics",
+    )
+    cli_ux.config(vars(args))
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(args.features, comment="#")

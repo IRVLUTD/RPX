@@ -191,6 +191,14 @@ def main() -> int:
     parser.add_argument("--src-stride", type=int, default=10)
     args = parser.parse_args()
 
+    from rpx_benchmark import cli_ux
+
+    cli_ux.banner(
+        "generate_keypoint_pairs — precompute keypoint GT",
+        "ground-truth keypoint correspondences per RPX scene/phase",
+    )
+    cli_ux.config(vars(args))
+
     local_root: Path = args.local_root
     scenes_root = local_root / "scenes"
     if not scenes_root.is_dir():
