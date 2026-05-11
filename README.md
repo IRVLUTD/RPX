@@ -15,7 +15,7 @@
 [![scope](https://img.shields.io/badge/scope-robot%20learning-ff69b4?style=flat-square)](https://github.com/IRVLUTD/RPX)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](#-contributing)
 
-[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](dc/README.md) · [**Mask Pipeline**](robokit/README.md) · [**Paper**](#-paper)
+[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](examples/README.md) · [**Mask Pipeline**](robokit/README.md) · [**Paper**](#-paper)
 
 </div>
 
@@ -60,7 +60,7 @@ everything behind the benchmark:
 
 **Components**
 - [🧰 Benchmark toolkit](benchmark/README.md)
-- [📷 Data capture rig](dc/README.md)
+- [📷 Data capture rig](examples/README.md)
 - [🎨 Mask pipeline](robokit/README.md)
 - [🐳 Docker workflow](#-docker-workflow)
 
@@ -89,28 +89,32 @@ everything behind the benchmark:
 RPX/
 ├── benchmark/              Python package + CLI: load, run, metric, report
 │   ├── rpx_benchmark/      Library source
+│   ├── scripts/            Per-task runners (run_depth, run_relative_pose, ...)
+│   ├── tests/              Offline test suite
 │   ├── docs/               MkDocs site (auto-generated from docstrings)
-│   ├── tests/              138-test offline suite
-│   └── README.md           Toolkit-specific README ←★ start here for users
+│   └── README.md           ←★ start here for users
 │
-├── dc/                     Data-collection rig scripts (D435 + T265)
+├── examples/               Data-capture rig scripts (Intel D435 + T265)
 │   └── README.md           Run `save_device_data.py` to capture a scene
 │
 ├── robokit/                Ground-truth mask pipeline (SAM2 + GroundingDINO)
+│   ├── maskgen_pipeline/   Maskgen scripts + bbox / point-prompt utilities
+│   ├── visual_grounding_gt/  Visual-grounding GT helpers
+│   ├── robokit/            Inner Python package (perception, datasets, ...)
+│   ├── docker/             Maskgen-specific Docker setup
 │   └── README.md           Interactive GSAM2 refinement UI
 │
-├── docker/                 Dockerised reproducible environment
-│   └── README.md           Build, start, stop, exec helpers
+├── vis/                    Standalone Rerun 3-D visualisation tool
 │
-├── paper-submission/       LaTeX source for the NeurIPS 2026 paper
+├── experiments/            ESD difficulty-split analysis + figures
 │
-├── external/               Third-party submodules (rerun visualiser, ...)
-│
-├── scripts/                Auxiliary helpers
+├── docker/                 Top-level Dockerised reproducible env
 │
 ├── .github/workflows/      CI: pytest matrix + ruff + MkDocs Pages deploy
 │
-└── README.md               This file
+├── README.md               This file
+├── CONTRIBUTING.md
+└── LICENSE
 ```
 
 Each subdirectory has its own README with the full details for that
@@ -147,7 +151,7 @@ the hosted site at <https://irvlutd.github.io/RPX/>.
 
 ## 🧱 The three parts of the system
 
-### 📷 1. Data collection rig — [`dc/`](dc/README.md)
+### 📷 1. Data collection rig — [`examples/`](examples/README.md)
 
 Two-sensor capture with **Intel RealSense D435 (RGB-D) + T265
 (6-DoF VIO)**. Captures each scene under the three-phase protocol
@@ -155,7 +159,7 @@ Two-sensor capture with **Intel RealSense D435 (RGB-D) + T265
 from T265.
 
 ```bash
-cd dc
+cd examples
 python save_device_data.py <task-name> <fps> <sync-threshold>
 ```
 
@@ -318,7 +322,7 @@ Each subproject has its own contribution workflow:
   [`benchmark/docs/guides/`](benchmark/docs/guides/)). **Always use
   the editable (`-e`) install when developing** — frozen wheel
   installs will silently show stale behaviour.
-- **`dc/`** — changes to the capture rig need a real RealSense
+- **`examples/`** — changes to the capture rig need a real RealSense
   device for smoke testing.
 - **`robokit/`** — mask generation changes need access to the
   interactive annotation UI and a CUDA-capable box.
