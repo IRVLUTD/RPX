@@ -1,93 +1,148 @@
-# RPX-RCPE Pipeline & Paper Draft — Complete Summary
+# RPX — RCPE + NVS Pipeline Status
 
-## Decision: No Composite DRS Score
+**Commit:** `d7d5120` on `jishnu/beautify-readmes`
+**Date:** 2026-05-11
 
-We report three deployment-readiness axes separately:
-1. **Task Accuracy** — AUC, Metric AUC, AbsRel, etc. (per task)
-2. **Scene-Change Robustness** — STR, Cross-phase Δ, Temporal drift (unique to RPX)
-3. **Compute Cost** — Params (M), FLOPs (G), Latency† (supplementary)
+---
 
-No formula combining them. Backed by: FDA AI/ML (checklists not composites), Model Cards (disaggregated reporting), TRADES theorem (accuracy-robustness tradeoff is fundamental), and every successful robotics benchmark (BOP, nuScenes, GraspNet — none use accuracy+efficiency composites).
-
-## Code Deliverables
+## What's Committed and Working
 
 ### New Library Modules (`benchmark/rpx_benchmark/`)
-1. **`pose_pairs.py`** — On-the-fly deterministic pair generator (3 pair types, 4 rotation bins, auto-extraction from HF)
-2. **`pose_metrics.py`** — Full RCPE metric basket (standard AUC + Metric AUC + cross-phase Δ + temporal drift)
-3. **`model_profiler.py`** — Unified profiler for any task (Params, FLOPs, latency)
+
+| File | Lines | What |
+|---|---|---|
+| `pose_pairs.py` | 655 | On-the-fly deterministic RCPE pair generator. Three pair types (intra-phase × 4 rotation bins, cross-phase Clutter↔Clean, temporal chains). ~60K pairs at full scale. Auto-extracts from HF tars. Seeded, zero duplicates, deterministic. |
+| `pose_metrics.py` | 314 | `evaluate_rcpe(per_pair)` — full metric basket. Standard: AUC@5°/10°/20°. Novel: Metric AUC@(θ°, d cm), cross-phase Δ, temporal drift, per-bin/per-type breakdowns. |
+| `model_profiler.py` | 346 | `ModelProfiler(model)` — unified profiler for any task. Auto-discovers torch module. `pre_run_profile()` → `full_report(eff)`. |
+| `nvs_pairs.py` | 369 | On-the-fly NVS evaluation sample generator. Context views (N=2,4,8,16) + target query + GT. Interpolation/extrapolation/cross-phase. ~25K samples at full scale. |
 
 ### Modified Files
-- `scripts/run_relative_pose.py` — `--pairs-source on_the_fly`, `--skip-flops`, evaluate_rcpe integration
-- `rpx_benchmark/evaluators.py` — Fixed: added `translation_angular_deg` + `pose_error_max_deg`
-- `rpx_benchmark/deployment.py` — ERS prefers hardware-agnostic Tier 1/2 over measured Tier 3
-- `scripts/generate_pose_pairs.py` + `scripts/local_manifest.py` — RCPE exclusions
-- READMEs updated (top-level, benchmark, scripts)
-- `docs/guides/adding-a-model.md` — Community guide for adding models to any task
 
-### Verification
-- 555/555 tests passing, deterministic, zero duplicates, end-to-end smoke tested
-
-## Paper Draft Updates
-
-### Files Modified (existing tex)
 | File | Change |
 |---|---|
-| `root.tex` | Points to `00_abstract_v2.tex` instead of `00_abstract.tex` |
-| `01_intro.tex` | Removed EDS references, updated contributions via `\input{01b_contributions_updated}`, updated findings candidates |
-| `02_related.tex` | Added `\input{02b_related_rcpe}` at end |
-| `03_method.tex` | Removed EDS composite subsection, replaced with `\input{03b_deployment_readiness}` |
-| `05_tasks.tex` | Changed "five" → "six", replaced task table with `\input{05c_task_table_updated}`, added `\input{05b_rcpe_task}` after D5 |
-| `06_experiments.tex` | Replaced downstream EDS validation with `\input{06b_rcpe_experiments}` + cross-task analysis |
-| `10_conclusion.tex` | Replaced EDS references with three-axis profile language, fixed indoor→indoor+outdoor |
+| `evaluators.py` | `pose_metrics()` now returns 4 keys: added `translation_angular_deg` + `pose_error_max_deg` (fixes standard AUC) |
+| `run_relative_pose.py` | Added `--pairs-source on_the_fly`, `--skip-flops`, `_run_on_the_fly()` function, writes `rcpe_metrics.json` with tiered efficiency |
+| `local_manifest.py` | RCPE exclusion filtering for pose tasks |
+| `generate_pose_pairs.py` | Exclusion constants (scene58, 5 ICP failures) |
+| `scripts/README.md` | RCPE quickstart + output format docs |
+| `benchmark/README.md` | On-the-fly stratified pair docs, exclusions |
 
-### New Files Created
-| File | Purpose |
+### New Docs/Scripts
+
+| File | What |
 |---|---|
-| `00_abstract_v2.tex` | Updated abstract — multi-axis, RCPE, no composite |
-| `01b_contributions_updated.tex` | 5 contributions: methodology, dataset, RCPE, findings, toolkit |
-| `02b_related_rcpe.tex` | RCPE benchmarks + models + deployment readiness literature |
-| `03b_deployment_readiness.tex` | Three-axis profile: accuracy, robustness, cost (replaces EDS) |
-| `05b_rcpe_task.tex` | D6 task: pair types, novel metrics, model slate |
-| `05c_task_table_updated.tex` | 6-task table (adds D6: rel. camera pose) |
-| `06b_rcpe_experiments.tex` | RCPE experiments: main table, per-bin, cross-phase, drift, metric AUC, cross-task |
+| `docs/guides/adding-a-model.md` | Community guide: one adapter file + one registry line, any task |
+| `generate_pose_pairs_v2.py` | Standalone CLI for stratified pair generation |
 
-### TODO markers
-All experimental results are marked `\todo{}` — fill once the model slate runs on the full dataset. 20 TODOs total across experiment files.
+### Verification
+
+- 518/518 tests passing (DRS/ERS tests removed by prior PR-B)
+- End-to-end: `--pairs-source on_the_fly` → pair gen → runner → standard + novel metrics → JSON ✅
+- Determinism ✅, zero duplicates ✅, auto-extraction ✅
+
+---
+
+## Key Design Decisions
+
+### No Composite DRS/EDS Score
+Three axes reported separately:
+1. **Task Accuracy** — AUC, Metric AUC, AbsRel, etc.
+2. **Scene-Change Robustness** — STR, Cross-phase Δ, Temporal drift
+3. **Compute Cost** — Params (M), FLOPs (G), Latency† (supplementary)
+
+Backed by: FDA AI/ML (checklists), Model Cards (disaggregated), TRADES theorem (tradeoff fundamental), BOP/nuScenes/GraspNet precedent.
+
+### RCPE Pair Design
+- Only Clutter (phase 0) + Clean (phase 2) — Interaction excluded (noisy T265 VIO)
+- Excluded: scene58 entirely, 5 scene/phase ICP failures
+- Rotation bins: [5°-15°, 15°-45°, 45°-90°, 90°-180°], <5° excluded as degenerate
+- Cross-phase: Clutter↔Clean same scene — unique to RPX
+- Scale: ~59,500 pairs (3.6× RUBIK, 40× ScanNet-1500)
+
+### Efficiency Metrics
+- Hardware-agnostic: Params (M), FLOPs (G) only
+- Measured latency: supplementary with GPU footnote
+- No novel efficiency metric (literature survey confirmed none exists)
+
+---
+
+## How to Run
+
+```bash
+cd benchmark
+pip install -e '.[hub,dev]'
+
+# RCPE — on-the-fly stratified pairs
+PYTHONPATH=. python scripts/run_relative_pose.py \
+    --model mast3r --split easy --pairs-source on_the_fly \
+    --save-predictions --device cuda
+
+# Large models
+    --skip-flops
+
+# Available pose models:
+# opencv_baseline, loftr, mast3r, dust3r, reloc3r,
+# far, mickey, nope_sac, srpose, icp_open3d
+```
+
+Output: `result.json` + `summary.md` + `rcpe_metrics.json`
+
+---
+
+## What's Left
+
+1. **NVS runner script** — `nvs_pairs.py` generates samples but no `run_nvs.py` or model adapters (DepthSplat, MVSplat, etc.) exist yet
+2. **Run model slates** on full 100-scene dataset (RCPE: 10 models, NVS: 10 models)
+3. **Paper LaTeX** — draft tex files were created but not committed (in `paper-submission/overleaf/text/`). Need to integrate into Overleaf.
+4. **Fill experimental results** — all `\todo{}` markers in paper
+
+### NVS Model Slate (10 inference-only feed-forward models)
+| # | Model | Venue | Needs Poses? | Uses Depth? | Checkpoint |
+|---|---|---|---|---|---|
+| 1 | DepthSplat | CVPR 2025 | Yes | Yes (in+out) | HuggingFace |
+| 2 | MVSplat | ECCV 2024 | Yes | Predicts | Google Drive |
+| 3 | pixelSplat | CVPR 2024 | Yes | Predicts | Google Drive |
+| 4 | NoPoSplat | ICLR 2025 | No | Predicts | HuggingFace |
+| 5 | Splatt3R | — | No | MASt3R | HuggingFace |
+| 6 | AnySplat | SIGGRAPH Asia 2025 | No | Predicts | HuggingFace |
+| 7 | PF3plat | ICML 2025 | No | Predicts | Available |
+| 8 | Flash3D | ECCV 2024 | No (1 image) | Predicts | Available |
+| 9 | Splatter Image | CVPR 2024 | No (1 image) | Predicts | Available |
+| 10 | FLARE | 2025 | No | Predicts | Available |
+
+### NVS Metrics
+- **Axis 1**: PSNR, SSIM, LPIPS (standard) + depth AbsRel/RMSE/δ<1.25 of rendered views vs D435 GT (novel)
+- **Axis 2**: Cross-phase rendering degradation (train Clutter → render Clean)
+- **Axis 3**: Params, FLOPs, inference time
+
+### NVS Research Briefs (on disk, not committed)
+- `research-nvs-benchmarks.md` (22 sources)
+- `research_nvs_models.md` (30 sources)
+- `research-nvs-robot-learning.md` (15 sources)
+- `outputs/nvs-survey-consolidated.md`
+
+---
 
 ## Files to Review
 
-### Code
 ```
+# Core (committed)
 benchmark/rpx_benchmark/pose_pairs.py
 benchmark/rpx_benchmark/pose_metrics.py
 benchmark/rpx_benchmark/model_profiler.py
+benchmark/rpx_benchmark/nvs_pairs.py
 benchmark/rpx_benchmark/evaluators.py
-benchmark/rpx_benchmark/deployment.py
 benchmark/scripts/run_relative_pose.py
+benchmark/scripts/generate_pose_pairs.py
+benchmark/scripts/local_manifest.py
 benchmark/docs/guides/adding-a-model.md
-```
 
-### Paper
-```
-paper-submission/overleaf/root.tex
+# Paper drafts (NOT committed — in overleaf text/)
 paper-submission/overleaf/text/00_abstract_v2.tex
-paper-submission/overleaf/text/01_intro.tex (modified)
 paper-submission/overleaf/text/01b_contributions_updated.tex
-paper-submission/overleaf/text/02_related.tex (modified)
 paper-submission/overleaf/text/02b_related_rcpe.tex
-paper-submission/overleaf/text/03_method.tex (modified)
 paper-submission/overleaf/text/03b_deployment_readiness.tex
-paper-submission/overleaf/text/05_tasks.tex (modified)
 paper-submission/overleaf/text/05b_rcpe_task.tex
 paper-submission/overleaf/text/05c_task_table_updated.tex
-paper-submission/overleaf/text/06_experiments.tex (modified)
 paper-submission/overleaf/text/06b_rcpe_experiments.tex
-paper-submission/overleaf/text/10_conclusion.tex (modified)
 ```
-
-## Next Steps
-1. Run 10-model RCPE slate on full 100-scene dataset
-2. Run all other tasks (depth, detection, etc.)
-3. Fill `\todo{}` markers with actual numbers
-4. Write headline finding based on cross-task, cross-phase analysis
-5. Generate figures (radar chart, per-bin plots, drift curves)
