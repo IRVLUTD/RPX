@@ -4,21 +4,22 @@
 > scene into per-frame instance masks. A human operator curates bboxes
 > on one keyframe per phase; **SAM2 propagates** to every other frame.
 
-You only need this on a **CUDA-capable annotation box** (after capture,
-before benchmark). Benchmarking against the already-published RPX
-dataset uses [`../benchmark/`](../benchmark/README.md) and doesn't
-touch this directory.
+> [!IMPORTANT]
+> **Most users do not need this directory.** Mask generation is how
+> the RPX ground truth was *created*. To *benchmark* a model against
+> the already-published RPX dataset (which already has masks),
+> use [`../benchmark/`](../benchmark/README.md) instead. You only
+> come here if you're producing GT masks for newly captured scenes,
+> on a CUDA-capable annotation box.
 
-## Contents
-
-- [Quick start](#-quick-start)
-- [The two-stage pipeline](#-the-two-stage-pipeline)
-  - [Iter 1 — interactive bbox curation + SAM2 propagation](#iteration-1--interactive-bbox-curation--sam2-propagation)
-  - [Iter 2 — automatic refinement](#iteration-2--automatic-refinement-of-faulty-frames)
-  - [Final — object-ID mapping](#final-step--object-id-mapping)
-- [Scripts](#-what-each-script-does)
-- [Docker](#-docker)
-- [Acknowledgments](#-acknowledgments)
+**What this code does, plain English.** Given a captured scene (raw
+RGB frames + depth), you need *instance masks* — for each frame, which
+pixels belong to which object. Doing this by hand is impossibly slow.
+The pipeline runs **GroundingDINO** to suggest bounding boxes on one
+keyframe per phase (open-vocabulary, no training needed), then **SAM2**
+turns each curated box into a pixel-accurate mask and propagates it
+through every other frame in the phase. A human only touches one frame
+per phase per scene; the rest is automatic.
 
 ---
 

@@ -4,17 +4,19 @@
 > with **6-DoF pose (T265)**, logged in the layout the rest of the toolkit
 > consumes.
 
-You only need this on the **capture machine** (where the cameras are
-plugged in). Benchmarking against the already-captured dataset uses
-[`benchmark/`](../benchmark/README.md) and doesn't touch this directory.
+> [!IMPORTANT]
+> **Most users do not need this directory.** Capture is how the RPX
+> dataset was *created*. To *benchmark* a model against the
+> already-captured dataset, use [`../benchmark/`](../benchmark/README.md)
+> instead. You only come here if you're physically plugging two Intel
+> RealSense cameras into a machine to record new scenes.
 
-## Contents
-
-- [Quick start](#-quick-start-one-scene)
-- [Requirements](#%EF%B8%8F-requirements)
-- [Scripts](#-scripts)
-- [Docker](#-docker)
-- [Related](#-related)
+**What this code does, plain English.** Two cameras stream into your
+USB ports: a D435 gives you color + depth at 30 fps, a T265 gives you
+the camera's 3D position and orientation at 200 Hz. This directory's
+scripts open both, time-synchronise their frames (within a chosen
+millisecond tolerance), and write one folder per scene with one file
+per modality per frame — the layout the rest of the toolkit expects.
 
 ---
 

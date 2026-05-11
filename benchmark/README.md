@@ -17,6 +17,73 @@ timing with 95% CIs.
 
 ---
 
+### 🚀 Your first benchmark in 5 minutes
+
+A hand-held walkthrough for someone who has never run this before.
+
+```bash
+# 1. Install the toolkit and the HuggingFace dataset extras.
+pip install 'rpx-benchmark[hub,depth]'
+
+# 2. (Optional) Log in to HuggingFace if the dataset repo is private.
+hf auth login
+
+# 3. Pick a small split and a small model so the first run is fast.
+rpx bench monocular_depth \
+    --hf-checkpoint Intel/zoedepth-nyu-kitti \
+    --split easy \
+    --max-samples 50      # cap to 50 frames for a smoke run
+```
+
+That's it. You'll see the RPX splash, a per-stage progress bar, and a
+final summary panel. The toolkit will:
+
+- **Download** the easy split from HuggingFace into `~/.cache/huggingface/`
+  (first run only — subsequent runs are instant).
+- **Fetch the model** from HuggingFace (cached in `~/.cache/huggingface/`).
+- **Run** the model frame-by-frame, writing predictions to memory.
+- **Score** the predictions against the ground-truth depth and write
+  `rpx_results/zoedepth-nyu-kitti/easy/result.json` + `summary.md`.
+
+**What to look at first:**
+
+```bash
+cat rpx_results/zoedepth-nyu-kitti/easy/summary.md
+```
+
+```text
+# zoedepth-nyu-kitti — easy
+Primary metric: AbsRel = 0.0848 (lower is better)
+                δ₁.₂₅  = 0.951  (higher is better; 0–1)
+DRS:            0.62    (TP=0.74, R=0.91, E=0.92)
+Latency:        158.5 ms / sample on RTX 5070 Laptop
+```
+
+That single block is your sanity check: a number you can compare across
+models. If it ran, you have a working RPX install. Now move on to
+[**Bring your own model**](#bring-your-own-model) below.
+
+<details>
+<summary><b>Reading <code>result.json</code> — what every field means</b></summary>
+
+| Key | Meaning | Use it when |
+|---|---|---|
+| `aggregated.absrel`, `delta1`, ... | The classic depth metrics, averaged over all frames. | Comparing two models head-to-head on the same split. |
+| `deployment_readiness.params_m`, `flops_g` | Static cost: parameters in millions, multiply-add FLOPs in billions. | Asking "is this model small enough for my robot?" |
+| `deployment_readiness.roofline.<gpu>.latency_ms` | Theoretical lower bound on inference latency on the named GPU, derived from FLOPs + memory traffic. | Estimating performance on hardware you don't physically have. |
+| `deployment_readiness.operating_point` | (precision, task_metric, str_score, flops, params) — the DRS aggregator picks the best across precisions per model. | Sweep aggregation; the paper-style table is built off these. |
+| `timing.data_load.mean / model_run / metric_calc` | Per-stage wall-clock ms with 95% bootstrap CIs and `n` samples. | Diagnosing whether the bottleneck is I/O, model, or metric code. |
+| `timing.metrics_with_ci` | Same shape, but for each *metric* — gives you a confidence interval on AbsRel itself, not just on latency. | Reporting in a paper: "AbsRel = 0.085 ± 0.002 (95% CI)". |
+| `comprehensive_metrics.aggregated_with_ci` (separate file) | The full metric basket — 9 errors × 4 alignment modes × 3 depth bands × in/out-of-mask. | Detailed per-object and per-depth-band analysis. |
+
+**Rule of thumb on the CIs**: at `n ≥ 1000` samples, CI half-widths
+should be small (< 5% of the mean). Wide CIs = run hasn't converged
+yet; add more `--max-samples`.
+
+</details>
+
+---
+
 ### Pick your path
 
 |                                  |                                  |                                  |
