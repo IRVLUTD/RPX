@@ -104,8 +104,6 @@ RPX/
 │   ├── docker/             Maskgen-specific Docker setup
 │   └── README.md           Interactive GSAM2 refinement UI
 │
-├── vis/                    Standalone Rerun 3-D visualisation tool
-│
 ├── experiments/            ESD difficulty-split analysis + figures
 │
 ├── docker/                 Top-level Dockerised reproducible env
