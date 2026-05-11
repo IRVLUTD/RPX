@@ -3,16 +3,27 @@
 Sister of ``run_depth.py``. Wires the registered pose adapters in
 ``scripts/pose_models/`` to the toolkit's loader + runner + Box upload
 pipeline. Per-pair predictions land in a single CSV
-(``predictions.csv``); aggregated metrics + per-axis components go in
+(``predictions.csv``); aggregated metrics + DRS OperatingPoint go in
 ``result.json``; full pose-error basket with 95% CIs (rotation,
 translation L2 + angular, AUC@5°/10°/20°, per-stride breakdown) lands
 in ``pose_comprehensive_metrics.json``.
 
+Pair sources
+------------
+- ``--pairs-source manifest`` (default): use a pre-saved JSON manifest
+  from ``--pairs-manifest`` or the canonical HF path.
+- ``--pairs-source on_the_fly``: use ``PosePairGenerator`` for
+  deterministic on-the-fly pair generation with stratified rotation
+  bins, cross-phase pairs, and temporal chains.  No manifest file
+  needed — pairs are regenerated from seed every time.
+
 Usage
 -----
     PYTHONPATH=. python scripts/run_relative_pose.py --model loftr --split easy
-    PYTHONPATH=. python scripts/run_relative_pose.py --model reloc3r --split easy \
-        --save-predictions --comprehensive-metrics --upload-to-box
+
+    # On-the-fly stratified pairs (novel RPX-RCPE protocol):
+    PYTHONPATH=. python scripts/run_relative_pose.py --model reloc3r --split easy \\
+        --pairs-source on_the_fly --save-predictions --comprehensive-metrics
 """
 
 from __future__ import annotations
@@ -65,12 +76,12 @@ def _run_via_local_manifest(
     batch_size: int,
     max_samples: int | None,
     save_predictions: bool,
+    pairs_manifest: Path | None = None,
 ):
     import json as _json
 
     from local_manifest import _hf_snapshot_root
 
-    from rpx_benchmark import cli_ux
     from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
     from rpx_benchmark.api import TaskType
     from rpx_benchmark.evaluators import MetricSuite
@@ -86,7 +97,7 @@ def _run_via_local_manifest(
     from rpx_benchmark.tasks._pipeline import resolve_device
 
     device = resolve_device(device)
-    cli_ux.kv("device (resolved)", device)
+    print(f"[pose-pipeline] task=relative_pose split={split} device={device}")
 
     # The canonical manifest shipped from HF (`manifests/relative_pose/<split>.json`)
     # already has the paired structure (`rgb`, `rgb_b`, `pose_a`, `pose_b`,
@@ -95,26 +106,38 @@ def _run_via_local_manifest(
     # paths inside are relative to <snap>/, so we pass `root=<snap>` to
     # `RPXDataset.from_dict`.
     snap = _hf_snapshot_root(repo_id)
-    canonical = snap / "manifests" / "relative_pose" / f"{split}.json"
-    if not canonical.is_file():
-        from rpx_benchmark.exceptions import DatasetError
+    if pairs_manifest is not None:
+        manifest_path = Path(pairs_manifest)
+        if not manifest_path.is_file():
+            from rpx_benchmark.exceptions import DatasetError
 
-        raise DatasetError(
-            f"missing canonical pose manifest at {canonical}",
-            hint=f"Run `rpx.load('relative_pose', '{split}')` first to "
-            "populate the HF snapshot, or run "
-            "`python -m rpx_benchmark.dataset_hub.cli manifest --tasks relative_pose`.",
-        )
-    with canonical.open("r", encoding="utf-8") as f:
+            raise DatasetError(
+                f"--pairs-manifest path not found: {manifest_path}",
+                hint="Pass the absolute path to a pose manifest produced by "
+                "scripts/generate_pose_pairs.py (or any file matching the "
+                "canonical `relative_camera_pose` schema).",
+            )
+    else:
+        manifest_path = snap / "manifests" / "relative_pose" / f"{split}.json"
+        if not manifest_path.is_file():
+            from rpx_benchmark.exceptions import DatasetError
+
+            raise DatasetError(
+                f"missing canonical pose manifest at {manifest_path}",
+                hint=f"Run `rpx.load('relative_pose', '{split}')` first to "
+                "populate the HF snapshot, or run "
+                "`python -m rpx_benchmark.dataset_hub.cli manifest --tasks relative_pose`.",
+            )
+    with manifest_path.open("r", encoding="utf-8") as f:
         manifest = _json.load(f)
     if max_samples is not None:
         manifest["samples"] = manifest["samples"][:max_samples]
     manifest["root"] = str(snap)
-    cli_ux.kv("manifest", canonical)
-    cli_ux.kv(
-        "pairs",
-        f"{len(manifest['samples'])}"
-        + (f"  (capped at --max-samples={max_samples})" if max_samples else ""),
+    sampler = manifest.get("_sampler", {}).get("name", "stride")
+    print(
+        f"[pose-pipeline] manifest: {manifest_path}  "
+        f"({len(manifest['samples'])} pairs, sampler={sampler}"
+        f"{f', capped at --max-samples={max_samples}' if max_samples else ''})"
     )
 
     out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
@@ -127,10 +150,9 @@ def _run_via_local_manifest(
         save_dir=pred_dir,
     )
     dataset = RPXDataset.from_dict(manifest, batch_size=batch_size)
-    cli_ux.kv("batch-size", batch_size)
-    cli_ux.kv(
-        "predictions-csv",
-        (out_dir / "predictions.csv") if save_predictions else "(not saving)",
+    print(
+        f"[pose-pipeline] batch_size={batch_size}  predictions_csv="
+        f"{(out_dir / 'predictions.csv') if save_predictions else 'n/a'}"
     )
 
     model.setup()
@@ -145,7 +167,7 @@ def _run_via_local_manifest(
         try:
             eff.params_m = count_parameters(torch_mod)
         except Exception as e:  # noqa: BLE001
-            cli_ux.warn(f"profiler: params count failed — {type(e).__name__}: {e}")
+            print(f"[profiler] params count failed: {type(e).__name__}: {e}")
         try:
             eff.memory_traffic_gb = estimate_memory_traffic_gb(
                 torch_mod,
@@ -153,11 +175,11 @@ def _run_via_local_manifest(
                 device=device,
             )
         except Exception as e:  # noqa: BLE001
-            cli_ux.warn(f"profiler: memory-traffic estimate failed — {type(e).__name__}: {e}")
+            print(f"[profiler] memory-traffic estimate failed: {type(e).__name__}: {e}")
     try:
         eff.system_card = SystemCard.auto_detect(input_resolution="640x480")
     except Exception as e:  # noqa: BLE001
-        cli_ux.warn(f"profiler: system_card failed — {type(e).__name__}: {e}")
+        print(f"[profiler] system_card failed: {type(e).__name__}: {e}")
 
     runner = BenchmarkRunner(
         model=model,
@@ -199,6 +221,245 @@ def _run_via_local_manifest(
     artefacts: dict = {"json": json_path, "markdown": md_path, "out_dir": out_dir}
     if save_predictions:
         artefacts["predictions_csv"] = out_dir / "predictions.csv"
+    return bench_result, dr_report, artefacts
+
+
+def _run_on_the_fly(
+    *,
+    adapter,
+    name: str,
+    split: str,
+    repo_id: str,
+    device: str,
+    output_dir: str | None,
+    batch_size: int,
+    max_samples: int | None,
+    save_predictions: bool,
+    intra_pairs_per_bin: int = 50,
+    cross_pairs_per_bin: int = 30,
+    skip_flops: bool = False,
+):
+    """Run using PosePairGenerator — deterministic on-the-fly pairs."""
+    import json as _json
+
+    from local_manifest import _hf_snapshot_root
+
+    from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
+    from rpx_benchmark.api import TaskType
+    from rpx_benchmark.evaluators import MetricSuite
+    from rpx_benchmark.pose_metrics import evaluate_rcpe
+    from rpx_benchmark.pose_pairs import PairConfig, PosePairGenerator
+    from rpx_benchmark.profiler import (
+        EfficiencyMetadata,
+        SystemCard,
+        count_parameters,
+        estimate_memory_traffic_gb,
+    )
+    from rpx_benchmark.reports import format_markdown_summary, write_json
+    from rpx_benchmark.runner import BenchmarkRunner
+    from rpx_benchmark.tasks._pipeline import resolve_device
+
+    device = resolve_device(device)
+    snap = _hf_snapshot_root(repo_id)
+
+    cfg = PairConfig(
+        intra_pairs_per_bin=intra_pairs_per_bin,
+        cross_pairs_per_bin=cross_pairs_per_bin,
+    )
+    gen = PosePairGenerator(
+        extracted_root=snap / "extracted",
+        parquet_path=snap / "manifest" / "frames_v1.parquet",
+        split=split,
+        config=cfg,
+        snapshot_root=snap,
+        repo_id=repo_id,
+    )
+    print(gen.summary())
+
+    manifest = gen.manifest()
+    if max_samples is not None:
+        manifest["samples"] = manifest["samples"][:max_samples]
+    print(
+        f"[pose-pipeline] on_the_fly: {len(manifest['samples'])} pairs, "
+        f"device={device}, batch_size={batch_size}"
+    )
+
+    out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    pred_dir = out_dir if save_predictions else None
+
+    model = BatchedRelativePoseBenchmarkModel(
+        adapter, name=name, save_dir=pred_dir,
+    )
+    dataset = gen.as_dataset(batch_size=batch_size)
+    if max_samples is not None:
+        # Truncate the already-materialised dataset
+        dataset.samples = dataset.samples[:max_samples]
+
+    model.setup()
+
+    # Efficiency profiling
+    torch_mod = _find_torch_module(adapter)
+    eff = EfficiencyMetadata(model_type="local", notes=f"{name} @ pose pair")
+    if torch_mod is not None:
+        try:
+            eff.params_m = count_parameters(torch_mod)
+        except Exception as e:  # noqa: BLE001
+            print(f"[profiler] params count failed: {type(e).__name__}: {e}")
+        try:
+            eff.memory_traffic_gb = estimate_memory_traffic_gb(
+                torch_mod, (3, 480, 640), device=device,
+            )
+        except Exception as e:  # noqa: BLE001
+            print(f"[profiler] memory-traffic estimate failed: {type(e).__name__}: {e}")
+    try:
+        eff.system_card = SystemCard.auto_detect(input_resolution="640x480")
+    except Exception as e:  # noqa: BLE001
+        print(f"[profiler] system_card failed: {type(e).__name__}: {e}")
+
+    runner = BenchmarkRunner(
+        model=model,
+        dataset=dataset,
+        metric_suite=MetricSuite.for_task(TaskType.RELATIVE_CAMERA_POSE),
+        call_setup=False,
+    )
+    bench_result, dr_report = runner.run_with_report(
+        primary_metric="rotation_error_deg",
+        model_name=name,
+        efficiency=eff,
+        compute_ts=False,
+        compute_sgc_flag=False,
+        skip_flops=skip_flops,
+    )
+
+    # ── Standard output ───────────────────────────────────────────────
+    json_path = out_dir / "result.json"
+    md_path = out_dir / "summary.md"
+    write_json(
+        json_path, task="relative_pose", model_name=name,
+        split=split, repo_id=repo_id,
+        result=bench_result, dr_report=dr_report,
+    )
+    md_path.write_text(
+        format_markdown_summary(
+            task="relative_pose", model_name=name,
+            split=split, repo_id=repo_id,
+            result=bench_result, dr_report=dr_report,
+        ),
+        encoding="utf-8",
+    )
+
+    # ── Novel RPX-RCPE metrics ────────────────────────────────────────
+    # Enrich per-sample results with pair metadata for the novel metrics.
+    # The runner's _sample_meta only copies id/phase/difficulty/scene, so
+    # pair_type / rotation_bin / chain_* must be looked up from the manifest.
+    id_to_meta = {s["id"]: s.get("metadata", {}) for s in manifest["samples"]}
+
+    per_pair_enriched = []
+    for row in bench_result.per_sample:
+        enriched = dict(row)
+        meta = id_to_meta.get(row.get("id", ""), {})
+        enriched["pair_type"] = meta.get("pair_type", "unknown")
+        enriched["rotation_bin"] = meta.get("rotation_bin")
+        enriched["chain_id"] = meta.get("chain_id")
+        enriched["chain_position"] = meta.get("chain_position")
+        enriched["metadata"] = meta
+        per_pair_enriched.append(enriched)
+
+    rcpe_results = evaluate_rcpe(per_pair_enriched)
+
+    # Attach efficiency summary — structured by tier so consumers know
+    # which numbers are hardware-agnostic and which are not.
+    roofline_dict = None
+    if eff.roofline:
+        roofline_dict = {
+            name: {
+                "compute_ms": b.compute_ms,
+                "memory_ms": b.memory_ms,
+                "latency_ms": b.latency_ms,
+                "bottleneck": b.bottleneck,
+            }
+            for name, b in eff.roofline.items()
+        }
+
+    rcpe_results["efficiency"] = {
+        # Tier 1: hardware-agnostic (identical on any machine)
+        "tier1_hardware_agnostic": {
+            "params_m": eff.params_m,
+            "flops_g": eff.flops_g,
+            "macs_g": eff.macs_g,
+            "memory_traffic_gb": eff.memory_traffic_gb,
+            "arithmetic_intensity": eff.arithmetic_intensity,
+        },
+        # Tier 2: hardware-parametric (reproducible from Tier 1 + GPU spec)
+        "tier2_roofline": roofline_dict,
+        # Tier 3: measured (hardware-specific — interpret with system_card)
+        "tier3_measured": {
+            "latency_p50_ms": eff.latency_p50_ms,
+            "latency_p95_ms": eff.latency_p95_ms,
+            "latency_p99_ms": eff.latency_p99_ms,
+            "peak_cpu_mb": eff.peak_cpu_mb,
+            "peak_cuda_mb": eff.peak_cuda_mb,
+            "peak_mps_mb": eff.peak_mps_mb,
+            "system_card": eff.system_card.to_dict() if eff.system_card else None,
+        },
+    }
+
+    rcpe_path = out_dir / "rcpe_metrics.json"
+    rcpe_path.write_text(
+        _json.dumps(rcpe_results, indent=2, default=str), encoding="utf-8"
+    )
+    print(f"\n[pose-pipeline] wrote {rcpe_path}")
+
+    # Print novel metrics summary
+    print(f"\n{'='*60}")
+    print(f"  RPX-RCPE Novel Metrics — {name} / {split}")
+    print(f"{'='*60}")
+    agg = rcpe_results.get("aggregated", {})
+    for k, v in agg.items():
+        print(f"  {k:>35}: {v:.4f}")
+    print()
+    sauc = rcpe_results.get("standard_auc", {})
+    for k, v in sauc.items():
+        print(f"  {k:>35}: {v:.4f}")
+    print()
+    mauc = rcpe_results.get("metric_auc", {})
+    for k, v in sorted(mauc.items()):
+        print(f"  {k:>35}: {v:.4f}")
+    print()
+    print("  Per rotation bin:")
+    for b, m in rcpe_results.get("per_bin", {}).items():
+        n = m.get('n_pairs', 0)
+        re = m.get('rotation_error_deg', 0)
+        te = m.get('translation_error_m', 0)
+        print(f"    {b:>8}: n={n:.0f}  rot={re:.2f}°  trans={te*100:.1f}cm")
+    print()
+    print("  Per pair type:")
+    for t, m in rcpe_results.get("per_type", {}).items():
+        n = m.get('n_pairs', 0)
+        re = m.get('rotation_error_deg', 0)
+        te = m.get('translation_error_m', 0)
+        print(f"    {t:>15}: n={n:.0f}  rot={re:.2f}°  trans={te*100:.1f}cm")
+    print()
+    cpd = rcpe_results.get("cross_phase_delta", {})
+    if cpd:
+        print("  Cross-phase Δ (positive = harder):")
+        for k, v in cpd.items():
+            print(f"    {k:>20}: {v:+.4f}")
+    print()
+    drift = rcpe_results.get("temporal_drift", {})
+    if drift.get("n_chains"):
+        print(f"  Temporal drift ({drift['n_chains']} chains):")
+        print(f"    mean rot drift:   {drift['mean_drift_rot_deg']:.1f}°")
+        print(f"    mean trans drift: {drift['mean_drift_trans_m']*100:.1f} cm")
+
+    artefacts: dict = {
+        "json": json_path, "markdown": md_path,
+        "rcpe_metrics": rcpe_path, "out_dir": out_dir,
+    }
+    if save_predictions:
+        artefacts["predictions_csv"] = out_dir / "predictions.csv"
+
     return bench_result, dr_report, artefacts
 
 
@@ -244,6 +505,36 @@ def main() -> None:
         "per-stride breakdown). Auto-enables --save-predictions.",
     )
     ap.add_argument(
+        "--pairs-source",
+        choices=("manifest", "on_the_fly"),
+        default="manifest",
+        help="'manifest' (default): load from --pairs-manifest or canonical HF path. "
+        "'on_the_fly': use PosePairGenerator for deterministic stratified pairs "
+        "(rotation bins + cross-phase + temporal chains).",
+    )
+    ap.add_argument(
+        "--pairs-manifest",
+        type=Path,
+        default=None,
+        help="override the canonical pair list (only used with --pairs-source manifest).",
+    )
+    ap.add_argument(
+        "--intra-pairs-per-bin", type=int, default=50,
+        help="intra-phase pairs per rotation bin per (scene, phase) "
+        "(only with --pairs-source on_the_fly)",
+    )
+    ap.add_argument(
+        "--cross-pairs-per-bin", type=int, default=30,
+        help="cross-phase pairs per rotation bin per scene "
+        "(only with --pairs-source on_the_fly)",
+    )
+    ap.add_argument(
+        "--skip-flops",
+        action="store_true",
+        help="skip the FlopCounterMode on the first batch. Use for large "
+        "models (MASt3R, DUSt3R) where the FLOP counter OOMs.",
+    )
+    ap.add_argument(
         "--upload-to-box",
         action="store_true",
         help="ship the result dir to UTD Box under "
@@ -257,97 +548,90 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    from rpx_benchmark import cli_ux
-
-    cli_ux.setup("run-rcpe")
-    cli_ux.banner(
-        "RCPE — Relative Camera Pose Estimation",
-        f"model: {args.model}  ·  split: {args.split}",
-    )
-    cli_ux.config(
-        {
-            "model":             args.model,
-            "split":             args.split,
-            "repo":              args.repo,
-            "device":            args.device,
-            "batch-size":        args.batch_size,
-            "max-samples":       args.max_samples or "(all)",
-            "save-predictions":  args.save_predictions,
-            "comprehensive":     args.comprehensive_metrics,
-            "upload-to-box":     args.upload_to_box,
-        }
-    )
-
-    with cli_ux.working(f"Loading adapter '{args.model}' (this can pull weights on first run)"):
-        placeholder, adapter = _build_model(
-            args.model, device=args.device, batch_size=args.batch_size
-        )
+    placeholder, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
     name = placeholder.name
 
     if args.comprehensive_metrics:
         args.save_predictions = True
 
-    cli_ux.section("Run")
-    result, dr_report, paths = _run_via_local_manifest(
-        adapter=adapter,
-        name=name,
-        split=args.split,
-        repo_id=args.repo,
-        device=args.device,
-        output_dir=args.output_dir,
-        batch_size=args.batch_size,
-        max_samples=args.max_samples,
-        save_predictions=args.save_predictions,
-    )
+    if args.pairs_source == "on_the_fly":
+        result, dr_report, paths = _run_on_the_fly(
+            adapter=adapter,
+            name=name,
+            split=args.split,
+            repo_id=args.repo,
+            device=args.device,
+            output_dir=args.output_dir,
+            batch_size=args.batch_size,
+            max_samples=args.max_samples,
+            save_predictions=args.save_predictions,
+            intra_pairs_per_bin=args.intra_pairs_per_bin,
+            cross_pairs_per_bin=args.cross_pairs_per_bin,
+            skip_flops=args.skip_flops,
+        )
+    else:
+        result, dr_report, paths = _run_via_local_manifest(
+            adapter=adapter,
+            name=name,
+            split=args.split,
+            repo_id=args.repo,
+            device=args.device,
+            output_dir=args.output_dir,
+            batch_size=args.batch_size,
+            max_samples=args.max_samples,
+            save_predictions=args.save_predictions,
+            pairs_manifest=args.pairs_manifest,
+        )
 
     if args.comprehensive_metrics:
         from local_manifest import _hf_snapshot_root
         from pose_comprehensive_metrics import compute_run
 
-        cli_ux.section("Comprehensive pose metrics")
         snap = _hf_snapshot_root(args.repo)
-        manifest_path = snap / "manifests" / "relative_pose" / f"{args.split}.json"
+        manifest_path = (
+            Path(args.pairs_manifest)
+            if args.pairs_manifest is not None
+            else snap / "manifests" / "relative_pose" / f"{args.split}.json"
+        )
         csv_path = paths["predictions_csv"]
-        with cli_ux.working("computing per-pair metrics + AUC + CIs"):
-            extras = compute_run(csv_path, manifest_path, snapshot_root=snap)
+        print(f"\n=== comprehensive pose metrics ===")
+        extras = compute_run(csv_path, manifest_path, snapshot_root=snap)
         out = paths["out_dir"] / "pose_comprehensive_metrics.json"
         import json as _json
 
         out.write_text(_json.dumps(extras, indent=2, default=str))
-        cli_ux.step(f"wrote {out}  ({len(extras['per_pair'])} pairs)")
+        print(f"  wrote {out}  ({len(extras['per_pair'])} pairs)")
         for k in sorted(extras.get("aggregated") or {}):
-            cli_ux.kv(k, f"{extras['aggregated'][k]:.4f}")
+            print(f"  {k:>32}: {extras['aggregated'][k]:.4f}")
 
     if args.upload_to_box:
-        from rpx_benchmark.box_upload import upload_run_dir
+        from box_fetch import upload_tree
 
         out_dir = paths.get("out_dir")
         if out_dir is None:
             from rpx_benchmark.exceptions import ConfigError
 
             raise ConfigError("upload requested but no out_dir in artefacts")
-        cli_ux.section(f"Mirroring to Box: relative_pose/{name}/{args.split}")
-        with cli_ux.working(f"uploading {out_dir}"):
-            upl = upload_run_dir(
-                out_dir,
-                task="relative_pose",
-                model_name=name,
-                split=args.split,
-                root_folder_id=args.box_folder_id,
-                verbose=False,
-            )
-        cli_ux.kv("uploaded", f"{upl['uploaded']} files ({cli_ux.fmt_bytes(upl['bytes_uploaded'])})")
-        cli_ux.kv("skipped",  f"{upl['skipped']} files (already on Box)")
-        cli_ux.kv("remote folder id", upl["remote_folder_id"])
+        remote = f"relative_pose/{name}/{args.split}"
+        print(f"\n=== uploading {out_dir} → Box:{remote} ===")
+        summary = upload_tree(Path(out_dir), remote_path=remote, root_folder_id=args.box_folder_id)
+        print(
+            f"  uploaded: {summary['uploaded']} files ({_human_bytes(summary['bytes_uploaded'])})"
+        )
+        print(f"  skipped:  {summary['skipped']} files (already on Box)")
+        print(f"  remote folder id: {summary['remote_folder_id']}")
 
-    cli_ux.summary(
-        {
-            **{k: (f"{v:.4f}" if isinstance(v, float) else v)
-               for k, v in (result.aggregated or {}).items()},
-        },
-        title="Aggregated metrics",
-    )
-    cli_ux.summary({str(k): str(v) for k, v in paths.items()}, title="Artefacts")
+    print()
+    print("=== aggregated metrics ===")
+    for k, v in (result.aggregated or {}).items():
+        if isinstance(v, float):
+            print(f"  {k:>26}: {v:.4f}")
+        else:
+            print(f"  {k:>26}: {v}")
+    print()
+    print("=== artefacts ===")
+    for k, v in paths.items():
+        print(f"  {k}: {v}")
 
 
 if __name__ == "__main__":
