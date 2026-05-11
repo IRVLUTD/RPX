@@ -488,12 +488,37 @@ def main() -> None:
     )
     args = ap.parse_args()
 
-    model, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
+    from rpx_benchmark import cli_ux
+
+    cli_ux.setup("run-depth")
+    cli_ux.banner(
+        "Monocular depth benchmark",
+        f"model: {args.model}  ·  split: {args.split}",
+    )
+    cli_ux.config(
+        {
+            "model":              args.model,
+            "split":              args.split,
+            "repo":               args.repo,
+            "device":             args.device,
+            "batch-size":         args.batch_size,
+            "max-samples":        args.max_samples or "(all)",
+            "alignment":          args.alignment,
+            "save-predictions":   args.save_predictions,
+            "comprehensive":      args.comprehensive_metrics,
+            "use-official":       args.use_official,
+            "upload-to-box":      args.upload_to_box,
+        }
+    )
+
+    with cli_ux.working(f"Loading adapter '{args.model}' (may fetch weights)"):
+        model, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
 
     # Comprehensive metrics need predictions on disk
     if args.comprehensive_metrics:
         args.save_predictions = True
 
+    cli_ux.section("Run")
     if args.use_official:
         result, dr_report, paths = _run_via_official_pipeline(
             model=model,
@@ -528,15 +553,16 @@ def main() -> None:
         chosen_alignment = args.alignment
         if chosen_alignment == "auto":
             chosen_alignment = getattr(adapter, "native_alignment", "none")
-        print(f"\n=== comprehensive metrics (alignment={chosen_alignment}) ===")
-        extras = compute_run(pred_dir, manifest_path, alignment=chosen_alignment)
+        cli_ux.section(f"Comprehensive metrics (alignment={chosen_alignment})")
+        with cli_ux.working("computing per-sample errors + CIs + stratifications"):
+            extras = compute_run(pred_dir, manifest_path, alignment=chosen_alignment)
         out = paths["out_dir"] / "comprehensive_metrics.json"
         import json as _json
 
         out.write_text(_json.dumps(extras, indent=2))
-        print(f"  wrote {out}  ({len(extras['per_sample'])} samples)")
+        cli_ux.step(f"wrote {out}  ({len(extras['per_sample'])} samples)")
         for k in sorted(extras["aggregated"]):
-            print(f"    {k:>32}: {extras['aggregated'][k]:.4f}")
+            cli_ux.kv(k, f"{extras['aggregated'][k]:.4f}")
 
     if args.upload_to_box:
         from rpx_benchmark.box_upload import upload_run_dir
@@ -550,33 +576,27 @@ def main() -> None:
                 hint="The chosen pipeline path didn't return out_dir. Check "
                 "_run_via_official_pipeline / _run_via_local_manifest.",
             )
-        # Box layout: <root>/monocular_depth/<model>/<split>/
         name = getattr(model, "name", "model")
-        print(f"\n=== uploading {out_dir} → Box:monocular_depth/{name}/{args.split} ===")
-        summary = upload_run_dir(
-            out_dir,
-            task="monocular_depth",
-            model_name=name,
-            split=args.split,
-            root_folder_id=args.box_folder_id,
-        )
-        print(
-            f"  uploaded: {summary['uploaded']} files ({_human_bytes(summary['bytes_uploaded'])})"
-        )
-        print(f"  skipped:  {summary['skipped']} files (already on Box)")
-        print(f"  remote folder id: {summary['remote_folder_id']}")
+        cli_ux.section(f"Mirroring to Box: monocular_depth/{name}/{args.split}")
+        with cli_ux.working(f"uploading {out_dir}"):
+            upl = upload_run_dir(
+                out_dir,
+                task="monocular_depth",
+                model_name=name,
+                split=args.split,
+                root_folder_id=args.box_folder_id,
+                verbose=False,
+            )
+        cli_ux.kv("uploaded", f"{upl['uploaded']} files ({cli_ux.fmt_bytes(upl['bytes_uploaded'])})")
+        cli_ux.kv("skipped",  f"{upl['skipped']} files (already on Box)")
+        cli_ux.kv("remote folder id", upl["remote_folder_id"])
 
-    print()
-    print("=== aggregated metrics ===")
-    for k, v in (result.aggregated or {}).items():
-        if isinstance(v, float):
-            print(f"  {k:>22}: {v:.4f}")
-        else:
-            print(f"  {k:>22}: {v}")
-    print()
-    print("=== artefacts ===")
-    for k, p in paths.items():
-        print(f"  {k}: {p}")
+    cli_ux.summary(
+        {k: (f"{v:.4f}" if isinstance(v, float) else v)
+         for k, v in (result.aggregated or {}).items()},
+        title="Aggregated metrics",
+    )
+    cli_ux.summary({str(k): str(p) for k, p in paths.items()}, title="Artefacts")
 
 
 if __name__ == "__main__":

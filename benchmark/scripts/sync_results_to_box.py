@@ -39,6 +39,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 # Make scripts/ importable for box_fetch.upload_tree.
@@ -97,6 +98,8 @@ def _discover_runs(local_root: Path) -> list[tuple[Path, str, str, str]]:
 
 
 def _cli() -> None:
+    from rpx_benchmark import cli_ux
+
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument(
         "--local-root",
@@ -132,6 +135,23 @@ def _cli() -> None:
     )
     args = ap.parse_args()
 
+    cli_ux.setup("sync-box")
+    cli_ux.banner(
+        "Box result mirror",
+        "post-hoc upload of any local rpx_results/ tree to UTD Box",
+    )
+    cli_ux.config(
+        {
+            "local-root":    args.local_root,
+            "box-folder-id": args.box_folder_id,
+            "task filter":   args.task or "(any)",
+            "model filter":  args.model or "(any)",
+            "split filter":  args.split or "(any)",
+            "mode":          "dry-run" if args.dry_run else "live",
+        }
+    )
+
+    cli_ux.section("Discovering local runs")
     runs = _discover_runs(args.local_root.resolve())
     if args.task:
         runs = [r for r in runs if r[1] == args.task]
@@ -141,59 +161,68 @@ def _cli() -> None:
         runs = [r for r in runs if r[3] == args.split]
 
     if not runs:
-        print(f"[box-sync] no runs to upload under {args.local_root}")
+        cli_ux.warn(f"no runs to upload under {args.local_root}")
         return
 
-    print(f"[box-sync] {len(runs)} run(s) to mirror:")
+    cli_ux.step(f"found {len(runs)} run(s) to mirror")
     for out_dir, task, model, split in runs:
-        n_files = sum(1 for _ in out_dir.rglob("*") if _.is_file())
+        n_files = sum(1 for p in out_dir.rglob("*") if p.is_file())
         total_bytes = sum(f.stat().st_size for f in out_dir.rglob("*") if f.is_file())
-        remote = f"{task}/{model}/{split}"
-        print(
-            f"  - {out_dir.relative_to(args.local_root.resolve())}  →  "
-            f"box:{remote}  ({n_files} files, {_human_bytes(total_bytes)})"
+        rel = out_dir.relative_to(args.local_root.resolve())
+        cli_ux.bullet(
+            f"{rel}  →  box:{task}/{model}/{split}  "
+            f"([dim]{n_files} files, {cli_ux.fmt_bytes(total_bytes)}[/])"
         )
 
     if args.dry_run:
-        print("\n[box-sync] dry run — exiting before any Box request.")
+        cli_ux.section("Dry-run — skipping Box requests")
+        cli_ux.success("dry-run complete; no network calls were made")
         return
 
     # Lazy import so --dry-run / --help work without BOX_DEVELOPER_TOKEN.
     from rpx_benchmark.box_upload import upload_run_dir
 
+    cli_ux.section(f"Mirroring {len(runs)} run(s) to Box")
     totals = {"uploaded": 0, "skipped": 0, "bytes": 0, "runs_ok": 0, "runs_fail": 0}
-    for out_dir, task, model, split in runs:
-        remote = f"{task}/{model}/{split}"
-        print(f"\n=== mirroring {out_dir} → box:{remote} ===")
-        try:
-            r = upload_run_dir(
-                out_dir,
-                task=task,
-                model_name=model,
-                split=split,
-                root_folder_id=args.box_folder_id,
-            )
-        except Exception as e:  # noqa: BLE001
-            # Don't let one bad run stop the rest. Common cause: 401 if
-            # the token aged past 60 min mid-sync.
-            print(f"  ! failed: {type(e).__name__}: {e}")
-            totals["runs_fail"] += 1
-            continue
-        totals["uploaded"] += r["uploaded"]
-        totals["skipped"] += r["skipped"]
-        totals["bytes"] += r["bytes_uploaded"]
-        totals["runs_ok"] += 1
-        print(
-            f"  ok: {r['uploaded']} uploaded ({_human_bytes(r['bytes_uploaded'])}), "
-            f"{r['skipped']} skipped (already on Box)"
-        )
+    t0 = time.time()
+    with cli_ux.progress("Runs", total=len(runs)) as (p, task_id):
+        for out_dir, task, model, split in runs:
+            try:
+                r = upload_run_dir(
+                    out_dir,
+                    task=task,
+                    model_name=model,
+                    split=split,
+                    root_folder_id=args.box_folder_id,
+                    verbose=False,
+                )
+            except Exception as e:  # noqa: BLE001
+                # Don't let one bad run stop the rest. Common cause:
+                # 401 when the token aged past 60 min mid-sync.
+                cli_ux.error(
+                    f"{task}/{model}/{split} failed — {type(e).__name__}: {e}"
+                )
+                totals["runs_fail"] += 1
+                p.update(task_id, advance=1)
+                continue
+            totals["uploaded"] += r["uploaded"]
+            totals["skipped"] += r["skipped"]
+            totals["bytes"] += r["bytes_uploaded"]
+            totals["runs_ok"] += 1
+            p.update(task_id, advance=1)
 
-    print("\n=== summary ===")
-    print(f"  runs ok:       {totals['runs_ok']}")
-    print(f"  runs failed:   {totals['runs_fail']}")
-    print(f"  files uploaded:{totals['uploaded']}")
-    print(f"  files skipped: {totals['skipped']}")
-    print(f"  bytes:         {_human_bytes(totals['bytes'])}")
+    dt = time.time() - t0
+    cli_ux.summary(
+        {
+            "runs ok":        totals["runs_ok"],
+            "runs failed":    totals["runs_fail"],
+            "files uploaded": totals["uploaded"],
+            "files skipped":  totals["skipped"],
+            "bytes uploaded": cli_ux.fmt_bytes(totals["bytes"]),
+            "elapsed":        cli_ux.fmt_duration(dt),
+        },
+        title="Box mirror — done",
+    )
 
 
 if __name__ == "__main__":

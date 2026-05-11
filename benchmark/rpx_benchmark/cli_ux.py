@@ -1,0 +1,434 @@
+"""Industry-grade colored logging + progress UI for the RPX CLI scripts.
+
+Built on `rich`. One canonical helper module so every runnable script
+(``run_depth.py``, ``run_relative_pose.py``, ``sync_results_to_box.py``,
+``build_esd_splits.py``, …) produces a consistent, scannable terminal
+experience: sectioned headers, spinners for long ops, progress bars
+with rate + ETA, and a final summary panel.
+
+Public surface
+--------------
+* :func:`setup(name)` — return a configured ``logging.Logger`` with a
+  ``RichHandler`` attached. Idempotent; call once at the top of ``main()``.
+* :func:`banner(title, subtitle)` — splash header at the top of a run.
+* :func:`section(title, subtitle)` — colored section divider.
+* :func:`step(msg)`, :func:`note(msg)`, :func:`warn(msg)`, :func:`error(msg)`,
+  :func:`success(msg)`, :func:`bullet(msg)` — short status lines.
+* :func:`kv(key, value)` — inline key-value (renders as ``key: value``).
+* :func:`config(rows)` — multi-row config echo (used right after argparse).
+* :func:`working(msg)` — context manager: spinner while a long op runs,
+  ✓ + elapsed time on exit.
+* :func:`progress(description, total)` — wrapped ``rich.progress.Progress``.
+* :func:`summary(rows, title)` — final 2-column table panel.
+* :func:`fmt_duration(s)`, :func:`fmt_rate(n, s)`, :func:`fmt_bytes(n)` —
+  human-friendly formatters.
+
+Environment
+-----------
+- ``NO_COLOR=1`` — strip all colour escapes (respects the universal
+  no-color convention).
+- ``CI=true`` (set by GitHub Actions, GitLab CI, etc.) — auto-degrade
+  spinners + live progress to plain log lines, so captured run output
+  stays readable in CI consoles.
+- ``RPX_QUIET=1`` — suppress all decoration; only ERROR-level logging
+  lines reach stdout. For piping into scripts.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+from contextlib import contextmanager
+from typing import Iterator, Mapping, Optional
+
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
+from rich.table import Table
+from rich.text import Text
+
+__all__ = [
+    "setup",
+    "banner",
+    "section",
+    "step",
+    "note",
+    "warn",
+    "error",
+    "success",
+    "bullet",
+    "kv",
+    "config",
+    "working",
+    "progress",
+    "summary",
+    "fmt_duration",
+    "fmt_rate",
+    "fmt_bytes",
+]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Console singleton + environment detection
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+_console: Optional[Console] = None
+
+
+def _is_ci() -> bool:
+    """Detect common CI environments. Suppresses spinners (which become
+    ANSI cursor-junk in captured CI logs)."""
+    return any(os.environ.get(k) for k in ("CI", "GITHUB_ACTIONS", "GITLAB_CI", "BUILDKITE"))
+
+
+def _is_quiet() -> bool:
+    return bool(os.environ.get("RPX_QUIET"))
+
+
+def _get_console() -> Console:
+    global _console
+    if _console is None:
+        # Force colors when stdout is captured but the user wants them
+        # (helpful when running `python script.py | tee out.log`); NO_COLOR
+        # still takes precedence and strips everything.
+        no_color = bool(os.environ.get("NO_COLOR"))
+        force = not no_color and not _is_ci()
+        _console = Console(force_terminal=force, no_color=no_color, highlight=False)
+    return _console
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Logger setup
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def setup(name: str = "rpx", level: int = logging.INFO) -> logging.Logger:
+    """Return a logger with a single ``RichHandler``. Idempotent — safe to
+    call from every script's ``main()``.
+
+    In CI environments and under ``RPX_QUIET=1`` the handler still works
+    but spinner/progress helpers degrade to plain log lines.
+    """
+    logger = logging.getLogger(name)
+    if getattr(logger, "_rich_configured", False):
+        return logger
+    if _is_quiet():
+        level = logging.ERROR
+    logger.setLevel(level)
+    logger.propagate = False
+    handler = RichHandler(
+        console=_get_console(),
+        show_time=True,
+        show_path=False,
+        markup=True,
+        rich_tracebacks=True,
+        log_time_format="[%H:%M:%S]",
+    )
+    handler.setLevel(level)
+    # Replace, don't append, so calling setup twice doesn't double-log.
+    logger.handlers = [handler]
+    logger._rich_configured = True  # type: ignore[attr-defined]
+    return logger
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Headers / sectioning
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def banner(title: str, subtitle: Optional[str] = None) -> None:
+    """Top-of-run splash. Use once at the very top of ``main()``."""
+    if _is_quiet():
+        return
+    console = _get_console()
+    text = Text(title, style="bold cyan")
+    body = Text.assemble(text)
+    if subtitle:
+        body.append("\n")
+        body.append(subtitle, style="dim")
+    panel = Panel(body, border_style="cyan", expand=False, padding=(0, 2))
+    console.print()
+    console.print(panel)
+
+
+def section(title: str, subtitle: Optional[str] = None) -> None:
+    """Mid-run colored section divider."""
+    if _is_quiet():
+        return
+    console = _get_console()
+    text = Text(title, style="bold cyan")
+    if subtitle:
+        text.append("  ", style="")
+        text.append(subtitle, style="dim")
+    console.print()
+    console.rule(text, style="cyan")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Inline status lines
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def step(msg: str) -> None:
+    """Green ✓ — a completed step."""
+    if _is_quiet():
+        return
+    _get_console().print(f"[green]✓[/] {msg}")
+
+
+def note(msg: str) -> None:
+    """Dim two-space-indented info line (file paths, config echoes)."""
+    if _is_quiet():
+        return
+    _get_console().print(f"  [dim]{msg}[/]")
+
+
+def bullet(msg: str) -> None:
+    """List bullet, slightly stronger than ``note``."""
+    if _is_quiet():
+        return
+    _get_console().print(f"  [cyan]•[/] {msg}")
+
+
+def warn(msg: str) -> None:
+    """Yellow ! — non-fatal warning."""
+    _get_console().print(f"[yellow]![/] {msg}")
+
+
+def error(msg: str) -> None:
+    """Red ✗ — fatal-class error (caller still decides whether to raise)."""
+    _get_console().print(f"[red]✗[/] {msg}", style="red")
+
+
+def success(msg: str) -> None:
+    """Bold green ✓ — a milestone, louder than ``step``."""
+    if _is_quiet():
+        return
+    _get_console().print(f"[bold green]✓[/] {msg}")
+
+
+def kv(key: str, value: object) -> None:
+    """Inline key-value pair, right-aligned key column."""
+    if _is_quiet():
+        return
+    _get_console().print(f"  [bold]{key:>18}[/]  [dim]:[/]  {value}")
+
+
+def config(rows: Mapping[str, object], title: str = "Configuration") -> None:
+    """Echo a config dict (typically the parsed argparse Namespace)
+    as a labelled section followed by aligned ``key: value`` rows."""
+    if _is_quiet():
+        return
+    section(title)
+    for k, v in rows.items():
+        kv(k, v)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Long-running operations
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@contextmanager
+def working(msg: str, success_msg: Optional[str] = None) -> Iterator[object]:
+    """Spinner + live message while a long op runs; on exit replaces the
+    spinner with a green ✓ line that includes elapsed time. In CI / quiet
+    mode the spinner is omitted and the message is logged plainly.
+
+    Usage::
+
+        with cli_ux.working("Loading checkpoint"):
+            model.load_weights(...)
+
+        with cli_ux.working("Evaluating") as status:
+            for i in range(N):
+                status.update(f"[cyan]Evaluating ({i}/{N})…[/]")
+    """
+    console = _get_console()
+    t0 = time.time()
+    if _is_ci() or _is_quiet():
+        # Plain mode — no live spinner.
+        if not _is_quiet():
+            console.print(f"… {msg}")
+
+        class _NullStatus:
+            def update(self, _msg: str) -> None:
+                pass
+
+        try:
+            yield _NullStatus()
+        except Exception:
+            console.print(f"[red]✗[/] {msg} (failed after {fmt_duration(time.time() - t0)})")
+            raise
+        else:
+            if not _is_quiet():
+                console.print(f"[green]✓[/] {success_msg or msg} ({fmt_duration(time.time() - t0)})")
+        return
+
+    status = console.status(f"[cyan]{msg}…[/]", spinner="dots")
+    status.start()
+    try:
+        yield status
+    except Exception:
+        status.stop()
+        console.print(f"[red]✗[/] {msg} (failed after {fmt_duration(time.time() - t0)})")
+        raise
+    else:
+        status.stop()
+        dt = time.time() - t0
+        console.print(f"[green]✓[/] {success_msg or msg} ({fmt_duration(dt)})")
+
+
+@contextmanager
+def progress(description: str = "working", total: Optional[int] = None) -> Iterator[tuple[object, int]]:
+    """Context manager yielding ``(Progress, task_id)`` for a tracked loop.
+
+    Usage::
+
+        with cli_ux.progress("Frames", total=N) as (p, task):
+            for i in range(N):
+                ...
+                p.update(task, advance=1)
+
+    In CI / quiet mode the live bar is replaced with periodic plain log
+    lines (every 10% of progress).
+    """
+    if _is_ci() or _is_quiet():
+        # Plain mode — emit a log line every ~10% of progress.
+        console = _get_console()
+        state = {"done": 0, "last_pct": -10}
+
+        class _PlainProgress:
+            def update(self, _task: int, advance: int = 1) -> None:
+                state["done"] += advance
+                if total:
+                    pct = int(100 * state["done"] / total)
+                    if pct >= state["last_pct"] + 10:
+                        state["last_pct"] = pct
+                        if not _is_quiet():
+                            console.print(f"  [{description}] {state['done']}/{total} ({pct}%)")
+                elif state["done"] % 50 == 0 and not _is_quiet():
+                    console.print(f"  [{description}] {state['done']}")
+
+        yield _PlainProgress(), 0
+        return
+
+    p = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(bar_width=None),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+        console=_get_console(),
+        transient=False,
+    )
+    p.start()
+    try:
+        task = p.add_task(description, total=total)
+        yield p, task
+    finally:
+        p.stop()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Summaries
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def summary(rows: Mapping[str, object], title: str = "Summary") -> None:
+    """Final 2-column table panel — last thing a CLI run prints."""
+    if _is_quiet():
+        return
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("k", style="bold cyan")
+    table.add_column("v")
+    for k, v in rows.items():
+        table.add_row(str(k), str(v))
+    panel = Panel(table, title=f"[bold]{title}[/]", border_style="cyan", expand=False)
+    console = _get_console()
+    console.print()
+    console.print(panel)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Formatters
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def fmt_duration(seconds: float) -> str:
+    """``23 ms`` / ``1.4 s`` / ``2 m 13 s`` / ``1 h 02 m``."""
+    if seconds < 1.0:
+        return f"{seconds * 1000:.0f} ms"
+    if seconds < 60:
+        return f"{seconds:.2f} s"
+    if seconds < 3600:
+        m, s = divmod(int(seconds), 60)
+        return f"{m} m {s:02d} s"
+    h, rem = divmod(int(seconds), 3600)
+    m, _ = divmod(rem, 60)
+    return f"{h} h {m:02d} m"
+
+
+def fmt_rate(count: int, seconds: float) -> str:
+    """``42.3/s``, with em-dash for zero/negative durations."""
+    if seconds <= 0:
+        return "—"
+    return f"{count / seconds:.1f}/s"
+
+
+def fmt_bytes(n: float) -> str:
+    """``1.4 KB`` / ``128.0 MB`` / ``3.2 GB``."""
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024:
+            return f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} PB"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Side effects when run as a smoke test
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+if __name__ == "__main__":  # pragma: no cover
+    log = setup("demo")
+    banner("rpx_benchmark.cli_ux — smoke test", "verify every helper renders")
+    section("Imports", "verify rich + helper functions wired correctly")
+    step("module imported")
+    note("import path: rpx_benchmark.cli_ux")
+    bullet("setup, banner, section, step, note, kv, working, progress, summary")
+
+    config({"split": "easy", "batch_size": 4, "device": "cuda"})
+
+    section("Live demo")
+    with working("Pretend-loading model"):
+        time.sleep(0.4)
+
+    with progress("Pretend frames", total=20) as (p, task):
+        for _ in range(20):
+            time.sleep(0.02)
+            p.update(task, advance=1)  # type: ignore[attr-defined]
+
+    warn("Pretend warning: token expires in 5 min")
+    success("Demo complete")
+
+    summary(
+        {
+            "frames": "20",
+            "elapsed": fmt_duration(0.42),
+            "rate": fmt_rate(20, 0.42),
+        },
+        title="Demo summary",
+    )
