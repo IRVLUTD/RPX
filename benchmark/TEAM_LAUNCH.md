@@ -73,7 +73,7 @@ clear `ImportError` with the install hint when missing.
 **Dropped from the 20-model target**: MetricSolver — no clean release surfaced as of May 2026.
 
 **Per-run output**: `rpx_results/<display>/<split>/`:
-- `result.json`  — primary metric, DR report (Tier 1/2/3 + DRS OperatingPoint), per-stage timing, per-metric CIs.
+- `result.json`  — three reporting axes (task accuracy / scene-change robustness / compute cost) + per-stage timing + per-metric CIs. **No combined score** — see [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md) for the policy and the deprecation path off the legacy `deployment_readiness` block.
 - `summary.md`  — human-readable.
 - `comprehensive_metrics.json`  — full metric basket (9 error + 3 accuracy + alignment modes + depth-band stratification + per-object basket + holes + ORD).
 - `predictions/<scene>/<phase>/<frame>.npz`  — per-frame raw depth (when `--save-predictions`).
@@ -109,7 +109,7 @@ nope_sac / mickey adapters require a clone + checkpoint of the
 upstream repo. Each adapter raises a clear `ImportError` with the hint.
 
 **Per-run output**: `rpx_results/<display>/<split>/`:
-- `result.json` — `rotation_error_deg` primary, DR report, timing CIs.
+- `result.json` — `rotation_error_deg` primary + the three reporting axes (task accuracy / scene-change robustness / compute cost) + timing CIs. No combined score.
 - `summary.md` — human-readable.
 - `pose_comprehensive_metrics.json` — full pose basket (rotation +
   translation L2 + translation angular + AUC@5°/10°/20° with 95% CIs,
@@ -132,14 +132,22 @@ Idempotent — files whose Box copy matches in size are skipped automatically. S
 
 ## 4. Sweep aggregation — once all models have run
 
+> **Note.** The script name and the legacy `drs_*.csv` output naming
+> are being retired alongside the DRS scalar (see
+> [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md)). The script still runs
+> and the per-axis components in each row are still correct — but the
+> combined DRS column should not be cited going forward. PR-B will
+> rename to `aggregate_results.py` and drop the combined column.
+
 ```bash
-# DRS table per split
+# Per-split aggregation
 PYTHONPATH=. python scripts/run_drs_sweep.py --split easy
 PYTHONPATH=. python scripts/run_drs_sweep.py --split medium
 PYTHONPATH=. python scripts/run_drs_sweep.py --split hard
 
-# DRS + paper-appendix sensitivity analysis (Kendall's τ across exponent /
-# E-function / anchor perturbations).
+# Paper-appendix sensitivity analysis (Kendall's τ across exponent /
+# E-function / anchor perturbations) — also deprecated; for legacy
+# composite only.
 PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity
 ```
 
@@ -155,7 +163,7 @@ Outputs land at `rpx_results/_sweep/drs_<split>.{csv,json}` and `sensitivity_<sp
 | 10 RCPE pose adapters | registry + base contract covered by import smoke + math tests |
 | Per-stage timing + 95% CIs | bootstrap + t-CI on every aggregated metric |
 | Per-object metrics | mean across SAM2 instances, ≥200 px, with `coverage` (hole-aware) |
-| DRS pipeline | OperatingPoint per run, sweep aggregator computes DRS + sensitivity |
+| Per-axis aggregation | OperatingPoint + STR + Tier 1/2/3 efficiency emitted per run; legacy DRS combiner deprecated (see [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md)) |
 | Box upload | scene/phase tree mirrored, idempotent (size-matched skip), 2 contract tests |
 
 ## 6. Known limits / call-outs
@@ -170,6 +178,6 @@ Outputs land at `rpx_results/_sweep/drs_<split>.{csv,json}` and `sensitivity_<sp
 - §1 — HF dataset upload (one-time per dataset version).
 - §2 — Monocular-depth sweep (per-model + Box upload).
 - §3 — Relative-pose sweep (RCPE — 10 pose adapters).
-- §4 — Sweep aggregation (DRS table per split + sensitivity).
+- §4 — Sweep aggregation (per-axis components per split; legacy DRS combiner being retired — see [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md)).
 - §5–6 — Quality gates + known limits.
-- Method/DRS background: see [`docs/methods/`](docs/methods/).
+- Method background: see [`docs/methods/`](docs/methods/).

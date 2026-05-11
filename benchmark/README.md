@@ -2,7 +2,8 @@
 
 > Benchmark robot-perception models on real-world RGB-D across
 > clutter / interaction / clean phases of 99 indoor + outdoor scenes —
-> with ESD difficulty splits and a single Deployment Readiness number.
+> with ESD difficulty splits and three separately-reported axes
+> (task accuracy · scene-change robustness · compute cost).
 
 ```bash
 pip install 'rpx-benchmark[depth]'
@@ -11,9 +12,9 @@ rpx bench monocular_depth \
     --split hard
 ```
 
-Writes `rpx_results/<model>/<split>/result.json` with the primary
-metric, the full deployment-readiness report (TP × R × E), and per-stage
-timing with 95% CIs.
+Writes `rpx_results/<model>/<split>/result.json` reporting all three
+axes — task accuracy, scene-change robustness, compute cost — plus
+per-stage timing with 95% bootstrap CIs. No combined score.
 
 ---
 
@@ -33,35 +34,69 @@ The toolkit downloads the easy split into `~/.cache/huggingface/`
 (first run only), fetches the checkpoint, runs the model frame-by-frame,
 and writes `rpx_results/zoedepth-nyu-kitti/easy/{result.json, summary.md}`.
 
-`summary.md` is the load-bearing sanity check:
+`summary.md` is the load-bearing sanity check. RPX reports each model
+on **three independent axes** — never combining them — so you can pick
+the one your deployment cares about:
 
 ```text
 zoedepth-nyu-kitti — easy
-Primary:   AbsRel = 0.0848   (lower is better)
-           δ₁.₂₅  = 0.951    (higher is better)
-DRS:       0.62              (TP=0.74  R=0.91  E=0.92)
-Latency:   158.5 ms / sample (RTX 5070 Laptop)
+
+  Task accuracy            AbsRel  = 0.0848   (lower is better)
+                           δ₁.₂₅   = 0.951    (higher is better)
+
+  Scene-change robustness  STR     = 0.91     (1.0 = perfectly stable)
+                           Δ(interaction−clean)  AbsRel = +0.024
+
+  Compute cost             Params  = 345 M
+                           FLOPs   = 4.9 G
+                           Latency†= 158.5 ms / sample  (RTX 5070 Laptop)
 ```
 
-If those numbers print, your install is healthy. Move on to
+†Latency is hardware-dependent — reported for reference, not for
+ranking. If those numbers print, your install is healthy. Move on to
 [**Bring your own model**](#bring-your-own-model).
 
 <details>
 <summary><b>Reading <code>result.json</code> — what every field means</b></summary>
 
-| Key | Meaning | Use it when |
-|---|---|---|
-| `aggregated.absrel`, `delta1`, ... | The classic depth metrics, averaged over all frames. | Comparing two models head-to-head on the same split. |
-| `deployment_readiness.params_m`, `flops_g` | Static cost: parameters in millions, multiply-add FLOPs in billions. | Asking "is this model small enough for my robot?" |
-| `deployment_readiness.roofline.<gpu>.latency_ms` | Theoretical lower bound on inference latency on the named GPU, derived from FLOPs + memory traffic. | Estimating performance on hardware you don't physically have. |
-| `deployment_readiness.operating_point` | (precision, task_metric, str_score, flops, params) — the DRS aggregator picks the best across precisions per model. | Sweep aggregation; the paper-style table is built off these. |
-| `timing.data_load.mean / model_run / metric_calc` | Per-stage wall-clock ms with 95% bootstrap CIs and `n` samples. | Diagnosing whether the bottleneck is I/O, model, or metric code. |
-| `timing.metrics_with_ci` | Same shape, but for each *metric* — gives you a confidence interval on AbsRel itself, not just on latency. | Reporting in a paper: "AbsRel = 0.085 ± 0.002 (95% CI)". |
-| `comprehensive_metrics.aggregated_with_ci` (separate file) | The full metric basket — 9 errors × 4 alignment modes × 3 depth bands × in/out-of-mask. | Detailed per-object and per-depth-band analysis. |
+`result.json` is organised around the three reporting axes. The table
+below groups each key by which axis it belongs to.
 
-**Rule of thumb on the CIs**: at `n ≥ 1000` samples, CI half-widths
-should be small (< 5% of the mean). Wide CIs = run hasn't converged
-yet; add more `--max-samples`.
+**Axis 1 — Task accuracy**
+
+| Key | Meaning | Use when |
+|---|---|---|
+| `aggregated.absrel`, `delta1`, … | Per-task primary metrics, averaged over all frames. | Comparing models head-to-head on the same split. |
+| `timing.metrics_with_ci` | Each metric with 95% bootstrap CIs and `n` samples. | Reporting "AbsRel = 0.085 ± 0.002 (95% CI)". |
+| `comprehensive_metrics.aggregated_with_ci` *(separate file)* | The full metric basket — errors × alignment modes × depth bands × in/out-of-mask × per-object. | Detailed per-object and per-depth-band analysis. |
+
+**Axis 2 — Scene-change robustness**
+
+| Key | Meaning | Use when |
+|---|---|---|
+| `deployment_readiness.operating_point.str_score` *(legacy path; see deprecation note)* | State-Transition Robustness — how stable the output is across clutter → interaction → clean. Higher is better. | The headline robustness number for any per-model comparison. |
+| Per-phase entries in `comprehensive_metrics` | Phase-stratified versions of every metric (e.g. `absrel_per_phase.{clutter, interaction, clean}`). | Computing cross-phase Δ explicitly: `Δ = metric(interaction) − metric(clean)`. |
+
+**Axis 3 — Compute cost**
+
+| Key | Meaning | Use when |
+|---|---|---|
+| `deployment_readiness.params_m`, `flops_g` *(legacy path)* | Static cost: parameters in millions, multiply-add FLOPs in billions. | "Is this model small enough for my robot?" |
+| `deployment_readiness.roofline.<gpu>.latency_ms` *(legacy path)* | Theoretical lower-bound latency on the named GPU, from FLOPs + memory traffic. | Estimating performance on hardware you don't have. |
+| `timing.model_run.mean` | Measured wall-clock latency per sample, with 95% bootstrap CIs. Hardware-dependent — supplementary. | Reporting "on RTX 5070 Laptop: 158 ± 0.5 ms". |
+| `timing.data_load.mean` / `metric_calc.mean` | Per-stage wall-clock with CIs. | Diagnosing whether the bottleneck is I/O, model, or metric code. |
+
+**Rule of thumb on the CIs.** At `n ≥ 1000` samples, CI half-widths
+should be small (< 5% of the mean). Wide CIs mean the run hasn't
+converged yet — add more `--max-samples`.
+
+> **Deprecation notice.** The `deployment_readiness` block name is
+> being retired. A future release will move its contents to three
+> top-level keys mirroring the axes: `task_accuracy`, `robustness`,
+> `compute_cost`. The old composite DRS scalar (`TP × R × E`) is
+> being removed — it disguised the disagreement across axes that is
+> the paper's central finding. Track this in
+> [`benchmark/SHARED_CONTEXT.md`](SHARED_CONTEXT.md).
 
 </details>
 
@@ -389,10 +424,10 @@ mirrors the local tree exactly. Idempotent (size-matched skip on re-upload).
 | Adapter framework | `rpx_benchmark.adapters` | `BenchmarkableModel`, batched-dispatch base class, 9 numpy fast-path factories |
 | Metrics | `rpx_benchmark.metrics.*` | Per-task `MetricCalculator` registry; `depth_alignment` shared between runner + comprehensive post-processor |
 | Tasks | `rpx_benchmark.tasks.*` | One module per task, each ~30 lines; self-register `TaskSpec` |
-| Runner | `rpx_benchmark.runner` | Orchestrates dataset → model → metrics → report; persists `OperatingPoint` for DRS |
-| Profiler | `rpx_benchmark.profiler` | Tier 1 (params/FLOPs/MACs/memory traffic/AI), Tier 2 (roofline for A100/4090/Orin), Tier 3 (measured + system card) |
-| Deployment readiness | `rpx_benchmark.deployment` | DRS = TP × R × E (multiplicative, hardware-agnostic), ESD-weighted Phase Score, STR, Temporal Stability, SGC |
-| Sweep utilities | `scripts/run_drs_sweep.py`, `rpx_benchmark.drs_sensitivity` | Sweep aggregator + sensitivity Kendall's τ |
+| Runner | `rpx_benchmark.runner` | Orchestrates dataset → model → metrics → report; persists per-axis components into `result.json` |
+| Profiler | `rpx_benchmark.profiler` | Compute-cost axis: Tier 1 (params/FLOPs/MACs/memory traffic/AI), Tier 2 (roofline for A100/4090/Orin), Tier 3 (measured + system card) |
+| Per-axis aggregators | `rpx_benchmark.deployment` | Scene-change-robustness axis (STR, ESD-weighted Phase Score, Temporal Stability, SGC) — emitted separately, never combined into a single score. *Legacy DRS aggregator deprecated — see [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md).* |
+| Sweep utilities | `scripts/run_drs_sweep.py`, `rpx_benchmark.drs_sensitivity` | Sweep aggregator + sensitivity Kendall's τ. *Both being retired alongside the DRS scalar — track in `SHARED_CONTEXT.md`.* |
 | Determinism | `rpx_benchmark.determinism` | `seed_all()`, `deterministic()` context manager, project-wide `RPX_SEED = 5_062_026` |
 | Reports | `rpx_benchmark.reports` | JSON + Markdown writers |
 | CLI UX | `rpx_benchmark.cli_ux` | Industry-grade splash + progress for all runnable scripts (rich-based; CI-degrading) |

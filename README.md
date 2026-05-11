@@ -37,11 +37,20 @@ Readiness Score, all timing CIs, and the full metric basket.
 
 Perception models routinely lose 10–30% of their accuracy when they
 leave clean lab demos and meet cluttered, human-shared environments.
-RPX measures that gap on **99 indoor + outdoor scenes** — each captured
-in three phases (clutter → human-interaction → clean) — and scores
-every model on a single **Deployment Readiness Score** combining
-accuracy, robustness across phase changes, and FLOPs-anchored
-efficiency.
+RPX measures that drop on **99 indoor + outdoor scenes** — each
+captured in three phases (clutter → human-interaction → clean) — and
+reports every model on **three independent axes**, never collapsed
+into a single composite:
+
+1. **Task accuracy** — per task (AUC, AbsRel, rotation error, …).
+2. **Scene-change robustness** — STR, cross-phase Δ, temporal drift.
+   *Unique to RPX.*
+3. **Compute cost** — params, FLOPs, latency†.
+
+The headline result of the paper is that **rankings disagree across
+these axes**: the model that wins on accuracy is rarely the model
+that wins on robustness or cost. RPX is the benchmark that surfaces
+that disagreement instead of hiding it behind a single number.
 
 The dataset lives on HuggingFace. The toolkit is one `pip install`.
 Most users only ever touch `benchmark/`; capture and annotation exist
@@ -50,10 +59,11 @@ to *produce* the dataset, not to consume it.
 ```
    CAPTURE                 ANNOTATE                 BENCHMARK
    ───────                 ────────                 ─────────
-   D435 + T265        →    SAM2 + GroundingDINO  →  load → score
-   RGB-D + 6-DoF pose      per-frame instance       DRS = TP × R × E
-                           masks (1 keyframe of
-                           human review per phase)
+   D435 + T265        →    SAM2 + GroundingDINO  →  load → score on
+   RGB-D + 6-DoF pose      per-frame instance       three independent axes
+                           masks (1 keyframe of     · task accuracy
+                           human review per phase)  · scene-change Δ
+                                                    · compute cost
 
    data_capture/           mask_pipeline/           benchmark/  ←  start here
 ```
@@ -86,9 +96,9 @@ consistent object-ID mapping.
 → [`mask_pipeline/`](mask_pipeline/README.md)
 
 **Benchmark.** Models run against ESD-stratified easy / medium / hard
-splits. Each run emits a `result.json` with the primary metric, the
-deployment-readiness components, and per-stage timing with 95%
-bootstrap CIs.
+splits. Each run emits a `result.json` reporting all three axes
+separately — task accuracy, scene-change robustness, compute cost —
+plus per-stage timing with 95% bootstrap CIs. No combined score.
 → [`benchmark/`](benchmark/README.md)
 
 ---
@@ -104,13 +114,15 @@ bootstrap CIs.
 | **VIO** | Visual-Inertial Odometry. The T265 fuses fisheye stereo + IMU to estimate 6-DoF pose at 200 Hz. |
 | **Phase** | One of three capture passes per scene: **clutter** (objects scattered), **interaction** (a human reaches in), **clean** (organised state). Same scene, three states — used to measure phase-transition robustness. |
 | **ESD** | Effort-Stratified Difficulty. Splits the 99 scenes into easy / medium / hard by mixing a `perception_score` (how visually hard the scene is) with an `effort_score` (how much human labor the masks took). |
-| **DRS** | Deployment Readiness Score: `DRS = TP × R × E` (Task Performance × Robustness × Efficiency). One number per model, comparing accuracy *and* hardware cost. |
-| **STR** | State-Transition Robustness. How stable a model's output is across the clutter → interaction → clean phase changes of the same scene. |
+| **Task accuracy** | Axis 1 of the report. Per-task primary metric (AUC, AbsRel, rotation error, …) plus 95% bootstrap CIs. |
+| **Scene-change robustness** | Axis 2 of the report. Captures how a model's output changes when the same scene transitions through clutter → interaction → clean. Components: STR, cross-phase Δ, temporal drift. Unique to RPX. |
+| **Compute cost** | Axis 3 of the report. Params (M), FLOPs (G), Latency† (hardware-dependent, supplementary). |
+| **STR** | State-Transition Robustness. The headline scene-change-robustness number: how stable a model's output is across phase transitions of the same scene. |
 | **RCPE** | Relative Camera Pose Estimation. Given two RGB frames, estimate the relative 3D rotation + translation between them. One of the 10 tasks. |
 | **Adapter** | A small Python class wrapping your model behind the toolkit's uniform interface. Three flavours: HF checkpoint, numpy callable, custom subclass. |
 | **Manifest** | A JSON listing the scenes / frames / modalities for a given task + split. The loader reads it; you almost never write one. |
 | **Split** | A named subset of the dataset (`easy`, `medium`, `hard`). All three phases of one scene always land in the same split so STR is measurable. |
-| **Operating point** | One (precision × accuracy × FLOPs) triple per model. A model can have several — fp32, fp16, int8 — and DRS picks the best. |
+| **Operating point** | One (precision × accuracy × FLOPs) triple per model. A model can publish several (fp32, fp16, int8); each is reported separately on the three axes. |
 | **HF** | HuggingFace — where the RPX dataset and most reference checkpoints live. |
 | **`rpx_results/<model>/<split>/`** | The canonical output directory. `result.json` is the load-bearing artefact. |
 
@@ -127,7 +139,7 @@ bootstrap CIs.
 | 🎯 **10 benchmark tasks** | depth, segmentation, detection (×2), grounding, pose, keypoints, sparse depth, NVS, tracking |
 | 🪜 **ESD difficulty splits** | Easy / Medium / Hard derived from real annotation effort, per `(scene, phase)` |
 | 🔌 **Bring-your-own-model** | HF checkpoint · numpy callable · custom adapter — pick one, run in one command |
-| 📊 **Deployment Readiness Score** | TP × R × E — ESD-weighted phase score, state-transition robustness, FLOPs-anchored efficiency |
+| 📊 **Three-axis reporting** | Task accuracy · scene-change robustness (STR, cross-phase Δ, temporal drift) · compute cost — reported separately, never combined into a single score |
 | 🧰 **Full CI** | pytest matrix 3.10 / 3.11 / 3.12 + ruff + auto docs deploy to GitHub Pages |
 | 📚 **Auto docs** | MkDocs + mkdocstrings reads numpydoc; adding a class = zero doc work |
 | ⚖️ **License** | Code MIT · Dataset CC BY 4.0 |
