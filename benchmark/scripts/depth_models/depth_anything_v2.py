@@ -52,7 +52,7 @@ class DepthAnythingV2Metric:
 
     #: DA-V2 supports fp16 inference cleanly (DPT backbone + ViT-L
     #: encoder, well-tested under autocast). Reading this attribute
-    #: drives the runner's OperatingPoint precision tag for DRS.
+    #: drives the runner's OperatingPoint precision tag.
     native_precision: str = "fp16"
 
     def __init__(

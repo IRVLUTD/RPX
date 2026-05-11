@@ -99,7 +99,7 @@ def test_detection_pipeline_end_to_end(tmp_path):
     bm = rpx.make_numpy_detection_model(perfect_det)
     ds = _det_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.OBJECT_DETECTION))
-    result, dr = runner.run_with_deployment_readiness(
+    result, dr = runner.run_with_report(
         primary_metric="f1",
         model_name="perfect_det",
         compute_ts=False,
@@ -121,7 +121,7 @@ def test_detection_tuple_return_shape(tmp_path):
     bm = rpx.make_numpy_detection_model(tuple_det)
     ds = _det_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.OBJECT_DETECTION))
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="f1",
         model_name="tup",
         compute_ts=False,
@@ -167,7 +167,7 @@ def test_grounding_pipeline_end_to_end(tmp_path):
     bm = rpx.make_numpy_grounding_model(perfect)
     ds = _grounding_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.VISUAL_GROUNDING))
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="grounding_acc",
         model_name="g",
         compute_ts=False,
@@ -212,7 +212,7 @@ def test_pose_pipeline_end_to_end(tmp_path):
     bm = rpx.make_numpy_pose_model(perfect_pose)
     ds = _pose_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.RELATIVE_CAMERA_POSE))
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="rotation_error_deg",
         model_name="p",
         compute_ts=False,
@@ -282,7 +282,7 @@ def test_sparse_depth_pipeline_end_to_end(tmp_path):
     bm = rpx.make_numpy_sparse_depth_model(perfect)
     ds = _sparse_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.SPARSE_DEPTH))
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="sparse_absrel",
         model_name="s",
         compute_ts=False,
@@ -326,7 +326,7 @@ def test_nvs_pipeline_end_to_end(tmp_path):
     bm = rpx.make_numpy_nvs_model(perfect_nvs)
     ds = _nvs_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.NOVEL_VIEW_SYNTHESIS))
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="psnr",
         model_name="nvs",
         compute_ts=False,
@@ -382,7 +382,7 @@ def test_keypoint_pipeline_end_to_end(tmp_path):
     bm = rpx.make_numpy_keypoint_model(perfect_matcher)
     ds = _keypoint_dataset(tmp_path)
     runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.KEYPOINT_MATCHING))
-    result, _ = runner.run_with_deployment_readiness(
+    result, _ = runner.run_with_report(
         primary_metric="keypoint_acc",
         model_name="k",
         compute_ts=False,

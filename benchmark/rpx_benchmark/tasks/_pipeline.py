@@ -155,7 +155,7 @@ def run_pipeline(
         metric_suite=MetricSuite.for_task(task),
         call_setup=False,
     )
-    result, dr_report = runner.run_with_deployment_readiness(
+    result, dr_report = runner.run_with_report(
         primary_metric=primary_metric,
         model_name=name,
         efficiency=efficiency,

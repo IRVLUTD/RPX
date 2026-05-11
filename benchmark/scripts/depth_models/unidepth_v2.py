@@ -43,7 +43,7 @@ class UniDepthV2:
     native_alignment: str = "none"
 
     #: UniDepth V2's ViT-L encoder runs cleanly in fp16 and is the
-    #: paper's reported inference mode. Drives the DRS OperatingPoint
+    #: paper's reported inference mode. Drives the OperatingPoint
     #: precision tag.
     native_precision: str = "fp16"
 

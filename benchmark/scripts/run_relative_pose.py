@@ -3,7 +3,7 @@
 Sister of ``run_depth.py``. Wires the registered pose adapters in
 ``scripts/pose_models/`` to the toolkit's loader + runner + Box upload
 pipeline. Per-pair predictions land in a single CSV
-(``predictions.csv``); aggregated metrics + DRS OperatingPoint go in
+(``predictions.csv``); aggregated metrics + per-axis components go in
 ``result.json``; full pose-error basket with 95% CIs (rotation,
 translation L2 + angular, AUC@5°/10°/20°, per-stride breakdown) lands
 in ``pose_comprehensive_metrics.json``.
@@ -165,7 +165,7 @@ def _run_via_local_manifest(
         metric_suite=MetricSuite.for_task(TaskType.RELATIVE_CAMERA_POSE),
         call_setup=False,
     )
-    bench_result, dr_report = runner.run_with_deployment_readiness(
+    bench_result, dr_report = runner.run_with_report(
         primary_metric="rotation_error_deg",
         model_name=name,
         efficiency=eff,

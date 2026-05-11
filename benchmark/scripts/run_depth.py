@@ -185,8 +185,10 @@ def _augment_result_with_timing(json_path, *, timing) -> None:
 
     Efficiency fields are no longer injected here — the runner's
     `DeploymentReadinessReport` carries the full Tier 1/2/3 picture
-    natively, and `write_json` serialises all of it under
-    `payload["deployment_readiness"]`. This helper is now timing-only.
+    natively, and `write_json` serialises all of it under the
+    `compute_cost` and `robustness` top-level blocks (see
+    `SHARED_CONTEXT.md` for the three-axis policy). This helper is
+    now timing-only.
     """
     import json as _json
 
@@ -326,8 +328,8 @@ def _run_via_local_manifest(
     #   - memory_traffic (needs the torch module + a forward shape)
     #   - system_card    (needs to read host CUDA / OS fields)
     # Everything else (FLOPs, MACs, AI, roofline, latency, peak memory)
-    # is computed inside `runner.run_with_deployment_readiness` and
-    # serialised under `result.json["deployment_readiness"]`.
+    # is computed inside `runner.run_with_report` and serialised under
+    # `result.json["compute_cost"]` (three-axis schema).
     torch_mod = _find_torch_module(adapter)
     eff = EfficiencyMetadata(
         model_type="local",
@@ -357,7 +359,7 @@ def _run_via_local_manifest(
         metric_suite=MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
         call_setup=False,
     )
-    bench_result, dr_report = runner.run_with_deployment_readiness(
+    bench_result, dr_report = runner.run_with_report(
         primary_metric="absrel",
         model_name=name,
         efficiency=eff,
@@ -368,8 +370,8 @@ def _run_via_local_manifest(
     # picture (params, flops, macs, mem-traffic, arithmetic intensity,
     # roofline bounds for A100/4090/Orin, measured latency, peak memory,
     # system card). `write_json` serialises all of it under
-    # `result.json["deployment_readiness"]` — no post-hoc augmentation
-    # of efficiency fields needed.
+    # `result.json["compute_cost"]` (plus `["robustness"]` for the
+    # phase-aware scores) — no post-hoc augmentation needed.
 
     # ---- per-stage timing breakdown (data load / model run / metric calc) ---
     # The runner's `latency_ms` is end-to-end; this gives us where the time

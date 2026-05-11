@@ -120,7 +120,7 @@ def test_runner_dispatches_temporal_hook_via_taskspec(tmp_path: Path, monkeypatc
 
     model = rpx.make_numpy_depth_model(trivial)
     runner = BenchmarkRunner(model=model, dataset=ds)
-    _, report = runner.run_with_deployment_readiness(
+    _, report = runner.run_with_report(
         primary_metric="absrel",
         model_name="unit",
     )

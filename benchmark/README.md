@@ -3,7 +3,7 @@
 > Benchmark robot-perception models on real-world RGB-D across
 > clutter / interaction / clean phases of 99 indoor + outdoor scenes —
 > with ESD difficulty splits and three separately-reported axes
-> (task accuracy · scene-change robustness · compute cost).
+> (task performance · scene-change robustness · compute cost).
 
 ```bash
 pip install 'rpx-benchmark[depth]'
@@ -13,7 +13,7 @@ rpx bench monocular_depth \
 ```
 
 Writes `rpx_results/<model>/<split>/result.json` reporting all three
-axes — task accuracy, scene-change robustness, compute cost — plus
+axes — task performance, scene-change robustness, compute cost — plus
 per-stage timing with 95% bootstrap CIs. No combined score.
 
 ---
@@ -41,7 +41,7 @@ the one your deployment cares about:
 ```text
 zoedepth-nyu-kitti — easy
 
-  Task accuracy            AbsRel  = 0.0848   (lower is better)
+  Task Performance            AbsRel  = 0.0848   (lower is better)
                            δ₁.₂₅   = 0.951    (higher is better)
 
   Scene-change robustness  STR     = 0.91     (1.0 = perfectly stable)
@@ -62,7 +62,7 @@ ranking. If those numbers print, your install is healthy. Move on to
 `result.json` is organised around the three reporting axes. The table
 below groups each key by which axis it belongs to.
 
-**Axis 1 — Task accuracy**
+**Axis 1 — Task Performance**
 
 | Key | Meaning | Use when |
 |---|---|---|
@@ -74,29 +74,26 @@ below groups each key by which axis it belongs to.
 
 | Key | Meaning | Use when |
 |---|---|---|
-| `deployment_readiness.operating_point.str_score` *(legacy path; see deprecation note)* | State-Transition Robustness — how stable the output is across clutter → interaction → clean. Higher is better. | The headline robustness number for any per-model comparison. |
+| `robustness.state_transition.str_c_to_i` / `str_i_to_l` | State-Transition Robustness — performance change across the clutter → interaction → clean phase transitions. Magnitudes near 0 = robust. | The headline robustness numbers for any per-model comparison. |
+| `robustness.weighted_phase_score` | ESD-weighted per-phase score: `S_p = 0.25·M(p,Easy) + 0.35·M(p,Medium) + 0.40·M(p,Hard)`, plus overall and Δ-interaction / Δ-recovery. | Phase-aware accuracy that respects difficulty distribution. |
+| `robustness.temporal_stability` | Pose-compensated frame-to-frame consistency score. | Detecting models that "twitch" frame-to-frame within a single phase. |
+| `robustness.geometric_coherence` | Mask-depth boundary alignment (depth + segmentation tasks). | Checking that depth and segmentation see the same scene. |
 | Per-phase entries in `comprehensive_metrics` | Phase-stratified versions of every metric (e.g. `absrel_per_phase.{clutter, interaction, clean}`). | Computing cross-phase Δ explicitly: `Δ = metric(interaction) − metric(clean)`. |
 
 **Axis 3 — Compute cost**
 
 | Key | Meaning | Use when |
 |---|---|---|
-| `deployment_readiness.params_m`, `flops_g` *(legacy path)* | Static cost: parameters in millions, multiply-add FLOPs in billions. | "Is this model small enough for my robot?" |
-| `deployment_readiness.roofline.<gpu>.latency_ms` *(legacy path)* | Theoretical lower-bound latency on the named GPU, from FLOPs + memory traffic. | Estimating performance on hardware you don't have. |
-| `timing.model_run.mean` | Measured wall-clock latency per sample, with 95% bootstrap CIs. Hardware-dependent — supplementary. | Reporting "on RTX 5070 Laptop: 158 ± 0.5 ms". |
-| `timing.data_load.mean` / `metric_calc.mean` | Per-stage wall-clock with CIs. | Diagnosing whether the bottleneck is I/O, model, or metric code. |
+| `compute_cost.params_m`, `flops_g` | Static cost: parameters in millions, multiply-add FLOPs in billions. | "Is this model small enough for my robot?" |
+| `compute_cost.macs_g`, `memory_traffic_gb`, `arithmetic_intensity` | Tier 1 derived: MACs (= FLOPs / 2), estimated DRAM traffic, FLOPs / Byte ratio. | Diagnosing whether the model is compute- or memory-bound. |
+| `compute_cost.roofline.<gpu>.latency_ms` | Theoretical lower-bound latency on the named GPU (A100 / RTX 4090 / Jetson Orin), from FLOPs + memory traffic. | Estimating performance on hardware you don't have. |
+| `compute_cost.latency_ms_per_sample`, `peak_memory_mb`, `system_card` | Measured Tier 3 numbers. Hardware-dependent — supplementary. | Reporting "on RTX 5070 Laptop: 158 ± 0.5 ms". |
+| `compute_cost.operating_point` | (precision, task_metric, str_score, flops, params) — one per (model, precision) combination. | Comparing fp32 / fp16 / int8 builds of the same model. |
+| `timing.data_load.mean` / `model_run.mean` / `metric_calc.mean` | Per-stage wall-clock with 95% bootstrap CIs. | Diagnosing whether the bottleneck is I/O, model, or metric code. |
 
 **Rule of thumb on the CIs.** At `n ≥ 1000` samples, CI half-widths
 should be small (< 5% of the mean). Wide CIs mean the run hasn't
 converged yet — add more `--max-samples`.
-
-> **Deprecation notice.** The `deployment_readiness` block name is
-> being retired. A future release will move its contents to three
-> top-level keys mirroring the axes: `task_accuracy`, `robustness`,
-> `compute_cost`. The old composite DRS scalar (`TP × R × E`) is
-> being removed — it disguised the disagreement across axes that is
-> the paper's central finding. Track this in
-> [`benchmark/SHARED_CONTEXT.md`](SHARED_CONTEXT.md).
 
 </details>
 
@@ -238,13 +235,14 @@ PYTHONPATH=. python scripts/run_depth.py --model <KEY> --split <easy|medium|hard
 PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split <easy|medium|hard> \
     --save-predictions --comprehensive-metrics --upload-to-box
 
-# 4. Aggregate into the paper table
-PYTHONPATH=. python scripts/run_drs_sweep.py --split easy
-PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity
+# 4. Read per-axis components from each result.json and aggregate
+#    however your paper section demands. Sample loader in
+#    benchmark/TEAM_LAUNCH.md §4. There is no composite-score
+#    aggregator: RPX reports three independent axes, never combined.
 ```
 
-Idempotent at every step. Outputs land under `rpx_results/<model>/<split>/`
-and `rpx_results/_sweep/`. Hub upload details:
+Idempotent at every step. Outputs land under `rpx_results/<model>/<split>/`.
+Hub upload details:
 [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/README.md).
 
 <details>

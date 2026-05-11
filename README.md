@@ -28,8 +28,10 @@ rpx bench monocular_depth \
     --split hard
 ```
 
-Three minutes on one GPU. Writes a `result.json` with the Deployment
-Readiness Score, all timing CIs, and the full metric basket.
+Three minutes on one GPU. Writes a `result.json` reporting **three
+independent axes** — task performance, scene-change robustness,
+compute cost — plus timing CIs and the full metric basket. No
+combined score.
 
 ---
 
@@ -42,7 +44,7 @@ captured in three phases (clutter → human-interaction → clean) — and
 reports every model on **three independent axes**, never collapsed
 into a single composite:
 
-1. **Task accuracy** — per task (AUC, AbsRel, rotation error, …).
+1. **Task Performance** — per task (AUC, AbsRel, rotation error, …).
 2. **Scene-change robustness** — STR, cross-phase Δ, temporal drift.
    *Unique to RPX.*
 3. **Compute cost** — params, FLOPs, latency†.
@@ -61,7 +63,7 @@ to *produce* the dataset, not to consume it.
    ───────                 ────────                 ─────────
    D435 + T265        →    SAM2 + GroundingDINO  →  load → score on
    RGB-D + 6-DoF pose      per-frame instance       three independent axes
-                           masks (1 keyframe of     · task accuracy
+                           masks (1 keyframe of     · task performance
                            human review per phase)  · scene-change Δ
                                                     · compute cost
 
@@ -97,7 +99,7 @@ consistent object-ID mapping.
 
 **Benchmark.** Models run against ESD-stratified easy / medium / hard
 splits. Each run emits a `result.json` reporting all three axes
-separately — task accuracy, scene-change robustness, compute cost —
+separately — task performance, scene-change robustness, compute cost —
 plus per-stage timing with 95% bootstrap CIs. No combined score.
 → [`benchmark/`](benchmark/README.md)
 
@@ -114,7 +116,7 @@ plus per-stage timing with 95% bootstrap CIs. No combined score.
 | **VIO** | Visual-Inertial Odometry. The T265 fuses fisheye stereo + IMU to estimate 6-DoF pose at 200 Hz. |
 | **Phase** | One of three capture passes per scene: **clutter** (objects scattered), **interaction** (a human reaches in), **clean** (organised state). Same scene, three states — used to measure phase-transition robustness. |
 | **ESD** | Effort-Stratified Difficulty. Splits the 99 scenes into easy / medium / hard by mixing a `perception_score` (how visually hard the scene is) with an `effort_score` (how much human labor the masks took). |
-| **Task accuracy** | Axis 1 of the report. Per-task primary metric (AUC, AbsRel, rotation error, …) plus 95% bootstrap CIs. |
+| **Task Performance** | Axis 1 of the report. Per-task primary metric (AUC, AbsRel, rotation error, …) plus 95% bootstrap CIs. |
 | **Scene-change robustness** | Axis 2 of the report. Captures how a model's output changes when the same scene transitions through clutter → interaction → clean. Components: STR, cross-phase Δ, temporal drift. Unique to RPX. |
 | **Compute cost** | Axis 3 of the report. Params (M), FLOPs (G), Latency† (hardware-dependent, supplementary). |
 | **STR** | State-Transition Robustness. The headline scene-change-robustness number: how stable a model's output is across phase transitions of the same scene. |
@@ -139,7 +141,7 @@ plus per-stage timing with 95% bootstrap CIs. No combined score.
 | 🎯 **10 benchmark tasks** | depth, segmentation, detection (×2), grounding, pose, keypoints, sparse depth, NVS, tracking |
 | 🪜 **ESD difficulty splits** | Easy / Medium / Hard derived from real annotation effort, per `(scene, phase)` |
 | 🔌 **Bring-your-own-model** | HF checkpoint · numpy callable · custom adapter — pick one, run in one command |
-| 📊 **Three-axis reporting** | Task accuracy · scene-change robustness (STR, cross-phase Δ, temporal drift) · compute cost — reported separately, never combined into a single score |
+| 📊 **Three-axis reporting** | Task Performance · scene-change robustness (STR, cross-phase Δ, temporal drift) · compute cost — reported separately, never combined into a single score |
 | 🧰 **Full CI** | pytest matrix 3.10 / 3.11 / 3.12 + ruff + auto docs deploy to GitHub Pages |
 | 📚 **Auto docs** | MkDocs + mkdocstrings reads numpydoc; adding a class = zero doc work |
 | ⚖️ **License** | Code MIT · Dataset CC BY 4.0 |

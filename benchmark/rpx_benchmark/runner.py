@@ -10,7 +10,6 @@ from .deployment import (
     DeploymentReadinessReport,
     StackGeometricCoherenceResult,
     TemporalStabilityResult,
-    compute_embodied_readiness,
     compute_str,
     compute_weighted_phase_score,
 )
@@ -96,10 +95,15 @@ class BenchmarkRunner:
     Phase-stratified usage (requires manifest with ``phase`` / ``difficulty`` fields)::
 
         runner = BenchmarkRunner(model=model, dataset=dataset)
-        result, dr_report = runner.run_with_deployment_readiness(
+        result, report = runner.run_with_report(
             primary_metric="absrel",
             model_name="MyDepthModel",
         )
+
+    The returned ``DeploymentReadinessReport`` carries the per-axis
+    components (scene-change robustness + compute cost). RPX no longer
+    combines those into a single composite — see
+    ``benchmark/SHARED_CONTEXT.md`` for the three-axis policy.
     """
 
     def __init__(
@@ -179,7 +183,7 @@ class BenchmarkRunner:
 
         return self.metric_suite.build_result(per_sample)
 
-    def run_with_deployment_readiness(
+    def run_with_report(
         self,
         primary_metric: str,
         model_name: str = "model",
@@ -189,7 +193,12 @@ class BenchmarkRunner:
         skip_flops: bool = False,
         progress: Optional[ProgressCallback] = None,
     ) -> tuple[BenchmarkResult, DeploymentReadinessReport]:
-        """Run benchmark and compute all deployment-readiness metrics.
+        """Run benchmark and compute all per-axis components.
+
+        The returned report carries the scene-change-robustness and
+        compute-cost components. RPX never combines these into a
+        single composite — see ``benchmark/SHARED_CONTEXT.md`` for the
+        three-axis policy.
 
         Args:
             primary_metric: metric key used for ESD/STR scoring (e.g. "absrel", "miou").
@@ -391,20 +400,10 @@ class BenchmarkRunner:
             system_card=system_card_dict,
         )
 
-        # Compose the Embodied Readiness Score (legacy).
+        # Build an OperatingPoint for this run (the precision × accuracy ×
+        # cost triple). RPX reports operating points but never combines
+        # them into a composite score — see SHARED_CONTEXT.md.
         higher_is_better = bool(getattr(spec, "higher_is_better", True))
-        try:
-            report.embodied_readiness = compute_embodied_readiness(
-                report,
-                higher_is_better=higher_is_better,
-            )
-        except ValueError:
-            pass
-
-        # Build an OperatingPoint for the DRS (platform-independent).
-        # The full DRS (with F_median) is computed post-sweep via
-        # compute_sweep_drs(); here we store the raw operating point
-        # so downstream code has everything it needs.
         from .deployment import OperatingPoint  # noqa: PLC0415
 
         if wps is not None and eff.flops_g is not None:

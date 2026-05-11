@@ -112,8 +112,8 @@ class BatchedDepthBenchmarkModel:
         adapter doesn't declare it.
     native_precision
         Declared by the adapter (``"fp32"``, ``"fp16"``, ``"bf16"``).
-        Used by the runner to record the operating point for DRS
-        computation. Falls back to ``"fp32"`` if not declared.
+        Used by the runner to record the OperatingPoint precision
+        tag. Falls back to ``"fp32"`` if not declared.
     """
 
     task = TaskType.MONOCULAR_DEPTH

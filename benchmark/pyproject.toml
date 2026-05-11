@@ -214,7 +214,6 @@ module = [
   # Toolkit modules with pre-existing untyped defs (earlier work)
   "rpx_benchmark.adapters.base",
   "rpx_benchmark.deployment",
-  "rpx_benchmark.drs_sensitivity",
   "rpx_benchmark.evaluators",
   "rpx_benchmark.profiler",
   "rpx_benchmark.runner",

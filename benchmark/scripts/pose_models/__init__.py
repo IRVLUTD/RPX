@@ -13,7 +13,7 @@ Plus optional class-level attributes the runner reads:
   but translations are often up-to-scale. ``"none"`` means the model
   publishes metric translations; ``"unit"`` means we should compare
   translations as unit vectors only (i.e. translation_angular_deg).
-* ``native_precision: str`` — fp32 / fp16 / bf16. Drives DRS OperatingPoint.
+* ``native_precision: str`` — fp32 / fp16 / bf16. Drives the OperatingPoint precision tag.
 * ``torch_module`` — exposed so the profiler walker can count parameters.
 
 The :data:`MODEL_REGISTRY` below maps short names (``--model X``) to a

@@ -73,7 +73,7 @@ clear `ImportError` with the install hint when missing.
 **Dropped from the 20-model target**: MetricSolver — no clean release surfaced as of May 2026.
 
 **Per-run output**: `rpx_results/<display>/<split>/`:
-- `result.json`  — three reporting axes (task accuracy / scene-change robustness / compute cost) + per-stage timing + per-metric CIs. **No combined score** — see [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md) for the policy and the deprecation path off the legacy `deployment_readiness` block.
+- `result.json`  — three reporting axes (task performance / scene-change robustness / compute cost) + per-stage timing + per-metric CIs. **No combined score** — see [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md) for the policy and the deprecation path off the legacy `deployment_readiness` block.
 - `summary.md`  — human-readable.
 - `comprehensive_metrics.json`  — full metric basket (9 error + 3 accuracy + alignment modes + depth-band stratification + per-object basket + holes + ORD).
 - `predictions/<scene>/<phase>/<frame>.npz`  — per-frame raw depth (when `--save-predictions`).
@@ -109,7 +109,7 @@ nope_sac / mickey adapters require a clone + checkpoint of the
 upstream repo. Each adapter raises a clear `ImportError` with the hint.
 
 **Per-run output**: `rpx_results/<display>/<split>/`:
-- `result.json` — `rotation_error_deg` primary + the three reporting axes (task accuracy / scene-change robustness / compute cost) + timing CIs. No combined score.
+- `result.json` — `rotation_error_deg` primary + the three reporting axes (task performance / scene-change robustness / compute cost) + timing CIs. No combined score.
 - `summary.md` — human-readable.
 - `pose_comprehensive_metrics.json` — full pose basket (rotation +
   translation L2 + translation angular + AUC@5°/10°/20° with 95% CIs,
@@ -132,26 +132,38 @@ Idempotent — files whose Box copy matches in size are skipped automatically. S
 
 ## 4. Sweep aggregation — once all models have run
 
-> **Note.** The script name and the legacy `drs_*.csv` output naming
-> are being retired alongside the DRS scalar (see
-> [`SHARED_CONTEXT.md`](SHARED_CONTEXT.md)). The script still runs
-> and the per-axis components in each row are still correct — but the
-> combined DRS column should not be cited going forward. PR-B will
-> rename to `aggregate_results.py` and drop the combined column.
+RPX no longer ships a sweep-level composite aggregator: the `DRS = TP × R × E`
+combiner and its sensitivity tooling have been **removed**, alongside
+`scripts/run_drs_sweep.py` and `rpx_benchmark/drs_sensitivity.py`. The
+paper's central finding is that *rankings disagree across the three
+axes*, so RPX exposes the axes — not a single score — and the reader
+picks the axis their deployment cares about. See
+[`SHARED_CONTEXT.md`](SHARED_CONTEXT.md).
 
-```bash
-# Per-split aggregation
-PYTHONPATH=. python scripts/run_drs_sweep.py --split easy
-PYTHONPATH=. python scripts/run_drs_sweep.py --split medium
-PYTHONPATH=. python scripts/run_drs_sweep.py --split hard
+Build your aggregation from the per-axis components already in each
+`result.json`:
 
-# Paper-appendix sensitivity analysis (Kendall's τ across exponent /
-# E-function / anchor perturbations) — also deprecated; for legacy
-# composite only.
-PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity
+```python
+import json
+from pathlib import Path
+
+rows = []
+for path in Path("rpx_results").glob("*/easy/result.json"):
+    r = json.loads(path.read_text())
+    rows.append({
+        "model":              r["model"],
+        # Axis 1 — Task Performance
+        "task_metric":        r["aggregated"]["absrel"],
+        # Axis 2 — Scene-change robustness
+        "str_c_to_i":         r["robustness"]["state_transition"]["str_c_to_i"],
+        "str_i_to_l":         r["robustness"]["state_transition"]["str_i_to_l"],
+        # Axis 3 — Compute cost
+        "params_m":           r["compute_cost"]["params_m"],
+        "flops_g":            r["compute_cost"]["flops_g"],
+        "latency_ms":         r["compute_cost"]["latency_ms_per_sample"],
+    })
+# Sort by *whichever axis* your paper section is making a claim about.
 ```
-
-Outputs land at `rpx_results/_sweep/drs_<split>.{csv,json}` and `sensitivity_<split>.json`.
 
 ## 5. Quality gates
 

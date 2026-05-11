@@ -11,7 +11,7 @@
 | 👀 *I want to see what a scene looks like* | [`visualize_rerun.py`](visualize_rerun.py) (`make visualize`) |
 | 🎯 *I want to benchmark a depth model on RPX* | [`run_depth.py`](run_depth.py) — covered in detail in [`../README.md`](../README.md#canonical-sweep) |
 | 📐 *I want to benchmark a relative-pose model* | [`run_relative_pose.py`](run_relative_pose.py) |
-| 📊 *I want to aggregate my sweep into the paper table* | [`run_drs_sweep.py`](run_drs_sweep.py) |
+| 📊 *I want to aggregate my sweep into the paper table* | Read each `rpx_results/<model>/<split>/result.json`'s three top-level axes (`aggregated`, `robustness`, `compute_cost`) directly. *(The legacy single-score `run_drs_sweep.py` aggregator was removed alongside the DRS composite — see `SHARED_CONTEXT.md`.)* |
 | ☁️ *I want to mirror my results to UTD Box* | [`sync_results_to_box.py`](sync_results_to_box.py) |
 | 📦 *I want to upload a new dataset version to HuggingFace* | [`upload_to_hf.py`](upload_to_hf.py) + [`build_hf_shards.py`](build_hf_shards.py) |
 | 🔬 *I want to add a new depth model adapter* | [`depth_models/`](depth_models/) + look at `hf_pipeline.py` for the simplest pattern |
