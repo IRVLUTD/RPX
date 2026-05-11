@@ -1064,3 +1064,33 @@ Sample.metadata["depth_b"]      = frame_b depth (H×W float32, meters)
 **Predictions log format** (per user directive, PR #26): single CSV at `out_dir/predictions.csv` with 16 columns `scene_id, phase, frame_a, frame_b, R00..R22, tx, ty, tz`. Header written once on first append; resume-safe.
 
 **Open**: pose pair sampling still stride-5 (Feynman's binned-sampling design not yet implemented — see `docs/methods/pose_pair_sampling.md`). Interaction-phase inclusion still TBD.
+
+### 2026-05-11 — Session B / Jishnu (Poisson sampler reverted; stratified_v2 wins)
+**Coordination note for Feynman.**
+
+Yesterday I shipped a Poisson-disk pair sampler (`scripts/generate_pose_pairs.py` + tests + docs) on PR #27. This morning I noticed substantial parallel work from you in the working tree but **not yet logged here or committed**:
+
+- `rpx_benchmark/pose_pairs.py` (500 lines) — `PosePairGenerator`: stratified by rotation bin `[5,15)/[15,45)/[45,90)/[90,180)°`, three pair types (intra-phase / cross-phase / temporal chain), excludes interaction phase, target ~60K pairs. Sampler name `"stratified_v2"`.
+- `rpx_benchmark/pose_metrics.py` (310 lines) — novel **Metric AUC@(θ°, d cm)** joint threshold, cross-phase Δ, temporal drift, per-bin/per-type breakdowns.
+- `scripts/generate_pose_pairs_v2.py` (609 lines) — CLI wrapping the above.
+- `scripts/local_manifest.py` — `RCPE_EXCLUDED_SCENE_IDS = {"scene58"}` + 5-entry `RCPE_EXCLUDED_SCENE_PHASES`, wired into `build_local_manifest` for pose tasks.
+- `scripts/run_relative_pose.py` — `--pairs-source on_the_fly` mode that uses `PosePairGenerator` directly (no manifest file).
+- `rpx_benchmark/model_profiler.py`, `docs/guides/adding-a-model.md`, plus edits to `README.md`, `scripts/README.md`, `rpx_benchmark/deployment.py`, `rpx_benchmark/evaluators.py`.
+
+**User decided 2026-05-11**: adopt your stratified_v2 as the canonical pose-pair sampler. Reasons cited: structured analysis (bins × pair types) gives richer paper claims than a single uniform-coverage number; cross-phase and temporal chains are RPX-specific contributions that MegaDepth / ScanNet1500 / RUBIK can't replicate; novel metric AUC@(θ°,cm) only works with metric-scale GT.
+
+**What I did:**
+- Reverted commit `e1bfbd1` ("RCPE pairs: Poisson-disk sampling…") on `jishnu/rcpe-pipeline-full`. Revert is commit `2cfbf7f`. PR #27 net-diff now contains only adapters + comprehensive metrics + runner + smoke-tested fix-ups — no pair-sampling code.
+- Stashed your in-flight uncommitted work before the revert (`stash@{0}: feynman/in-flight-before-jishnu-poisson-revert-2026-05-11`), then popped it back. Three files conflicted (`README.md`, `scripts/run_relative_pose.py`, `scripts/generate_pose_pairs.py`); resolved by taking the reverted side. **Your edits to those three files are still in `stash@{0}` for manual re-apply.**
+- All your other changes (`pose_pairs.py`, `pose_metrics.py`, the new CLI, `local_manifest.py` exclusions, package-level edits) are intact and untracked/unstaged in the working tree exactly as you left them.
+
+**Action items for you when you next pick this up:**
+1. Log this stratified_v2 work in SHARED_CONTEXT (algorithm, decision rationale, expected pair count, what the novel metrics measure).
+2. Re-apply your edits to `scripts/run_relative_pose.py` (the `--pairs-source on_the_fly` mode) on top of the reverted runner. The reverted runner has the canonical-manifest load path + `BatchedRelativePoseBenchmarkModel` wiring + comprehensive-metrics post-pass + Box upload — your `on_the_fly` branch needs to coexist with that. Reference your edits via `git stash show -p stash@{0} -- scripts/run_relative_pose.py`.
+3. Re-apply your `README.md` edits similarly — `git stash show -p stash@{0} -- README.md`.
+4. Add a `--pairs-source on_the_fly` test (synthetic frames, verify deterministic output across two runs of `PosePairGenerator(seed=RPX_SEED).manifest()`).
+5. Decide whether the `RCPE_EXCLUDED_*` lists in `scripts/local_manifest.py` should also be applied at the canonical-manifest load path in the runner (currently the runner bypasses `build_local_manifest` for pose), or whether `PosePairGenerator`'s own exclusion lists fully cover it.
+6. Ship as a follow-up PR (probably "RCPE pairs: stratified_v2 + novel metrics") that bases on PR #27 or `main` after PR #27 merges.
+7. Confirm the interaction-phase decision: your `VALID_PHASES = (0, 2)` excludes phase 1. That resolves the 2025-05-07 deferred question — please log the decision explicitly in SHARED_CONTEXT so future readers know the reason (T265 IR occlusion during interaction → GT degrades).
+
+**What I'm not touching:** none of your uncommitted files, none of your stashed edits. Everything is preserved as-is.
