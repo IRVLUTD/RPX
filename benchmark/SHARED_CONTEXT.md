@@ -1064,3 +1064,25 @@ Sample.metadata["depth_b"]      = frame_b depth (H×W float32, meters)
 **Predictions log format** (per user directive, PR #26): single CSV at `out_dir/predictions.csv` with 16 columns `scene_id, phase, frame_a, frame_b, R00..R22, tx, ty, tz`. Header written once on first append; resume-safe.
 
 **Open**: pose pair sampling still stride-5 (Feynman's binned-sampling design not yet implemented — see `docs/methods/pose_pair_sampling.md`). Interaction-phase inclusion still TBD.
+
+### 2026-05-10 — Session B / Jishnu (Poisson-disk pair sampler shipped)
+**Branch**: `jishnu/rcpe-pipeline-full` — PR #27.
+
+**What landed:**
+- `scripts/generate_pose_pairs.py` — Feynman's alternative-design path: discrete **Poisson-disk sampling** in `(rot_deg, t_m × SCALE_DEG_PER_M)` 2-D space (defaults: r=2°, scale=100 °/m so 10 cm baseline ≈ 10°). Cell-grid neighbour lookup, O(N · K). Seeded with `RPX_SEED = 5_062_026`. Per-(scene, phase) hard cap defaults to 253 → ~75K pairs total across the full dataset.
+- `scripts/run_relative_pose.py` — new `--pairs-manifest <path>` flag accepts any manifest file matching the canonical schema. Defaults to the dataset_hub stride-5 manifest when the flag is omitted, so existing invocations are unchanged.
+- Tests: `tests/test_pose_pairs_poisson.py` (8 tests) — pin the radius invariant, seeding, cap, and degenerate filtering. Full suite **555 pass / 2 expected skips** (was 547 / 2).
+
+**Smoke run (easy split, 4 scenes × 3 phases on the current snapshot):**
+- Candidates: 373,500 across 12 (scene, phase) groups (250 frames each, max_frame_gap=200).
+- Kept: 3,036 pairs (each group hit the 253 cap).
+- Rotation distribution: µ ≈ 90°, σ ≈ 50° — vs. stride-5's µ ≈ 3°.
+- Translation: µ ≈ 1.2 m, σ ≈ 0.6 m — vs. stride-5's µ ≈ 0.05 m.
+
+**Impact on `opencv_baseline` @ 16-pair smoke:**
+- stride-5: `rotation_error_deg = 3.07°` (false-easy — no discrimination).
+- Poisson r=2°: `rotation_error_deg = 72.4°` (correct signal — SIFT genuinely fails on wide-baseline pairs; learned models will differentiate).
+
+**Chose Poisson over binned**: user directive 2026-05-10. Advantages from Feynman's brief: no arbitrary bin boundaries, uniform coverage of the difficulty spectrum. Trade-off: less control over per-bin counts (we expose this via `--pairs-per-phase` cap).
+
+**Next**: run the full sweep (10 adapters × 3 splits) against the Poisson manifest once all optional deps are installed on the sweep box; replace the canonical manifest in the HF release if results look sane.

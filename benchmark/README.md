@@ -241,6 +241,37 @@ for split in easy medium hard; do
 done
 ```
 
+#### Pair sampling: Poisson-disk over (rotation, translation)
+
+The canonical manifest at `<snap>/manifests/relative_pose/<split>.json`
+ships with a placeholder stride-5 pair list — every anchor frame N
+paired with frame N+5. That gives baselines < 5° / < 10 cm > 95 % of
+the time, so AUC collapses to ~0 across every adapter (translation
+direction is noise-dominated at the centimeter-scale T265 GT).
+
+`scripts/generate_pose_pairs.py` produces a drop-in replacement using
+discrete **Poisson-disk sampling** in `(rot_deg, t_m × scale)` space:
+every kept pair is ≥ `radius_deg` from every other in that 2-D
+embedding, so the kept set covers the full difficulty spectrum without
+clustering at trivial baselines.
+
+```bash
+# Generate (default: r=2°, scale=100°/m, 253 pairs/(scene,phase) → ~75K pairs)
+PYTHONPATH=. python scripts/generate_pose_pairs.py --split easy
+
+# Consume in the runner
+PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split easy \
+    --pairs-manifest <snap>/manifests/relative_pose_poisson/easy.json \
+    --save-predictions --comprehensive-metrics
+```
+
+Seeded with `RPX_SEED = 5_062_026`; tuning knobs (`--radius-deg`,
+`--scale-deg-per-m`, `--pairs-per-phase`, `--max-frame-gap`) are
+documented in `--help`. Each kept sample carries
+`metadata.sampler="poisson_disk"` + the original GT rotation /
+translation distances, so downstream analysis can stratify by
+difficulty without recomputing them.
+
 
 ### 4. Aggregate the sweep into the paper table
 
