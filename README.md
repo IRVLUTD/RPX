@@ -9,13 +9,13 @@
 [![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue?logo=python&logoColor=white&style=flat-square)](https://pypi.org/project/rpx-benchmark/)
 [![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![ruff](https://img.shields.io/badge/lint-ruff-000000?logo=ruff&style=flat-square)](https://github.com/astral-sh/ruff)
-[![tests passing](https://img.shields.io/badge/tests-138%20passing-brightgreen?style=flat-square)](benchmark/tests/)
+[![tests passing](https://img.shields.io/badge/tests-552%20passing-brightgreen?style=flat-square)](benchmark/tests/)
 [![tasks](https://img.shields.io/badge/runnable%20tasks-9%20%2F%2010-brightgreen?style=flat-square)](benchmark/README.md#-available-tasks)
 [![dataset](https://img.shields.io/badge/dataset-RGB--D-6366f1?style=flat-square)](#-what-rpx-is)
 [![scope](https://img.shields.io/badge/scope-robot%20learning-ff69b4?style=flat-square)](https://github.com/IRVLUTD/RPX)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square)](#-contributing)
 
-[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](examples/README.md) · [**Mask Pipeline**](robokit/README.md) · [**Paper**](#-paper)
+[**Quickstart**](#-quickstart--benchmark-a-model-without-touching-the-dataset) · [**Benchmark Toolkit**](benchmark/README.md) · [**Docs**](https://irvlutd.github.io/RPX/) · [**Data Capture**](data_capture/README.md) · [**Mask Pipeline**](mask_pipeline/README.md) · [**Paper**](#-paper)
 
 </div>
 
@@ -60,8 +60,8 @@ everything behind the benchmark:
 
 **Components**
 - [🧰 Benchmark toolkit](benchmark/README.md)
-- [📷 Data capture rig](examples/README.md)
-- [🎨 Mask pipeline](robokit/README.md)
+- [📷 Data capture rig](data_capture/README.md)
+- [🎨 Mask pipeline](mask_pipeline/README.md)
 - [🐳 Docker workflow](#-docker-workflow)
 
 </td>
@@ -94,13 +94,13 @@ RPX/
 │   ├── docs/               MkDocs site (auto-generated from docstrings)
 │   └── README.md           ←★ start here for users
 │
-├── examples/               Data-capture rig scripts (Intel D435 + T265)
+├── data_capture/               Data-capture rig scripts (Intel D435 + T265)
 │   └── README.md           Run `save_device_data.py` to capture a scene
 │
-├── robokit/                Ground-truth mask pipeline (SAM2 + GroundingDINO)
+├── mask_pipeline/          Ground-truth mask pipeline (SAM2 + GroundingDINO)
 │   ├── maskgen_pipeline/   Maskgen scripts + bbox / point-prompt utilities
 │   ├── visual_grounding_gt/  Visual-grounding GT helpers
-│   ├── robokit/            Inner Python package (perception, datasets, ...)
+│   ├── robokit/            Inner Python package — `import robokit.perception`
 │   ├── docker/             Maskgen-specific Docker setup
 │   └── README.md           Interactive GSAM2 refinement UI
 │
@@ -149,7 +149,7 @@ the hosted site at <https://irvlutd.github.io/RPX/>.
 
 ## 🧱 The three parts of the system
 
-### 📷 1. Data collection rig — [`examples/`](examples/README.md)
+### 📷 1. Data collection rig — [`data_capture/`](data_capture/README.md)
 
 Two-sensor capture with **Intel RealSense D435 (RGB-D) + T265
 (6-DoF VIO)**. Captures each scene under the three-phase protocol
@@ -157,7 +157,7 @@ Two-sensor capture with **Intel RealSense D435 (RGB-D) + T265
 from T265.
 
 ```bash
-cd examples
+cd data_capture
 python save_device_data.py <task-name> <fps> <sync-threshold>
 ```
 
@@ -168,7 +168,7 @@ python save_device_data.py <task-name> <fps> <sync-threshold>
 > [Data capture prerequisites](#-data-capture-prerequisites)
 > below for install instructions.
 
-### 🎨 2. Mask generation — [`robokit/`](robokit/README.md)
+### 🎨 2. Mask generation — [`mask_pipeline/`](mask_pipeline/README.md)
 
 Ground-truth instance masks are generated via an interactive pipeline
 combining **GroundingDINO** (open-vocabulary detection) and **SAM2**
@@ -177,7 +177,7 @@ for one keyframe per phase; SAM2 propagates masks across the rest of
 the phase.
 
 ```bash
-cd robokit
+cd mask_pipeline
 python -m maskgen_pipeline.interactive_gsam2 --scene_dir /path/to/scene/1
 ```
 
@@ -206,7 +206,7 @@ rpx models                # list registered adapters
 rpx bench --help          # list task subcommands (9 runnable)
 ```
 
-**138 tests**, 0 network deps, runs in under a second on CI.
+**552 tests**, 0 network deps, runs in under a second on CI.
 **9 of 10 tasks** are runnable end-to-end; only `object_tracking` is
 deferred pending a sequence-per-sample protocol decision.
 
@@ -276,16 +276,17 @@ cd docker
 ```
 
 The container ships with the RealSense SDK, the benchmark toolkit,
-and the robokit mask pipeline already installed.
+and the mask-generation pipeline already installed.
 
 ---
 
 ## 📄 Paper
 
-The NeurIPS 2026 Datasets & Benchmarks submission lives under
-[`paper-submission/neurips-2026/`](paper-submission/neurips-2026/).
-The full model slate rationale, ESD formulation, three-phase
-protocol details, and experiment tables are in the paper.
+The NeurIPS 2026 Datasets & Benchmarks submission is under preparation.
+Paper drafts, briefs, and the overleaf project are kept **local-only**
+under `paper-submission/` on each contributor's box (not in this
+public repo). The full model slate rationale, ESD formulation,
+three-phase protocol details, and experiment tables are in the paper.
 
 ---
 
@@ -293,7 +294,7 @@ protocol details, and experiment tables are in the paper.
 
 | Workflow | What it does | When it runs |
 |---|---|---|
-| [`tests.yml`](.github/workflows/tests.yml) | 138-test pytest suite on Python 3.10 / 3.11 / 3.12 + ruff lint | push / PR touching `benchmark/**` |
+| [`tests.yml`](.github/workflows/tests.yml) | 552-test pytest suite on Python 3.10 / 3.11 / 3.12 + ruff lint | push / PR touching `benchmark/**` |
 | [`docs.yml`](.github/workflows/docs.yml) | `mkdocs build` + deploy to GitHub Pages | push to `main` touching `benchmark/docs/**` or `benchmark/rpx_benchmark/**` |
 
 ### One-time GitHub Pages setup
@@ -320,9 +321,9 @@ Each subproject has its own contribution workflow:
   [`benchmark/docs/guides/`](benchmark/docs/guides/)). **Always use
   the editable (`-e`) install when developing** — frozen wheel
   installs will silently show stale behaviour.
-- **`examples/`** — changes to the capture rig need a real RealSense
+- **`data_capture/`** — changes to the capture rig need a real RealSense
   device for smoke testing.
-- **`robokit/`** — mask generation changes need access to the
+- **`mask_pipeline/`** — mask generation changes need access to the
   interactive annotation UI and a CUDA-capable box.
 - **`paper-submission/`** — LaTeX edits through whatever your usual
   Overleaf / local workflow is.

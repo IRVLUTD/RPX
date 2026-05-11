@@ -6,8 +6,9 @@
 X](https://github.com/IRVLUTD/RPX). The toolkit core ships the **dataset
 loader, task-specific metrics, hardware-agnostic profiling, and a
 deployment-readiness scoring framework**. The team's reference
-implementations of nine monocular-depth adapters and the per-task run
-scripts live alongside it under `scripts/` for the paper sweep.
+implementations of 19 monocular-depth adapters, 10 relative-pose
+adapters, and the per-task run scripts live alongside it under
+`scripts/` for the paper sweep.
 
 External users with their own models: [skip to the BYO-model
 quickstart](#bring-your-own-model). Team members running the canonical

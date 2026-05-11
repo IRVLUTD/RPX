@@ -1,3 +1,3 @@
-[submodule "robokit/sam2"]
-	path = robokit/sam2
+[submodule "mask_pipeline/sam2"]
+	path = mask_pipeline/sam2
 	url = https://github.com/facebookresearch/sam2.git
