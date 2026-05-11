@@ -119,6 +119,17 @@ upstream repo. Each adapter raises a clear `ImportError` with the hint.
 
 **Box mirror** (when `--upload-to-box`): `<box_folder_id>/relative_pose/<display>/<split>/`.
 
+**Safety net — re-sync any local run to Box later.** If a sweep ran without `--upload-to-box`, or the 60-min Box token expired mid-sweep, you don't need to re-run anything:
+
+```bash
+export BOX_DEVELOPER_TOKEN='<fresh-token>'
+PYTHONPATH=. python scripts/sync_results_to_box.py                     # every run under ./rpx_results
+PYTHONPATH=. python scripts/sync_results_to_box.py --task relative_pose # filter by task
+PYTHONPATH=. python scripts/sync_results_to_box.py --dry-run            # show what would upload, no Box calls
+```
+
+Idempotent — files whose Box copy matches in size are skipped automatically. So you can run it after every sweep without worrying about wasted bandwidth.
+
 ## 4. Sweep aggregation — once all models have run
 
 ```bash
