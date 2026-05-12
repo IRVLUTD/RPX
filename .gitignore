@@ -188,11 +188,11 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Coordination notes between independent Claude sessions on this repo —
-# strictly local-only working state, NEVER to land in GitHub on this or
-# any future commit. If you need to put something on GitHub, write a
-# real doc under benchmark/docs/ instead. Do NOT `git add -f` paths
-# matching these patterns.
+# Coordination / working notes between independent contributor sessions
+# on this repo — strictly local-only working state, NEVER to land in
+# GitHub on this or any future commit. If you need to put something on
+# GitHub, write a real doc under benchmark/docs/ instead. Do NOT
+# `git add -f` paths matching these patterns.
 #
 # Patterns are intentionally broad: catch every casing, suffix, and
 # nesting depth (SHARED_CONTEXT.md, SHARED_CONTEXT_NVS.md, .txt,
