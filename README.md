@@ -168,7 +168,7 @@ in the methodology paper (kept local under `paper-submission/`).
 RPX/
 ├── benchmark/              Python package + CLI: load, run, metric, report
 │   ├── rpx_benchmark/      Library source
-│   ├── scripts/            Per-task runners (run_depth, run_relative_pose, …)
+│   ├── scripts/            Per-task runners (run_depth, run_relative_pose, run_nvs, …)
 │   ├── tests/              Offline test suite (552 passing)
 │   ├── docs/               MkDocs site (auto-generated from docstrings)
 │   └── README.md           ←★ start here for users
