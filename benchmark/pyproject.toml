@@ -232,6 +232,7 @@ module = [
   # Parallel-session RCPE + NVS modules — same story (pre-existing
   # untyped defs / generic-shape annotations); ride the same overlay
   # until the typing pass reaches them.
+  "rpx_benchmark.active_perception_metrics",
   "rpx_benchmark.model_profiler",
   "rpx_benchmark.nvs_eval",
   "rpx_benchmark.nvs_metrics",
