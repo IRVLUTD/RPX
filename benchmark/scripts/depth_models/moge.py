@@ -19,7 +19,7 @@ Tracker reference: MonocularMetricDepth — MoGe-2 (metric), MoGe v1 (relative).
 
 Install
 -------
-    pip install moge torch pillow huggingface-hub
+    pip install git+https://github.com/microsoft/MoGe.git torch pillow huggingface-hub
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ class MoGe:
             except ImportError as e:
                 raise ImportError(
                     "MoGe needs the `moge` package. Install with: "
-                    "pip install moge torch pillow huggingface-hub"
+                    "pip install git+https://github.com/microsoft/MoGe.git torch pillow huggingface-hub"
                 ) from e
         self.model_id = model_id
         self.device = device

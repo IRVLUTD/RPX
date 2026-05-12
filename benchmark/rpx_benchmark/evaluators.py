@@ -214,13 +214,29 @@ def pose_metrics(
     cos_angle = np.clip(cos_angle, -1.0, 1.0)
     rot_err_deg = float(np.degrees(np.arccos(cos_angle)))
 
-    trans_err_m = float(
-        np.linalg.norm(
-            np.asarray(pred_trans, dtype=np.float64) - np.asarray(gt_trans, dtype=np.float64)
-        )
-    )
+    pred_t = np.asarray(pred_trans, dtype=np.float64)
+    gt_t = np.asarray(gt_trans, dtype=np.float64)
 
-    return {"rotation_error_deg": rot_err_deg, "translation_error_m": trans_err_m}
+    trans_err_m = float(np.linalg.norm(pred_t - gt_t))
+
+    # Translation angular error (scale-invariant direction error).
+    # Standard metric in ScanNet-1500 / MegaDepth-1500 / MapFree.
+    n_pred = np.linalg.norm(pred_t)
+    n_gt = np.linalg.norm(gt_t)
+    if n_pred < 1e-9 or n_gt < 1e-9:
+        trans_angular_deg = 180.0
+    else:
+        cos_a = np.clip(np.dot(pred_t, gt_t) / (n_pred * n_gt), -1.0, 1.0)
+        trans_angular_deg = float(np.degrees(np.arccos(cos_a)))
+
+    pose_error_max_deg = max(rot_err_deg, trans_angular_deg)
+
+    return {
+        "rotation_error_deg": rot_err_deg,
+        "translation_error_m": trans_err_m,
+        "translation_angular_deg": trans_angular_deg,
+        "pose_error_max_deg": pose_error_max_deg,
+    }
 
 
 def grounding_metrics(

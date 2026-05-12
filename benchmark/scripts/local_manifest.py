@@ -83,6 +83,21 @@ TAR_MEMBER_EXT = {
     "cam_pose": ".npz",
 }
 
+# ─────────────────────────  RCPE pose exclusions  ────────────────────────────
+# Poses were optimized via ICP on sequences in object-corr-out-GT-masks.
+# scene58 is entirely missing from that source. The listed (scene, phase)
+# pairs failed ICP optimization and have no reliable optimized poses.
+
+RCPE_EXCLUDED_SCENE_IDS: set[str] = {"scene58"}
+
+RCPE_EXCLUDED_SCENE_PHASES: set[tuple[str, int]] = {
+    ("scene83.jsom.garden.pot", 0),
+    ("scene98.jsom.atrium", 0),
+    ("scene100.jsom.atrium", 0),
+    ("scene50.ecss.out.stairs", 2),
+    ("scene72.ecsw.atriumStairs", 2),
+}
+
 
 def _member_filename(modality: str, frame_filename: str) -> str:
     """Translate parquet's frame_filename → the actual filename inside the
@@ -237,6 +252,24 @@ def build_local_manifest(
             )
         mask &= df[col].fillna(False).astype(bool)
     df = df[mask].reset_index(drop=True)
+
+    # For pose tasks, exclude scenes/phases with missing or failed ICP poses.
+    if task in ("relative_pose", "rgbd_relative_pose"):
+        n_before = len(df)
+        df = df[~df["scene_id"].isin(RCPE_EXCLUDED_SCENE_IDS)].reset_index(drop=True)
+        df = df[
+            ~df.apply(
+                lambda r: (str(r["scene_id"]), int(r["phase"])) in RCPE_EXCLUDED_SCENE_PHASES,
+                axis=1,
+            )
+        ].reset_index(drop=True)
+        n_dropped = n_before - len(df)
+        if n_dropped > 0:
+            log.info(
+                "[manifest] excluded %d frames from pose task "
+                "(missing/failed ICP-optimized poses)",
+                n_dropped,
+            )
     if max_samples:
         df = df.head(max_samples)
     if df.empty:
