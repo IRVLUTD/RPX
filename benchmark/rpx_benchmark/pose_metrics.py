@@ -27,10 +27,9 @@ Novel (unique to RPX-RCPE)
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Sequence
 
 import numpy as np
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-pair error functions (pure numpy, no framework deps)

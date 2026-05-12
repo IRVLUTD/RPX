@@ -229,5 +229,13 @@ module = [
   # full type pass is a TODO alongside the rest of the codebase.
   "rpx_benchmark.adapters.batched_depth",
   "rpx_benchmark.adapters.batched_multimodal",
+  # Parallel-session RCPE + NVS modules — same story (pre-existing
+  # untyped defs / generic-shape annotations); ride the same overlay
+  # until the typing pass reaches them.
+  "rpx_benchmark.model_profiler",
+  "rpx_benchmark.nvs_metrics",
+  "rpx_benchmark.nvs_pairs",
+  "rpx_benchmark.pose_metrics",
+  "rpx_benchmark.pose_pairs",
 ]
 ignore_errors = true

@@ -28,16 +28,14 @@ Usage
 
 from __future__ import annotations
 
-import logging
 import tarfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 import numpy as np
 import pandas as pd
 
-from .api import TaskType
 from .logging_utils import get_logger
 
 log = get_logger(__name__)

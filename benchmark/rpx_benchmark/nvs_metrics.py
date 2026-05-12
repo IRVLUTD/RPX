@@ -25,10 +25,9 @@ utility.  PUS directly measures what robots need.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List
 
 import numpy as np
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Standard rendering quality
@@ -176,7 +175,7 @@ def compute_pus_batch(
         )
 
     pus_accum: Dict[str, List[float]] = {}
-    for rend, real in zip(rendered_results, real_results):
+    for rend, real in zip(rendered_results, real_results, strict=False):
         for metric_name, higher in metric_directions.items():
             if metric_name in rend and metric_name in real:
                 score = perceptual_utility_score(

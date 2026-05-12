@@ -42,8 +42,7 @@ Usage
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
@@ -51,6 +50,7 @@ import numpy as np
 import pandas as pd
 
 from .logging_utils import get_logger
+
 # Exclusions shared with RCPE pipeline
 EXCLUDED_SCENE_IDS: Set[str] = {"scene58"}
 EXCLUDED_SCENE_PHASES: Set[Tuple[str, int]] = {

@@ -68,22 +68,16 @@ benchmark reports this.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
 
+from .logging_utils import get_logger
 from .profiler import (
     EfficiencyMetadata,
-    GPUSpec,
-    LatencyProfiler,
-    MemoryProfiler,
-    REFERENCE_GPUS,
-    RooflineBound,
     SystemCard,
     count_parameters,
     estimate_memory_traffic_gb,
 )
-from .logging_utils import get_logger
 
 log = get_logger(__name__)
 
