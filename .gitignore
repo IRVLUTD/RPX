@@ -187,4 +187,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Coordination notes between independent Claude sessions on this repo —
+# strictly local-only working state, never to land in GitHub. If you
+# need to put something on GitHub, write a real doc under benchmark/docs/.
+# (Per-contributor working notes go here.) Do NOT `git add -f` paths
+# matching these patterns.
 .shared_context/
+**/SHARED_CONTEXT.md
