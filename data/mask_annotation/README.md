@@ -1,4 +1,4 @@
-# `mask_pipeline/` — Ground-truth mask generation
+# `data/mask_annotation/` — Ground-truth mask generation
 
 > Interactive **GroundingDINO + SAM2** pipeline that turns a captured RPX
 > scene into per-frame instance masks. A human operator curates bboxes
@@ -165,7 +165,7 @@ The interactive pipeline is built on top of several upstream projects.
 - [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) —
   IDEA-Research's open-vocabulary bbox suggester.
 - [RoboKit](https://github.com/IRVLUTD/robokit) — IRVL UTD's perception
-  toolkit; vendored as `mask_pipeline/robokit/`.
+  toolkit; vendored as `data/mask_annotation/robokit/`.
 - [BundleSDF](https://github.com/NVlabs/BundleSDF) — NVIDIA's
   reference docker setup, used as a base for ours.
 - [iTeach-DHYOLO](https://huggingface.co/spaces/IRVLUTD/DH-YOLO),
