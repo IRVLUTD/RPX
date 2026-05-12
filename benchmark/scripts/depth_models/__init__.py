@@ -157,10 +157,21 @@ def _build_marigold_lcm(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 
 
 def _build_lotus_2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
-    """Lotus-2 — single-step diffusion-prior depth."""
+    """Lotus-2 — single-step diffusion-prior depth.
+
+    The earlier draft pinned to ``jingheya/Lotus-2`` which doesn't
+    exist on HF (404). The live distribution is the v2-0-disparity
+    direct model; ``jingheya/lotus-depth-g-v2-1-disparity`` is the
+    generative variant — pass ``model_id=...`` to override.
+    """
     from .lotus import Lotus
 
-    return Lotus(model_id="jingheya/Lotus-2", device=device, batch_size=batch_size, **kwargs)
+    return Lotus(
+        model_id="jingheya/lotus-depth-d-v2-0-disparity",
+        device=device,
+        batch_size=batch_size,
+        **kwargs,
+    )
 
 
 def _build_geowizard(*, device: str = "cuda", batch_size: int = 1, **kwargs):

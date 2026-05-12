@@ -233,6 +233,7 @@ module = [
   # untyped defs / generic-shape annotations); ride the same overlay
   # until the typing pass reaches them.
   "rpx_benchmark.model_profiler",
+  "rpx_benchmark.nvs_eval",
   "rpx_benchmark.nvs_metrics",
   "rpx_benchmark.nvs_pairs",
   "rpx_benchmark.pose_metrics",

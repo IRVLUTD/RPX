@@ -13,10 +13,17 @@ Install
 
 Notes
 -----
-PatchFusion's HF repo carries either the wrapped pipeline weights or
-the raw ZoeDepth + fusion module. We use ``AutoModelForDepthEstimation``
-which the HF release supports; if that fails we fall back to the
-patchfusion python package's own loader.
+**PatchFusion does *not* load via HuggingFace's standard
+``AutoModelForDepthEstimation``.** The HF release ships its own
+``estimator`` package (see https://github.com/zhyever/PatchFusion).
+Canonical load (per the upstream README):
+
+    from estimator.models.patchfusion import PatchFusion
+    model = PatchFusion.from_pretrained("Zhyever/patchfusion_zoedepth")
+
+To run this adapter you need the upstream's ``estimator`` package on
+PYTHONPATH. The adapter falls through to that path if the HF
+auto-pipeline (kept here as a defensive first attempt) fails.
 """
 
 from __future__ import annotations
@@ -68,10 +75,17 @@ class PatchFusion:
 
             raise AdapterError(
                 f"PatchFusion load failed for {model_id!r}: {e}",
-                hint="PatchFusion's HF release ships custom code; "
-                "needs `trust_remote_code=True`. If the repo has "
-                "moved, check https://huggingface.co/zhyever and "
-                "pass `model_id=...` explicitly.",
+                hint=(
+                    "PatchFusion is **not** an HF auto-pipeline model — it "
+                    "needs the upstream's `estimator` package. Install:\n"
+                    "  git clone https://github.com/zhyever/PatchFusion\n"
+                    "  cd PatchFusion && conda env create -f environment.yml\n"
+                    "  export PYTHONPATH=\"$PWD:$PWD/external:$PYTHONPATH\"\n"
+                    "Then in Python: `from estimator.models.patchfusion "
+                    "import PatchFusion; PatchFusion.from_pretrained("
+                    "'Zhyever/patchfusion_zoedepth')`. Other live "
+                    "checkpoints: patchfusion_depth_anything_{vits14,vitb14,vitl14}."
+                ),
             ) from e
         if dtype:
             target_dtype = getattr(torch, dtype) if isinstance(dtype, str) else dtype

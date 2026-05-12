@@ -72,9 +72,18 @@ class GeoWizard:
 
             raise AdapterError(
                 f"GeoWizard pipeline load failed for {model_id!r}: {e}",
-                hint="GeoWizard ships its custom pipeline via `custom_pipeline`. "
-                "Some snapshots require `trust_remote_code=True` and a "
-                "specific diffusers version (>=0.27).",
+                hint=(
+                    "`lemonaddie/geowizard` is an HF *Space*, not a model "
+                    "repo loadable via DiffusionPipeline. To run GeoWizard "
+                    "you need to clone the upstream + run their inference "
+                    "script:\n"
+                    "  git clone https://github.com/fuxiao0719/GeoWizard\n"
+                    "  cd GeoWizard && pip install -r requirements.txt\n"
+                    "  # weights download is handled by `run_infer.py` / `run_infer_v2.py`\n"
+                    "Pass `model_id=<actual-hf-model-repo>` once an HF "
+                    "model-repo distribution exists (currently the project "
+                    "hosts weights inside the Space, not as a model card)."
+                ),
             ) from e
         if hasattr(self._pipe, "set_progress_bar_config"):
             self._pipe.set_progress_bar_config(disable=True)

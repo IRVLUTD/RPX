@@ -23,8 +23,6 @@ Usage
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -33,7 +31,6 @@ from PIL import Image
 
 from .logging_utils import get_logger
 from .nvs_metrics import (
-    compute_pus_batch,
     depth_metrics,
     evaluate_nvs,
     per_object_psnr,

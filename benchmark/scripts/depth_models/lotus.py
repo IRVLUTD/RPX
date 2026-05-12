@@ -18,10 +18,17 @@ Install
 Notes
 -----
 The Lotus checkpoints have shipped under several names over the project's
-lifetime (``jingheya/Lotus-2``, ``jingheya/lotus-depth-d-v2-0``,
-``jingheya/lotus-depth-g-v2-1-disparity``). We pin to ``jingheya/Lotus-2``
-per the team's verified-2026 list. If the auto-pipeline can't load it
-(checkpoint format change), the adapter raises an actionable error.
+lifetime. As of 2026-05-12 verified live on HF:
+
+* ``jingheya/lotus-depth-d-v2-0-disparity`` — direct, disparity-trained
+  (single-step, fastest) — **default**.
+* ``jingheya/lotus-depth-g-v2-1-disparity`` — generative variant
+  (slower; pass ``model_id=...`` to switch).
+* The bare name ``jingheya/Lotus-2`` is **not** a public HF repo and
+  returns 404; the team's earlier draft pinned this by mistake.
+
+If the auto-pipeline can't load the model (checkpoint format change),
+the adapter raises an actionable error.
 """
 
 from __future__ import annotations
@@ -34,7 +41,7 @@ import numpy as np
 class Lotus:
     """Diffusion depth: rgb → disparity (H×W float32, ls_affine-aligned)."""
 
-    DEFAULT_MODEL_ID = "jingheya/Lotus-2"
+    DEFAULT_MODEL_ID = "jingheya/lotus-depth-d-v2-0-disparity"
 
     native_alignment: str = "ls_affine"
     native_precision: str = "fp16"

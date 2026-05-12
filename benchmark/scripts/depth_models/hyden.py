@@ -65,9 +65,18 @@ class HyDen(HFDepthEstimationAdapter):
         except Exception as e:
             from rpx_benchmark.exceptions import AdapterError
 
+            msg = str(e).lower()
+            gated = "gated" in msg or "401" in msg or "access" in msg
             raise AdapterError(
                 f"HyDen load failed for {model_id!r}: {e}",
-                hint="HyDen is a 2026 release; the published HF repo id may "
-                "have shifted. Check https://huggingface.co/facebook for "
-                "the latest hyden-* checkpoint and pass `model_id=...`.",
+                hint=(
+                    "The `facebook/hyden-*` HF repos are gated. "
+                    "1) Apply for access at https://huggingface.co/facebook , "
+                    "2) `huggingface-cli login` or `export HF_TOKEN=hf_...` "
+                    "before invoking the adapter."
+                    if gated else
+                    "HyDen is a 2026 release; the published HF repo id may "
+                    "have shifted. Check https://huggingface.co/facebook for "
+                    "the latest hyden-* checkpoint and pass `model_id=...`."
+                ),
             ) from e
