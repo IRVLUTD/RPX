@@ -189,9 +189,16 @@ cython_debug/
 .pypirc
 
 # Coordination notes between independent Claude sessions on this repo —
-# strictly local-only working state, never to land in GitHub. If you
-# need to put something on GitHub, write a real doc under benchmark/docs/.
-# (Per-contributor working notes go here.) Do NOT `git add -f` paths
+# strictly local-only working state, NEVER to land in GitHub on this or
+# any future commit. If you need to put something on GitHub, write a
+# real doc under benchmark/docs/ instead. Do NOT `git add -f` paths
 # matching these patterns.
-.shared_context/
-**/SHARED_CONTEXT.md
+#
+# Patterns are intentionally broad: catch every casing, suffix, and
+# nesting depth (SHARED_CONTEXT.md, SHARED_CONTEXT_NVS.md, .txt,
+# nested .shared_context/ folders, lowercase aliases, etc.).
+**/.shared_context/
+**/.shared_context
+**/SHARED_CONTEXT*
+**/shared_context*
+**/Shared_Context*

@@ -102,7 +102,7 @@ pip install unidepth                        # unidepth_v2
 ```
 
 Per-run output lands under `rpx_results/<DisplayName>/<split>/`:
-- `result.json` — primary metric, full deployment-readiness report (Tier 1/2/3 + DRS OperatingPoint), per-stage timing with 95% CIs.
+- `result.json` — three independent axes (`aggregated` task perf · `robustness` · `compute_cost` with Tier 1/2/3 profiler + `operating_point`) and per-stage timing with 95% CIs. No composite score.
 - `summary.md` — human-readable.
 - `comprehensive_metrics.json` — full metric basket (9 errors + 3 accuracy + alignment modes + depth-band stratification + per-object basket + hole stats + ORD).
 - `predictions/<scene>/<phase>/<frame>.npz` — per-frame raw depth (when `--save-predictions`).
@@ -141,10 +141,17 @@ log and gets fixed in a follow-up.
   "split": "easy",
   "num_samples": 3000,
   "aggregated":  { "absrel": 0.0848, "delta1": 0.951, "rmse": 0.205, ... },
-  "deployment_readiness": {
+  "robustness": {
+    "weighted_phase_score": { "score": 0.86, ... },
+    "temporal_stability":   { "ts_score": 0.91, ... },
+    "state_transition":     { "str_score": -0.085, ... },
+    "geometric_coherence":  { "sgc_score": 0.78, ... }
+  },
+  "compute_cost": {
     "params_m": 345.07,
     "flops_g": 4878.9,
     "macs_g": 2439.4,
+    "actmem_gb_fp16": 0.62,
     "memory_traffic_gb": 4.14,
     "arithmetic_intensity": 1178.2,
     "roofline": {
@@ -153,11 +160,12 @@ log and gets fixed in a follow-up.
       "Jetson Orin 64GB":  { "latency_ms": 920.5, "bottleneck": "compute" }
     },
     "latency_ms_per_sample": 158.5,
+    "peak_memory_mb": 1820.3,
     "system_card": { "gpu_name": "...", "pytorch_version": "...", "cuda_version": "..." },
     "operating_point": {
       "precision": "fp32",
-      "task_metric": 0.027,  "task_metric_name": "absrel",  "higher_is_better": false,
-      "str_score": -0.085,  "flops_g": 4878.9, "params_m": 345.07
+      "task_metric": 0.0848, "task_metric_name": "absrel", "higher_is_better": false,
+      "flops_g": 4878.9, "params_m": 345.07
     }
   },
   "timing": {
@@ -214,7 +222,7 @@ pip install reloc3r                         # reloc3r
 ```
 
 Per-run output lands under `rpx_results/<DisplayName>/<split>/`:
-- `result.json` — primary metric (`rotation_error_deg`), DRS report, timing CIs.
+- `result.json` — three axes (`aggregated.rotation_error_deg` · `robustness` · `compute_cost`) and timing CIs. No composite score.
 - `summary.md` — human-readable.
 - `pose_comprehensive_metrics.json` — full pose basket (rotation +
   translation L2 + translation angular + pose_error_max_deg + AUC@5°/10°/20°,
@@ -283,20 +291,78 @@ automatically on first use.
 manifests (stride-5, Poisson-disk, or any custom format).
 
 
-### 4. Aggregate the sweep into the paper table
+### 4. Run the NVS benchmark
 
 ```bash
-# After every model has run on a split:
-PYTHONPATH=. python scripts/run_drs_sweep.py --split easy
-PYTHONPATH=. python scripts/run_drs_sweep.py --split easy --sensitivity   # paper-appendix Kendall's τ
+PYTHONPATH=. python scripts/run_nvs.py --model <KEY> --split <easy|medium|hard> \
+    --save-predictions --upload-to-box
 ```
 
-Outputs: `rpx_results/_sweep/drs_<split>.{csv,json}` and
-`sensitivity_<split>.json`. The DRS (Deployment Readiness Score) is the
-multiplicative `TP × R × E` headline metric — see
-`paper-submission/latex/drs_section.tex` for the axiomatization.
+11 model keys registered (1 baseline + 10 feed-forward 3DGS slots):
 
-### 5. Where to look
+| `--model <key>` | Status | Source |
+|---|---|---|
+| `identity_passthrough`              | ✅ live  | zero-deps baseline; returns closest-pose context view |
+| `splatter_image`                    | scaffolded | `szymanowiczs/splatter-image-multi-category-v1` (clone + `pip install -e .`) |
+| `depthsplat` · `mvsplat` · `pixelsplat` · `nopo_splat` · `splatt3r` · `anysplat` · `pf3plat` · `flash3d` · `flare` | pending | each raises `AdapterError` with the upstream URL + install hint when invoked |
+
+Pair generation is **on-the-fly** via `rpx_benchmark.nvs_pairs.NVSPairGenerator`
+— deterministic stratification across context counts `K ∈ {2, 4, 8, 16}`,
+sample types (interpolation / extrapolation / cross-phase). Like RCPE,
+NVS evaluates on **2 phases** (clutter + clean only; interaction omitted).
+
+**Per-run output**: `rpx_results/<DisplayName>/<split>/`:
+- `result.json` — three-axis report (`aggregated` task-perf · `robustness` per-context-count / per-sample-type / cross-phase Δ / by-difficulty · `compute_cost` Tier 1/2/3 + OperatingPoint).
+- `summary.md` — human-readable.
+- `predictions/<scene>/<phase>/<frame>.npz` — per-sample rendered RGB + depth (when `--save-predictions`).
+
+**Novel NVS axes** computed in `evaluate_single_sample`:
+- **Per-object PSNR** via SAM2 instance masks — `per_object_psnr_mean` / `per_object_psnr_min` / `n_objects_evaluated`. Surfaces rendering quality at the *object* level, not just frame-averaged.
+- **Rendered depth vs sensor GT** — when the adapter returns a depth map, scored against the D435 depth. No other public NVS benchmark does this.
+- **Cross-phase Δ** — `rendered(clutter) → clean` performance shift on the same scene.
+- **LPIPS (AlexNet)** — opt-in via `--compute-lpips` (+50–100 ms/sample CPU); falls back to NaN silently if `pip install lpips` is absent.
+
+**Robustness extras**: graceful `--strict-io` toggle (default = skip
+missing frames and log to `result.json["skipped_samples"]`, warn at
+>5% skip rate). LRU-cached modality loaders (~2.8× I/O speedup at
+~85% hit rate on a typical sweep slice).
+
+Box mirror (when `--upload-to-box`):
+`<box_root>/novel_view_synthesis/<DisplayName>/<split>/...`.
+
+### 5. Aggregate the sweep — three axes, no composite
+
+Per the RPX policy (`SHARED_CONTEXT.md` / `docs/methods/comprehensive_metrics.md`),
+**there is no composite-score sweep aggregator**. RPX reports three
+independent axes (task performance, scene-change robustness, compute
+cost); the paper's headline finding is that *rankings disagree across
+axes*. Build the sweep table by reading per-axis components from each
+`rpx_results/<model>/<split>/result.json` directly:
+
+```python
+import json
+from pathlib import Path
+
+rows = []
+for path in Path("rpx_results").glob("*/easy/result.json"):
+    r = json.loads(path.read_text())
+    rows.append({
+        "model":             r["model"],
+        # Axis 1 — Task Performance
+        "task_metric":       r["aggregated"].get("absrel") or r["aggregated"].get("psnr"),
+        # Axis 2 — Scene-change robustness
+        "str_c_to_i":        r["robustness"]["state_transition"]["str_c_to_i"],
+        # Axis 3 — Compute cost
+        "params_m":          r["compute_cost"]["params_m"],
+        "flops_g":           r["compute_cost"]["flops_g"],
+        "latency_ms":        r["compute_cost"]["latency_ms_per_sample"],
+    })
+# Sort by *whichever axis* your paper section is making a claim about.
+```
+
+Same shape works for `run_relative_pose.py` and `run_nvs.py` outputs.
+
+### 6. Where to look
 
 | Channel | When to consult |
 |---|---|
@@ -384,10 +450,9 @@ focal-length-dependent metric depth, fp16 declarations, etc.).
 | Adapter framework | `rpx_benchmark.adapters` | `BenchmarkableModel`, **batched-dispatch base class** for true GPU batching, 9 numpy fast-path factories |
 | Metrics | `rpx_benchmark.metrics.*` | Per-task `MetricCalculator` registry; `depth_alignment` shared between runner + comprehensive post-processor |
 | Tasks | `rpx_benchmark.tasks.*` | One module per task, each ~30 lines; self-register `TaskSpec` |
-| Runner | `rpx_benchmark.runner` | Orchestrates dataset → model → metrics → report; persists `OperatingPoint` for DRS |
+| Runner | `rpx_benchmark.runner` | Orchestrates dataset → model → metrics → three-axis report; persists `OperatingPoint` (precision · task metric · FLOPs · params) |
 | Profiler | `rpx_benchmark.profiler` | Tier 1 (params/FLOPs/MACs/memory traffic/AI), Tier 2 (roofline for A100/4090/Orin), Tier 3 (measured + system card) |
-| Deployment readiness | `rpx_benchmark.deployment` | DRS = TP × R × E (multiplicative, hardware-agnostic), ESD-weighted Phase Score, STR, Temporal Stability, SGC |
-| Sweep utilities | `scripts/run_drs_sweep.py`, `rpx_benchmark.drs_sensitivity` | Sweep aggregator + sensitivity Kendall's τ |
+| Robustness | `rpx_benchmark.deployment` | Per-axis components only — ESD-weighted Phase Score, STR, Temporal Stability, SGC. No composite score (three axes reported independently) |
 | Determinism | `rpx_benchmark.determinism` | `seed_all()`, `deterministic()` context manager, project-wide `RPX_SEED = 5_062_026` |
 | Reports | `rpx_benchmark.reports` | JSON + Markdown writers |
 
