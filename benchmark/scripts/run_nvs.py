@@ -312,8 +312,12 @@ def _write_summary_md(result: Dict[str, Any], path: Path) -> None:
     if cc.get("flops_g") is not None:
         lines.append(f"- FLOPs: **{cc['flops_g']:.2f} G**")
     if cc.get("latency_ms_per_sample") is not None:
+        lat = cc["latency_ms_per_sample"]
+        # Sub-millisecond adapters (identity, lookup, etc.) need higher
+        # precision; otherwise .1f rounds them to "0.0 ms".
+        lat_str = f"{lat:.3f}" if lat < 1.0 else f"{lat:.1f}"
         lines.append(
-            f"- Latency†: **{cc['latency_ms_per_sample']:.1f} ms / sample** "
+            f"- Latency†: **{lat_str} ms / sample** "
             "(†hardware-dependent, supplementary)"
         )
     lines.append("")
@@ -478,7 +482,9 @@ def main() -> None:
     if "ssim" in a:  rows["SSIM"] = f"{a['ssim']:.4f}"
     if "depth_absrel" in a:  rows["depth AbsRel"] = f"{a['depth_absrel']:.4f}"
     if cost_block.get("latency_ms_per_sample") is not None:
-        rows["latency"] = f"{cost_block['latency_ms_per_sample']:.1f} ms / sample"
+        lat = cost_block["latency_ms_per_sample"]
+        lat_str = f"{lat:.3f}" if lat < 1.0 else f"{lat:.1f}"
+        rows["latency"] = f"{lat_str} ms / sample"
     cli_ux.summary(rows, title=f"{display} · {args.split}")
 
 
