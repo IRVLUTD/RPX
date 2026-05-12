@@ -69,20 +69,38 @@ def _load_depth(path: Path) -> "Any":
 
 
 def _load_pose(path: Path) -> "Any":
-    """Load a camera-to-world (4, 4) pose stored as ``.npz``.
+    """Load a T265 pose ``.npz`` → 4×4 SE(3) camera-to-world (float64).
 
-    Tries the conventional key names in order; falls back to the first
-    array in the archive if none match. Always returns float64.
+    The RPX NPZ schema (see ``loader._load_pose``) stores **two arrays**,
+    not a baked 4×4:
+
+    * ``position``    — ``(3,)`` metres
+    * ``orientation`` — ``(4,)`` quaternion in T265 ``[x, y, z, w]`` order
+
+    We reconstruct the 4×4 here so the runner's pose semantics match the
+    toolkit's canonical loader exactly. Mirrors the math in
+    ``rpx_benchmark/loader.py:_quat_xyzw_to_rotmat`` / ``_load_pose``.
     """
     import numpy as np  # noqa: PLC0415
 
-    arr = np.load(path)
-    if isinstance(arr, np.lib.npyio.NpzFile):
-        for k in ("pose", "T", "T_world_cam", "transform"):
-            if k in arr:
-                return arr[k].astype(np.float64)
-        return arr[list(arr.keys())[0]].astype(np.float64)
-    return arr.astype(np.float64)
+    data = np.load(path)
+    position  = np.asarray(data["position"], dtype=np.float64)
+    quat_xyzw = np.asarray(data["orientation"], dtype=np.float64)
+
+    x, y, z, w = quat_xyzw / np.linalg.norm(quat_xyzw)
+    rot = np.array(
+        [
+            [1 - 2 * y * y - 2 * z * z, 2 * x * y - 2 * z * w, 2 * x * z + 2 * y * w],
+            [2 * x * y + 2 * z * w, 1 - 2 * x * x - 2 * z * z, 2 * y * z - 2 * x * w],
+            [2 * x * z - 2 * y * w, 2 * y * z + 2 * x * w, 1 - 2 * x * x - 2 * y * y],
+        ],
+        dtype=np.float64,
+    )
+
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = rot
+    T[:3, 3]  = position
+    return T
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -147,10 +165,10 @@ def _evaluate_sample(
         row["ssim"] = ssim(pred_rgb, gt_rgb)
 
     if pred_depth is not None and gt_depth is not None:
-        dm = depth_metrics(pred_depth, gt_depth)
-        row["depth_absrel"] = dm.get("absrel")
-        row["depth_rmse"]   = dm.get("rmse")
-        row["depth_delta1"] = dm.get("delta1_25")
+        # depth_metrics already returns keys named exactly
+        # ``depth_absrel`` / ``depth_rmse`` / ``depth_delta1`` — the same
+        # keys evaluate_nvs aggregates on. Merge wholesale.
+        row.update(depth_metrics(pred_depth, gt_depth))
 
     return row
 
