@@ -67,6 +67,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 _RGB_CACHE_SIZE   = 256
 _DEPTH_CACHE_SIZE = 256
+_MASK_CACHE_SIZE  = 256
 _POSE_CACHE_SIZE  = 1024
 
 
@@ -124,6 +125,50 @@ def _load_depth(path: Path) -> "Any":
     return arr
 
 
+@lru_cache(maxsize=_MASK_CACHE_SIZE)
+def _load_mask(path: Path) -> "Any":
+    """Load a SAM2 instance-mask PNG → (H, W) int32 (0 = background,
+    1..N = instance IDs). Cached; read-only on return.
+
+    Used for the per-object PSNR axis of NVS evaluation — only the
+    target frame's mask is consumed; the GT mask of the target frame
+    is the ground-truth instance set the rendered output is scored
+    against.
+    """
+    import numpy as np  # noqa: PLC0415
+
+    raw = None
+    try:
+        import cv2  # noqa: PLC0415
+
+        raw = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+    except ImportError:
+        pass
+
+    if raw is None:
+        from PIL import Image  # noqa: PLC0415
+
+        raw = np.array(Image.open(path))
+
+    arr = raw.astype(np.int32)
+    arr.flags.writeable = False
+    return arr
+
+
+def _mask_path_for_target(sample: Any) -> str:
+    """Relative path to the SAM2 instance mask of the target frame.
+
+    Mirrors the layout written by the dataset hub:
+    ``scenes/<scene>/<phase>/sam2/masks/<frame_idx:05d>.png``. The
+    function only constructs the path — the runner does the
+    optional load below (mask might not exist for every frame).
+    """
+    return (
+        f"scenes/{sample.scene_id}/{sample.phase_target}/sam2/masks/"
+        f"{sample.target_frame_idx:05d}.png"
+    )
+
+
 @lru_cache(maxsize=_POSE_CACHE_SIZE)
 def _load_pose(path: Path) -> "Any":
     """Load a T265 pose ``.npz`` → 4×4 SE(3) camera-to-world (float64).
@@ -164,7 +209,12 @@ def _load_pose(path: Path) -> "Any":
 def _loader_cache_stats() -> Dict[str, Any]:
     """Return per-loader LRU stats — surfaced in the run summary."""
     out: Dict[str, Any] = {}
-    for name, fn in (("rgb", _load_rgb), ("depth", _load_depth), ("pose", _load_pose)):
+    for name, fn in (
+        ("rgb",   _load_rgb),
+        ("depth", _load_depth),
+        ("mask",  _load_mask),
+        ("pose",  _load_pose),
+    ):
         info = fn.cache_info()  # type: ignore[attr-defined]
         total = info.hits + info.misses
         out[name] = {
@@ -219,16 +269,16 @@ def _evaluate_sample(
     rendered: Dict[str, Any],
     gt_rgb: "Any",
     gt_depth: "Optional[Any]",
+    gt_mask: "Optional[Any]" = None,
     compute_lpips: bool = False,
 ) -> Dict[str, Any]:
     """Compute the per-sample metric dict consumed by ``evaluate_nvs``.
 
-    Delegates to the canonical ``rpx_benchmark.nvs_eval.evaluate_single_sample``
-    (proper sliding-window SSIM via skimage, optional LPIPS via the lpips
-    package, per-object PSNR when masks are provided) instead of the
-    simplified PSNR/SSIM previously hand-rolled here. The sample's
-    breakdown metadata (sample_type, n_context, scene_id, phase) is
-    merged so ``evaluate_nvs`` can stratify rows downstream.
+    Delegates to ``rpx_benchmark.nvs_eval.evaluate_single_sample`` — proper
+    sliding-window SSIM via skimage, optional LPIPS via the lpips package,
+    and (when ``gt_mask`` is provided) per-object PSNR via SAM2 instance
+    masks. Sample-metadata fields (sample_type, n_context, scene_id,
+    phase) are merged so ``evaluate_nvs`` can stratify rows downstream.
     """
     from rpx_benchmark.nvs_eval import evaluate_single_sample  # noqa: PLC0415
 
@@ -250,6 +300,7 @@ def _evaluate_sample(
                 gt_rgb=gt_rgb,
                 pred_depth=pred_depth,
                 gt_depth=gt_depth,
+                gt_mask=gt_mask,
                 compute_lpips=compute_lpips,
             )
         )
@@ -334,10 +385,24 @@ def _assemble_result(
     from rpx_benchmark.nvs_metrics import evaluate_nvs  # noqa: PLC0415
 
     eval_out = evaluate_nvs(per_sample)
-    aggregated     = eval_out.get("aggregated", {})
+    aggregated     = dict(eval_out.get("aggregated", {}))
     by_sample_type = eval_out.get("by_sample_type", {})
     by_context     = eval_out.get("by_context_count", {})
     cross_delta    = eval_out.get("cross_phase_delta", {})
+
+    # evaluate_nvs only aggregates the standard metric_keys (psnr / ssim /
+    # lpips / depth_*) plus pus_*. Per-object PSNR (when masks are passed)
+    # comes back as `per_object_psnr_mean` / `per_object_psnr_min` /
+    # `n_objects_evaluated` on each per_sample row but isn't in that
+    # whitelist, so we aggregate it manually here. Surfacing this keeps
+    # the novel per-object axis visible without editing the parallel
+    # session's nvs_metrics.evaluate_nvs.
+    import numpy as np  # noqa: PLC0415
+
+    for k in ("per_object_psnr_mean", "per_object_psnr_min", "n_objects_evaluated"):
+        vals = [s[k] for s in per_sample if k in s and s[k] is not None]
+        if vals:
+            aggregated[k] = float(np.mean(vals))
 
     return {
         "task":         "novel_view_synthesis",
@@ -507,6 +572,16 @@ def main() -> None:
             gt_rgb         = _load_rgb(extracted_root / sample.target_rgb_path)
             gt_depth       = _load_depth(extracted_root / sample.target_depth_path)
 
+            # GT instance mask of the target frame, when available, enables
+            # per-object PSNR (a novel RPX axis). Mask is optional — if the
+            # file is missing or malformed we skip silently and the per-
+            # object metrics simply don't appear in the row.
+            gt_mask = None
+            try:
+                gt_mask = _load_mask(extracted_root / _mask_path_for_target(sample))
+            except (FileNotFoundError, OSError, ValueError):
+                pass
+
             # Adapter call (timed)
             t0 = time.perf_counter()
             rendered = adapter(context_rgbs, context_depths, context_poses, target_pose)
@@ -514,6 +589,7 @@ def main() -> None:
 
             row = _evaluate_sample(
                 sample, rendered, gt_rgb, gt_depth,
+                gt_mask=gt_mask,
                 compute_lpips=args.compute_lpips,
             )
             per_sample.append(row)
@@ -580,6 +656,11 @@ def main() -> None:
     if "psnr" in a:  rows["PSNR"] = f"{a['psnr']:.3f} dB"
     if "ssim" in a:  rows["SSIM"] = f"{a['ssim']:.4f}"
     if "depth_absrel" in a:  rows["depth AbsRel"] = f"{a['depth_absrel']:.4f}"
+    if "per_object_psnr_mean" in a:
+        rows["per-obj PSNR"] = (
+            f"{a['per_object_psnr_mean']:.2f} dB  "
+            f"(n_objs avg={a.get('n_objects_evaluated', 0):.1f})"
+        )
     if cost_block.get("latency_ms_per_sample") is not None:
         lat = cost_block["latency_ms_per_sample"]
         lat_str = f"{lat:.3f}" if lat < 1.0 else f"{lat:.1f}"
