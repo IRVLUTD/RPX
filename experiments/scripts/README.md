@@ -102,7 +102,7 @@ percentile-normalised mask-refinement features (`iter_mean`, `iter_max`);
 `perception_score` is the mean of the other 25 percentile-normalised
 features (8 modality categories — see paper §3.2 + appendix B).
 
-Per-(scene, phase) tertile cut → 99 entries per tier (under N=99 scenes).
+Per-(scene, phase) tertile cut → 100 entries per tier (under N=100 scenes).
 Per-scene rollup is the **mean of the 3 phase scores per scene**, then
 sorted and cut into ⌊N/3⌋ Easy + ⌊N/3⌋ Medium + remainder Hard.
 

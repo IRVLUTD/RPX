@@ -13,8 +13,10 @@ The active-vision / next-best-view (NBV) literature has asked this for
 two decades, mostly within method papers rather than as part of
 general perception benchmarks. RPX's structural data — pose-stamped
 trajectories (D435 + T265), per-frame instance masks, three-phase
-scene states across 99 scenes — supports adding it as an evaluation
-task without new data collection.
+scene states across **100 scenes**, with active perception (like
+RCPE and NVS) **evaluating on two phases — clutter + clean —
+omitting interaction** — supports adding it as an evaluation task
+without new data collection.
 
 ## Task contract
 
@@ -90,8 +92,9 @@ For each (scene, phase, K) over the K-sweep:
          - difficulty (passed through from ESD split)
 ```
 
-Scale estimate: 99 scenes × 3 phases × 4 K-values × 25 target poses ≈
-**29 700 samples** at full scale; ~2 000 for the easy split.
+Scale estimate: 100 scenes × **2 phases** (clutter + clean; interaction
+omitted matching RCPE / NVS) × 4 K-values × 25 target poses ≈
+**20 000 samples** at full scale; ~7 000 per easy / medium / hard split.
 
 ## Baselines (PR-D scope)
 
@@ -113,7 +116,7 @@ adapter pattern as `nvs_models/` and `pose_models/`.
 | Three-phase capture of same scene | cross-phase NBV (Axis-2 metric) |
 | Per-frame instance masks | Task-NBV objective |
 | Visual grounding text (post-VQA) | task-goal-conditioned NBV |
-| ~75K candidate poses across 297 (scene, phase) | benchmark-scale samples |
+| ~50K candidate poses across 200 (scene, phase) units (100 scenes × 2 phases) | benchmark-scale samples |
 
 Comparable datasets cover subsets of these but, to our knowledge, not
 all four together: ScanNet has 6-DoF poses and meshes but a single

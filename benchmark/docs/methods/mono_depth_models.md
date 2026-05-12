@@ -1,7 +1,7 @@
 # Monocular Depth Estimation: Model Survey for RPX Benchmark
 
 **Survey date**: 2025-05-07  
-**Scope**: State-of-the-art monocular metric and relative depth estimation models. The RPX benchmark covers 99 scenes (64 indoor + 35 outdoor/transitional) captured with a D435+T265+GoPro rig, spanning tabletop manipulation, atriums, staircases, gardens, tennis courts, and fountains.  
+**Scope**: State-of-the-art monocular metric and relative depth estimation models. The RPX benchmark covers 100 scenes (indoor + outdoor) captured with a D435+T265+GoPro rig, spanning tabletop manipulation, atriums, staircases, gardens, tennis courts, and fountains.  
 **Criterion**: Open-source code **and** publicly downloadable model checkpoints required for inclusion in the benchmark.
 
 ---
@@ -154,7 +154,7 @@ The following recent models are relevant but **cannot be included** because open
 
 ### Statement for Reviewers
 
-> These models represent relevant concurrent or subsequent work. Their exclusion from our benchmark results is solely due to the absence of publicly available code and pretrained weights at the time of evaluation (2025-05-07). Our benchmark dataset (75K frames across 99 indoor and outdoor scenes) and evaluation toolkit are publicly released; **we invite the authors of these methods to evaluate on our dataset**, which demonstrates the self-sustaining nature of our benchmark — new methods can be evaluated against the same standardized data and metrics without our direct involvement.
+> These models represent relevant concurrent or subsequent work. Their exclusion from our benchmark results is solely due to the absence of publicly available code and pretrained weights at the time of evaluation (2025-05-07). Our benchmark dataset (75K frames across 100 indoor and outdoor scenes) and evaluation toolkit are publicly released; **we invite the authors of these methods to evaluate on our dataset**, which demonstrates the self-sustaining nature of our benchmark — new methods can be evaluated against the same standardized data and metrics without our direct involvement.
 
 ---
 

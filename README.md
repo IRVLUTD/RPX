@@ -39,8 +39,9 @@ combined score.
 
 Perception models routinely lose 10–30% of their accuracy when they
 leave clean lab demos and meet cluttered, human-shared environments.
-RPX measures that drop on **99 indoor + outdoor scenes** — each
-captured in three phases (clutter → human-interaction → clean) — and
+RPX measures that drop on **100 indoor + outdoor scenes** — each
+captured in three phases (clutter → human-interaction → clean; pair
+tasks like RCPE / NVS evaluate on clutter + clean only) — and
 reports every model on **three independent axes**, never collapsed
 into a single composite:
 
@@ -115,7 +116,7 @@ plus per-stage timing with 95% bootstrap CIs. No combined score.
 | **6-DoF pose** | The camera's full 3D position + 3D orientation — six numbers per frame. The T265 measures this in real time. |
 | **VIO** | Visual-Inertial Odometry. The T265 fuses fisheye stereo + IMU to estimate 6-DoF pose at 200 Hz. |
 | **Phase** | One of three capture passes per scene: **clutter** (objects scattered), **interaction** (a human reaches in), **clean** (organised state). Same scene, three states — used to measure phase-transition robustness. |
-| **ESD** | Effort-Stratified Difficulty. Splits the 99 scenes into easy / medium / hard by mixing a `perception_score` (how visually hard the scene is) with an `effort_score` (how much human labor the masks took). |
+| **ESD** | Effort-Stratified Difficulty. Splits the 100 scenes into easy / medium / hard by mixing a `perception_score` (how visually hard the scene is) with an `effort_score` (how much human labor the masks took). |
 | **Task Performance** | Axis 1 of the report. Per-task primary metric (AUC, AbsRel, rotation error, …) plus 95% bootstrap CIs. |
 | **Scene-change robustness** | Axis 2 of the report. Captures how a model's output changes when the same scene transitions through clutter → interaction → clean. Components: STR, cross-phase Δ, temporal drift. Unique to RPX. |
 | **Compute cost** | Axis 3 of the report. Params (M), FLOPs (G), Latency† (hardware-dependent, supplementary). |
@@ -137,7 +138,7 @@ plus per-stage timing with 95% bootstrap CIs. No combined score.
 |---|---|
 | 📷 **Sensor rig** | Intel RealSense D435 (RGB-D) + T265 (6-DoF VIO), pose logged at 200 Hz |
 | 🎬 **3-phase capture protocol** | Clutter → Interaction (human-in-scene) → Clean on identical scenes |
-| 🧪 **~75 K frames** | 99 scenes (64 indoor + 35 outdoor), tabletop + room-scale, ~70 object categories |
+| 🧪 **~75 K frames** | 100 scenes (indoor + outdoor), tabletop + room-scale, ~70 object categories |
 | 🎯 **10 benchmark tasks** | depth, segmentation, detection (×2), grounding, pose, keypoints, sparse depth, NVS, tracking |
 | 🪜 **ESD difficulty splits** | Easy / Medium / Hard derived from real annotation effort, per `(scene, phase)` |
 | 🔌 **Bring-your-own-model** | HF checkpoint · numpy callable · custom adapter — pick one, run in one command |

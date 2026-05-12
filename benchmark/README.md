@@ -1,6 +1,6 @@
 # RPX Benchmark Toolkit
 
-**Benchmark robot-perception models on real-world RGB-D data — across clutter, human interaction, and clean phases of the same 99 indoor + outdoor scenes.**
+**Benchmark robot-perception models on real-world RGB-D data — across clutter, human-interaction, and clean phases of the same 100 indoor + outdoor scenes (RCPE / NVS evaluate on clutter + clean only — interaction omitted).**
 
 `rpx-benchmark` is the reference toolkit for [RPX — Robot Perception
 X](https://github.com/IRVLUTD/RPX). The toolkit core ships the **dataset
