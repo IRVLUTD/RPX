@@ -68,7 +68,7 @@ to *produce* the dataset, not to consume it.
                            human review per phase)  · scene-change Δ
                                                     · compute cost
 
-   data_capture/           mask_pipeline/           benchmark/  ←  start here
+   data/capture/           data/mask_annotation/           benchmark/  ←  start here
 ```
 
 ---
@@ -90,13 +90,13 @@ to *produce* the dataset, not to consume it.
 200 Hz) record each scene through three phases — a cluttered initial
 state, a human-interaction pass, and a clean organised state — at
 synchronised frame rates. Same scene, three states.
-→ [`data_capture/`](data_capture/README.md)
+→ [`data/capture/`](data/capture/README.md)
 
 **Annotate.** SAM2 propagates curated bounding boxes through every
 frame in a phase; a human operator approves one keyframe per phase.
 The output is per-frame instance masks aligned to a globally
 consistent object-ID mapping.
-→ [`mask_pipeline/`](mask_pipeline/README.md)
+→ [`data/mask_annotation/`](data/mask_annotation/README.md)
 
 **Benchmark.** Models run against ESD-stratified easy / medium / hard
 splits. Each run emits a `result.json` reporting all three axes
@@ -173,10 +173,10 @@ RPX/
 │   ├── docs/               MkDocs site (auto-generated from docstrings)
 │   └── README.md           ←★ start here for users
 │
-├── data_capture/           Data-capture rig scripts (Intel D435 + T265)
+├── data/capture/           Data-capture rig scripts (Intel D435 + T265)
 │   └── README.md           Run `save_device_data.py` to capture a scene
 │
-├── mask_pipeline/          Ground-truth mask pipeline (SAM2 + GroundingDINO)
+├── data/mask_annotation/          Ground-truth mask pipeline (SAM2 + GroundingDINO)
 │   ├── maskgen_pipeline/   Maskgen scripts + bbox / point-prompt utilities
 │   ├── visual_grounding_gt/  Visual-grounding GT helpers
 │   ├── robokit/            Inner Python package — `import robokit.perception`
@@ -298,9 +298,9 @@ Each subproject has its own contribution workflow:
   [`benchmark/docs/guides/`](benchmark/docs/guides/)). **Always use
   the editable (`-e`) install when developing** — frozen wheel
   installs will silently show stale behaviour.
-- **`data_capture/`** — changes to the capture rig need a real RealSense
+- **`data/capture/`** — changes to the capture rig need a real RealSense
   device for smoke testing.
-- **`mask_pipeline/`** — mask generation changes need access to the
+- **`data/mask_annotation/`** — mask generation changes need access to the
   interactive annotation UI and a CUDA-capable box.
 - **`paper-submission/`** — LaTeX edits through whatever your usual
   Overleaf / local workflow is.

@@ -1,4 +1,4 @@
-# `data_capture/` — Intel D435 + T265 capture rig
+# `data/capture/` — Intel D435 + T265 capture rig
 
 > End-to-end capture for one RPX scene: synchronised **RGB + depth (D435)**
 > with **6-DoF pose (T265)**, logged in the layout the rest of the toolkit
@@ -92,5 +92,5 @@ deal with the librealsense pin on your host.
 - [`../benchmark/`](../benchmark/README.md) — benchmark a model against
   already-captured RPX scenes (the common case; doesn't need any of these
   scripts).
-- [`../mask_pipeline/`](../mask_pipeline/README.md) — generate
+- [`../mask_annotation/`](../mask_annotation/README.md) — generate
   ground-truth instance masks for a captured scene.

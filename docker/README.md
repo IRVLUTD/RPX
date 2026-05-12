@@ -5,9 +5,9 @@
 > One image, three workflows.
 
 Use this when you don't want to deal with the
-[librealsense 2.47.0 pin](../data_capture/README.md#%EF%B8%8F-requirements)
+[librealsense 2.47.0 pin](../data/capture/README.md#%EF%B8%8F-requirements)
 on your host, or when you need a CUDA-ready box for
-[`mask_pipeline/`](../mask_pipeline/README.md).
+[`data/mask_annotation/`](../data/mask_annotation/README.md).
 
 ## Contents
 
@@ -43,8 +43,8 @@ For an interactive (foreground) session use `./start_docker.sh -i`.
 | Workflow | Command |
 |---|---|
 | **Run a benchmark** inside the container | exec in → `cd benchmark && python scripts/run_depth.py …` |
-| **Run mask-pipeline** inside the container | exec in → `cd /workspace/mask_pipeline && python -m maskgen_pipeline.interactive_gsam2 …` |
-| **Data capture** (host preferred) | The pinned librealsense often works better directly on the host. See [`../data_capture/`](../data_capture/README.md). |
+| **Run mask-pipeline** inside the container | exec in → `cd /workspace/data/mask_annotation && python -m maskgen_pipeline.interactive_gsam2 …` |
+| **Data capture** (host preferred) | The pinned librealsense often works better directly on the host. See [`../data/capture/`](../data/capture/README.md). |
 
 ## Helper scripts
 
