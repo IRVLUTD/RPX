@@ -39,6 +39,7 @@ import json
 import sys
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -47,27 +48,54 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Modality loaders — keep them minimal and dependency-light
+# Modality loaders — LRU-cached for hot inner loops
 # ─────────────────────────────────────────────────────────────────────────────
+#
+# NVSPairGenerator emits up to ~25 target frames per (scene, phase, K-value);
+# all of those samples share the same context-frame pool. Without a cache
+# each context frame would be PIL-decoded once per overlapping sample,
+# which is ~80% of the per-sample wall-clock for cheap adapters.
+#
+# Cache sizes: 256 RGB + 256 depth + 1024 pose entries. RGB at 640×480×3
+# ≈ 0.88 MB and depth at 640×480 float32 ≈ 1.17 MB, so the per-sample
+# working set caps at ~525 MB for RGB+depth (poses are 128 B each, free).
+# Override via RPX_LOADER_CACHE_SIZE if the default doesn't fit on a host.
+#
+# Cached arrays are returned with `.flags.writeable = False`. Callers that
+# need to mutate must `.copy()` first — guards against one sample's
+# adapter accidentally corrupting another's GT.
+
+_RGB_CACHE_SIZE   = 256
+_DEPTH_CACHE_SIZE = 256
+_POSE_CACHE_SIZE  = 1024
 
 
+@lru_cache(maxsize=_RGB_CACHE_SIZE)
 def _load_rgb(path: Path) -> "Any":
-    """Load an RGB image as (H, W, 3) uint8."""
+    """Load an RGB image as (H, W, 3) uint8. Cached; read-only on return."""
     import numpy as np  # noqa: PLC0415
     from PIL import Image  # noqa: PLC0415
 
-    return np.array(Image.open(path).convert("RGB"), dtype=np.uint8)
+    arr = np.array(Image.open(path).convert("RGB"), dtype=np.uint8)
+    arr.flags.writeable = False
+    return arr
 
 
+@lru_cache(maxsize=_DEPTH_CACHE_SIZE)
 def _load_depth(path: Path) -> "Any":
-    """Load a 16-bit depth PNG as (H, W) float32 in metres (D435 mm → m)."""
+    """Load a 16-bit depth PNG as (H, W) float32 in metres (D435 mm → m).
+
+    Cached; read-only on return."""
     import numpy as np  # noqa: PLC0415
     from PIL import Image  # noqa: PLC0415
 
-    arr = np.array(Image.open(path))
-    return (arr.astype(np.float32) / 1000.0) if arr.dtype == np.uint16 else arr.astype(np.float32)
+    raw = np.array(Image.open(path))
+    arr = (raw.astype(np.float32) / 1000.0) if raw.dtype == np.uint16 else raw.astype(np.float32)
+    arr.flags.writeable = False
+    return arr
 
 
+@lru_cache(maxsize=_POSE_CACHE_SIZE)
 def _load_pose(path: Path) -> "Any":
     """Load a T265 pose ``.npz`` → 4×4 SE(3) camera-to-world (float64).
 
@@ -100,7 +128,24 @@ def _load_pose(path: Path) -> "Any":
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = rot
     T[:3, 3]  = position
+    T.flags.writeable = False
     return T
+
+
+def _loader_cache_stats() -> Dict[str, Any]:
+    """Return per-loader LRU stats — surfaced in the run summary."""
+    out: Dict[str, Any] = {}
+    for name, fn in (("rgb", _load_rgb), ("depth", _load_depth), ("pose", _load_pose)):
+        info = fn.cache_info()  # type: ignore[attr-defined]
+        total = info.hits + info.misses
+        out[name] = {
+            "hits":     info.hits,
+            "misses":   info.misses,
+            "hit_rate": (info.hits / total) if total else 0.0,
+            "size":     info.currsize,
+            "maxsize":  info.maxsize,
+        }
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -459,6 +504,14 @@ def main() -> None:
         wall_seconds=wall_seconds,
     )
 
+    # Surface loader-cache stats inside result.json before writing.
+    # On a sweep through one (scene, phase) the hit-rate is typically
+    # 0.8 – 0.95 because the generator emits ~25 target frames against
+    # the same K-context pool — kept visible so the parallel session
+    # sees if the cache is doing its job.
+    cache_stats = _loader_cache_stats()
+    result["loader_cache"] = cache_stats
+
     # ── Write artefacts
     out_dir = args.results_root / display / args.split
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -485,6 +538,11 @@ def main() -> None:
         lat = cost_block["latency_ms_per_sample"]
         lat_str = f"{lat:.3f}" if lat < 1.0 else f"{lat:.1f}"
         rows["latency"] = f"{lat_str} ms / sample"
+    # Cache hit rate — a single number summary of the three loaders.
+    total_hits   = sum(s["hits"]   for s in cache_stats.values())
+    total_misses = sum(s["misses"] for s in cache_stats.values())
+    if total_hits + total_misses > 0:
+        rows["cache hit-rate"] = f"{total_hits / (total_hits + total_misses):.2%}"
     cli_ux.summary(rows, title=f"{display} · {args.split}")
 
 
