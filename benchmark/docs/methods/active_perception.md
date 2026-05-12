@@ -6,15 +6,15 @@
 
 ## Problem
 
-Embodied perception is evaluated on static frames. Robots move. The
-question for a deployed system is rarely *"how well do you see this
-frame?"* — it is *"given what you have seen so far, where should you
-look next?"* The active-vision / next-best-view (NBV) literature has
-asked this for two decades, but **no general perception benchmark
-scores it**. RPX is the first dataset with the structural data assets
-to make it a benchmark task: pose-stamped continuous trajectories
-(D435 + T265 @ 200 Hz), per-frame instance masks, three-phase scene
-states, 99 scenes.
+Most perception evaluations score a model on static frames. For an
+embodied system that controls its own camera, a second question
+matters: *given what it has seen so far, where should it look next?*
+The active-vision / next-best-view (NBV) literature has asked this for
+two decades, mostly within method papers rather than as part of
+general perception benchmarks. RPX's structural data — pose-stamped
+trajectories (D435 + T265), per-frame instance masks, three-phase
+scene states across 99 scenes — supports adding it as an evaluation
+task without new data collection.
 
 ## Task contract
 
@@ -105,30 +105,31 @@ Scale estimate: 99 scenes × 3 phases × 4 K-values × 25 target poses ≈
 Slot for **learned NBV models** from the active-vision lit follows the same
 adapter pattern as `nvs_models/` and `pose_models/`.
 
-## Why RPX is the only place this can run
+## Why RPX is well-suited
 
-| Asset | Needed for | Owned only by RPX |
-|---|---|---|
-| 200 Hz 6-DoF VIO poses tied to RGB-D | computing `pose_geodesic` against a real trajectory | yes |
-| Three-phase capture of same scene | cross-phase NBV (Axis-2 metric) | yes |
-| Per-frame instance masks | Task-NBV objective | yes |
-| Visual grounding text (post-VQA) | task-goal-conditioned NBV | yes |
-| ~75 K candidate poses across 297 (scene, phase) | benchmark-scale, not toy | yes |
+| Asset | Used for |
+|---|---|
+| 200 Hz 6-DoF VIO poses tied to RGB-D | computing `pose_geodesic` against a real trajectory |
+| Three-phase capture of same scene | cross-phase NBV (Axis-2 metric) |
+| Per-frame instance masks | Task-NBV objective |
+| Visual grounding text (post-VQA) | task-goal-conditioned NBV |
+| ~75K candidate poses across 297 (scene, phase) | benchmark-scale samples |
 
-No other dataset stacks these. ScanNet has 6-DoF poses but no
-phase-stratified scene changes. Habitat has poses + masks but
-synthetic. nuScenes has trajectories but no static-scene exploration.
-RPX is the unique fit.
+Comparable datasets cover subsets of these but, to our knowledge, not
+all four together: ScanNet has 6-DoF poses and meshes but a single
+scene state per capture; Habitat-Matterport has poses + segmentation
+but is synthetic / rendered; nuScenes has dense trajectories on the
+driving setting but no controlled scene-state variation. RPX is a
+natural fit — we are *not* claiming uniqueness, only suitability.
 
-## Why this matters in 5 years
+## Motivation (hypothesis, not prediction)
 
-Embodied foundation models are converging on a control-loop in which
-**perception, decision, action share a single VLA backbone**. For
-these models the unit of evaluation is going to be *"what does it
-choose to attend to?"* — not *"how accurate is its dense prediction?"*
-
-The first benchmark that grades active perception properly will set
-the protocol. RPX is one PR-sized refactor away from being it.
+If embodied foundation models continue converging on shared VLA-style
+backbones, the evaluation gap between *dense single-frame prediction*
+and *attention / viewpoint selection* will widen. Adding an active
+perception task to RPX is cheap insurance against that direction. If
+the field stays static-frame-centric, the task is still a useful
+contribution on its own merits — it just won't be the headline.
 
 ## Risks & open questions
 
@@ -164,9 +165,10 @@ the protocol. RPX is one PR-sized refactor away from being it.
 | `scripts/active_perception_models/{random_pose,farthest_point,entropy_max}.py` | ~200 | one file each, baseline-scale |
 | `tests/test_active_perception_*.py` | ~250 | parity with pose/nvs test surface |
 
-Total: ~1700 LoC, ~80 % of which mirrors the NVS pipeline. Real cost
-is the scene-prep step that computes `T*` per scene per objective —
-one-time, can run overnight against the test mirror.
+Rough estimate: ~1700 LoC total, the bulk mirroring the existing NVS
+pipeline structure. The actual cost is the one-time scene-prep step
+that computes `T*` per (scene, phase, objective) — overnight job on
+the test mirror, cached after that.
 
 ## Decision needed
 
@@ -174,13 +176,11 @@ Two questions for the parallel session before any code:
 
 1. **Headline objective.** Coverage-NBV is my recommendation
    (reproducible, model-agnostic). Confirm or pick Uncertainty / Task.
-2. **Paper positioning.** Two framings:
-   - **Methodological**: "RPX adds active perception as a first-class
-     evaluation axis; here are baselines + headline results."
-     Defensive; reviewer-friendly; can ship in this paper.
-   - **Provocative**: "Perception benchmarks measure the wrong
-     thing. Here is the eval that an embodied foundation model
-     actually needs to pass." Stronger; harder; works only if the
-     baselines are convincing.
-
-Pick one before PR-D opens.
+2. **Paper positioning.** Likely the right framing is a small,
+   well-supported claim: *"RPX adds an active-perception evaluation
+   built on its existing 6-DoF + multi-phase data; here are
+   baselines, headline results, and the scope on which we make no
+   claim."* A bolder framing ("perception benchmarks measure the
+   wrong thing") is only credible with strong empirical evidence
+   that active perception actually predicts deployment outcomes —
+   we don't have that yet. Lock the framing once the baselines run.
