@@ -81,8 +81,30 @@ class Lotus:
                 torch_dtype=torch_dtype,
                 trust_remote_code=True,
             ).to(device)
+        except AttributeError as e:
+            # The model_index.json on the HF repo references a custom
+            # pipeline class (DirectRegressionPipeline) that is *not* in
+            # stock diffusers and *not* hosted on the HF model card as a
+            # custom_pipeline script. The class lives in the upstream
+            # Lotus GitHub repo. Same situation as PatchFusion.
+            from rpx_benchmark.exceptions import AdapterError  # noqa: PLC0415
+
+            raise AdapterError(
+                f"Lotus pipeline load failed for {model_id!r}: {e}",
+                hint=(
+                    "Lotus uses a custom diffusers pipeline class "
+                    "(DirectRegressionPipeline) that ships with the upstream "
+                    "Lotus GitHub repo, not stock diffusers. Install:\n"
+                    "  git clone https://github.com/EnVision-Research/Lotus-2\n"
+                    "  cd Lotus-2 && pip install -r requirements.txt\n"
+                    "  export PYTHONPATH=\"$PWD:$PYTHONPATH\"\n"
+                    "Then re-invoke this adapter. Other live checkpoints "
+                    "the team can swap in via `model_id=...`: "
+                    "jingheya/lotus-depth-g-v2-1-disparity (generative)."
+                ),
+            ) from e
         except Exception as e:
-            from rpx_benchmark.exceptions import AdapterError
+            from rpx_benchmark.exceptions import AdapterError  # noqa: PLC0415
 
             raise AdapterError(
                 f"Lotus pipeline load failed for {model_id!r}: {e}",
