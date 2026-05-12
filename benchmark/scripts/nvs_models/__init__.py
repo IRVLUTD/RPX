@@ -40,6 +40,20 @@ def _build_identity_passthrough(*, device: str = "cpu", **kwargs: Any) -> Any:
     return IdentityPassthroughNVS(device=device, **kwargs)
 
 
+def _build_splatter_image(*, device: str = "cuda", **kwargs: Any) -> Any:
+    """Splatter Image (CVPR 2024) — single-view feed-forward 3DGS.
+
+    The adapter scaffolds the real upstream wiring (GaussianSplatPredictor +
+    render_predicted from the szymanowiczs/splatter-image repo) and raises
+    a clear AdapterError if the upstream isn't on PYTHONPATH. End-to-end
+    smoke against real RPX scenes is **pending** an upstream `pip install
+    -e .` and is tracked in `benchmark/SHARED_CONTEXT.md`.
+    """
+    from .splatter_image import SplatterImage
+
+    return SplatterImage(device=device, **kwargs)
+
+
 # ── Feed-forward 3DGS / pointmap models ──────────────────────────────────────
 
 
@@ -104,10 +118,6 @@ _PENDING_MODELS: Dict[str, Dict[str, str]] = {
         "upstream": "https://github.com/eldar/flash3d",
         "hint":     "clone + checkpoint via huggingface_hub.",
     },
-    "splatter_image": {
-        "upstream": "https://github.com/szymanowiczs/splatter-image",
-        "hint":     "clone the repo and `pip install -e .`.",
-    },
     "flare": {
         "upstream": "https://github.com/ant-research/FLARE",
         "hint":     "clone the repo; needs pytorch3d and the FLARE checkpoint.",
@@ -117,6 +127,7 @@ _PENDING_MODELS: Dict[str, Dict[str, str]] = {
 
 MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "identity_passthrough": _build_identity_passthrough,
+    "splatter_image":       _build_splatter_image,
     **{
         name: _not_yet_wired(name, info["upstream"], info["hint"])
         for name, info in _PENDING_MODELS.items()
