@@ -72,8 +72,24 @@ _POSE_CACHE_SIZE  = 1024
 
 @lru_cache(maxsize=_RGB_CACHE_SIZE)
 def _load_rgb(path: Path) -> "Any":
-    """Load an RGB image as (H, W, 3) uint8. Cached; read-only on return."""
+    """Load an RGB image as (H, W, 3) uint8. Cached; read-only on return.
+
+    Uses cv2.imread (~2-5x faster than PIL on the same content); falls
+    back to PIL on cv2 failure (legacy / corrupt files).
+    """
     import numpy as np  # noqa: PLC0415
+
+    try:
+        import cv2  # noqa: PLC0415
+
+        bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
+        if bgr is not None:
+            arr = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)  # H, W, 3 uint8
+            arr.flags.writeable = False
+            return arr
+    except ImportError:
+        pass
+
     from PIL import Image  # noqa: PLC0415
 
     arr = np.array(Image.open(path).convert("RGB"), dtype=np.uint8)
@@ -85,11 +101,24 @@ def _load_rgb(path: Path) -> "Any":
 def _load_depth(path: Path) -> "Any":
     """Load a 16-bit depth PNG as (H, W) float32 in metres (D435 mm → m).
 
-    Cached; read-only on return."""
+    Cached; read-only on return. Uses cv2.imread with IMREAD_UNCHANGED
+    to preserve uint16; falls back to PIL on cv2 failure.
+    """
     import numpy as np  # noqa: PLC0415
-    from PIL import Image  # noqa: PLC0415
 
-    raw = np.array(Image.open(path))
+    raw = None
+    try:
+        import cv2  # noqa: PLC0415
+
+        raw = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
+    except ImportError:
+        pass
+
+    if raw is None:
+        from PIL import Image  # noqa: PLC0415
+
+        raw = np.array(Image.open(path))
+
     arr = (raw.astype(np.float32) / 1000.0) if raw.dtype == np.uint16 else raw.astype(np.float32)
     arr.flags.writeable = False
     return arr
@@ -190,9 +219,18 @@ def _evaluate_sample(
     rendered: Dict[str, Any],
     gt_rgb: "Any",
     gt_depth: "Optional[Any]",
+    compute_lpips: bool = False,
 ) -> Dict[str, Any]:
-    """Compute the per-sample metric dict consumed by ``evaluate_nvs``."""
-    from rpx_benchmark.nvs_metrics import depth_metrics, psnr, ssim  # noqa: PLC0415
+    """Compute the per-sample metric dict consumed by ``evaluate_nvs``.
+
+    Delegates to the canonical ``rpx_benchmark.nvs_eval.evaluate_single_sample``
+    (proper sliding-window SSIM via skimage, optional LPIPS via the lpips
+    package, per-object PSNR when masks are provided) instead of the
+    simplified PSNR/SSIM previously hand-rolled here. The sample's
+    breakdown metadata (sample_type, n_context, scene_id, phase) is
+    merged so ``evaluate_nvs`` can stratify rows downstream.
+    """
+    from rpx_benchmark.nvs_eval import evaluate_single_sample  # noqa: PLC0415
 
     pred_rgb = rendered.get("rgb")
     pred_depth = rendered.get("depth")
@@ -206,14 +244,15 @@ def _evaluate_sample(
     }
 
     if pred_rgb is not None and gt_rgb is not None:
-        row["psnr"] = psnr(pred_rgb, gt_rgb)
-        row["ssim"] = ssim(pred_rgb, gt_rgb)
-
-    if pred_depth is not None and gt_depth is not None:
-        # depth_metrics already returns keys named exactly
-        # ``depth_absrel`` / ``depth_rmse`` / ``depth_delta1`` — the same
-        # keys evaluate_nvs aggregates on. Merge wholesale.
-        row.update(depth_metrics(pred_depth, gt_depth))
+        row.update(
+            evaluate_single_sample(
+                pred_rgb=pred_rgb,
+                gt_rgb=gt_rgb,
+                pred_depth=pred_depth,
+                gt_depth=gt_depth,
+                compute_lpips=compute_lpips,
+            )
+        )
 
     return row
 
@@ -396,6 +435,10 @@ def main() -> None:
                     help="root dir for per-run output trees")
     ap.add_argument("--save-predictions", action="store_true",
                     help="save rendered RGB + depth per sample under predictions/")
+    ap.add_argument("--compute-lpips", action="store_true",
+                    help="compute LPIPS (AlexNet) per sample. Off by default "
+                    "because it adds ~50-100 ms/sample on CPU. Needs `pip install lpips`; "
+                    "returns NaN silently if the package is missing.")
     args = ap.parse_args()
 
     from rpx_benchmark import cli_ux  # noqa: PLC0415
@@ -469,7 +512,10 @@ def main() -> None:
             rendered = adapter(context_rgbs, context_depths, context_poses, target_pose)
             latencies_ms.append((time.perf_counter() - t0) * 1000.0)
 
-            row = _evaluate_sample(sample, rendered, gt_rgb, gt_depth)
+            row = _evaluate_sample(
+                sample, rendered, gt_rgb, gt_depth,
+                compute_lpips=args.compute_lpips,
+            )
             per_sample.append(row)
 
             if args.save_predictions:
