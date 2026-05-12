@@ -291,6 +291,10 @@ def _evaluate_sample(
         "phase":       sample.phase,
         "n_context":   sample.n_context,
         "sample_type": sample.sample_type,
+        # Difficulty is optional on NVSSample (may be None); kept here so
+        # downstream `by_difficulty` aggregation in _assemble_result has
+        # the stratifier without re-touching the sample dict.
+        "difficulty":  getattr(sample, "difficulty", None),
     }
 
     if pred_rgb is not None and gt_rgb is not None:
@@ -404,6 +408,26 @@ def _assemble_result(
         if vals:
             aggregated[k] = float(np.mean(vals))
 
+    # ESD-difficulty stratification — Axis-2 robustness signal. RPX's
+    # difficulty tiers (easy / medium / hard) come through on the
+    # generator's NVSSample.difficulty field; surface a per-tier
+    # breakdown of the same standard metrics so the paper can
+    # report "PSNR-by-difficulty" without re-aggregating elsewhere.
+    by_diff: Dict[str, Dict[str, float]] = {}
+    metric_keys = ("psnr", "ssim", "lpips",
+                   "depth_absrel", "depth_rmse", "depth_delta1")
+    difficulties = sorted(
+        {s.get("difficulty") for s in per_sample if s.get("difficulty") is not None}
+    )
+    for diff in difficulties:
+        subset = [s for s in per_sample if s.get("difficulty") == diff]
+        agg: Dict[str, float] = {"n_samples": float(len(subset))}
+        for k in metric_keys:
+            vals = [s[k] for s in subset if k in s and s[k] is not None]
+            if vals:
+                agg[k] = float(np.mean(vals))
+        by_diff[diff] = agg
+
     return {
         "task":         "novel_view_synthesis",
         "model":        display_name,
@@ -416,6 +440,7 @@ def _assemble_result(
         "robustness":   {
             "by_sample_type":   by_sample_type,
             "by_context_count": by_context,
+            "by_difficulty":    by_diff,
             "cross_phase_delta": cross_delta,
         },
         # Axis 3 — Compute cost
@@ -504,6 +529,18 @@ def main() -> None:
                     help="compute LPIPS (AlexNet) per sample. Off by default "
                     "because it adds ~50-100 ms/sample on CPU. Needs `pip install lpips`; "
                     "returns NaN silently if the package is missing.")
+    ap.add_argument("--upload-to-box", action="store_true",
+                    help="mirror the result dir to UTD Box under "
+                    "<box_folder_id>/novel_view_synthesis/<model>/<split>/. "
+                    "Requires BOX_DEVELOPER_TOKEN. Skipped silently if a "
+                    "real upload isn't possible (no token, no box_fetch).")
+    ap.add_argument("--box-folder-id", default="380510613151",
+                    help="Box folder id (default: team's RPX-Outputs).")
+    ap.add_argument("--strict-io", action="store_true",
+                    help="crash on the first missing/corrupt sample file. "
+                    "By default the runner logs the bad sample and "
+                    "continues — long sweeps shouldn't tank from one "
+                    "stale extraction.")
     args = ap.parse_args()
 
     from rpx_benchmark import cli_ux  # noqa: PLC0415
@@ -556,6 +593,7 @@ def main() -> None:
     pred_root = args.results_root / display / args.split / "predictions"
 
     t_wall_start = time.perf_counter()
+    skipped: List[Dict[str, Any]] = []  # graceful-skip log
 
     samples_iter = gen.iter_samples()
     total = args.max_samples  # may be None if unbounded
@@ -564,48 +602,67 @@ def main() -> None:
             if args.max_samples is not None and i >= args.max_samples:
                 break
 
-            # Load context arrays
-            context_rgbs   = [_load_rgb(extracted_root / r)   for r in sample.context_rgb_paths]
-            context_depths = [_load_depth(extracted_root / d) for d in sample.context_depth_paths]
-            context_poses  = [_load_pose(extracted_root / pth) for pth in sample.context_pose_paths]
-            target_pose    = _load_pose(extracted_root / sample.target_pose_path)
-            gt_rgb         = _load_rgb(extracted_root / sample.target_rgb_path)
-            gt_depth       = _load_depth(extracted_root / sample.target_depth_path)
-
-            # GT instance mask of the target frame, when available, enables
-            # per-object PSNR (a novel RPX axis). Mask is optional — if the
-            # file is missing or malformed we skip silently and the per-
-            # object metrics simply don't appear in the row.
-            gt_mask = None
+            # Per-sample try/except — long sweeps shouldn't tank because
+            # one stale extraction has a missing frame. `--strict-io`
+            # turns it back into a hard crash for debugging.
             try:
-                gt_mask = _load_mask(extracted_root / _mask_path_for_target(sample))
-            except (FileNotFoundError, OSError, ValueError):
-                pass
+                context_rgbs   = [_load_rgb(extracted_root / r)   for r in sample.context_rgb_paths]
+                context_depths = [_load_depth(extracted_root / d) for d in sample.context_depth_paths]
+                context_poses  = [_load_pose(extracted_root / pth) for pth in sample.context_pose_paths]
+                target_pose    = _load_pose(extracted_root / sample.target_pose_path)
+                gt_rgb         = _load_rgb(extracted_root / sample.target_rgb_path)
+                gt_depth       = _load_depth(extracted_root / sample.target_depth_path)
 
-            # Adapter call (timed)
-            t0 = time.perf_counter()
-            rendered = adapter(context_rgbs, context_depths, context_poses, target_pose)
-            latencies_ms.append((time.perf_counter() - t0) * 1000.0)
+                # GT mask of the target frame enables per-object PSNR.
+                # The mask is *optional* — missing-mask is silently OK.
+                gt_mask = None
+                try:
+                    gt_mask = _load_mask(extracted_root / _mask_path_for_target(sample))
+                except (FileNotFoundError, OSError, ValueError):
+                    pass
 
-            row = _evaluate_sample(
-                sample, rendered, gt_rgb, gt_depth,
-                gt_mask=gt_mask,
-                compute_lpips=args.compute_lpips,
-            )
-            per_sample.append(row)
+                # Adapter call (timed)
+                t0 = time.perf_counter()
+                rendered = adapter(context_rgbs, context_depths, context_poses, target_pose)
+                latencies_ms.append((time.perf_counter() - t0) * 1000.0)
 
-            if args.save_predictions:
-                import numpy as np  # noqa: PLC0415
+                row = _evaluate_sample(
+                    sample, rendered, gt_rgb, gt_depth,
+                    gt_mask=gt_mask,
+                    compute_lpips=args.compute_lpips,
+                )
+                per_sample.append(row)
 
-                out_path = pred_root / sample.scene_id / str(sample.phase) / f"{sample.id}.npz"
-                out_path.parent.mkdir(parents=True, exist_ok=True)
-                payload: Dict[str, Any] = {"rgb": rendered.get("rgb")}
-                if rendered.get("depth") is not None:
-                    payload["depth"] = rendered["depth"]
-                np.savez_compressed(out_path, **payload)
-                saved_predictions.append(out_path)
+                if args.save_predictions:
+                    import numpy as np  # noqa: PLC0415
+
+                    out_path = pred_root / sample.scene_id / str(sample.phase) / f"{sample.id}.npz"
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    payload: Dict[str, Any] = {"rgb": rendered.get("rgb")}
+                    if rendered.get("depth") is not None:
+                        payload["depth"] = rendered["depth"]
+                    np.savez_compressed(out_path, **payload)
+                    saved_predictions.append(out_path)
+            except (FileNotFoundError, OSError, KeyError, ValueError) as e:
+                # KeyError covers the npz-key-missing case in _load_pose;
+                # ValueError handles a too-small adapter call (zero ctx).
+                if args.strict_io:
+                    raise
+                skipped.append({
+                    "sample_id": getattr(sample, "id", "?"),
+                    "scene_id":  getattr(sample, "scene_id", "?"),
+                    "reason":    f"{type(e).__name__}: {str(e)[:100]}",
+                })
 
             p.update(task, advance=1)  # type: ignore[attr-defined]
+
+    if skipped:
+        rate = len(skipped) / (len(per_sample) + len(skipped))
+        warn_msg = f"skipped {len(skipped)} / {len(per_sample) + len(skipped)} samples ({rate:.1%}) on IO errors"
+        if rate > 0.05:
+            cli_ux.warn(f"{warn_msg} — that's >5%, check the extracted_root")
+        else:
+            cli_ux.note(warn_msg)
 
     wall_seconds = time.perf_counter() - t_wall_start
 
@@ -633,6 +690,8 @@ def main() -> None:
     # sees if the cache is doing its job.
     cache_stats = _loader_cache_stats()
     result["loader_cache"] = cache_stats
+    if skipped:
+        result["skipped_samples"] = skipped  # full skip-log lands in result.json
 
     # ── Write artefacts
     out_dir = args.results_root / display / args.split
@@ -645,6 +704,28 @@ def main() -> None:
     cli_ux.step(f"wrote {md_path}")
     if saved_predictions:
         cli_ux.step(f"saved {len(saved_predictions)} predictions under {pred_root}")
+
+    # ── Optional: mirror to UTD Box (mirrors run_relative_pose.py's pattern)
+    if args.upload_to_box:
+        cli_ux.section("Box upload")
+        try:
+            from box_fetch import upload_tree  # noqa: PLC0415
+
+            remote = f"novel_view_synthesis/{display}/{args.split}"
+            with cli_ux.working(f"uploading {out_dir} → Box:{remote}"):
+                summary = upload_tree(
+                    Path(out_dir),
+                    remote_path=remote,
+                    root_folder_id=args.box_folder_id,
+                )
+            cli_ux.step(
+                f"uploaded {summary['uploaded']} files "
+                f"({cli_ux.fmt_bytes(summary['bytes_uploaded'])}); "
+                f"{summary['skipped']} already on Box; "
+                f"remote folder id {summary['remote_folder_id']}"
+            )
+        except Exception as e:
+            cli_ux.warn(f"Box upload skipped — {type(e).__name__}: {e}")
 
     # ── Summary panel
     a = result["aggregated"]

@@ -336,7 +336,7 @@ class TestAssembleResult:
 
         # Axis-2 sub-blocks present.
         rb = result["robustness"]
-        for k in ("by_sample_type", "by_context_count", "cross_phase_delta"):
+        for k in ("by_sample_type", "by_context_count", "by_difficulty", "cross_phase_delta"):
             assert k in rb
 
         # Cross-phase Δ exercised by the half-cross_phase fixture rows.
@@ -369,6 +369,47 @@ class TestAssembleResult:
         assert a["per_object_psnr_min"] == pytest.approx(11.5)
         # All four rows had n_objects_evaluated = 5.
         assert a["n_objects_evaluated"] == pytest.approx(5.0)
+
+    def test_by_difficulty_aggregation(self) -> None:
+        """`difficulty` field on per-sample rows produces a stratified
+        breakdown in robustness.by_difficulty."""
+        rows = []
+        for i, diff in enumerate(["easy", "easy", "medium", "hard"]):
+            rows.append({
+                "sample_id":  f"s{i}",
+                "scene_id":   "scene00",
+                "phase":      0,
+                "n_context":  2,
+                "sample_type": "interpolation",
+                "difficulty": diff,
+                "psnr":       10.0 + i,
+                "ssim":       0.5,
+                "depth_absrel": 0.1,
+                "depth_rmse":   0.3,
+                "depth_delta1": 0.9,
+            })
+        result = run_nvs._assemble_result(
+            model_key="identity_passthrough",
+            display_name="IdentityPassthrough",
+            split="easy",
+            per_sample=rows,
+            cost_block={
+                "params_m": 0.0, "flops_g": None, "macs_g": None,
+                "memory_traffic_gb": None, "arithmetic_intensity": None,
+                "roofline": None, "latency_ms_per_sample": 0.5,
+                "peak_memory_mb": None, "system_card": None,
+                "operating_point": {"precision": "fp32", "params_m": 0.0, "flops_g": None},
+            },
+            latencies_ms=[0.5] * 4,
+            wall_seconds=1.0,
+        )
+        by_diff = result["robustness"]["by_difficulty"]
+        assert set(by_diff) == {"easy", "medium", "hard"}
+        assert by_diff["easy"]["n_samples"] == 2.0
+        assert by_diff["medium"]["n_samples"] == 1.0
+        assert by_diff["hard"]["n_samples"] == 1.0
+        # easy: PSNRs 10, 11 → mean 10.5
+        assert by_diff["easy"]["psnr"] == pytest.approx(10.5)
 
     def test_per_object_keys_absent_when_no_masks(self) -> None:
         result = run_nvs._assemble_result(
