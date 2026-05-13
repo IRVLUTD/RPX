@@ -1,10 +1,10 @@
 """Industry-grade colored logging + progress UI for the RPX CLI scripts.
 
 Built on `rich`. One canonical helper module so every runnable script
-(``run_depth.py``, ``run_relative_pose.py``, ``sync_results_to_box.py``,
-``build_esd_splits.py``, …) produces a consistent, scannable terminal
-experience: sectioned headers, spinners for long ops, progress bars
-with rate + ETA, and a final summary panel.
+(``run_depth.py``, ``run_relative_pose.py``, ``run_nvs.py``,
+``sync_results_to_box.py``, …) produces a consistent, scannable
+terminal experience: sectioned headers, spinners for long ops,
+progress bars with rate + ETA, and a final summary panel.
 
 Public surface
 --------------

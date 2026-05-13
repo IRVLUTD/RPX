@@ -574,7 +574,7 @@ def all_methods(
 
 # Per-row tier-flip rate thresholds for the confidence label. A pair flipping
 # tiers in <10% of weight perturbations is "high" confidence; 10-50% medium;
-# >50% low. Tunable via build_difficulty_splits.py CLI.
+# >50% low.
 DEFAULT_CONFIDENCE_HIGH_MAX: float = 0.10
 DEFAULT_CONFIDENCE_MEDIUM_MAX: float = 0.50
 
