@@ -88,8 +88,10 @@ def stage_splits(
     if not src_root.is_dir():
         raise ConfigError(
             f"splits source dir does not exist: {src_root}",
-            hint="Run experiments/scripts/build_difficulty_splits.py first, "
-            "or pass splits_src= explicitly.",
+            hint="Splits files are bundled on the HuggingFace dataset "
+            "(splits/{scene_splits.json,easy.txt,medium.txt,hard.txt}); "
+            "make sure you've downloaded them, or pass splits_src= "
+            "pointing at a local copy.",
         )
 
     staging_root = Path(staging_root)
@@ -102,8 +104,9 @@ def stage_splits(
         raise DatasetError(
             f"missing splits files in {src_root}: {missing}",
             hint=(
-                "Re-run build_difficulty_splits.py to regenerate them, or "
-                "pass require_all=False to ship a partial splits dir."
+                "Re-download the HuggingFace dataset to recover the "
+                "splits/ tree, or pass require_all=False to ship a "
+                "partial splits dir."
             ),
         )
 

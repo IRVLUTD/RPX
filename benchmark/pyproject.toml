@@ -66,8 +66,9 @@ schemas = [
 esd-fast = [
   "opencv-python>=4.8",
 ]
-# Exploratory analysis of ESD features (analyze_esd.py): PCA, k-means, GMM,
-# correlation tests, plots. Heavy deps kept out of the core install.
+# ESD-feature analysis helpers (PCA, k-means, GMM, correlation tests,
+# plots) used by `rpx_benchmark.data.esd_scoring`. Heavy deps kept out
+# of the core install — opt in with `pip install 'rpx-benchmark[analysis]'`.
 analysis = [
   "pandas>=2.0",
   "scikit-learn>=1.3",

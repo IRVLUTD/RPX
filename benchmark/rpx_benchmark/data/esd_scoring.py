@@ -574,7 +574,7 @@ def all_methods(
 
 # Per-row tier-flip rate thresholds for the confidence label. A pair flipping
 # tiers in <10% of weight perturbations is "high" confidence; 10-50% medium;
-# >50% low. Tunable via build_difficulty_splits.py CLI.
+# >50% low.
 DEFAULT_CONFIDENCE_HIGH_MAX: float = 0.10
 DEFAULT_CONFIDENCE_MEDIUM_MAX: float = 0.50
 
@@ -678,10 +678,10 @@ def aggregate_to_scene_splits(
         }
 
     The split lists are the consumer-facing deliverable; ``scene_detail``
-    answers "what did each phase look like for this scene?" without
-    requiring readers to cross-reference ``phase_difficulty.json``.
-    Per-phase info is included only when ``phases`` (and optionally
-    ``phase_tiers``) are passed.
+    answers "what did each phase look like for this scene?" inline,
+    without requiring readers to cross-reference a separate per-phase
+    difficulty table. Per-phase info is included only when ``phases``
+    (and optionally ``phase_tiers``) are passed.
     """
     if len(scene_ids) != scores.size:
         raise ConfigError(

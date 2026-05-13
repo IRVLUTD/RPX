@@ -183,7 +183,6 @@ RPX/
 │   ├── docker/             Maskgen-specific Docker setup
 │   └── README.md           Interactive GSAM2 refinement UI
 │
-├── experiments/            ESD difficulty-split analysis + figures
 ├── docker/                 Top-level Dockerised reproducible env
 ├── .github/workflows/      CI: pytest matrix + ruff + MkDocs Pages deploy
 ├── README.md               This file

@@ -16,6 +16,11 @@ data/
 # so nothing in the toolkit depends on a paper-submission checkout.
 paper-submission/
 
+# Single-folder catch-all for local-only working notes (research dumps,
+# script outputs, draft documents). Delete `.local/` wholesale before
+# any public release — nothing inside is required to run the toolkit.
+.local/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -168,6 +173,9 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# ruff
+.ruff_cache/
 
 # Pyre type checker
 .pyre/

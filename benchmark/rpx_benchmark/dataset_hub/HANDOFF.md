@@ -230,8 +230,9 @@ went with each slice.
    Packer is padding-agnostic — this only affects wireframe docs.
 4. **How to regenerate `scene_splits.json` against the new `scene<N>`
    naming**. Existing file uses old naming (`scene11.ecss.4f.sofa`).
-   Re-run `experiments/scripts/build_difficulty_splits.py` against the
-   re-organised source.
+   Run the difficulty-splits builder against the re-organised source
+   (the builder is paper-methodology code kept under the local-only
+   workspace, not shipped with the toolkit).
 
 ---
 
