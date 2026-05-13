@@ -678,10 +678,10 @@ def aggregate_to_scene_splits(
         }
 
     The split lists are the consumer-facing deliverable; ``scene_detail``
-    answers "what did each phase look like for this scene?" without
-    requiring readers to cross-reference ``phase_difficulty.json``.
-    Per-phase info is included only when ``phases`` (and optionally
-    ``phase_tiers``) are passed.
+    answers "what did each phase look like for this scene?" inline,
+    without requiring readers to cross-reference a separate per-phase
+    difficulty table. Per-phase info is included only when ``phases``
+    (and optionally ``phase_tiers``) are passed.
     """
     if len(scene_ids) != scores.size:
         raise ConfigError(
