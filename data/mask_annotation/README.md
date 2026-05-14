@@ -267,6 +267,25 @@ output dirs (`masks/`, `palette/`, `rgb_and_mask/`, `contour_gt_masks/`)
 plus `masks_verified/`, so the next `--no_verified` review skips it and
 `gen_faulty_from_verified` no longer flags it.
 
+#### Edge case — auto-fill maskgen truncation gaps
+
+If the original `interactive_gsam2` run was truncated (most commonly:
+fewer masks than rgb frames, with a contiguous gap at the head or tail
+of a phase), use the **`--gap --auto`** mode to fill those frames
+non-interactively. SAM2 reseeds from the closest verified neighbour for
+every missing frame and writes the same outputs as the interactive mode.
+
+```bash
+python -m maskgen_pipeline.manual_label_faulty \
+        --scene_dir <scene_dir>/<phase> --gap --auto
+```
+
+`--gap` selects the `rgb − masks` set (frames with no mask at all)
+instead of the unverified set; `--auto` skips the bbox-editing UI so
+each gap is filled with one SAM2 image-predictor call per object.
+Re-run the reviewer afterwards if you want a human eye on the new
+masks before publishing.
+
 ### Final step — object-ID mapping
 
 Once masks look right across all three phases, link mask IDs to object
@@ -289,7 +308,7 @@ python -m visual_grounding_gt.mask_to_object \
 | `maskgen_pipeline/refine_masks.py` / `refine_masks_flow.py` | **Iter 2.** Automatic refinement of faulty frames (no UI). |
 | `maskgen_pipeline/review_faulty_masks.py` | Visualize generated masks; tag faulty frames for the next iter. |
 | `maskgen_pipeline/gen_faulty_from_verified.py` | **Bridge.** Turn `verified_masks.txt` (reviewer output) into `iter{N}_faulty.txt` (refiner input). |
-| `maskgen_pipeline/manual_label_faulty.py` | **Fallback.** Per-frame manual bbox labeling for frames that auto-refinement keeps getting wrong; SAM2 image-predictor builds the mask from the bboxes. |
+| `maskgen_pipeline/manual_label_faulty.py` | **Fallback.** Per-frame manual bbox labeling for frames that auto-refinement keeps getting wrong; SAM2 image-predictor builds the mask from the bboxes. Pass `--gap --auto` to non-interactively fill maskgen-truncation gaps (head/tail-of-phase frames with no mask). |
 | `maskgen_pipeline/review_faulty_bboxes.py` | Same idea, but on raw bboxes (pre-SAM2). |
 | `maskgen_pipeline/propagate_bboxes.py` | Standalone bbox-propagation step (used internally by the interactive tools). |
 | `maskgen_pipeline/collect_faulty_and_gdino_bboxed_headless.py` | Headless variant: enumerate faulty frames + pre-compute GroundingDINO bboxes. |
