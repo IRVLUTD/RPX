@@ -268,7 +268,7 @@ def review_frame(rgb_path, contour_path, palette_path, verified_dest_path, full_
         elif key == ord('q') or key == ord('Q'):
             save_verified_mask(orig_contour_img, orig_palette_img, rgb_img_bgr, verified_dest_path, base_dir, full_id)
             return 'quit'
-        elif key == ord('t') or key == ord('T'):
+        elif key in (ord('t'), ord('T'), ord('c'), ord('C')):
             show_contours = not show_contours
         elif key == ord('x') or key == ord('X'):
             unverify_mask(verified_dest_path, base_dir, full_id)
@@ -302,42 +302,75 @@ def natural_sort_key(s):
     return [int(c) if c.isdigit() else c.lower() for c in re.split(r'(\d+)', s)]
 
 def find_pairs(base_dir):
+    """Discover (rgb, contour, palette, verified_dest, full_id) tuples under base_dir.
+
+    Two output layouts are supported (both produce the same tuples):
+
+    Layout A — multi-scene archive (legacy)::
+
+        <base>/<scene>/sam2/<phase>/contour_gt_masks/<frame>.png
+        <base>/<scene>/frames/<phase>/rgb/<frame>.png
+        <base>/<scene>/sam2/<phase>/palette/<frame>.png
+
+    Layout B — direct ``interactive_gsam2`` output (per-phase tree)::
+
+        <base>/<scene>/<phase>/sam2/contour_gt_masks/<frame>.png
+        <base>/<scene>/<phase>/rgb/<frame>.png
+        <base>/<scene>/<phase>/sam2/palette/<frame>.png
+
+    ``--base_dir`` can be pointed at:
+      * the archive root (layout A → multiple scenes),
+      * a single scene dir (layout B → multiple phases),
+      * a single phase dir (layout B with one phase).
+    """
     pairs = []
     base_dir = Path(base_dir)
     all_pngs = list(base_dir.rglob("*.png"))
-    
+
     for contour_path in all_pngs:
-        if "contour_gt_masks" in contour_path.parts:
-            try:
-                parts = contour_path.parts
-                idx = parts.index("contour_gt_masks")
-                part_name = parts[idx - 1]
-                sam2_name = parts[idx - 2]
-                
-                if sam2_name != "sam2": 
-                    continue
-                    
-                scene_name = parts[idx - 3]
-                scene_dir = Path(*parts[:idx - 2])
-                
-                rgb_path = scene_dir / "frames" / part_name / "rgb" / contour_path.name
-                palette_path = scene_dir / "sam2" / part_name / "palette" / contour_path.name
-                
-                if rgb_path.exists() and palette_path.exists():
-                    full_id = f"{scene_name}/{part_name}/{contour_path.stem}"
-                    verified_dest = scene_dir / "sam2" / part_name / "masks_verified" / contour_path.name
-                    pairs.append((rgb_path, contour_path, palette_path, verified_dest, full_id))
-            except Exception:
+        # Only consider PNGs whose IMMEDIATE parent dir is contour_gt_masks.
+        if contour_path.parent.name != "contour_gt_masks":
+            continue
+        try:
+            # contour_gt_masks ←── pp ←── ppp ←── scene_dir
+            pp = contour_path.parent.parent
+            ppp = pp.parent
+            scene_dir = ppp.parent
+
+            if ppp.name == "sam2":
+                # Layout A: <scene_dir>/sam2/<phase>/contour_gt_masks/<frame>.png
+                phase = pp.name
+                rgb_path = scene_dir / "frames" / phase / "rgb" / contour_path.name
+                palette_path = scene_dir / "sam2" / phase / "palette" / contour_path.name
+                verified_dest = scene_dir / "sam2" / phase / "masks_verified" / contour_path.name
+            elif pp.name == "sam2":
+                # Layout B: <scene_dir>/<phase>/sam2/contour_gt_masks/<frame>.png
+                phase = ppp.name
+                rgb_path = scene_dir / phase / "rgb" / contour_path.name
+                palette_path = scene_dir / phase / "sam2" / "palette" / contour_path.name
+                verified_dest = scene_dir / phase / "sam2" / "masks_verified" / contour_path.name
+            else:
                 continue
-                
-    # Sort naturally based on the full_id string (index 4)
+
+            scene_name = scene_dir.name
+            if rgb_path.exists() and palette_path.exists():
+                full_id = f"{scene_name}/{phase}/{contour_path.stem}"
+                pairs.append((rgb_path, contour_path, palette_path, verified_dest, full_id))
+        except Exception:
+            continue
+
     pairs.sort(key=lambda x: natural_sort_key(x[4]))
     return pairs
 
 def main():
     global verified_dict
     parser = argparse.ArgumentParser(description="Interactive Review Tool for Masks")
-    parser.add_argument("--base_dir", type=str, required=True, help="Root directory containing all scenes")
+    # Both flags are accepted — the rest of the pipeline uses --scene_dir,
+    # so we alias it here to avoid the cognitive overhead of remembering
+    # which script needs which flag name.
+    parser.add_argument("--base_dir", "--scene_dir", dest="base_dir",
+                        type=str, required=True,
+                        help="Scene or phase directory to review (either layout auto-detected)")
     parser.add_argument("--no_verified", action="store_true", help="Hide previously verified frames.")
     args = parser.parse_args()
 
