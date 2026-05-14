@@ -31,11 +31,11 @@ flowchart TD
     C --> D["<b>2. review_faulty_masks</b><br/>frame-by-frame verify<br/>(S=verified, X=unverify)"]
     D --> E[verified_masks.txt]
     E --> F["<b>3. gen_faulty_from_verified</b><br/>(bridge: all − verified)"]
-    F --> G{iter{N}_faulty.txt<br/>empty?}
+    F --> G{"iter{N}_faulty.txt<br/>empty?"}
     G -- yes --> M["<b>6. mask_to_object</b><br/>mask-id ↔ object-name mapping"]
     G -- no --> H["<b>4. refine_masks_flow</b><br/>SAM2 seeded from verified neighbours<br/>(no human input)"]
     H --> I["<b>5. review_faulty_masks --no_verified</b><br/>re-verify only the previously-faulty"]
-    I --> J{still faulty<br/>after 2-3 iters?}
+    I --> J{"still faulty<br/>after 2-3 iters?"}
     J -- no, converged --> M
     J -- yes, stubborn frames --> K["<b>5b. manual_label_faulty</b><br/>per-frame manual redraw<br/>(seeded from nearest verified)"]
     K --> M
