@@ -73,40 +73,135 @@ def sort_boxes_by_area(boxes, phrases, scores):
 
 def interactive_resize_bboxes(image_pil, bboxes):
     """
-    Interactively resize bounding boxes.
-    
-    Args:
-        image_pil (Image): Image to display.
-        bboxes (list): List of [x1, y1, x2, y2] boxes.
-    
-    Returns:
-        list: Resized bounding boxes.
+    Interactively resize bounding boxes — single window, step through with N/P.
+
+    Senior-engineer rev: image axis uses ``set_aspect('equal')`` so the
+    rendered image NEVER stretches when the window is maximized. Layout uses
+    explicit figure-fraction rects → deterministic at any window size.
     """
-    resized_bboxes = []
-    print(f"[🔧] Starting interactive resizing of {len(bboxes)} bounding boxes...")
+    from .visualization import (
+        _BG, _BRAND_P, _DIM, _TEXT, _TEXT_DIM,
+        _maximize_window, _style_image_axis,
+    )
+
+    bboxes = [list(b) for b in bboxes]
+    n = len(bboxes)
+    if n == 0:
+        return bboxes
+
+    state = {"target": 0, "selector": None}
+
+    fig = plt.figure(figsize=(12, 7))
+    fig.patch.set_facecolor(_BG)
+    try:
+        fig.canvas.manager.set_window_title("RPX · Annotator")
+    except Exception:
+        pass
+
+    # Image axis — same fixed rect as Step 1, aspect-preserved
+    ax = fig.add_axes([0.025, 0.05, 0.95, 0.86])
+    ax.imshow(image_pil)
+    _style_image_axis(ax)
+
+    fig.text(
+        0.025, 0.955, "Resize Boxes",
+        color=_TEXT, fontsize=14, weight="bold",
+    )
+    subtitle = fig.text(
+        0.025, 0.928,
+        f"L-drag to redraw  ·  Q / Enter / → : next box  ·  ← : back  ·  Esc to skip remaining  ·  Resizing 1 / {n}",
+        color=_TEXT_DIM, fontsize=11,
+    )
+
+    # Pre-draw all boxes dimmed; reveal active in pink
+    rects, tags = [], []
     for i, (x1, y1, x2, y2) in enumerate(bboxes):
-        fig, ax = plt.subplots(figsize=(10, 8))
-        ax.imshow(image_pil)
-        ax.set_title(f"Resize Box {i+1}/{len(bboxes)} — Close the window to confirm")
-        ax.axis("off")
-        rect_patch = plt.Rectangle((x1, y1), x2 - x1, y2 - y1,
-                                   edgecolor='lime', facecolor='none', lw=2)
-        ax.add_patch(rect_patch)
-        current_box = [x1, y1, x2, y2]
+        r = plt.Rectangle((x1, y1), x2 - x1, y2 - y1,
+                          edgecolor=_DIM, facecolor="none",
+                          lw=1.2, linestyle="--", alpha=0.6)
+        ax.add_patch(r)
+        rects.append(r)
+        t = ax.text(
+            x1 + 4, y1 + 18, f"{i + 1:02d}",
+            color="white", fontsize=9, weight="bold", alpha=0.5,
+            bbox=dict(facecolor=_DIM, edgecolor="none",
+                      boxstyle="round,pad=0.25", alpha=0.6),
+        )
+        tags.append(t)
+
+    def _activate(idx):
+        for j in range(n):
+            if j == idx:
+                rects[j].set_edgecolor(_BRAND_P)
+                rects[j].set_linewidth(2.5)
+                rects[j].set_linestyle("-")
+                rects[j].set_alpha(1.0)
+                tags[j].set_alpha(1.0)
+                tags[j].set_bbox(dict(facecolor=_BRAND_P, edgecolor="none",
+                                      boxstyle="round,pad=0.25"))
+            else:
+                rects[j].set_edgecolor(_DIM)
+                rects[j].set_linewidth(1.2)
+                rects[j].set_linestyle("--")
+                rects[j].set_alpha(0.6)
+                tags[j].set_alpha(0.5)
+                tags[j].set_bbox(dict(facecolor=_DIM, edgecolor="none",
+                                      boxstyle="round,pad=0.25", alpha=0.6))
+        state["target"] = idx
+        subtitle.set_text(
+            f"L-drag to redraw  ·  Q / Enter / → : next box  ·  ← : back  ·  "
+            f"Esc to skip remaining  ·  Resizing {idx + 1} / {n}"
+        )
+
+        if state["selector"] is not None:
+            try:
+                state["selector"].set_active(False)
+                state["selector"].disconnect_events()
+            except Exception:
+                pass
+
         def on_select(eclick, erelease):
-            cx1, cy1 = eclick.xdata, eclick.ydata
-            cx2, cy2 = erelease.xdata, erelease.ydata
-            current_box[0] = min(cx1, cx2)
-            current_box[1] = min(cy1, cy2)
-            current_box[2] = max(cx1, cx2)
-            current_box[3] = max(cy1, cy2)
-        toggle_selector = RectangleSelector(ax, on_select,
-                                           useblit=True,
-                                           button=[1],
-                                           minspanx=5, minspany=5,
-                                           spancoords='pixels',
-                                           interactive=True)
-        plt.show()
-        resized_bboxes.append(current_box)
-    print(f"[✅] Resizing complete. {len(resized_bboxes)} boxes updated.")
-    return resized_bboxes
+            if eclick.xdata is None or erelease.xdata is None:
+                return
+            x1 = min(eclick.xdata, erelease.xdata)
+            y1 = min(eclick.ydata, erelease.ydata)
+            x2 = max(eclick.xdata, erelease.xdata)
+            y2 = max(eclick.ydata, erelease.ydata)
+            bboxes[state["target"]] = [x1, y1, x2, y2]
+            rects[idx].set_xy((x1, y1))
+            rects[idx].set_width(x2 - x1)
+            rects[idx].set_height(y2 - y1)
+            tags[idx].set_position((x1 + 4, y1 + 18))
+            fig.canvas.draw_idle()
+
+        state["selector"] = RectangleSelector(
+            ax, on_select,
+            useblit=True, button=[1], minspanx=5, minspany=5,
+            spancoords="pixels", interactive=True,
+        )
+        fig.canvas.draw_idle()
+
+    def on_key(event):
+        # Esc — skip remaining boxes immediately, keep edits made so far
+        if event.key == "escape":
+            plt.close(fig)
+            return
+        # Q / Enter / N / right-arrow — confirm THIS box, advance to next.
+        # Past the last box, that confirmation closes the window and the
+        # pipeline moves on to SAM2 propagation.
+        if event.key in ("q", "Q", "enter", "n", "N", "right"):
+            if state["target"] >= n - 1:
+                plt.close(fig)
+            else:
+                _activate(state["target"] + 1)
+            return
+        # Left-arrow / P — back to previous box
+        if event.key in ("p", "P", "left"):
+            _activate(max(0, state["target"] - 1))
+
+    fig.canvas.mpl_connect("key_press_event", on_key)
+    _activate(0)
+    print(f"[🔧] Resizing — {n} box(es). N/P to navigate, drag to redraw, Q to confirm.")
+    plt.show()
+    print(f"[✅] Resizing complete. {n} boxes updated.")
+    return bboxes
