@@ -192,6 +192,7 @@ def _shared_artefact_patterns(modalities: Iterable[str]) -> List[str]:
     patterns: List[str] = []
     if QUESTIONNAIRE in modalities:
         patterns.append("objects_meta/*/questionnaire.json")
+        patterns.append("objects_meta/*/metadata.json")
     return patterns
 
 

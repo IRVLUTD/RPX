@@ -416,6 +416,16 @@ def pack_objects_meta(plan: PackPlan, scan: ScanResult) -> List[SharedArtefact]:
         object_ids.append(scene.scene_id)
         log.info("wrote %s (%d questions)", repo_path, len(parsed))
 
+        meta_src = sos_root / "metadata.json"
+        if meta_src.is_file():
+            meta_repo_path = f"objects_meta/{scene.scene_id}/metadata.json"
+            meta_out = plan.staging_root / meta_repo_path
+            meta_out.write_text(meta_src.read_text(encoding="utf-8"), encoding="utf-8")
+            out.append(SharedArtefact(
+                object_id=scene.scene_id, repo_path=meta_repo_path,
+                total_bytes=meta_out.stat().st_size,
+            ))
+
     index_path = objects_meta / "_index.json"
     index_path.write_text(
         json.dumps({"object_ids": sorted(object_ids)}, indent=2,
