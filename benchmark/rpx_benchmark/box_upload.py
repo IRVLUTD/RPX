@@ -81,7 +81,8 @@ def _load_tokens() -> Optional[dict[str, Any]]:
     if not TOKENS_PATH.is_file():
         return None
     try:
-        return json.loads(TOKENS_PATH.read_text())
+        data: dict[str, Any] = json.loads(TOKENS_PATH.read_text())
+        return data
     except (OSError, json.JSONDecodeError):
         return None
 
@@ -119,20 +120,29 @@ def _refresh_access_token(refresh_token: str, client_id: str, client_secret: str
             hint="The refresh token may have expired (60-day max idle). "
             "Re-run `python -m rpx_benchmark.box_upload login` to re-authorize.",
         )
-    return r.json()
+    body: dict[str, Any] = r.json()
+    return body
 
 
-def _stash_tokens_from_response(resp: dict[str, Any], client_id: str, client_secret: str) -> dict[str, Any]:
-    """Normalize a Box token response into our on-disk format + persist."""
+def _stash_tokens_from_response(resp: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a Box token response into our on-disk format + persist.
+
+    We deliberately do NOT persist client_id / client_secret here — they
+    live in env vars (typically exported in the user's shell rc) so the
+    on-disk file only carries the rotating tokens.
+    """
     tokens = {
         "access_token": resp["access_token"],
         "refresh_token": resp["refresh_token"],
         "expires_at": time.time() + int(resp.get("expires_in", 3600)),
-        "client_id": client_id,
-        "client_secret": client_secret,
     }
     _save_tokens(tokens)
     return tokens
+
+
+def _read_oauth_creds_from_env() -> tuple[Optional[str], Optional[str]]:
+    """Return (client_id, client_secret) from BOX_CLIENT_ID / BOX_CLIENT_SECRET."""
+    return os.environ.get("BOX_CLIENT_ID"), os.environ.get("BOX_CLIENT_SECRET")
 
 
 def _token() -> str:
@@ -140,23 +150,25 @@ def _token() -> str:
 
     Order:
       1. OAuth tokens on disk → refresh if near expiry, return access token.
+         Uses ``BOX_CLIENT_ID`` / ``BOX_CLIENT_SECRET`` from the environment
+         to authenticate the refresh call.
       2. ``BOX_DEVELOPER_TOKEN`` env var (legacy 60-min token).
     """
     tokens = _load_tokens()
     if tokens:
-        client_id = tokens.get("client_id") or os.environ.get("BOX_CLIENT_ID")
-        client_secret = tokens.get("client_secret") or os.environ.get("BOX_CLIENT_SECRET")
-        if not (client_id and client_secret):
-            from .exceptions import ConfigError
-
-            raise ConfigError(
-                "OAuth tokens on disk but BOX_CLIENT_ID / BOX_CLIENT_SECRET unknown.",
-                hint="Set both env vars or re-run `python -m rpx_benchmark.box_upload login`.",
-            )
         if time.time() + EXPIRY_SKEW_SEC >= float(tokens.get("expires_at", 0)):
+            client_id, client_secret = _read_oauth_creds_from_env()
+            if not (client_id and client_secret):
+                from .exceptions import ConfigError
+
+                raise ConfigError(
+                    "OAuth access token expired and BOX_CLIENT_ID / BOX_CLIENT_SECRET not in env.",
+                    hint="Export both (typically from your shell rc) or re-run "
+                    "`python -m rpx_benchmark.box_upload login`.",
+                )
             log.info("[box] access token expired or near expiry — refreshing")
             resp = _refresh_access_token(tokens["refresh_token"], client_id, client_secret)
-            tokens = _stash_tokens_from_response(resp, client_id, client_secret)
+            tokens = _stash_tokens_from_response(resp)
         return str(tokens["access_token"])
 
     tok = os.environ.get("BOX_DEVELOPER_TOKEN")
@@ -172,7 +184,7 @@ def _token() -> str:
     return tok
 
 
-class _CodeCatcher(BaseHTTPRequestHandler):
+class _CodeCatcher(BaseHTTPRequestHandler):  # pragma: no cover
     """Single-shot HTTP handler that captures the OAuth ?code= callback."""
 
     code: Optional[str] = None
@@ -197,7 +209,7 @@ class _CodeCatcher(BaseHTTPRequestHandler):
         return  # silence stderr access log
 
 
-def oauth_login(
+def oauth_login(  # pragma: no cover — interactive: spawns a browser + local HTTPServer
     client_id: Optional[str] = None,
     client_secret: Optional[str] = None,
     redirect_uri: Optional[str] = None,
@@ -267,7 +279,7 @@ def oauth_login(
             f"Box token exchange failed ({r.status_code}): {r.text[:200]}",
             hint="Confirm client_id/client_secret are correct and OAuth 2.0 is enabled on the app.",
         )
-    tokens = _stash_tokens_from_response(r.json(), client_id, client_secret)
+    tokens = _stash_tokens_from_response(r.json())
     sys.stderr.write(
         f"[box] tokens saved to {TOKENS_PATH} (mode 600)\n"
         f"[box] access expires in {int(tokens['expires_at'] - time.time())}s; "
@@ -513,7 +525,7 @@ def upload_run_dir(
     return summary
 
 
-def _cli() -> int:
+def _cli() -> int:  # pragma: no cover — CLI dispatcher; logic lives in the helpers above
     import argparse
 
     ap = argparse.ArgumentParser(prog="python -m rpx_benchmark.box_upload")
