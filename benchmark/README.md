@@ -87,8 +87,43 @@ Full details: [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/
 
 ### 2. Run the depth benchmark
 
+#### First-time, per machine — pre-fetch the task's data
+
+`run_depth.py` builds its manifest from the cached Parquet on disk; it
+does **not** download anything itself. Run the fetcher once to pull
+every tar shard the task needs and auto-extract them into the flat
+`extracted/scenes/<scene>/<phase>/<modality>/<frame>.png` layout the
+loader reads (the extraction happens in-helper, no manual untar step):
+
 ```bash
-# Per model, per split. Add --upload-to-box to mirror the result dir to UTD Box.
+PYTHONPATH=. python -c "
+from rpx_benchmark.dataset_hub.downloader import download_for_task
+r = download_for_task(task='monocular_depth', split='easy', repo_id='IRVLUTD/RPX')
+print(f'  files={r.files_fetched}  bytes={r.bytes_fetched/1e9:.1f}G  scenes={len(r.matched_scenes)}')
+"
+```
+
+Idempotent — re-running is a no-op once the cache is warm. Swap
+`split='medium'` / `split='hard'` to top up the other tiers. Easy is
+~24,750 frames across 99 (scene, phase) pairs.
+
+#### Smoke a model first (~30 s, recommended)
+
+Before any multi-hour run, sanity-check the env on 10 samples:
+
+```bash
+PYTHONPATH=. python scripts/run_depth.py \
+    --repo IRVLUTD/RPX --split easy \
+    --model zoedepth --device cuda --batch-size 1 --max-samples 10
+```
+
+A passing smoke prints `done : logged …` with `rmse`, `delta1`, and
+per-stage timings. If it fails, fix that before launching the sweep.
+
+#### Full sweep — per model, per split
+
+```bash
+# Add --upload-to-box to mirror the result dir to UTD Box (requires Box auth, §0).
 PYTHONPATH=. python scripts/run_depth.py --model <KEY> --split <easy|medium|hard> \
     --save-predictions --comprehensive-metrics --upload-to-box
 ```
