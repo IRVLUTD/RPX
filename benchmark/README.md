@@ -25,8 +25,44 @@ This is the day-the-data-lands launch sequence. **Single-page version:
 ```bash
 pip install -e 'benchmark[hub,viz]'
 hf auth login                                    # for HF dataset push
-export BOX_DEVELOPER_TOKEN='<60-min-token>'      # https://app.box.com/developers/console (refresh hourly)
 ```
+
+#### Box auth (only if you'll pass `--upload-to-box`)
+
+Two modes, **pick one**. OAuth is required for multi-hour sweeps — Box
+dev tokens hard-expire at 60 minutes.
+
+| | OAuth 2.0 (recommended) | Developer token (quick / one-off) |
+|---|---|---|
+| Access token lifetime | 60 min | 60 min |
+| Auto-renews? | **Yes** — refresh-token rotation, ~60-day rolling window | No — manual refresh every hour |
+| Setup | one-time browser login | copy + paste from console |
+| Survives a long sweep? | yes | no — uploads start failing at minute 60 |
+
+**OAuth (recommended).** One-time browser auth captures a refresh token
+that's stored at `~/.config/rpx_benchmark/box_tokens.json` (mode 600) and
+auto-rotated on every upload:
+
+```bash
+# From your Box app at https://app.box.com/developers/console
+export BOX_CLIENT_ID=...
+export BOX_CLIENT_SECRET=...
+export BOX_REDIRECT_URI=http://localhost:8765/callback  # add this exact URI in the app config
+
+python -m rpx_benchmark.box_upload login    # one browser tab; close when it says "complete"
+python -m rpx_benchmark.box_upload whoami   # sanity probe
+```
+
+**Developer token (legacy / smoke tests only).** Refresh hourly from the
+[Box developer console](https://app.box.com/developers/console):
+
+```bash
+export BOX_DEVELOPER_TOKEN='<60-min-token>'
+```
+
+If both are configured, OAuth wins — the dev token is only consulted
+when no OAuth tokens exist on disk. To forget OAuth state:
+`python -m rpx_benchmark.box_upload logout`.
 
 ### 1. Push the dataset to HuggingFace
 
@@ -114,7 +150,7 @@ tree exactly. Idempotent (size-matched skip on re-upload).
 #### Run all 19 across all 3 splits (one shell loop)
 
 ```bash
-# Sweep loop. Drop --upload-to-box if you don't have a fresh BOX_DEVELOPER_TOKEN.
+# Sweep loop. Drop --upload-to-box if you haven't run `box_upload login` (or have no fresh dev token).
 for split in easy medium hard; do
   for model in $(PYTHONPATH=.:scripts python3 -c \
        "from depth_models import list_models; print(' '.join(list_models()))"); do

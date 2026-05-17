@@ -329,6 +329,14 @@ def download_for_task(
         ) from e
 
     local = Path(local_dir)
+
+    # Mirror the post-fetch state that hub.download_split produces: extract
+    # every tar shard to flat per-modality dirs so downstream consumers
+    # (loader, viz, custom scripts) hit pure disk reads instead of opening
+    # and seeking tars per frame. Idempotent — files already on disk skip.
+    from ..hub import _extract_snapshot_tars
+    _extract_snapshot_tars(local)
+
     files = [p for p in local.rglob("*") if p.is_file()]
     bytes_ = sum(p.stat().st_size for p in files)
 

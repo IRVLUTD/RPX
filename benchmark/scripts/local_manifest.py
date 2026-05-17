@@ -232,7 +232,12 @@ def build_local_manifest(
     # The frames Parquet may carry per-(scene, phase) split values; we collapse
     # to per-scene by taking the mode (most common tier across that scene's
     # phases) and overwriting `split` accordingly.
-    scene_split = df.groupby("scene_id")["split"].agg(lambda s: s.value_counts().idxmax())
+    def _mode_split(s):
+        vc = s.dropna().value_counts()
+        return vc.idxmax() if len(vc) else None
+
+    scene_split = df.groupby("scene_id")["split"].agg(_mode_split)
+    scene_split = scene_split.dropna()
     df = df.drop(columns=["split"]).merge(
         scene_split.rename("split"), left_on="scene_id", right_index=True
     )

@@ -372,3 +372,176 @@ def test_task_run_config_accepts_box_flags():
     )
     assert cfg.upload_to_box is True
     assert cfg.box_folder_id == "123456"
+
+
+# ─────────────────────────  OAuth resolver tests  ────────────────────────
+#
+# Cover the post-fetch auth path: tokens on disk → refresh if expired →
+# return access token; fallback to BOX_DEVELOPER_TOKEN; raise when neither
+# is configured. The interactive `oauth_login` is pragma:no-cover (it
+# spawns a browser + HTTPServer).
+
+
+@pytest.fixture
+def _isolated_tokens_path(tmp_path, monkeypatch):
+    """Redirect the OAuth tokens file to a temp dir + clear all Box env vars."""
+    from rpx_benchmark import box_upload
+
+    fake_path = tmp_path / "box_tokens.json"
+    monkeypatch.setattr(box_upload, "TOKENS_PATH", fake_path)
+    for var in ("BOX_DEVELOPER_TOKEN", "BOX_CLIENT_ID", "BOX_CLIENT_SECRET"):
+        monkeypatch.delenv(var, raising=False)
+    return fake_path
+
+
+def test_tokens_roundtrip_persists_only_rotating_fields(_isolated_tokens_path):
+    """_stash_tokens_from_response writes ONLY the rotating fields — no client
+    creds on disk (those stay in env vars)."""
+    import time as _time
+
+    from rpx_benchmark import box_upload
+
+    resp = {
+        "access_token": "AT-1",
+        "refresh_token": "RT-1",
+        "expires_in": 3600,
+    }
+    t0 = _time.time()
+    persisted = box_upload._stash_tokens_from_response(resp)
+
+    assert persisted["access_token"] == "AT-1"
+    assert persisted["refresh_token"] == "RT-1"
+    assert persisted["expires_at"] >= t0 + 3500
+    assert "client_id" not in persisted
+    assert "client_secret" not in persisted
+
+    # And the on-disk JSON matches what we got back
+    loaded = box_upload._load_tokens()
+    assert loaded == persisted
+
+
+def test_load_tokens_returns_none_when_file_missing(_isolated_tokens_path):
+    from rpx_benchmark import box_upload
+
+    assert box_upload._load_tokens() is None
+
+
+def test_load_tokens_returns_none_on_corrupt_json(_isolated_tokens_path):
+    from rpx_benchmark import box_upload
+
+    _isolated_tokens_path.parent.mkdir(parents=True, exist_ok=True)
+    _isolated_tokens_path.write_text("{not valid json")
+    assert box_upload._load_tokens() is None
+
+
+def test_token_prefers_oauth_when_unexpired(_isolated_tokens_path):
+    """Stored OAuth tokens that aren't near expiry are returned as-is — no
+    refresh call, no env lookups."""
+    import time as _time
+
+    from rpx_benchmark import box_upload
+
+    box_upload._save_tokens(
+        {"access_token": "OA-FRESH", "refresh_token": "RT", "expires_at": _time.time() + 9999}
+    )
+    assert box_upload._token() == "OA-FRESH"
+
+
+def test_token_falls_back_to_dev_token_when_no_oauth(_isolated_tokens_path, monkeypatch):
+    """No OAuth tokens on disk → BOX_DEVELOPER_TOKEN is the answer."""
+    from rpx_benchmark import box_upload
+
+    monkeypatch.setenv("BOX_DEVELOPER_TOKEN", "DEV-XYZ")
+    assert box_upload._token() == "DEV-XYZ"
+
+
+def test_token_raises_when_nothing_configured(_isolated_tokens_path):
+    """Neither OAuth tokens nor dev token → ConfigError."""
+    from rpx_benchmark import box_upload
+    from rpx_benchmark.exceptions import ConfigError
+
+    with pytest.raises(ConfigError):
+        box_upload._token()
+
+
+def test_token_refreshes_when_near_expiry(_isolated_tokens_path, monkeypatch):
+    """Expired OAuth access token + creds in env → calls refresh, persists
+    new tokens, returns the new access token."""
+    import time as _time
+
+    from rpx_benchmark import box_upload
+
+    box_upload._save_tokens(
+        {"access_token": "OA-STALE", "refresh_token": "RT-OLD", "expires_at": _time.time() - 60}
+    )
+    monkeypatch.setenv("BOX_CLIENT_ID", "CID")
+    monkeypatch.setenv("BOX_CLIENT_SECRET", "CSEC")
+
+    captured = {}
+
+    def _fake_refresh(refresh_token, client_id, client_secret):
+        captured["refresh_token"] = refresh_token
+        captured["client_id"] = client_id
+        captured["client_secret"] = client_secret
+        return {"access_token": "OA-NEW", "refresh_token": "RT-NEW", "expires_in": 3600}
+
+    monkeypatch.setattr(box_upload, "_refresh_access_token", _fake_refresh)
+
+    assert box_upload._token() == "OA-NEW"
+    assert captured == {"refresh_token": "RT-OLD", "client_id": "CID", "client_secret": "CSEC"}
+
+    on_disk = box_upload._load_tokens()
+    assert on_disk["access_token"] == "OA-NEW"
+    assert on_disk["refresh_token"] == "RT-NEW"
+    assert "client_id" not in on_disk
+    assert "client_secret" not in on_disk
+
+
+def test_token_expired_oauth_without_env_raises(_isolated_tokens_path):
+    """Expired OAuth tokens + no client creds in env → clear ConfigError."""
+    import time as _time
+
+    from rpx_benchmark import box_upload
+    from rpx_benchmark.exceptions import ConfigError
+
+    box_upload._save_tokens(
+        {"access_token": "OA-STALE", "refresh_token": "RT", "expires_at": _time.time() - 1}
+    )
+    with pytest.raises(ConfigError) as excinfo:
+        box_upload._token()
+    assert "client_id" in str(excinfo.value).lower()
+
+
+def test_refresh_access_token_unwraps_response(monkeypatch):
+    """Happy path: HTTP 200 with a JSON body → dict is returned verbatim."""
+    from rpx_benchmark import box_upload
+
+    class _R:
+        ok = True
+        status_code = 200
+
+        def json(self):
+            return {"access_token": "A", "refresh_token": "B", "expires_in": 3600}
+
+    monkeypatch.setattr(box_upload.requests, "post", lambda *a, **k: _R())
+    out = box_upload._refresh_access_token("RT", "CID", "CSEC")
+    assert out == {"access_token": "A", "refresh_token": "B", "expires_in": 3600}
+
+
+def test_refresh_access_token_raises_on_http_error(monkeypatch):
+    """Box returns 400 / 401 → ConfigError that points the user at `login`."""
+    from rpx_benchmark import box_upload
+    from rpx_benchmark.exceptions import ConfigError
+
+    class _R:
+        ok = False
+        status_code = 400
+        text = "invalid_grant"
+
+        def json(self):
+            return {}
+
+    monkeypatch.setattr(box_upload.requests, "post", lambda *a, **k: _R())
+    with pytest.raises(ConfigError) as excinfo:
+        box_upload._refresh_access_token("RT", "CID", "CSEC")
+    assert "login" in str(excinfo.value).lower()
