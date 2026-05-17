@@ -11,8 +11,21 @@ Two public entry points:
   the canonical ``<root_folder_id>/<task>/<model>/<split>/`` path the
   team agreed on.
 
-Auth: reads ``BOX_DEVELOPER_TOKEN`` from the environment at call time
-(tokens expire every 60 minutes, so we don't cache them at import).
+Auth has two modes, in priority order:
+
+1. **OAuth 2.0 with refresh-token rotation** (preferred for long runs).
+   Set ``BOX_CLIENT_ID`` + ``BOX_CLIENT_SECRET`` (+ ``BOX_REDIRECT_URI``,
+   default ``http://localhost:8765/callback``) and run::
+
+       python -m rpx_benchmark.box_upload login
+
+   once to capture the refresh token. Tokens are stored at
+   ``~/.config/rpx_benchmark/box_tokens.json`` (mode 600) and the
+   access token is auto-renewed via the refresh token on every call,
+   so multi-hour benchmark sweeps don't expire mid-run.
+2. **Developer token** (legacy / quick testing). If no OAuth tokens
+   exist on disk we fall back to ``BOX_DEVELOPER_TOKEN`` from the
+   environment — but those are capped at ~60 minutes by Box.
 """
 
 from __future__ import annotations
@@ -21,8 +34,12 @@ import json
 import logging
 import os
 import sys
+import time
+import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import requests
 
@@ -30,13 +47,21 @@ log = logging.getLogger(__name__)
 
 USER_AGENT = "rpx-benchmark/box-upload"
 BOX_API = "https://api.box.com/2.0"
+BOX_AUTHORIZE_URL = "https://account.box.com/api/oauth2/authorize"
+BOX_TOKEN_URL = "https://api.box.com/oauth2/token"
 
 DEFAULT_BOX_FOLDER_ID = "380510613151"  # team's RPX-Outputs folder
+DEFAULT_REDIRECT_URI = "http://localhost:8765/callback"
+TOKENS_PATH = Path("~/.config/rpx_benchmark/box_tokens.json").expanduser()
+# Refresh the access token if it's within this many seconds of expiry,
+# so long-running uploads don't see a 401 mid-call.
+EXPIRY_SKEW_SEC = 60
 
 __all__ = [
     "DEFAULT_BOX_FOLDER_ID",
     "upload_tree",
     "upload_run_dir",
+    "oauth_login",
 ]
 
 
@@ -49,19 +74,206 @@ def _human_bytes(n: int | float) -> str:
     return f"{n:.1f} PB"
 
 
+# ------------------------------------------------------------------ #
+# OAuth 2.0 with refresh-token rotation
+# ------------------------------------------------------------------ #
+def _load_tokens() -> Optional[dict[str, Any]]:
+    if not TOKENS_PATH.is_file():
+        return None
+    try:
+        return json.loads(TOKENS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _save_tokens(tokens: dict[str, Any]) -> None:
+    TOKENS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    TOKENS_PATH.write_text(json.dumps(tokens, indent=2))
+    try:
+        TOKENS_PATH.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _refresh_access_token(refresh_token: str, client_id: str, client_secret: str) -> dict[str, Any]:
+    """Exchange a refresh token for a new (access_token, refresh_token) pair.
+
+    Box rotates refresh tokens on use: the response contains a NEW refresh
+    token that supersedes the old one. The old token is then invalid.
+    """
+    r = requests.post(
+        BOX_TOKEN_URL,
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        timeout=30,
+    )
+    if not r.ok:
+        from .exceptions import ConfigError
+
+        raise ConfigError(
+            f"Box OAuth refresh failed ({r.status_code}): {r.text[:200]}",
+            hint="The refresh token may have expired (60-day max idle). "
+            "Re-run `python -m rpx_benchmark.box_upload login` to re-authorize.",
+        )
+    return r.json()
+
+
+def _stash_tokens_from_response(resp: dict[str, Any], client_id: str, client_secret: str) -> dict[str, Any]:
+    """Normalize a Box token response into our on-disk format + persist."""
+    tokens = {
+        "access_token": resp["access_token"],
+        "refresh_token": resp["refresh_token"],
+        "expires_at": time.time() + int(resp.get("expires_in", 3600)),
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
+    _save_tokens(tokens)
+    return tokens
+
+
 def _token() -> str:
-    """Read BOX_DEVELOPER_TOKEN at call time (not import) so a refreshed
-    token mid-process is picked up."""
+    """Return a valid Box access token, refreshing via OAuth if available.
+
+    Order:
+      1. OAuth tokens on disk → refresh if near expiry, return access token.
+      2. ``BOX_DEVELOPER_TOKEN`` env var (legacy 60-min token).
+    """
+    tokens = _load_tokens()
+    if tokens:
+        client_id = tokens.get("client_id") or os.environ.get("BOX_CLIENT_ID")
+        client_secret = tokens.get("client_secret") or os.environ.get("BOX_CLIENT_SECRET")
+        if not (client_id and client_secret):
+            from .exceptions import ConfigError
+
+            raise ConfigError(
+                "OAuth tokens on disk but BOX_CLIENT_ID / BOX_CLIENT_SECRET unknown.",
+                hint="Set both env vars or re-run `python -m rpx_benchmark.box_upload login`.",
+            )
+        if time.time() + EXPIRY_SKEW_SEC >= float(tokens.get("expires_at", 0)):
+            log.info("[box] access token expired or near expiry — refreshing")
+            resp = _refresh_access_token(tokens["refresh_token"], client_id, client_secret)
+            tokens = _stash_tokens_from_response(resp, client_id, client_secret)
+        return str(tokens["access_token"])
+
     tok = os.environ.get("BOX_DEVELOPER_TOKEN")
     if not tok:
         from .exceptions import ConfigError
 
         raise ConfigError(
-            "BOX_DEVELOPER_TOKEN required for Box upload.",
-            hint="Generate a 60-min developer token at "
-            "https://app.box.com/developers/console and `export BOX_DEVELOPER_TOKEN=...`.",
+            "No Box credentials available.",
+            hint="Either run `python -m rpx_benchmark.box_upload login` (OAuth, "
+            "auto-renews — recommended for long runs) or set "
+            "BOX_DEVELOPER_TOKEN to a 60-min developer token.",
         )
     return tok
+
+
+class _CodeCatcher(BaseHTTPRequestHandler):
+    """Single-shot HTTP handler that captures the OAuth ?code= callback."""
+
+    code: Optional[str] = None
+    error: Optional[str] = None
+
+    def do_GET(self) -> None:  # noqa: N802 — http.server API
+        q = parse_qs(urlparse(self.path).query)
+        _CodeCatcher.code = q.get("code", [None])[0]
+        _CodeCatcher.error = q.get("error_description", q.get("error", [None]))[0]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        body = (
+            "<h2>Box login complete.</h2>"
+            "<p>You can close this tab and return to the terminal.</p>"
+            if _CodeCatcher.code
+            else f"<h2>Box login failed.</h2><pre>{_CodeCatcher.error}</pre>"
+        )
+        self.wfile.write(body.encode("utf-8"))
+
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 — http.server API
+        return  # silence stderr access log
+
+
+def oauth_login(
+    client_id: Optional[str] = None,
+    client_secret: Optional[str] = None,
+    redirect_uri: Optional[str] = None,
+) -> dict[str, Any]:
+    """Interactive one-time login. Opens a browser, captures the auth code on
+    a local HTTP server, exchanges it for tokens, writes them to disk.
+
+    Args default to ``BOX_CLIENT_ID`` / ``BOX_CLIENT_SECRET`` /
+    ``BOX_REDIRECT_URI`` from the environment. ``BOX_REDIRECT_URI`` must
+    match what's configured on the Box app; default is
+    ``http://localhost:8765/callback``.
+    """
+    client_id = client_id or os.environ.get("BOX_CLIENT_ID")
+    client_secret = client_secret or os.environ.get("BOX_CLIENT_SECRET")
+    redirect_uri = redirect_uri or os.environ.get("BOX_REDIRECT_URI") or DEFAULT_REDIRECT_URI
+    if not (client_id and client_secret):
+        from .exceptions import ConfigError
+
+        raise ConfigError(
+            "BOX_CLIENT_ID and BOX_CLIENT_SECRET required for OAuth login.",
+            hint="Set them from your Box app at https://app.box.com/developers/console "
+            "and re-run `python -m rpx_benchmark.box_upload login`.",
+        )
+
+    parsed = urlparse(redirect_uri)
+    if parsed.hostname not in ("localhost", "127.0.0.1") or not parsed.port:
+        from .exceptions import ConfigError
+
+        raise ConfigError(
+            f"redirect_uri must be http://localhost:<port>/<path>; got {redirect_uri!r}",
+            hint="Set BOX_REDIRECT_URI (and the same value in the Box app config) "
+            "to e.g. http://localhost:8765/callback.",
+        )
+
+    authorize = f"{BOX_AUTHORIZE_URL}?" + urlencode(
+        {"response_type": "code", "client_id": client_id, "redirect_uri": redirect_uri}
+    )
+    server = HTTPServer((parsed.hostname, parsed.port), _CodeCatcher)
+    sys.stderr.write(f"[box] opening browser to: {authorize}\n")
+    sys.stderr.write(f"[box] waiting for redirect on {redirect_uri} ...\n")
+    webbrowser.open(authorize)
+    server.handle_request()  # blocks until one callback received
+    server.server_close()
+    if _CodeCatcher.error or not _CodeCatcher.code:
+        from .exceptions import ConfigError
+
+        raise ConfigError(
+            f"OAuth login failed: {_CodeCatcher.error or 'no code returned'}",
+            hint="Check the Box app's redirect URI matches BOX_REDIRECT_URI exactly.",
+        )
+
+    r = requests.post(
+        BOX_TOKEN_URL,
+        data={
+            "grant_type": "authorization_code",
+            "code": _CodeCatcher.code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+        },
+        timeout=30,
+    )
+    if not r.ok:
+        from .exceptions import ConfigError
+
+        raise ConfigError(
+            f"Box token exchange failed ({r.status_code}): {r.text[:200]}",
+            hint="Confirm client_id/client_secret are correct and OAuth 2.0 is enabled on the app.",
+        )
+    tokens = _stash_tokens_from_response(r.json(), client_id, client_secret)
+    sys.stderr.write(
+        f"[box] tokens saved to {TOKENS_PATH} (mode 600)\n"
+        f"[box] access expires in {int(tokens['expires_at'] - time.time())}s; "
+        "refresh token auto-renews on use\n"
+    )
+    return tokens
 
 
 def _api_get(path: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -299,3 +511,54 @@ def upload_run_dir(
     )
     summary["remote_path"] = remote
     return summary
+
+
+def _cli() -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(prog="python -m rpx_benchmark.box_upload")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p_login = sub.add_parser(
+        "login",
+        help="One-time OAuth login. Captures a refresh token for unattended uploads.",
+    )
+    p_login.add_argument("--client-id", default=None, help="default: $BOX_CLIENT_ID")
+    p_login.add_argument("--client-secret", default=None, help="default: $BOX_CLIENT_SECRET")
+    p_login.add_argument(
+        "--redirect-uri",
+        default=None,
+        help=f"default: $BOX_REDIRECT_URI or {DEFAULT_REDIRECT_URI}",
+    )
+
+    sub.add_parser("whoami", help="Print the Box user the current token authenticates as.")
+    sub.add_parser("logout", help="Delete cached OAuth tokens from disk.")
+
+    args = ap.parse_args()
+    if args.cmd == "login":
+        oauth_login(args.client_id, args.client_secret, args.redirect_uri)
+        return 0
+    if args.cmd == "whoami":
+        r = requests.get(
+            f"{BOX_API}/users/me",
+            headers={"Authorization": f"Bearer {_token()}", "User-Agent": USER_AGENT},
+            timeout=30,
+        )
+        if not r.ok:
+            sys.stderr.write(f"[box] {r.status_code}: {r.text[:200]}\n")
+            return 1
+        d = r.json()
+        print(f"{d.get('name')} <{d.get('login')}>  id={d.get('id')}")
+        return 0
+    if args.cmd == "logout":
+        if TOKENS_PATH.exists():
+            TOKENS_PATH.unlink()
+            print(f"removed {TOKENS_PATH}")
+        else:
+            print("no tokens on disk")
+        return 0
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(_cli())
