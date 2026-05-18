@@ -316,15 +316,23 @@ def test_upload_run_dir_escapes_slash_in_model_name(fake_run_dir, mock_box):
     assert out["remote_path"] == "monocular_depth/Intel__zoedepth-nyu-kitti/hard"
 
 
-def test_token_required_raises_with_clear_hint(monkeypatch):
-    """Lazy token read must give a ConfigError that names the env var
-    rather than letting requests emit an auth-header error."""
-    from rpx_benchmark.box_upload import _token
+def test_token_required_raises_with_clear_hint(monkeypatch, tmp_path):
+    """Lazy token read must give a ConfigError that names both auth modes
+    rather than letting requests emit an auth-header error.
+
+    Isolated against ambient OAuth tokens on disk — a real user that ran
+    `box_upload login` on the test box would otherwise have ~/.config/
+    rpx_benchmark/box_tokens.json present and take the OAuth path.
+    """
+    from rpx_benchmark import box_upload
     from rpx_benchmark.exceptions import ConfigError
 
+    monkeypatch.setattr(box_upload, "TOKENS_PATH", tmp_path / "box_tokens.json")
     monkeypatch.delenv("BOX_DEVELOPER_TOKEN", raising=False)
-    with pytest.raises(ConfigError, match="BOX_DEVELOPER_TOKEN"):
-        _token()
+    monkeypatch.delenv("BOX_CLIENT_ID", raising=False)
+    monkeypatch.delenv("BOX_CLIENT_SECRET", raising=False)
+    with pytest.raises(ConfigError, match="BOX_DEVELOPER_TOKEN|box_upload login"):
+        box_upload._token()
 
 
 def test_task_run_config_defaults_box_off():
