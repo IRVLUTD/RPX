@@ -225,6 +225,9 @@ def _assemble_result(
 
 
 def main() -> None:
+    from rpx_benchmark.cleanup import install_signal_cleanup
+    install_signal_cleanup()
+
     ap = argparse.ArgumentParser(
         description="Run an active-perception model end-to-end against an RPX split.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

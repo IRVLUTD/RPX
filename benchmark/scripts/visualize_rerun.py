@@ -233,6 +233,9 @@ def load_pose(reader: TarReader, member: str) -> tuple[np.ndarray, np.ndarray]:
 
 
 def main():
+    from rpx_benchmark.cleanup import install_signal_cleanup
+    install_signal_cleanup()
+
     ap = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=__doc__.split("\n\n", 2)[0],
