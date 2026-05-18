@@ -504,6 +504,9 @@ def _write_summary_md(result: Dict[str, Any], path: Path) -> None:
 
 
 def main() -> None:
+    from rpx_benchmark.cleanup import install_signal_cleanup
+    install_signal_cleanup()
+
     ap = argparse.ArgumentParser(
         description="Run an NVS model end-to-end against an RPX split.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

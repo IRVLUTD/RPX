@@ -430,6 +430,9 @@ def _run_via_local_manifest(
 
 
 def main() -> None:
+    from rpx_benchmark.cleanup import install_signal_cleanup
+    install_signal_cleanup()
+
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 2)[0])
     ap.add_argument("--model", default="zoedepth", help="adapter to use")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")

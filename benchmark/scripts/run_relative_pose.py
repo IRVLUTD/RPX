@@ -476,6 +476,9 @@ def _find_torch_module(adapter):
 
 
 def main() -> None:
+    from rpx_benchmark.cleanup import install_signal_cleanup
+    install_signal_cleanup()
+
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--model", default="opencv_baseline", help="adapter to use")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")
