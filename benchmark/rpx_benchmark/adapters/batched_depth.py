@@ -29,10 +29,13 @@ mask (PIL-only, no OpenCV dep).
 Save layout
 -----------
 When ``save_dir`` is provided, predictions are written as
-``<save_dir>/<scene>/<phase>/<frame>.npz`` (key ``"depth"``, float32
+``<save_dir>/<scene>/<phase>/<frame>.npz`` (key ``"depth"``, float16
 metres) — the same scene/phase shape as the on-disk dataset, so Box
 mirroring, downstream analytics, and per-scene plotting all share one
-navigation pattern.
+navigation pattern. Downstream readers (``comprehensive_depth_metrics``,
+metric/alignment modules) cast back to float32 on load, so storing
+float16 is precision-preserving relative to the adapters' own fp16 forward
+pass and halves the on-disk + Box footprint.
 
 Example
 -------
@@ -209,4 +212,4 @@ class BatchedDepthBenchmarkModel:
         # np.savez_compressed appends '.npz' if the path doesn't end in
         # it, so we write directly to the final path (no .part rename
         # dance — that bug bit us earlier).
-        np.savez_compressed(out, depth=depth.astype(np.float32))
+        np.savez_compressed(out, depth=depth.astype(np.float16))
