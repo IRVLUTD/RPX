@@ -560,7 +560,7 @@ def main() -> None:
             chosen_alignment = getattr(adapter, "native_alignment", "none")
         cli_ux.section(f"Comprehensive metrics (alignment={chosen_alignment})")
         with cli_ux.working("computing per-sample errors + CIs + stratifications"):
-            extras = compute_run(pred_dir, manifest_path, alignment=chosen_alignment)
+            extras = compute_run(pred_dir, manifest_path, alignment=chosen_alignment, snapshot_root=snap)
         out = paths["out_dir"] / "comprehensive_metrics.json"
         import json as _json
 
