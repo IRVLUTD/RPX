@@ -109,7 +109,7 @@ def _member_filename(modality: str, frame_filename: str) -> str:
     return f"{stem}{ext}"
 
 
-def _hf_snapshot_root(repo_id: str = "itaykadosh/rpx-test") -> Path:
+def _hf_snapshot_root(repo_id: str = "itaykadosh/RPX") -> Path:
     """Resolve the most recent local snapshot of an HF dataset cache."""
     cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
     repo_dir = cache / f"datasets--{repo_id.replace('/', '--')}" / "snapshots"
@@ -188,7 +188,7 @@ def build_local_manifest(
     *,
     task: str,
     split: str,
-    repo_id: str = "itaykadosh/rpx-test",
+    repo_id: str = "itaykadosh/RPX",
     snapshot_root: Path | None = None,
     extracted_root: Path | None = None,
     max_samples: int | None = None,
@@ -377,7 +377,7 @@ def _cli():
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--task", default="monocular_depth", choices=sorted(TASK_MODALITIES))
     ap.add_argument("--split", default="easy", choices=["easy", "medium", "hard"])
-    ap.add_argument("--repo", default="itaykadosh/rpx-test")
+    ap.add_argument("--repo", default="itaykadosh/RPX")
     ap.add_argument("--max-samples", type=int, default=None, help="cap (smoke test)")
     ap.add_argument(
         "--extracted-root",

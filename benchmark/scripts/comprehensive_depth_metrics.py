@@ -381,7 +381,7 @@ def _load_mask_from_cache(
     return None
 
 
-def _hf_snapshot_root(repo_id: str = "itaykadosh/rpx-test") -> Path:
+def _hf_snapshot_root(repo_id: str = "itaykadosh/RPX") -> Path:
     import os as _os
 
     cache = Path(_os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
