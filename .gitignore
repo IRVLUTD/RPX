@@ -9,6 +9,24 @@ data/
 # ignored.
 !benchmark/rpx_benchmark/data/
 
+# Same idea for the ego-frame extraction pipeline that lives co-located with
+# the mask-annotation tooling. Track the ego scripts + tests + README; the
+# rest of data/mask_annotation/ stays local (dataset content + legacy tools).
+# The descend-then-re-exclude pattern is required because git won't recurse
+# into an excluded directory to evaluate negation rules deeper in the tree.
+!data/
+data/*
+!data/mask_annotation/
+data/mask_annotation/*
+!data/mask_annotation/maskgen_pipeline/
+data/mask_annotation/maskgen_pipeline/*
+!data/mask_annotation/maskgen_pipeline/ego_sample.py
+!data/mask_annotation/maskgen_pipeline/annotate_ego.py
+!data/mask_annotation/maskgen_pipeline/batch_extract_ego.py
+!data/mask_annotation/maskgen_pipeline/extract_ego_to_rpx_layout.py
+!data/mask_annotation/maskgen_pipeline/test_ego_sample.py
+!data/mask_annotation/maskgen_pipeline/EGO_ANNOTATION.md
+
 # Paper-submission is local-only: strategy briefs, the overleaf LaTeX
 # project, figure artefacts, compiled PDFs. The Croissant ML-metadata
 # template that the dataset_hub code reads has been moved into the
