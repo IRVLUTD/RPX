@@ -128,6 +128,23 @@ def _pick_primary(takes: List[Tuple[Path, Optional[str]]], policy: str) -> int:
 # Extraction (one mp4)
 # --------------------------------------------------------------------------- #
 
+def _exact_indices(total: int, n: int) -> List[int]:
+    """Return a list of length ``n`` of source-frame indices uniformly spread
+    across ``[0, total-1]``. When ``total >= n`` the indices are unique; when
+    ``total < n`` indices repeat (each repeat is forced by the uniform spacing,
+    so duplicates land evenly across the timeline rather than stacking at the
+    tail). This is how short ego clips reach the canonical 250-frame count.
+    """
+    if total <= 0:
+        return []
+    if n <= 1:
+        return [0]
+    if total == 1:
+        return [0] * n
+    step = (total - 1) / (n - 1)
+    return [round(i * step) for i in range(n)]
+
+
 def _extract_one(
     mp4: Path,
     out_dir: Path,
@@ -135,8 +152,16 @@ def _extract_one(
     image_format: str,
     jpeg_quality: int,
 ) -> Tuple[int, int, str]:
-    """Returns ``(n_written, n_in_source, message)``."""
+    """Returns ``(n_written, n_in_source, message)``.
+
+    Always writes exactly ``n_samples`` frames: when the source mp4 has fewer
+    frames available, the deficit is made up by writing the nearest available
+    frame again (uniformly distributed over the timeline, not appended to
+    either end). Output is bit-identical for duplicated indices.
+    """
+    from collections import Counter  # noqa: PLC0415
     import cv2  # noqa: PLC0415
+
     cap = cv2.VideoCapture(str(mp4))
     if not cap.isOpened():
         return 0, 0, f"could not open {mp4}"
@@ -145,8 +170,6 @@ def _extract_one(
         cap.release()
         return 0, 0, f"{mp4.name} reports {total} frames"
 
-    idxs = uniform_sample_indices(0, total - 1, n_samples)
-    want = set(idxs)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if image_format == "jpg":
@@ -154,17 +177,33 @@ def _extract_one(
     else:
         ext, encode_params = "png", [cv2.IMWRITE_PNG_COMPRESSION, 3]
 
-    written, src_frames = [], []
+    # Multiplicity per source frame (Counter is uniform-spread, so duplicates
+    # land 1-2 frames apart across the whole timeline, never stacked at end).
+    idxs = _exact_indices(total, n_samples)
+    multiplicity = Counter(idxs)
+    n_unique_used = len(multiplicity)
+
+    written: List[str] = []
+    src_frames: List[int] = []
     local = 0
     while True:
         ok, frame = cap.read()
         if not ok or frame is None:
             break
-        if local in want:
-            out_path = out_dir / f"{len(written):05d}.{ext}"
-            cv2.imwrite(str(out_path), frame, encode_params)
-            written.append(out_path.name)
-            src_frames.append(local)
+        copies = multiplicity.get(local, 0)
+        if copies > 0:
+            # Encode once, write N times: avoids redundant PNG/JPEG encoding
+            # when the same source frame is duplicated.
+            ok2, encoded = cv2.imencode(f".{ext}", frame, encode_params)
+            if not ok2 or encoded is None:
+                local += 1
+                continue
+            buf = encoded.tobytes()
+            for _ in range(copies):
+                out_path = out_dir / f"{len(written):05d}.{ext}"
+                out_path.write_bytes(buf)
+                written.append(out_path.name)
+                src_frames.append(local)
         local += 1
     cap.release()
 
@@ -173,15 +212,17 @@ def _extract_one(
         "source_mp4": str(mp4),
         "ego_total_frames": total,
         "n_samples_requested": n_samples,
+        "n_unique_source_frames": n_unique_used,
         "image_format": ext,
         "jpeg_quality": jpeg_quality if ext == "jpg" else None,
         "frames": {name: src_frames[i] for i, name in enumerate(written)},
     }, indent=2))
 
     msg = ""
-    if len(written) < n_samples:
-        msg = (f"source mp4 had only {total} frames; took all {len(written)} "
-               f"(requested {n_samples}, no duplicates)")
+    if total < n_samples:
+        n_dup = n_samples - n_unique_used
+        msg = (f"source mp4 had only {total} frames; padded to exactly "
+               f"{n_samples} via {n_dup} duplicated frames (uniformly spread)")
     return len(written), total, msg
 
 
@@ -209,7 +250,9 @@ def _process(record_dict: dict, n_samples: int, fmt: str, q: int, force: bool) -
         rec.n_frames_written = n_written
         rec.n_frames_in_source = n_src
         rec.message = msg
-        rec.status = "ok" if n_written == n_samples else "short"
+        # n_written is now always n_samples (we pad short clips with duplicates).
+        # status="padded" flags scenes that needed duplicates; "ok" = no padding.
+        rec.status = "ok" if n_src >= n_samples else "padded"
     except Exception as e:  # noqa: BLE001
         rec.status = "error"
         rec.message = f"{type(e).__name__}: {e}"
@@ -239,7 +282,7 @@ def write_manifest(records: List[SceneRecord], path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 def _print_line(r: SceneRecord, elapsed: float) -> None:
-    sym = {"ok": "✓", "short": "△", "skip": "·",
+    sym = {"ok": "✓", "padded": "△", "skip": "·",
            "duplicate": "d", "error": "✗"}.get(r.status, "?")
     take = f"take={r.take}" if r.take else "single"
     primary = "" if r.used_as_primary else "  (extra take, not primary)"
@@ -253,7 +296,7 @@ def _print_line(r: SceneRecord, elapsed: float) -> None:
 def _print_summary(records: List[SceneRecord], n_samples: int, out_root: Path) -> None:
     primary = [r for r in records if r.used_as_primary]
     by = {k: [r for r in primary if r.status == k]
-          for k in ("ok", "short", "skip", "duplicate", "error")}
+          for k in ("ok", "padded", "skip", "duplicate", "error")}
     extras = [r for r in records if not r.used_as_primary]
     total_frames = sum(r.n_frames_written for r in records)
     print()
@@ -262,17 +305,19 @@ def _print_summary(records: List[SceneRecord], n_samples: int, out_root: Path) -
     print("=" * 74)
     print(f"  output root          : {out_root}")
     print(f"  primary scenes total : {len(primary)}")
-    print(f"  ok (exact {n_samples:>3d})       : {len(by['ok'])}")
-    print(f"  short (<{n_samples})          : {len(by['short'])}")
+    print(f"  ok (no padding)      : {len(by['ok'])}")
+    print(f"  padded (mp4 <{n_samples})   : {len(by['padded'])}  (duplicates used to reach {n_samples})")
     print(f"  skipped (already done): {len(by['skip'])}")
     print(f"  errors               : {len(by['error'])}")
     print(f"  extra takes recorded : {len(extras)}  (not written as primary)")
     print(f"  total frames written : {total_frames}")
-    if by["short"]:
+    if by["padded"]:
         print()
-        print(f"  Scenes with mp4 shorter than {n_samples} frames:")
-        for r in by["short"]:
-            print(f"    - {r.canonical}: got {r.n_frames_written} from {r.source_mp4}")
+        print(f"  Scenes padded to {n_samples} via duplicated frames:")
+        for r in by["padded"]:
+            n_dup = n_samples - r.n_frames_in_source
+            print(f"    - {r.canonical}: source had {r.n_frames_in_source} unique frames, "
+                  f"{n_dup} duplicates added (still wrote exactly {n_samples} total)")
     if by["error"]:
         print()
         print("  Scenes that errored:")
