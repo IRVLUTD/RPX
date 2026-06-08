@@ -586,10 +586,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_lc.add_argument(
         "--webp-method",
         type=int,
-        default=6,
+        default=4,
         choices=range(0, 7),
         metavar="{0..6}",
-        help="libwebp lossless effort level: 0=fastest/largest, 6=slowest/smallest (default).",
+        help=(
+            "libwebp lossless effort level: 0=fastest/largest, 6=slowest/smallest. "
+            "Default 4: empirically the sweet spot on photo content (method=6 takes "
+            "10x longer for ~0%% extra savings on natural images)."
+        ),
     )
     p_lc.set_defaults(func=_cmd_lossless_convert)
 
