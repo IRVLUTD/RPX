@@ -140,6 +140,13 @@ pip install -e 'benchmark[hub]'
 hf auth login
 
 # DATA = captures root (holds mos/ and sos/), STAGE = scratch dir
+#
+# Optional pre-step: re-encode rgb/ and fisheye/ PNGs as lossless WebP
+# (~25% smaller; bit-identical pixels; depth/masks stay PNG). Hand the
+# resulting tree to pack/manifest/dataset-card just like the original.
+python -m rpx_benchmark.dataset_hub.cli lossless-convert --src DATA --out DATA_webp
+# DATA=DATA_webp from here on if you used the pre-step.
+
 python -m rpx_benchmark.dataset_hub.cli pack            --src DATA --staging STAGE
 python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA --staging STAGE \
                                                          --splits benchmark/data/splits/scene_splits.json
@@ -151,6 +158,12 @@ python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE --repo-i
 # user side (any machine)
 python -m rpx_benchmark.dataset_hub.cli download --task segmentation --split easy
 ```
+
+The downstream tooling (scanner, packer, manifest builder, loader,
+model adapters) is extension-agnostic — `PIL.Image.open` and `cv2.imread`
+both sniff the file header, so a frame loaded from `00000.webp` produces
+the exact same numpy array a `00000.png` would. The lossless-convert
+step is a packaging optimisation, not a format migration.
 
 `mock` is the synthetic-dataset generator for local testing; `scan` is
 the read-only inventory report. Both have flags in `cli.py`.

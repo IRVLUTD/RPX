@@ -193,6 +193,12 @@ embodied deployment conditions.
 
 ## Modality inventory
 
+`rgb/` and `fisheye/` frames are stored as **lossless WebP** (~25%
+smaller on disk than the equivalent PNG; the decoded pixel array is
+bit-identical, so loaders see the same numpy array as before). `depth/`
+stays PNG (16-bit, which WebP-lossless does not support); `masks/`
+stays PNG to preserve palette-mode semantics.
+
 | modality | files | bytes |
 |---|---:|---:|
 {mod_table}

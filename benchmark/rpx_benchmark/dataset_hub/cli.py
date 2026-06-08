@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -23,6 +24,7 @@ from typing import List, Optional
 from .croissant import CroissantPatch, stage_croissant
 from .dataset_card import CardSpec, write_dataset_card
 from .downloader import download_for_task
+from .lossless_convert import ConvertSpec, convert_capture_tree
 from .manifest import build_frame_manifest
 from .mock import MockSpec, generate_mock, measure_tree
 from .packer import PackPlan, pack_capture_tree, pack_objects_meta
@@ -346,6 +348,40 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------- #
+# `lossless-convert`
+# --------------------------------------------------------------------- #
+
+
+def _cmd_lossless_convert(args: argparse.Namespace) -> int:
+    spec = ConvertSpec(
+        src_root=Path(args.src),
+        out_root=Path(args.out),
+        workers=args.workers,
+        dry_run=args.dry_run,
+        verify=not args.no_verify,
+        overwrite_out=args.overwrite_out,
+        webp_method=args.webp_method,
+    )
+    res = convert_capture_tree(spec)
+    if spec.dry_run:
+        print(
+            f"[lossless-convert] DRY-RUN: would convert {res.files_converted:,} files, "
+            f"link {res.files_linked:,} files (total {res.files_seen:,})"
+        )
+        return 0
+    print(
+        f"[lossless-convert] converted {res.files_converted:,} files, "
+        f"linked {res.files_linked:,} files (total {res.files_seen:,})"
+    )
+    print(
+        f"[lossless-convert] bytes_before = {_human_bytes(res.bytes_before)}, "
+        f"bytes_after = {_human_bytes(res.bytes_after)}, "
+        f"saved = {_human_bytes(res.saved_bytes)} ({res.saved_pct:.1f}%)"
+    )
+    return 0
+
+
+# --------------------------------------------------------------------- #
 # `stage-croissant`
 # --------------------------------------------------------------------- #
 
@@ -515,6 +551,47 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_dc.add_argument("--overwrite", action="store_true", help="Overwrite an existing README.md.")
     p_dc.set_defaults(func=_cmd_dataset_card)
+
+    p_lc = sub.add_parser(
+        "lossless-convert",
+        help="Re-encode rgb/ and fisheye/ PNGs to lossless WebP (~25% smaller, bit-identical pixels).",
+    )
+    p_lc.add_argument("--src", required=True, help="Source capture-tree root.")
+    p_lc.add_argument(
+        "--out",
+        required=True,
+        help="Output capture-tree root; must not overlap --src.",
+    )
+    p_lc.add_argument(
+        "--workers",
+        type=int,
+        default=max(1, (os.cpu_count() or 4) - 1),
+        help="Parallel encode workers (default: CPU count - 1).",
+    )
+    p_lc.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Walk the tree and report planned counts without writing anything.",
+    )
+    p_lc.add_argument(
+        "--no-verify",
+        action="store_true",
+        help="Skip the per-frame round-trip np.array_equal check (faster, not recommended).",
+    )
+    p_lc.add_argument(
+        "--overwrite-out",
+        action="store_true",
+        help="Allow writing into a non-empty --out directory.",
+    )
+    p_lc.add_argument(
+        "--webp-method",
+        type=int,
+        default=6,
+        choices=range(0, 7),
+        metavar="{0..6}",
+        help="libwebp lossless effort level: 0=fastest/largest, 6=slowest/smallest (default).",
+    )
+    p_lc.set_defaults(func=_cmd_lossless_convert)
 
     p_cr = sub.add_parser("stage-croissant", help="Copy + patch the Croissant JSON.")
     p_cr.add_argument(
