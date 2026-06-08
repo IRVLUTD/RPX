@@ -9,9 +9,12 @@ data/
 # ignored.
 !benchmark/rpx_benchmark/data/
 
-# Same idea for the ego-frame extraction pipeline that lives co-located with
-# the mask-annotation tooling. Track the ego scripts + tests + README; the
-# rest of data/mask_annotation/ stays local (dataset content + legacy tools).
+# Same idea for the mask-annotation pipeline that lives under data/. Track
+# everything inside maskgen_pipeline/ — the operator scripts (interactive_gsam2,
+# refine_masks_flow, gen_faulty_from_verified, etc.), the ego-frame extractor,
+# the test files, and the README. The rest of data/mask_annotation/ stays local
+# (model checkpoints, vendored SAM2/robokit clones, dataset content).
+#
 # The descend-then-re-exclude pattern is required because git won't recurse
 # into an excluded directory to evaluate negation rules deeper in the tree.
 !data/
@@ -19,13 +22,13 @@ data/*
 !data/mask_annotation/
 data/mask_annotation/*
 !data/mask_annotation/maskgen_pipeline/
-data/mask_annotation/maskgen_pipeline/*
-!data/mask_annotation/maskgen_pipeline/ego_sample.py
-!data/mask_annotation/maskgen_pipeline/annotate_ego.py
-!data/mask_annotation/maskgen_pipeline/batch_extract_ego.py
-!data/mask_annotation/maskgen_pipeline/extract_ego_to_rpx_layout.py
-!data/mask_annotation/maskgen_pipeline/test_ego_sample.py
-!data/mask_annotation/maskgen_pipeline/EGO_ANNOTATION.md
+!data/mask_annotation/*.py
+!data/mask_annotation/*.md
+!data/mask_annotation/*.sh
+!data/mask_annotation/.gitignore
+!data/mask_annotation/pyproject.toml
+!data/mask_annotation/requirements.txt
+!data/mask_annotation/docker/
 
 # Paper-submission is local-only: strategy briefs, the overleaf LaTeX
 # project, figure artefacts, compiled PDFs. The Croissant ML-metadata
