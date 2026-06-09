@@ -141,11 +141,14 @@ hf auth login
 
 # DATA = captures root (holds mos/ and sos/), STAGE = scratch dir
 #
-# Optional pre-step: re-encode rgb/ and fisheye/ PNGs as lossless WebP
-# (~25% smaller; bit-identical pixels; depth/masks stay PNG). Hand the
-# resulting tree to pack/manifest/dataset-card just like the original.
-python -m rpx_benchmark.dataset_hub.cli lossless-convert --src DATA --out DATA_webp
-# DATA=DATA_webp from here on if you used the pre-step.
+# Optional pre-step: re-encode rgb/fisheye/ego PNGs as lossless WebP,
+# re-compress depth/mask PNGs at level 9 (still lossless), and
+# consolidate per-frame cam_pose .npz into per-frame .npy. ~28% denser
+# end-to-end with zero loss; depth/mask file format stays PNG so the
+# benchmarking loaders are untouched. Each modality has its own
+# --skip-* flag to opt out if needed.
+python -m rpx_benchmark.dataset_hub.cli lossless-convert --src DATA --out DATA_v2
+# DATA=DATA_v2 from here on if you used the pre-step.
 
 python -m rpx_benchmark.dataset_hub.cli pack            --src DATA --staging STAGE
 python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA --staging STAGE \
@@ -159,11 +162,23 @@ python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE --repo-i
 python -m rpx_benchmark.dataset_hub.cli download --task segmentation --split easy
 ```
 
-The downstream tooling (scanner, packer, manifest builder, loader,
-model adapters) is extension-agnostic — `PIL.Image.open` and `cv2.imread`
-both sniff the file header, so a frame loaded from `00000.webp` produces
-the exact same numpy array a `00000.png` would. The lossless-convert
-step is a packaging optimisation, not a format migration.
+### lossless-convert — per-modality contract
+
+Every re-encoded artefact is round-trip verified at conversion time:
+the worker decodes the freshly-written file, asserts
+`numpy.array_equal` (or full pose-vector equality for cam_pose), and
+the run aborts on the first mismatch.
+
+| Modality dir | On-disk before | On-disk after | Loader sees | Decoder-side change? |
+|---|---|---|---|---|
+| `rgb/`, `fisheye/`, `ego/rgb/` | `*.png` (8-bit) | `*.webp` (lossless) | identical uint8 array | none — `PIL.Image.open` / `cv2.imread` sniff headers |
+| `depth/` | `*.png` (16-bit I;16) | `*.png` re-encoded at level 9 | identical uint16/float32 array | none — same file format |
+| `sam2/masks/`, `sam2/masks_verified/` | `*.png` (palette / I;16) | `*.png` re-encoded at level 9 | identical int32 instance IDs, mode preserved | none — same file format |
+| `cam_pose/` | `*.npz` ({position, orientation}) | `*.npy` ((7,) float64) | identical 4×4 SE(3) matrix via backward-compatible `_load_pose` dispatch | one-line suffix dispatch already in `loader.py:_load_pose` |
+| anything else | unchanged | hard-linked | unchanged | none |
+
+The per-modality opt-outs are `--skip-rgb-webp`,
+`--skip-png-recompress`, `--skip-cam-pose`.
 
 `mock` is the synthetic-dataset generator for local testing; `scan` is
 the read-only inventory report. Both have flags in `cli.py`.

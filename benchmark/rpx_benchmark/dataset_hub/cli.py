@@ -361,6 +361,10 @@ def _cmd_lossless_convert(args: argparse.Namespace) -> int:
         verify=not args.no_verify,
         overwrite_out=args.overwrite_out,
         webp_method=args.webp_method,
+        png_compress_level=args.png_compress_level,
+        skip_rgb_webp=args.skip_rgb_webp,
+        skip_png_recompress=args.skip_png_recompress,
+        skip_cam_pose=args.skip_cam_pose,
     )
     res = convert_capture_tree(spec)
     if spec.dry_run:
@@ -368,15 +372,23 @@ def _cmd_lossless_convert(args: argparse.Namespace) -> int:
             f"[lossless-convert] DRY-RUN: would convert {res.files_converted:,} files, "
             f"link {res.files_linked:,} files (total {res.files_seen:,})"
         )
+        for action, stats in sorted(res.by_action.items()):
+            print(f"  {action:18s} {stats.files:>7,} files")
         return 0
+    # Per-action savings breakdown
+    for action, stats in sorted(res.by_action.items()):
+        if stats.files == 0:
+            continue
+        print(
+            f"[lossless-convert] {action:18s} "
+            f"{stats.files:>7,} files  "
+            f"{_human_bytes(stats.bytes_before)} → {_human_bytes(stats.bytes_after)}  "
+            f"saved {_human_bytes(stats.saved_bytes)} ({stats.saved_pct:.1f}%)"
+        )
     print(
-        f"[lossless-convert] converted {res.files_converted:,} files, "
-        f"linked {res.files_linked:,} files (total {res.files_seen:,})"
-    )
-    print(
-        f"[lossless-convert] bytes_before = {_human_bytes(res.bytes_before)}, "
-        f"bytes_after = {_human_bytes(res.bytes_after)}, "
-        f"saved = {_human_bytes(res.saved_bytes)} ({res.saved_pct:.1f}%)"
+        f"[lossless-convert] TOTAL: {res.files_seen:,} files  "
+        f"{_human_bytes(res.bytes_before)} → {_human_bytes(res.bytes_after)}  "
+        f"saved {_human_bytes(res.saved_bytes)} ({res.saved_pct:.1f}%)"
     )
     return 0
 
@@ -594,6 +606,32 @@ def build_parser() -> argparse.ArgumentParser:
             "Default 4: empirically the sweet spot on photo content (method=6 takes "
             "10x longer for ~0%% extra savings on natural images)."
         ),
+    )
+    p_lc.add_argument(
+        "--png-compress-level",
+        type=int,
+        default=9,
+        choices=range(0, 10),
+        metavar="{0..9}",
+        help=(
+            "PNG re-encode compression level (0-9). Default 9: densest, still "
+            "lossless. Applied to depth/* and sam2/masks/* PNGs."
+        ),
+    )
+    p_lc.add_argument(
+        "--skip-rgb-webp",
+        action="store_true",
+        help="Skip the rgb/fisheye/ego PNG → WebP-lossless pass.",
+    )
+    p_lc.add_argument(
+        "--skip-png-recompress",
+        action="store_true",
+        help="Skip the depth/masks PNG → PNG-level=9 re-encode pass.",
+    )
+    p_lc.add_argument(
+        "--skip-cam-pose",
+        action="store_true",
+        help="Skip the cam_pose .npz → per-frame .npy consolidation pass.",
     )
     p_lc.set_defaults(func=_cmd_lossless_convert)
 

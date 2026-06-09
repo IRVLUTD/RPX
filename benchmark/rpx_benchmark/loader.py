@@ -454,16 +454,32 @@ class RPXDataset:
         return depth_m
 
     def _load_pose(self, relative_path: str) -> np.ndarray:
-        """Load T265 NPZ pose → 4×4 SE(3) float64 (camera-to-world).
+        """Load a T265 pose → 4×4 SE(3) float64 (camera-to-world).
 
-        NPZ keys:
-          position:    [x, y, z] metres
-          orientation: [x, y, z, w] quaternion (T265 convention)
+        Two on-disk formats are accepted:
+
+        * Legacy ``.npz`` (per-frame zip): ``position`` (3,) +
+          ``orientation`` (4, xyzw quaternion).
+        * Compact ``.npy`` (per-frame raw, produced by the
+          ``lossless-convert`` step): a single ``(7,) float64`` vector
+          packing ``[x, y, z, qx, qy, qz, qw]``. The values are
+          bit-identical to the legacy ``.npz`` form.
         """
         path = self._resolve(relative_path)
         data = np.load(path)
-        position = data["position"].astype(np.float64)  # (3,)
-        quat_xyzw = data["orientation"].astype(np.float64)  # (4,) x,y,z,w
+        if path.suffix.lower() == ".npy":
+            arr = np.asarray(data, dtype=np.float64)
+            if arr.shape != (7,):
+                raise ManifestError(
+                    f"Pose .npy at {path} must be shape (7,) float64; got {arr.shape}",
+                    hint="The dataset_hub lossless-convert step writes a "
+                    "single (7,) vector packing [x, y, z, qx, qy, qz, qw].",
+                )
+            position = arr[:3]
+            quat_xyzw = arr[3:]
+        else:
+            position = data["position"].astype(np.float64)  # (3,)
+            quat_xyzw = data["orientation"].astype(np.float64)  # (4,) xyzw
 
         R = _quat_xyzw_to_rotmat(quat_xyzw)
         T = np.eye(4, dtype=np.float64)
