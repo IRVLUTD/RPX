@@ -33,35 +33,65 @@
 pip install -e 'benchmark[hub]'
 hf auth login
 
-# upload (run on the system that has the ~890 GB captures)
-python -m rpx_benchmark.dataset_hub.cli pack            --src DATA --staging STAGE --overwrite
-python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA --staging STAGE \
-                                                         --splits benchmark/data/splits/scene_splits.json
-# `manifest` writes:
-#   1. STAGE/manifest/frames_v1.parquet   (all-frames index)
-#   2. STAGE/manifest/current.json        (schema version + label versions)
-#   3. STAGE/manifests/<recipe>/<split>.json — per-task per-split manifests
-#      for the 7 task recipes the loader supports (monocular_depth,
-#      segmentation, rgbd_segmentation, stereo_depth, relative_pose,
-#      rgbd_relative_pose, object_tracking) × {easy, medium, hard} = 21 JSONs.
-#      The vqa recipe is wired but emits 0 entries until the team's VQA
-#      label-generation pipeline lands (logs a clear warning).
-#  Without --splits the manifest step now FAILS LOUDLY (used to silently
-#  produce 0 per-task JSONs which made the published HF tree unusable).
-python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE --overwrite
-python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA --staging STAGE --overwrite
-python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE --overwrite
-python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE  --repo-id IRVLUTD/RPX
+# ─── (1) lossless re-encode (NEW, ~30% smaller on disk + over wire) ──────
+# Re-encodes rgb/fisheye/ego PNGs as lossless WebP, re-compresses
+# depth/mask PNGs at level 9, and consolidates per-frame cam_pose
+# .npz into per-frame .npy. Every frame is round-trip verified
+# (np.array_equal) before being written. Mandatory verify — no flag
+# to skip. ~6-9 hours on 8 workers for the full 100-scene capture.
+python -m rpx_benchmark.dataset_hub.cli lossless-convert \
+    --src DATA --out DATA_v2 --workers 8
 
-# download (any machine, any time) — fetches the requested split's
-# manifest + tar shards, then extracts the tars into <snapshot>/extracted/
-# automatically (so RPXDataset.from_manifest can consume the JSON
-# without an extra extraction step on the user side).
+# ─── (2) build the upload tree ──────────────────────────────────────────
+# Use DATA_v2 from here on — everything downstream is extension-
+# agnostic, but the per-modality format detection at manifest time
+# needs the converted tree to know what suffixes to record.
+python -m rpx_benchmark.dataset_hub.cli pack            --src DATA_v2 --staging STAGE --overwrite
+python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA_v2 --staging STAGE \
+                                                         --splits benchmark/data/splits/scene_splits.json
+# `manifest` now writes:
+#   1. STAGE/manifest/frames_v1.parquet        (all-frames index)
+#   2. STAGE/manifest/current.json             (schema + label versions
+#                                               + modality_extensions
+#                                               sniffed from the tree)
+#   3. STAGE/manifest/checksums.json           (SHA-256 of every tar)
+#   4. STAGE/manifest/file_checksums.json      (SHA-256 of every
+#                                               extracted-file path)
+#   5. STAGE/manifests/<recipe>/<split>.json   (per-task per-split JSONs;
+#                                               paths reflect actual
+#                                               on-disk file extensions)
+# Without --splits the manifest step FAILS LOUDLY (used to silently
+# produce 0 per-task JSONs which made the published HF tree unusable).
+python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE --overwrite
+python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA_v2 --staging STAGE --overwrite
+python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE --overwrite
+
+# ─── (3) upload as v2-webp revision (additive — v1 stays accessible) ──
+python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE \
+                                                         --repo-id IRVLUTD/RPX \
+                                                         --revision v2-webp
+
+# ─── (4) (any user, any machine) download + optional integrity check ──
 python -m rpx_benchmark.dataset_hub.cli download --task segmentation --split easy
+# Optional but recommended pre-flight check — verifies the per-file
+# SHA-256 of every extracted file against file_checksums.json.
+# Catches local disk corruption between extract and benchmark.
+python -m rpx_benchmark.dataset_hub.cli verify <snapshot-dir>
 ```
 
 `DATA` is your captures root (the dir holding `mos/` and `sos/`).
+`DATA_v2` is the lossless-converted tree (rgb/fisheye/ego as `.webp`,
+depth/masks re-compressed PNG, cam_pose as `.npy`).
 `STAGE` is any local scratch dir with enough free space.
+
+### Why we ship as `--revision v2-webp` instead of overwriting v1
+
+HF revisions let v1 stay accessible for anyone who's already cited or
+benchmarked against it. v2 lands as a new branch on the same repo. The
+default pointer flips when we're confident; users on
+`revision="v2-webp"` get the smaller, faster format and the fault-proof
+checksums automatically. Anyone pinned to `revision="main"` (or whichever
+revision was the v1 default) sees no change.
 
 ---
 
@@ -70,13 +100,15 @@ python -m rpx_benchmark.dataset_hub.cli download --task segmentation --split eas
 | Command | One-line job |
 |---|---|
 | `scan` | Walk the captures, report counts and bytes per modality. Read-only. |
+| `lossless-convert` | Re-encode rgb/fisheye/ego PNGs → WebP-lossless, re-compress depth/mask PNGs, consolidate per-frame `.npz` → `.npy`. Per-frame round-trip verified, no flag to skip. |
 | `pack` | Bundle each `(scene, phase, modality)` into a tar shard ready for upload. |
-| `manifest` | Build the per-frame Parquet that tells downloaders which scenes belong to which split. |
+| `manifest` | Build the per-frame Parquet + `current.json` (with auto-detected `modality_extensions`) + per-tar `checksums.json` + per-file `file_checksums.json`. |
 | `stage-splits` | Copy `splits/{easy,medium,hard}.txt` and `scene_splits.json` into the staging dir. |
 | `dataset-card` | Generate the `README.md` HuggingFace shows on the dataset page. |
 | `stage-croissant` | Copy the Croissant metadata JSON (see §6 for what that is). |
 | `upload` | Push the staging dir to the HF repo. Resumable. |
 | `download` | (Users.) Pull just the files a `(task, split)` needs. |
+| `verify` | (Users.) Walk an extracted snapshot and check every file's SHA-256 against `file_checksums.json`. Catches local disk corruption that the tar-level checks cannot. |
 
 If you forget any of `stage-splits` / `dataset-card` / `stage-croissant`,
 the upload still works, but the HF dataset page will be sparse and
