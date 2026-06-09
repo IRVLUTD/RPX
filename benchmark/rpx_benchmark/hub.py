@@ -66,6 +66,107 @@ def _load_tar_checksums(snapshot_root: Path) -> Dict[str, str]:
     return {str(k): str(v) for k, v in sha.items() if v}
 
 
+def _load_file_checksums(snapshot_root: Path) -> Dict[str, str]:
+    """Read ``manifest/file_checksums.json`` if it exists.
+
+    Returns a mapping ``{extracted_path: sha256_hex}``. Empty dict
+    means legacy upload — ``verify_dataset`` will report that there is
+    nothing to compare against.
+    """
+    cp = snapshot_root / "manifest" / "file_checksums.json"
+    if not cp.is_file():
+        return {}
+    try:
+        payload = json.loads(cp.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    sha = payload.get("sha256") or {}
+    return {str(k): str(v) for k, v in sha.items() if v}
+
+
+def verify_dataset(
+    snapshot_root: Path | str,
+    *,
+    raise_on_error: bool = True,
+) -> Dict[str, str]:
+    """Walk the extracted tree under ``snapshot_root`` and verify each
+    file's SHA-256 against ``manifest/file_checksums.json``.
+
+    Catches the class of failure that tar-level verification cannot:
+    local disk corruption (cosmic rays, bad sectors), accidental
+    overwrites of extracted files, or any state where the on-disk
+    bytes diverge from what the operator originally packed.
+
+    Returns ``{extracted_path: status}`` where ``status`` is one of:
+
+    * ``"ok"``       — file's SHA-256 matches the manifest exactly.
+    * ``"missing"``  — file is in the manifest but not on disk.
+    * ``"mismatch"`` — file is on disk but its SHA-256 does not match.
+
+    Parameters
+    ----------
+    snapshot_root
+        Root of an HF snapshot (the path returned by ``snapshot_download``,
+        or any local staging dir that ``_extract_snapshot_tars`` has run on).
+    raise_on_error
+        If ``True`` (default), any ``mismatch`` or ``missing`` raises
+        :class:`DatasetError` listing the first ten offenders. Set
+        ``False`` to get the full report dict instead.
+
+    Raises
+    ------
+    DatasetError
+        If ``raise_on_error`` and any file fails verification, **or**
+        if ``manifest/file_checksums.json`` is missing entirely
+        (legacy dataset — verification cannot be done; the caller
+        must explicitly skip verification by examining the empty
+        return from :func:`_load_file_checksums` themselves).
+    """
+    snapshot_root = Path(snapshot_root)
+    expected = _load_file_checksums(snapshot_root)
+    if not expected:
+        if raise_on_error:
+            raise DatasetError(
+                f"no file_checksums.json under {snapshot_root}/manifest/",
+                hint=(
+                    "Per-file verification requires a manifest produced "
+                    "by build_frame_manifest at PR #60 or later. Legacy "
+                    "uploads do not have per-file SHA-256 entries."
+                ),
+            )
+        return {}
+
+    report: Dict[str, str] = {}
+    bad: List[str] = []
+    for rel_path, expected_sha in expected.items():
+        on_disk = snapshot_root / rel_path
+        if not on_disk.is_file():
+            report[rel_path] = "missing"
+            bad.append(f"{rel_path}: missing")
+            continue
+        actual_sha = _file_sha256(on_disk)
+        if actual_sha != expected_sha:
+            report[rel_path] = "mismatch"
+            bad.append(f"{rel_path}: expected {expected_sha[:16]}..., got {actual_sha[:16]}...")
+        else:
+            report[rel_path] = "ok"
+
+    if bad and raise_on_error:
+        summary = "\n  ".join(bad[:10])
+        more = f"\n  ... and {len(bad) - 10} more" if len(bad) > 10 else ""
+        raise DatasetError(
+            f"verify_dataset: {len(bad)} / {len(expected)} files failed "
+            f"verification:\n  {summary}{more}",
+            hint=(
+                "Re-extract the offending tars from the snapshot, or "
+                "re-download. If only a small number of files are bad, "
+                "the most likely cause is local disk corruption — run "
+                "the verifier again after deleting the extracted dir."
+            ),
+        )
+    return report
+
+
 log = get_logger(__name__)
 
 DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "IRVLUTD/rpx-benchmark")

@@ -311,12 +311,90 @@ def build_frame_manifest(
         len(checksums),
         checksums_path,
     )
+
+    # Per-file SHA-256: walk every packed tar, stream each member through
+    # SHA-256, and persist the mapping at manifest/file_checksums.json.
+    # This is the foundation for ``verify_dataset(snapshot_root)`` to
+    # detect local-disk corruption between extract and load — the case
+    # the tar-level SHA-256 cannot guard against.
+    file_checksums = _compute_per_file_checksums(out_dir, pack)
+    file_checksums_path = out_dir / "manifest" / "file_checksums.json"
+    file_checksums_path.write_text(
+        json.dumps(
+            {"algorithm": "sha256", "sha256": file_checksums},
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    log.info(
+        "wrote file_checksums.json: %d extracted-file SHA-256 entries → %s",
+        len(file_checksums),
+        file_checksums_path,
+    )
+
     if modality_extensions:
         log.info(
             "current.json modality_extensions: %s",
             ", ".join(f"{k}={v}" for k, v in sorted(modality_extensions.items())),
         )
     return ManifestPaths(parquet_path=parquet_path, current_json_path=current_path)
+
+
+def _compute_per_file_checksums(
+    out_dir: Path,
+    pack: PackResult,
+) -> Dict[str, str]:
+    """For every member of every packed tar, compute SHA-256 and key it
+    by the *extracted* repo path the user will see after
+    ``_extract_snapshot_tars`` runs.
+
+    Returns ``{ "extracted/scenes/<scene>/<phase>/<member>": sha256_hex }``.
+
+    The per-tar SHA-256 (in ``checksums.json``) guards transport
+    corruption from operator → HF → user. This per-file map guards
+    everything *after* extraction: bit rot on the user's disk, OS-level
+    file corruption, accidental overwrites.
+    """
+    import hashlib
+    import tarfile
+
+    out: Dict[str, str] = {}
+    for shard in pack.shards:
+        tar_path = out_dir / shard.repo_path
+        if not tar_path.is_file():
+            continue
+        # The extracted layout mirrors the tar's nesting: a tar at
+        # ``scenes/scene_x/0/rgb.tar`` whose members are ``rgb/<frame>.webp``
+        # extracts to ``extracted/scenes/scene_x/0/rgb/<frame>.webp``.
+        # Strip the ``.tar`` filename to get the extracted prefix.
+        rel_parts = shard.repo_path.split("/")
+        if not rel_parts or not rel_parts[-1].endswith(".tar"):
+            continue
+        prefix_parts = rel_parts[:-1]
+        # labels/<modality>/<version>.tar extracts straight to
+        # extracted/.../<modality>'s file layout — drop the ``labels/`` and
+        # ``<version>`` segments so the result lives under the modality.
+        if "labels" in prefix_parts:
+            li = prefix_parts.index("labels")
+            prefix_parts = prefix_parts[:li]
+        extracted_prefix = "extracted/" + "/".join(prefix_parts) if prefix_parts else "extracted"
+        try:
+            with tarfile.open(tar_path, "r") as tf:
+                for member in tf.getmembers():
+                    if not member.isfile():
+                        continue
+                    f = tf.extractfile(member)
+                    if f is None:
+                        continue
+                    h = hashlib.sha256()
+                    for chunk in iter(lambda f=f: f.read(1 << 20), b""):
+                        h.update(chunk)
+                    extracted_path = f"{extracted_prefix}/{member.name}"
+                    out[extracted_path] = h.hexdigest()
+        except tarfile.TarError:
+            continue
+    return out
 
 
 def read_frame_manifest(parquet_path: Path):

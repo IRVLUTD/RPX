@@ -80,8 +80,22 @@ def _decode_image(value: Any) -> np.ndarray:
 
 
 def _decode_depth(value: Any) -> np.ndarray:
-    """Depth arrives as a 16-bit PNG in millimetres; return float32 metres."""
+    """Depth arrives as a 16-bit PNG in millimetres; return float32 metres.
+
+    Fault-proof contract: the underlying array must be ``uint16``. A
+    ``uint8`` result here would silently truncate every depth value to
+    8-bit resolution — exactly the failure mode the dataset_hub's
+    fault-proof guarantees exist to prevent.
+    """
     arr = _decode_image(value)
+    if arr.dtype != np.uint16:
+        raise ManifestError(
+            f"Depth decode contract violated: expected uint16, got dtype {arr.dtype}. "
+            f"A uint8 result here silently truncates every depth value "
+            f"to 8-bit resolution.",
+            hint="RPX depth is stored as a single-channel 16-bit PNG in "
+            "millimetres. Re-check the dataset's shard-generation script.",
+        )
     if arr.ndim != 2:
         raise ManifestError(
             f"Depth map must be 2-D, got shape {arr.shape}.",
@@ -94,7 +108,11 @@ def _decode_depth(value: Any) -> np.ndarray:
 
 
 def _decode_mask(value: Any) -> np.ndarray:
-    """Instance mask as int32 H×W with pixel values = instance IDs."""
+    """Instance mask as int32 H×W with pixel values = instance IDs.
+
+    Fault-proof contract: must end up 2-D ``int32`` so palette / I;16 /
+    L modes all normalise to the same integer-ID representation.
+    """
     arr = _decode_image(value)
     if arr.ndim != 2:
         raise ManifestError(

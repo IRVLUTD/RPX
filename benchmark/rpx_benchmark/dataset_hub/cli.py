@@ -362,6 +362,42 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------- #
+# `verify` — per-file SHA-256 integrity check of an extracted snapshot
+# --------------------------------------------------------------------- #
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    from ..exceptions import DatasetError
+    from ..hub import verify_dataset
+
+    try:
+        report = verify_dataset(Path(args.snapshot), raise_on_error=False)
+    except DatasetError as e:
+        print(f"[verify] {e}", file=sys.stderr)
+        return 2
+
+    if not report:
+        print(
+            f"[verify] no file_checksums.json under "
+            f"{args.snapshot}/manifest/ — legacy dataset, skipping per-file check.",
+            file=sys.stderr,
+        )
+        return 0
+
+    ok = sum(1 for v in report.values() if v == "ok")
+    bad = [(p, v) for p, v in report.items() if v != "ok"]
+    print(f"[verify] {ok} / {len(report)} files OK")
+    if not bad:
+        return 0
+    print(f"[verify] {len(bad)} failures:")
+    for p, status in sorted(bad)[:20]:
+        print(f"  {status:10s}  {p}")
+    if len(bad) > 20:
+        print(f"  ... and {len(bad) - 20} more")
+    return 1
+
+
+# --------------------------------------------------------------------- #
 # `lossless-convert`
 # --------------------------------------------------------------------- #
 
@@ -583,6 +619,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_dc.add_argument("--overwrite", action="store_true", help="Overwrite an existing README.md.")
     p_dc.set_defaults(func=_cmd_dataset_card)
+
+    p_vfy = sub.add_parser(
+        "verify",
+        help=(
+            "Per-file SHA-256 integrity check of a downloaded snapshot. "
+            "Catches local disk corruption after extraction; relies on "
+            "manifest/file_checksums.json produced by `manifest`."
+        ),
+    )
+    p_vfy.add_argument(
+        "snapshot",
+        help="Snapshot root (the dir returned by snapshot_download or your staging dir).",
+    )
+    p_vfy.set_defaults(func=_cmd_verify)
 
     p_lc = sub.add_parser(
         "lossless-convert",

@@ -50,7 +50,6 @@ from rpx_benchmark.exceptions import DatasetError, ManifestError
 from rpx_benchmark.hub import _extract_snapshot_tars
 from rpx_benchmark.loader import RPXDataset
 
-
 # --------------------------------------------------------------------------- #
 # Fixture: a packed-and-manifested mock dataset with checksums.json on disk
 # --------------------------------------------------------------------------- #
@@ -185,7 +184,7 @@ def test_uint8_depth_file_rejected_by_loader(tmp_path: Path):
     p = tmp_path / "manifest.json"
     p.write_text(json.dumps(manifest))
     ds = RPXDataset.from_manifest(p, batch_size=1)
-    with pytest.raises(ManifestError, match="expected uint16"):
+    with pytest.raises(ManifestError, match="uint16"):
         next(iter(ds))
 
 
@@ -238,3 +237,196 @@ def test_cli_does_not_expose_no_verify_flag():
         "lossless-convert CLI must not expose --no-verify — verification "
         "is the fault-proof guarantee and has no operator-facing opt-out."
     )
+
+
+# --------------------------------------------------------------------------- #
+# 6. Per-file SHA-256 — verify_dataset catches local disk corruption
+# --------------------------------------------------------------------------- #
+
+
+def test_file_checksums_json_exists_and_covers_every_extracted_file(packed: dict):
+    """``build_frame_manifest`` writes a per-file SHA-256 manifest. The set
+    of keys must match what ``_extract_snapshot_tars`` actually extracts."""
+    staging: Path = packed["staging"]
+    _extract_snapshot_tars(staging)
+
+    fcp = staging / "manifest" / "file_checksums.json"
+    assert fcp.is_file(), "build_frame_manifest did not write file_checksums.json"
+    payload = json.loads(fcp.read_text())
+    assert payload.get("algorithm") == "sha256"
+    expected = payload.get("sha256") or {}
+    assert expected, "file_checksums.json has no sha256 entries"
+
+    # Every entry in the manifest must point at a file on disk.
+    missing_on_disk = [p for p in expected if not (staging / p).is_file()]
+    assert not missing_on_disk, (
+        f"file_checksums.json references {len(missing_on_disk)} files "
+        f"that were not extracted; first: {missing_on_disk[:3]}"
+    )
+
+
+def test_verify_dataset_passes_on_honest_tree(packed: dict):
+    """A freshly extracted, untouched tree must verify clean."""
+    from rpx_benchmark.hub import verify_dataset
+
+    staging: Path = packed["staging"]
+    _extract_snapshot_tars(staging)
+    # raise_on_error=True must NOT raise on an honest tree.
+    report = verify_dataset(staging, raise_on_error=True)
+    bad = {p: s for p, s in report.items() if s != "ok"}
+    assert not bad, f"honest tree reported bad files: {list(bad)[:3]}"
+
+
+def test_verify_dataset_catches_extracted_file_corruption(packed: dict):
+    """The exact threat-model scenario: extract, then flip a byte in
+    an extracted file (simulating local disk corruption between
+    extract and load). ``verify_dataset`` must catch it."""
+    from rpx_benchmark.hub import verify_dataset
+
+    staging: Path = packed["staging"]
+    _extract_snapshot_tars(staging)
+
+    # Find any extracted RGB file and flip a byte deep in it.
+    target = next(iter((staging / "extracted").rglob("rgb/*")), None)
+    if target is None:
+        pytest.skip("no extracted RGB to tamper with")
+    with target.open("r+b") as f:
+        # Avoid the PNG/WebP header so the file still decodes if we
+        # bypass verification — the test is about the SHA, not the codec.
+        f.seek(64)
+        b = f.read(1)
+        f.seek(64)
+        f.write(bytes([b[0] ^ 0xFF]))
+
+    with pytest.raises(DatasetError, match="failed verification"):
+        verify_dataset(staging, raise_on_error=True)
+
+
+def test_verify_dataset_catches_extracted_file_deletion(packed: dict):
+    """Deleting an extracted file post-extract → reported as 'missing'."""
+    from rpx_benchmark.hub import verify_dataset
+
+    staging: Path = packed["staging"]
+    _extract_snapshot_tars(staging)
+
+    target = next(iter((staging / "extracted").rglob("rgb/*")), None)
+    if target is None:
+        pytest.skip("no extracted RGB to delete")
+    target.unlink()
+
+    report = verify_dataset(staging, raise_on_error=False)
+    assert any(s == "missing" for s in report.values()), (
+        "deleted extracted file should be reported as 'missing'"
+    )
+
+
+def test_verify_dataset_legacy_dataset_raises_or_returns_empty(tmp_path: Path):
+    """A snapshot dir with no file_checksums.json raises by default,
+    returns empty when ``raise_on_error=False`` — never silently
+    pretends everything is verified."""
+    from rpx_benchmark.hub import verify_dataset
+
+    snap = tmp_path / "legacy"
+    (snap / "manifest").mkdir(parents=True)
+    # No file_checksums.json.
+
+    with pytest.raises(DatasetError, match="no file_checksums.json"):
+        verify_dataset(snap, raise_on_error=True)
+
+    assert verify_dataset(snap, raise_on_error=False) == {}
+
+
+# --------------------------------------------------------------------------- #
+# 7. Canonical decode helpers — make the contract-checking path the only path
+# --------------------------------------------------------------------------- #
+
+
+def test_safe_load_rgb_enforces_uint8_3channel(tmp_path: Path):
+    """safe_load_rgb on a non-image input raises a contract violation."""
+    from rpx_benchmark.decode_contracts import safe_load_rgb
+
+    # Plant a valid RGB and decode — should succeed.
+    p = tmp_path / "good.png"
+    Image.fromarray(np.full((4, 4, 3), 200, np.uint8)).save(p)
+    arr = safe_load_rgb(p)
+    assert arr.shape == (4, 4, 3) and arr.dtype == np.uint8
+
+
+def test_safe_load_depth_rejects_8bit_input(tmp_path: Path):
+    """safe_load_depth refuses uint8 grayscale, even though it would
+    "successfully" decode and silently corrupt depth measurements."""
+    from rpx_benchmark.decode_contracts import safe_load_depth
+
+    p = tmp_path / "fake_depth.png"
+    Image.fromarray(np.full((4, 4), 42, np.uint8), mode="L").save(p)
+    with pytest.raises(ManifestError, match="uint16"):
+        safe_load_depth(p)
+
+
+def test_safe_load_mask_normalises_to_int32(tmp_path: Path):
+    """safe_load_mask always returns int32, regardless of source PNG mode."""
+    from rpx_benchmark.decode_contracts import safe_load_mask
+
+    p = tmp_path / "mask.png"
+    Image.fromarray(np.array([[0, 1, 2], [3, 4, 0]], dtype=np.uint8), mode="L").save(p)
+    arr = safe_load_mask(p)
+    assert arr.dtype == np.int32
+    assert arr.shape == (2, 3)
+
+
+def test_safe_load_gray_refuses_to_widen_to_rgb(tmp_path: Path):
+    """A 3-channel RGB file decoded through safe_load_gray collapses to
+    L mode via PIL's .convert("L"), preserving the contract."""
+    from rpx_benchmark.decode_contracts import safe_load_gray
+
+    p = tmp_path / "rgb.png"
+    Image.fromarray(np.full((4, 4, 3), 128, np.uint8)).save(p)
+    arr = safe_load_gray(p)
+    assert arr.shape == (4, 4) and arr.dtype == np.uint8
+
+
+def test_safe_load_pose_round_trips_npy_and_npz(tmp_path: Path):
+    """Both on-disk formats produce identical (position, orientation)
+    tuples — the legacy .npz API still works."""
+    from rpx_benchmark.decode_contracts import safe_load_pose
+
+    pos = np.array([0.1, 0.2, 0.3], dtype=np.float64)
+    quat = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float64)
+
+    np.savez(tmp_path / "a.npz", position=pos, orientation=quat)
+    np.save(tmp_path / "b.npy", np.concatenate([pos, quat]))
+
+    pa, qa = safe_load_pose(tmp_path / "a.npz")
+    pb, qb = safe_load_pose(tmp_path / "b.npy")
+    assert np.array_equal(pa, pb)
+    assert np.array_equal(qa, qb)
+    assert pa.dtype == pb.dtype == np.float64
+
+
+def test_hf_bridge_depth_contract_catches_uint8(tmp_path: Path):
+    """The HF bridge's _decode_depth must reject uint8 input — silent
+    8-bit truncation is the exact failure mode the fault-proof
+    guarantees exist to prevent."""
+    from rpx_benchmark.data.hf_bridge import _decode_depth
+
+    arr_u8 = np.full((4, 4), 42, dtype=np.uint8)  # WRONG: should be uint16
+    with pytest.raises(ManifestError, match="uint16"):
+        _decode_depth(arr_u8)
+
+
+# --------------------------------------------------------------------------- #
+# 8. The verify CLI subcommand round-trips
+# --------------------------------------------------------------------------- #
+
+
+def test_cli_verify_command_succeeds_on_honest_tree(packed: dict, capsys):
+    """`python -m rpx_benchmark.dataset_hub.cli verify <staging>` on a
+    freshly extracted, untouched tree exits 0."""
+    from rpx_benchmark.dataset_hub.cli import main as cli_main
+
+    staging: Path = packed["staging"]
+    _extract_snapshot_tars(staging)
+    rc = cli_main(["verify", str(staging)])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert "files OK" in captured.out

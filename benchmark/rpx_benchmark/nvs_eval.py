@@ -27,7 +27,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
-from PIL import Image
 
 from .logging_utils import get_logger
 from .nvs_metrics import (
@@ -55,17 +54,21 @@ D435_H = 480
 # Camera convention utilities
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _load_pose_c2w(npz_path: Path) -> np.ndarray:
     """Load T265 NPZ → 4×4 camera-to-world (OpenCV convention)."""
     data = np.load(npz_path)
     pos = data["position"].astype(np.float64).reshape(3)
     q = data["orientation"].astype(np.float64).reshape(4)  # xyzw
     x, y, z, w = q / np.linalg.norm(q)
-    R = np.array([
-        [1 - 2*(y*y + z*z), 2*(x*y - z*w), 2*(x*z + y*w)],
-        [2*(x*y + z*w), 1 - 2*(x*x + z*z), 2*(y*z - x*w)],
-        [2*(x*z - y*w), 2*(y*z + x*w), 1 - 2*(x*x + y*y)],
-    ], dtype=np.float64)
+    R = np.array(
+        [
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
+        ],
+        dtype=np.float64,
+    )
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = R
     T[:3, 3] = pos
@@ -78,17 +81,22 @@ def c2w_to_w2c(c2w: np.ndarray) -> np.ndarray:
 
 
 def intrinsics_matrix(
-    fx: float = D435_FX, fy: float = D435_FY,
-    cx: float = D435_CX, cy: float = D435_CY,
+    fx: float = D435_FX,
+    fy: float = D435_FY,
+    cx: float = D435_CX,
+    cy: float = D435_CY,
 ) -> np.ndarray:
     """3×3 camera intrinsics matrix."""
     return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64)
 
 
 def normalized_intrinsics(
-    fx: float = D435_FX, fy: float = D435_FY,
-    cx: float = D435_CX, cy: float = D435_CY,
-    w: int = D435_W, h: int = D435_H,
+    fx: float = D435_FX,
+    fy: float = D435_FY,
+    cx: float = D435_CX,
+    cy: float = D435_CY,
+    w: int = D435_W,
+    h: int = D435_H,
 ) -> Tuple[float, float, float, float]:
     """Intrinsics normalized by image dimensions (feed-forward model convention)."""
     return fx / w, fy / h, cx / w, cy / h
@@ -128,6 +136,7 @@ def prepare_camera_for_model(
         pose = c2w @ flip
     else:
         from .exceptions import ConfigError
+
         raise ConfigError(
             f"Unknown camera convention: {convention!r}",
             hint="Use 'opencv_c2w', 'opencv_w2c', or 'opengl_c2w'.",
@@ -149,22 +158,33 @@ def prepare_camera_for_model(
 # Data loading
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _load_rgb(root: Path, rel_path: str) -> np.ndarray:
-    """Load RGB → uint8 HxWx3."""
-    with Image.open(root / rel_path) as im:
-        return np.array(im.convert("RGB"), dtype=np.uint8)
+    """Load RGB → ``(H, W, 3) uint8`` via the canonical decode contract."""
+    from .decode_contracts import safe_load_rgb  # noqa: PLC0415
+
+    return safe_load_rgb(root / rel_path)
 
 
 def _load_depth(root: Path, rel_path: str) -> np.ndarray:
-    """Load 16-bit PNG depth (mm) → float32 metres."""
-    with Image.open(root / rel_path) as im:
-        d = np.array(im, dtype=np.float32)
-    d[d == 0] = 0.0  # keep 0 as invalid
+    """Load 16-bit PNG depth (mm) → float32 metres via the canonical contract.
+
+    The contract helper guarantees the decoded array is ``uint16`` — the
+    silent ``uint8`` truncation that would otherwise be possible if a
+    downstream contributor swapped the source PNG for an 8-bit file
+    cannot happen here.
+    """
+    from .decode_contracts import safe_load_depth  # noqa: PLC0415
+
+    raw = safe_load_depth(root / rel_path)  # (H, W) uint16
+    d = raw.astype(np.float32)
+    d[raw == 0] = 0.0  # keep 0 as invalid sentinel
     return d / 1000.0
 
 
 def load_nvs_sample(
-    root: Path, sample: NVSSample,
+    root: Path,
+    sample: NVSSample,
     camera_convention: str = "opencv_w2c",
 ) -> Dict[str, Any]:
     """Load all data for one NVS evaluation sample.
@@ -179,7 +199,8 @@ def load_nvs_sample(
     ]
 
     target_camera = prepare_camera_for_model(
-        root / sample.target_pose_path, convention=camera_convention,
+        root / sample.target_pose_path,
+        convention=camera_convention,
     )
     gt_rgb = _load_rgb(root, sample.target_rgb_path)
     gt_depth = _load_depth(root, sample.target_depth_path)
@@ -243,6 +264,7 @@ def _compute_lpips(pred: np.ndarray, gt: np.ndarray) -> float:
 # SSIM (proper sliding window, not the global-stats version)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _compute_ssim_proper(pred: np.ndarray, gt: np.ndarray) -> float:
     """SSIM with Gaussian kernel (NerfBaselines standard: k=11, σ=1.5).
 
@@ -250,9 +272,16 @@ def _compute_ssim_proper(pred: np.ndarray, gt: np.ndarray) -> float:
     """
     try:
         from skimage.metrics import structural_similarity
-        return float(structural_similarity(
-            pred, gt, win_size=11, channel_axis=2, data_range=255,
-        ))
+
+        return float(
+            structural_similarity(
+                pred,
+                gt,
+                win_size=11,
+                channel_axis=2,
+                data_range=255,
+            )
+        )
     except ImportError:
         return ssim(pred, gt)
 
@@ -260,6 +289,7 @@ def _compute_ssim_proper(pred: np.ndarray, gt: np.ndarray) -> float:
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-sample evaluation
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def evaluate_single_sample(
     pred_rgb: np.ndarray,
@@ -286,6 +316,7 @@ def evaluate_single_sample(
     # Ensure same shape
     if pred_rgb.shape != gt_rgb.shape:
         from PIL import Image as _PILImage
+
         pred_rgb = np.array(
             _PILImage.fromarray(pred_rgb).resize(
                 (gt_rgb.shape[1], gt_rgb.shape[0]), _PILImage.BILINEAR
@@ -305,6 +336,7 @@ def evaluate_single_sample(
     if pred_depth is not None and gt_depth is not None:
         if pred_depth.shape != gt_depth.shape:
             from PIL import Image as _PILImage
+
             pred_depth = np.array(
                 _PILImage.fromarray(pred_depth).resize(
                     (gt_depth.shape[1], gt_depth.shape[0]), _PILImage.BILINEAR
