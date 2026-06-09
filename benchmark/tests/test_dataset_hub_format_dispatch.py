@@ -162,6 +162,42 @@ def test_build_frame_manifest_writes_v2_extensions(v1_mock: Path, tmp_path: Path
     assert ext.get("masks") == ".png"
 
 
+def test_build_frame_manifest_preserves_unmanaged_top_level_keys(v1_mock: Path, tmp_path: Path):
+    """A pre-existing current.json with extra top-level blocks (the live
+    IRVLUTD/RPX repo carries ``manifests``, ``sos``, ``mos``,
+    ``metadata_versions``) MUST survive a subsequent
+    ``build_frame_manifest`` call. The function may only overwrite the
+    keys it owns (``label_versions``, ``schema_version``,
+    ``modality_extensions``)."""
+    scan = scan_capture_root(v1_mock)
+    staging = tmp_path / "stage"
+    staging.mkdir()
+    (staging / "manifest").mkdir()
+    # Plant a current.json that carries blocks our builder does NOT own.
+    prior = {
+        "label_versions": {"masks": "vOLD"},
+        "schema_version": "vOLD",
+        "manifests": {"frames": "manifest/frames_v1.parquet"},
+        "sos": {"selected_object_count": 70},
+        "mos": {"scene_count": 100, "phase_count": 300},
+        "metadata_versions": {"scene_name_mapping": "v1"},
+    }
+    (staging / "manifest" / "current.json").write_text(json.dumps(prior, indent=2))
+
+    pack = pack_capture_tree(PackPlan(src_root=v1_mock, staging_root=staging), scan)
+    build_frame_manifest(scan, pack, staging)
+
+    cur = json.loads((staging / "manifest" / "current.json").read_text())
+    # Our keys updated:
+    assert cur["schema_version"] != "vOLD"  # we own it; we wrote a fresh value
+    assert cur["label_versions"] != {"masks": "vOLD"}  # we own it; we wrote fresh
+    # Unmanaged blocks preserved verbatim:
+    assert cur["manifests"] == {"frames": "manifest/frames_v1.parquet"}
+    assert cur["sos"] == {"selected_object_count": 70}
+    assert cur["mos"] == {"scene_count": 100, "phase_count": 300}
+    assert cur["metadata_versions"] == {"scene_name_mapping": "v1"}
+
+
 def test_build_frame_manifest_omits_modality_extensions_for_empty_tree(tmp_path: Path):
     """If the scanned tree has nothing recognisable, the field is omitted
     rather than written as an empty dict."""
