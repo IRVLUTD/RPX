@@ -193,6 +193,22 @@ embodied deployment conditions.
 
 ## Modality inventory
 
+Three lossless space-saving steps were applied to this release; each is
+**bit-identical to the source** at the decoded pixel/value level
+(verified per-frame at conversion time):
+
+* `rgb/`, `fisheye/`, `ego/rgb/` are stored as **WebP-lossless**
+  (~45-55% smaller than the source PNGs on real-world photo content).
+* `depth/` and `sam2/masks/` are stored as **PNG re-encoded at
+  `compress_level=9`** (~20% smaller; same PNG file format, palette /
+  16-bit modes preserved exactly).
+* `cam_pose/` per-frame `.npz` files are stored as per-frame `.npy`
+  (~68% smaller; the per-file zip wrapper is removed and the position
+  and orientation are concatenated into one `(7,) float64` vector
+  packing `[x, y, z, qx, qy, qz, qw]`).
+
+Loaders see identical numpy arrays in every modality.
+
 | modality | files | bytes |
 |---|---:|---:|
 {mod_table}
