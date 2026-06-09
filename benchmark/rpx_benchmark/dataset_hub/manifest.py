@@ -274,12 +274,49 @@ def build_frame_manifest(
 
     current_path = out_dir / "manifest" / "current.json"
     modality_extensions = _detect_modality_extensions(scan)
-    current_payload: Dict[str, Any] = {
-        "label_versions": label_versions,
-        "schema_version": SCHEMA_VERSION,
-    }
+
+    # Preserve any pre-existing current.json keys we do not own. The live
+    # IRVLUTD/RPX repo's current.json carries additional top-level blocks
+    # (``manifests``, ``sos``, ``mos``, ``metadata_versions``, …) that
+    # the teammate's separate manifest tooling writes. A naive overwrite
+    # would strip them and break downstream consumers; instead we read
+    # the existing payload (if any), update only the keys we are
+    # authoritative for, and write the merged result back.
+    #
+    # The keys we own (and will overwrite on every run):
+    #
+    #   * ``label_versions``       — from the ``--label-version`` flag
+    #   * ``schema_version``       — fixed at this module's SCHEMA_VERSION
+    #   * ``modality_extensions``  — sniffed from the scanned source tree
+    #
+    # Everything else is left untouched.
+    OWNED_KEYS = {"label_versions", "schema_version", "modality_extensions"}
+    if current_path.is_file():
+        try:
+            current_payload: Dict[str, Any] = json.loads(
+                current_path.read_text(encoding="utf-8"),
+            )
+            if not isinstance(current_payload, dict):
+                current_payload = {}
+        except json.JSONDecodeError:
+            current_payload = {}
+    else:
+        current_payload = {}
+    current_payload["label_versions"] = label_versions
+    current_payload["schema_version"] = SCHEMA_VERSION
     if modality_extensions:
         current_payload["modality_extensions"] = modality_extensions
+    # Don't carry stale modality_extensions if it has nothing to say
+    # AND no prior writer set it.
+    elif "modality_extensions" in current_payload and not current_payload["modality_extensions"]:
+        current_payload.pop("modality_extensions")
+    preserved = sorted(k for k in current_payload if k not in OWNED_KEYS)
+    if preserved:
+        log.info(
+            "current.json: preserved %d unmanaged top-level key(s): %s",
+            len(preserved),
+            ", ".join(preserved),
+        )
     current_path.write_text(
         json.dumps(current_payload, indent=2),
         encoding="utf-8",

@@ -47,6 +47,16 @@ python -m rpx_benchmark.dataset_hub.cli lossless-convert \
 # agnostic, but the per-modality format detection at manifest time
 # needs the converted tree to know what suffixes to record.
 python -m rpx_benchmark.dataset_hub.cli pack            --src DATA_v2 --staging STAGE --overwrite
+
+# IMPORTANT for re-uploads to an *existing* repo (e.g. IRVLUTD/RPX):
+# pull the live manifest/current.json into STAGE first so the manifest
+# builder can merge our owned keys onto whatever extra blocks the team
+# wrote (current.json on IRVLUTD/RPX carries `manifests`, `sos`, `mos`,
+# `metadata_versions` — none of which our toolkit writes; our merge
+# logic preserves them). Skip this for a brand-new repo.
+hf download IRVLUTD/RPX --repo-type dataset --include "manifest/current.json" \
+    --local-dir STAGE 2>/dev/null || true
+
 python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA_v2 --staging STAGE \
                                                          --splits benchmark/data/splits/scene_splits.json
 # `manifest` now writes:
@@ -63,8 +73,13 @@ python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA_v2 --staging 
 # Without --splits the manifest step FAILS LOUDLY (used to silently
 # produce 0 per-task JSONs which made the published HF tree unusable).
 python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE --overwrite
-python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA_v2 --staging STAGE --overwrite
-python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE --overwrite
+# ⚠️ For an *existing* repo (IRVLUTD/RPX), SKIP these two commands —
+# the live dataset card and Croissant already carry hand-crafted
+# `configs:` blocks for the HF dataset viewer that our generators do
+# not (yet) reproduce. Run them only when bootstrapping a brand-new
+# dataset repo:
+# python -m rpx_benchmark.dataset_hub.cli dataset-card    --src DATA_v2 --staging STAGE --overwrite
+# python -m rpx_benchmark.dataset_hub.cli stage-croissant --staging STAGE --overwrite
 
 # ─── (3) upload as v2-webp revision (additive — v1 stays accessible) ──
 python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE \
