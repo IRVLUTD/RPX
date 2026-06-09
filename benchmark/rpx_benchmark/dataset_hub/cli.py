@@ -663,6 +663,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[List[str]] = None) -> int:
     from rpx_benchmark.cleanup import install_signal_cleanup
+
     install_signal_cleanup()
 
     args = build_parser().parse_args(argv)

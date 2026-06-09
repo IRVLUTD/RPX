@@ -8,6 +8,7 @@ ship in robot learning stacks.**
 [![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=main&label=tests&logo=github&style=flat-square)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
 [![docs](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/docs.yml?branch=main&label=docs&logo=materialformkdocs&style=flat-square)](https://irvlutd.github.io/RPX/)
 [![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue?logo=python&logoColor=white&style=flat-square)](https://pypi.org/project/rpx-benchmark/)
+[![dataset](https://img.shields.io/badge/🤗%20Dataset-IRVLUTD%2FRPX-yellow?style=flat-square)](https://huggingface.co/datasets/IRVLUTD/RPX)
 [![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 <pre style="line-height:1.1">
@@ -55,9 +56,11 @@ these axes**: the model that wins on accuracy is rarely the model
 that wins on robustness or cost. RPX is the benchmark that surfaces
 that disagreement instead of hiding it behind a single number.
 
-The dataset lives on HuggingFace. The toolkit is one `pip install`.
-Most users only ever touch `benchmark/`; capture and annotation exist
-to *produce* the dataset, not to consume it.
+The dataset lives on [HuggingFace](https://huggingface.co/datasets/IRVLUTD/RPX)
+(100 scenes × 3 phases, RGB + depth + masks + 6-DoF pose + fisheye stereo,
+~120 GB, CC BY 4.0). The toolkit is one `pip install`. Most users only ever
+touch `benchmark/`; capture and annotation exist to *produce* the dataset,
+not to consume it.
 
 ```
    CAPTURE                 ANNOTATE                 BENCHMARK
