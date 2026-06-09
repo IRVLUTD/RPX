@@ -25,6 +25,7 @@ Repo layout (on HF)::
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tarfile
@@ -32,9 +33,139 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
 
 from .api import Difficulty, TaskType
-from .exceptions import DownloadError, ManifestError
+from .exceptions import DatasetError, DownloadError, ManifestError
 from .loader import RPXDataset
 from .logging_utils import get_logger
+
+
+def _file_sha256(path: Path) -> str:
+    """Stream the file through SHA-256, returning the hexdigest."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _load_tar_checksums(snapshot_root: Path) -> Dict[str, str]:
+    """Read ``manifest/checksums.json`` if it exists.
+
+    Returns a mapping ``{repo_relative_tar_path: sha256_hex}``. An
+    empty dict means no checksum manifest was found — verification is
+    then skipped (legacy uploads), but the rest of the pipeline still
+    works.
+    """
+    cp = snapshot_root / "manifest" / "checksums.json"
+    if not cp.is_file():
+        return {}
+    try:
+        payload = json.loads(cp.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    sha = payload.get("sha256") or {}
+    return {str(k): str(v) for k, v in sha.items() if v}
+
+
+def _load_file_checksums(snapshot_root: Path) -> Dict[str, str]:
+    """Read ``manifest/file_checksums.json`` if it exists.
+
+    Returns a mapping ``{extracted_path: sha256_hex}``. Empty dict
+    means legacy upload — ``verify_dataset`` will report that there is
+    nothing to compare against.
+    """
+    cp = snapshot_root / "manifest" / "file_checksums.json"
+    if not cp.is_file():
+        return {}
+    try:
+        payload = json.loads(cp.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    sha = payload.get("sha256") or {}
+    return {str(k): str(v) for k, v in sha.items() if v}
+
+
+def verify_dataset(
+    snapshot_root: Path | str,
+    *,
+    raise_on_error: bool = True,
+) -> Dict[str, str]:
+    """Walk the extracted tree under ``snapshot_root`` and verify each
+    file's SHA-256 against ``manifest/file_checksums.json``.
+
+    Catches the class of failure that tar-level verification cannot:
+    local disk corruption (cosmic rays, bad sectors), accidental
+    overwrites of extracted files, or any state where the on-disk
+    bytes diverge from what the operator originally packed.
+
+    Returns ``{extracted_path: status}`` where ``status`` is one of:
+
+    * ``"ok"``       — file's SHA-256 matches the manifest exactly.
+    * ``"missing"``  — file is in the manifest but not on disk.
+    * ``"mismatch"`` — file is on disk but its SHA-256 does not match.
+
+    Parameters
+    ----------
+    snapshot_root
+        Root of an HF snapshot (the path returned by ``snapshot_download``,
+        or any local staging dir that ``_extract_snapshot_tars`` has run on).
+    raise_on_error
+        If ``True`` (default), any ``mismatch`` or ``missing`` raises
+        :class:`DatasetError` listing the first ten offenders. Set
+        ``False`` to get the full report dict instead.
+
+    Raises
+    ------
+    DatasetError
+        If ``raise_on_error`` and any file fails verification, **or**
+        if ``manifest/file_checksums.json`` is missing entirely
+        (legacy dataset — verification cannot be done; the caller
+        must explicitly skip verification by examining the empty
+        return from :func:`_load_file_checksums` themselves).
+    """
+    snapshot_root = Path(snapshot_root)
+    expected = _load_file_checksums(snapshot_root)
+    if not expected:
+        if raise_on_error:
+            raise DatasetError(
+                f"no file_checksums.json under {snapshot_root}/manifest/",
+                hint=(
+                    "Per-file verification requires a manifest produced "
+                    "by build_frame_manifest at PR #60 or later. Legacy "
+                    "uploads do not have per-file SHA-256 entries."
+                ),
+            )
+        return {}
+
+    report: Dict[str, str] = {}
+    bad: List[str] = []
+    for rel_path, expected_sha in expected.items():
+        on_disk = snapshot_root / rel_path
+        if not on_disk.is_file():
+            report[rel_path] = "missing"
+            bad.append(f"{rel_path}: missing")
+            continue
+        actual_sha = _file_sha256(on_disk)
+        if actual_sha != expected_sha:
+            report[rel_path] = "mismatch"
+            bad.append(f"{rel_path}: expected {expected_sha[:16]}..., got {actual_sha[:16]}...")
+        else:
+            report[rel_path] = "ok"
+
+    if bad and raise_on_error:
+        summary = "\n  ".join(bad[:10])
+        more = f"\n  ... and {len(bad) - 10} more" if len(bad) > 10 else ""
+        raise DatasetError(
+            f"verify_dataset: {len(bad)} / {len(expected)} files failed "
+            f"verification:\n  {summary}{more}",
+            hint=(
+                "Re-extract the offending tars from the snapshot, or "
+                "re-download. If only a small number of files are bad, "
+                "the most likely cause is local disk corruption — run "
+                "the verifier again after deleting the extracted dir."
+            ),
+        )
+    return report
+
 
 log = get_logger(__name__)
 
@@ -405,6 +536,11 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
         Number of files newly extracted and number already present.
     """
     extracted_root = snapshot_root / "extracted"
+    # Load the manifest's checksums.json (written by build_frame_manifest)
+    # and use it to verify each tar's SHA-256 before extraction. If the
+    # file is missing (legacy datasets) we skip verification — the worst
+    # case is "no defense beyond HF's own SHA check" rather than "abort".
+    expected_checksums = _load_tar_checksums(snapshot_root)
     n_new = 0
     n_skip = 0
     for tar_path in sorted(snapshot_root.rglob("*.tar")):
@@ -416,6 +552,28 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
             rel = tar_path.relative_to(snapshot_root)
         except ValueError:  # symlinks pointing outside; skip
             continue
+        # Fault-proof gate: if this tar has a declared SHA-256, the
+        # bytes on disk must match before any byte is extracted. Any
+        # mismatch is a hard error — we refuse to extract bytes that
+        # could feed corrupted data into downstream benchmarks.
+        rel_posix = rel.as_posix()
+        if expected_checksums and rel_posix in expected_checksums:
+            expected = expected_checksums[rel_posix]
+            if expected is not None:
+                actual = _file_sha256(tar_path)
+                if actual != expected:
+                    raise DatasetError(
+                        (
+                            f"SHA-256 mismatch for {rel_posix}: "
+                            f"expected {expected[:16]}..., got {actual[:16]}..."
+                        ),
+                        hint=(
+                            "The downloaded tar does not match the operator's "
+                            "manifest. Re-download (delete the snapshot dir "
+                            "and re-run download_for_task) or contact the "
+                            "publisher."
+                        ),
+                    )
         # Locate the (scene, phase) prefix: the parts up to and including
         # the first numeric component (the phase index 0/1/2). Example:
         # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'

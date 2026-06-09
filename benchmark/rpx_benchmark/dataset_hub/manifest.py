@@ -42,7 +42,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from ..exceptions import DatasetError
 from ..logging_utils import get_logger
@@ -124,6 +124,58 @@ def _frame_filenames_for(
         if prefer in phase.modalities:
             return sorted(p.name for p in (src / prefer).iterdir() if p.is_file())
     return []
+
+
+# Logical-modality → on-disk sub-path relative to a phase root. These map
+# from the split-manifest's modality vocabulary onto where the actual
+# files live in the scanned tree. Used by :func:`_detect_modality_extensions`
+# to sniff per-modality file extensions for ``current.json``.
+_MODALITY_SUBPATH_FOR_DETECTION: Dict[str, str] = {
+    "rgb": "rgb",
+    "depth": "depth",
+    "fisheye": "fisheye",
+    "fisheye_left": "fisheye/left",
+    "fisheye_right": "fisheye/right",
+    "masks": "sam2/masks",
+    "cam_pose": "cam_pose",
+}
+
+
+def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
+    """Sniff one file per modality directory in the scanned tree and
+    return ``{modality_name: ".png" | ".webp" | ".npz" | ".npy"}``.
+
+    Records the dataset's *on-disk* extension per modality so the
+    split-manifest writer (and any other downstream consumer) can build
+    paths that resolve after extraction without hardcoded assumptions.
+
+    Backward-compatible: if a modality's directory is missing or empty
+    in the scanned tree, that modality is omitted from the returned
+    dict, and downstream code falls back to its built-in defaults.
+    """
+    found: Dict[str, str] = {}
+    for scene in scan.scenes:
+        if not scene.phases:
+            continue
+        sub = "mos" if scene.scene_type is SceneType.MULTI_OBJECT else "sos"
+        phase_root = scan.root / sub / scene.scene_id / str(scene.phases[0].phase_index)
+        for modality, subpath in _MODALITY_SUBPATH_FOR_DETECTION.items():
+            if modality in found:
+                continue
+            mod_dir = phase_root / subpath
+            if not mod_dir.is_dir():
+                continue
+            # Pick the first regular file under this modality's subdir;
+            # rglob handles the case where files live one level deeper
+            # (e.g. ``fisheye/`` has ``left/`` and ``right/`` subdirs but
+            # no files directly inside).
+            for entry in sorted(mod_dir.rglob("*")):
+                if entry.is_file():
+                    found[modality] = entry.suffix
+                    break
+        if len(found) == len(_MODALITY_SUBPATH_FOR_DETECTION):
+            break
+    return found
 
 
 def build_frame_manifest(
@@ -221,12 +273,128 @@ def build_frame_manifest(
     pq.write_table(table, parquet_path, compression="zstd")
 
     current_path = out_dir / "manifest" / "current.json"
+    modality_extensions = _detect_modality_extensions(scan)
+    current_payload: Dict[str, Any] = {
+        "label_versions": label_versions,
+        "schema_version": SCHEMA_VERSION,
+    }
+    if modality_extensions:
+        current_payload["modality_extensions"] = modality_extensions
     current_path.write_text(
-        json.dumps({"label_versions": label_versions, "schema_version": SCHEMA_VERSION}, indent=2),
+        json.dumps(current_payload, indent=2),
         encoding="utf-8",
     )
+
+    # Persist per-tar SHA-256 to manifest/checksums.json. The packer
+    # computes these as part of pack_capture_tree; the downstream
+    # download-side verification in hub._extract_snapshot_tars reads
+    # this file and aborts on any tar whose bytes don't match. Tar
+    # entries whose sha256 is None (rare — only when re-running
+    # manifest without a fresh pack) are still written with a null
+    # value so the absence is explicit, not silent.
+    checksums_path = out_dir / "manifest" / "checksums.json"
+    checksums = {s.repo_path: s.sha256 for s in pack.shards}
+    checksums_path.write_text(
+        json.dumps(
+            {"sha256": checksums, "algorithm": "sha256"},
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
     log.info("wrote manifest: %d rows → %s", len(table), parquet_path)
+    n_with_sha = sum(1 for v in checksums.values() if v)
+    log.info(
+        "wrote checksums.json: %d/%d tar shards have SHA-256 → %s",
+        n_with_sha,
+        len(checksums),
+        checksums_path,
+    )
+
+    # Per-file SHA-256: walk every packed tar, stream each member through
+    # SHA-256, and persist the mapping at manifest/file_checksums.json.
+    # This is the foundation for ``verify_dataset(snapshot_root)`` to
+    # detect local-disk corruption between extract and load — the case
+    # the tar-level SHA-256 cannot guard against.
+    file_checksums = _compute_per_file_checksums(out_dir, pack)
+    file_checksums_path = out_dir / "manifest" / "file_checksums.json"
+    file_checksums_path.write_text(
+        json.dumps(
+            {"algorithm": "sha256", "sha256": file_checksums},
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    log.info(
+        "wrote file_checksums.json: %d extracted-file SHA-256 entries → %s",
+        len(file_checksums),
+        file_checksums_path,
+    )
+
+    if modality_extensions:
+        log.info(
+            "current.json modality_extensions: %s",
+            ", ".join(f"{k}={v}" for k, v in sorted(modality_extensions.items())),
+        )
     return ManifestPaths(parquet_path=parquet_path, current_json_path=current_path)
+
+
+def _compute_per_file_checksums(
+    out_dir: Path,
+    pack: PackResult,
+) -> Dict[str, str]:
+    """For every member of every packed tar, compute SHA-256 and key it
+    by the *extracted* repo path the user will see after
+    ``_extract_snapshot_tars`` runs.
+
+    Returns ``{ "extracted/scenes/<scene>/<phase>/<member>": sha256_hex }``.
+
+    The per-tar SHA-256 (in ``checksums.json``) guards transport
+    corruption from operator → HF → user. This per-file map guards
+    everything *after* extraction: bit rot on the user's disk, OS-level
+    file corruption, accidental overwrites.
+    """
+    import hashlib
+    import tarfile
+
+    out: Dict[str, str] = {}
+    for shard in pack.shards:
+        tar_path = out_dir / shard.repo_path
+        if not tar_path.is_file():
+            continue
+        # The extracted layout mirrors the tar's nesting: a tar at
+        # ``scenes/scene_x/0/rgb.tar`` whose members are ``rgb/<frame>.webp``
+        # extracts to ``extracted/scenes/scene_x/0/rgb/<frame>.webp``.
+        # Strip the ``.tar`` filename to get the extracted prefix.
+        rel_parts = shard.repo_path.split("/")
+        if not rel_parts or not rel_parts[-1].endswith(".tar"):
+            continue
+        prefix_parts = rel_parts[:-1]
+        # labels/<modality>/<version>.tar extracts straight to
+        # extracted/.../<modality>'s file layout — drop the ``labels/`` and
+        # ``<version>`` segments so the result lives under the modality.
+        if "labels" in prefix_parts:
+            li = prefix_parts.index("labels")
+            prefix_parts = prefix_parts[:li]
+        extracted_prefix = "extracted/" + "/".join(prefix_parts) if prefix_parts else "extracted"
+        try:
+            with tarfile.open(tar_path, "r") as tf:
+                for member in tf.getmembers():
+                    if not member.isfile():
+                        continue
+                    f = tf.extractfile(member)
+                    if f is None:
+                        continue
+                    h = hashlib.sha256()
+                    for chunk in iter(lambda f=f: f.read(1 << 20), b""):
+                        h.update(chunk)
+                    extracted_path = f"{extracted_prefix}/{member.name}"
+                    out[extracted_path] = h.hexdigest()
+        except tarfile.TarError:
+            continue
+    return out
 
 
 def read_frame_manifest(parquet_path: Path):

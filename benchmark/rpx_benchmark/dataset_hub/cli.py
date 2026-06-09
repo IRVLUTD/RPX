@@ -216,15 +216,29 @@ def _cmd_manifest(args: argparse.Namespace) -> int:
 def _rehydrate_pack_result(scan, staging):
     """Best-effort reconstruction of PackResult from the staging dir.
 
-    The packer writes deterministic tars; we just re-read tar member
-    counts and sizes here so the manifest builder can populate its
-    has_<modality> / shard_<modality> columns. Hashes are not
-    recomputed — the manifest does not store them, and re-hashing 800
-    GB of tars would be prohibitively slow at manifest time.
+    Re-reads tar member counts and sizes from disk and **re-computes
+    each tar's SHA-256**. The packer writes deterministic tars, so the
+    recomputed hash is the same as the one the packer originally
+    produced. We need it persisted to ``checksums.json`` for
+    download-side verification — silently dropping it to ``None``
+    (as the previous implementation did) would have left the
+    fault-proof contract impossible to enforce at load time.
+
+    For the ~800 GB full-dataset pack on a modern NVMe disk this adds
+    a few minutes to the manifest step — a one-time, upload-machine
+    cost that buys per-tar tamper-evidence for every user from then on.
     """
+    import hashlib
     import tarfile
 
     from .packer import PackedShard, PackResult  # local import to avoid cycles
+
+    def _file_sha256(path: Path) -> str:
+        h = hashlib.sha256()
+        with path.open("rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
 
     shards = []
     for scene in scan.scenes:
@@ -255,7 +269,7 @@ def _rehydrate_pack_result(scan, staging):
                         is_label=is_label,
                         file_count=fc,
                         total_bytes=tar_path.stat().st_size,
-                        sha256=None,
+                        sha256=_file_sha256(tar_path),
                     )
                 )
     return PackResult(shards=shards)
@@ -348,17 +362,59 @@ def _cmd_dataset_card(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------- #
+# `verify` — per-file SHA-256 integrity check of an extracted snapshot
+# --------------------------------------------------------------------- #
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    from ..exceptions import DatasetError
+    from ..hub import verify_dataset
+
+    try:
+        report = verify_dataset(Path(args.snapshot), raise_on_error=False)
+    except DatasetError as e:
+        print(f"[verify] {e}", file=sys.stderr)
+        return 2
+
+    if not report:
+        print(
+            f"[verify] no file_checksums.json under "
+            f"{args.snapshot}/manifest/ — legacy dataset, skipping per-file check.",
+            file=sys.stderr,
+        )
+        return 0
+
+    ok = sum(1 for v in report.values() if v == "ok")
+    bad = [(p, v) for p, v in report.items() if v != "ok"]
+    print(f"[verify] {ok} / {len(report)} files OK")
+    if not bad:
+        return 0
+    print(f"[verify] {len(bad)} failures:")
+    for p, status in sorted(bad)[:20]:
+        print(f"  {status:10s}  {p}")
+    if len(bad) > 20:
+        print(f"  ... and {len(bad) - 20} more")
+    return 1
+
+
+# --------------------------------------------------------------------- #
 # `lossless-convert`
 # --------------------------------------------------------------------- #
 
 
 def _cmd_lossless_convert(args: argparse.Namespace) -> int:
+    # verify=True is unconditional from the CLI. Per-frame round-trip
+    # verification is the load-bearing guarantee that the output tree
+    # is bit-faithful to the source; we do not expose any way to skip
+    # it from the published CLI surface. (The ConvertSpec field still
+    # exists for programmatic callers — tests, in particular — but
+    # operator-facing flags don't let it be set False.)
     spec = ConvertSpec(
         src_root=Path(args.src),
         out_root=Path(args.out),
         workers=args.workers,
         dry_run=args.dry_run,
-        verify=not args.no_verify,
+        verify=True,
         overwrite_out=args.overwrite_out,
         webp_method=args.webp_method,
         png_compress_level=args.png_compress_level,
@@ -564,6 +620,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_dc.add_argument("--overwrite", action="store_true", help="Overwrite an existing README.md.")
     p_dc.set_defaults(func=_cmd_dataset_card)
 
+    p_vfy = sub.add_parser(
+        "verify",
+        help=(
+            "Per-file SHA-256 integrity check of a downloaded snapshot. "
+            "Catches local disk corruption after extraction; relies on "
+            "manifest/file_checksums.json produced by `manifest`."
+        ),
+    )
+    p_vfy.add_argument(
+        "snapshot",
+        help="Snapshot root (the dir returned by snapshot_download or your staging dir).",
+    )
+    p_vfy.set_defaults(func=_cmd_verify)
+
     p_lc = sub.add_parser(
         "lossless-convert",
         help="Re-encode rgb/ and fisheye/ PNGs to lossless WebP (~25% smaller, bit-identical pixels).",
@@ -585,11 +655,9 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Walk the tree and report planned counts without writing anything.",
     )
-    p_lc.add_argument(
-        "--no-verify",
-        action="store_true",
-        help="Skip the per-frame round-trip np.array_equal check (faster, not recommended).",
-    )
+    # Per-frame round-trip verification is mandatory from the CLI — it
+    # is the proof that every output frame is bit-faithful to its source.
+    # There is no --no-verify flag by design.
     p_lc.add_argument(
         "--overwrite-out",
         action="store_true",

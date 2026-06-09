@@ -50,7 +50,6 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List
 
 import numpy as np
-from PIL import Image
 
 from .api import (
     DepthGroundTruth,
@@ -433,22 +432,28 @@ class RPXDataset:
         return path if path.is_absolute() else self.root / path
 
     def _load_rgb(self, relative_path: str) -> np.ndarray:
-        """Load 640×480 RGB image → uint8 H×W×3."""
-        path = self._resolve(relative_path)
-        with Image.open(path) as im:
-            return np.array(im.convert("RGB"), dtype=np.uint8)
+        """Load an RGB image → ``(H, W, 3) uint8``.
+
+        Delegates to :func:`rpx_benchmark.decode_contracts.safe_load_rgb`
+        so the dtype/shape contract is enforced in exactly one place,
+        shared with every adapter that decodes directly.
+        """
+        from .decode_contracts import safe_load_rgb
+
+        return safe_load_rgb(self._resolve(relative_path))
 
     def _load_depth(self, relative_path: str) -> np.ndarray:
-        """Load 16-bit PNG depth (millimetres) → float32 H×W in metres."""
-        path = self._resolve(relative_path)
-        with Image.open(path) as im:
-            depth_mm = np.array(im, dtype=np.float32)
-        if depth_mm.ndim != 2:
-            raise ManifestError(
-                f"Depth file at {path} is not 2-D: got shape {depth_mm.shape}",
-                hint="RPX depth maps are single-channel 16-bit PNGs in millimetres.",
-            )
-        # Convert mm → metres; zero pixels = invalid (no return)
+        """Load a 16-bit PNG depth file → ``(H, W) float32`` in metres.
+
+        Decoding is delegated to
+        :func:`rpx_benchmark.decode_contracts.safe_load_depth`, which
+        guarantees ``uint16`` (the only correct decode for 16-bit
+        depth PNGs). We then cast to float32 and scale mm → m.
+        """
+        from .decode_contracts import safe_load_depth
+
+        raw = safe_load_depth(self._resolve(relative_path))  # (H, W) uint16
+        depth_mm = raw.astype(np.float32)
         depth_m = depth_mm / 1000.0
         depth_m[depth_mm == 0] = 0.0  # keep 0 as "invalid" sentinel
         return depth_m
@@ -485,26 +490,30 @@ class RPXDataset:
         T = np.eye(4, dtype=np.float64)
         T[:3, :3] = R
         T[:3, 3] = position
+        if T.shape != (4, 4) or T.dtype != np.float64:
+            raise ManifestError(
+                f"Pose load contract violated at {path}: "
+                f"expected (4, 4) float64, got shape {T.shape} dtype {T.dtype}",
+            )
         return T
 
     def _load_mask(self, relative_path: str) -> np.ndarray:
-        """Load segmentation mask PNG → int32 H×W (pixel values = instance IDs)."""
-        path = self._resolve(relative_path)
-        with Image.open(path) as im:
-            mask = np.array(im, dtype=np.int32)
-        if mask.ndim != 2:
-            raise ManifestError(
-                f"Mask file at {path} is not 2-D: got shape {mask.shape}",
-                hint="RPX instance masks are single-channel PNGs whose "
-                "pixel values are instance IDs.",
-            )
-        return mask
+        """Load an instance-segmentation mask → ``(H, W) int32``.
+
+        Delegates to :func:`rpx_benchmark.decode_contracts.safe_load_mask`.
+        """
+        from .decode_contracts import safe_load_mask
+
+        return safe_load_mask(self._resolve(relative_path))
 
     def _load_gray(self, relative_path: str) -> np.ndarray:
-        """Load grayscale image (fisheye) → uint8 H×W."""
-        path = self._resolve(relative_path)
-        with Image.open(path) as im:
-            return np.array(im.convert("L"), dtype=np.uint8)
+        """Load a grayscale image (fisheye) → ``(H, W) uint8``.
+
+        Delegates to :func:`rpx_benchmark.decode_contracts.safe_load_gray`.
+        """
+        from .decode_contracts import safe_load_gray
+
+        return safe_load_gray(self._resolve(relative_path))
 
     def _load_boxes(self, relative_path: str):
         path = self._resolve(relative_path)
