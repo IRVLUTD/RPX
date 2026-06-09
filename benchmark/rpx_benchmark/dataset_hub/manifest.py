@@ -284,7 +284,33 @@ def build_frame_manifest(
         json.dumps(current_payload, indent=2),
         encoding="utf-8",
     )
+
+    # Persist per-tar SHA-256 to manifest/checksums.json. The packer
+    # computes these as part of pack_capture_tree; the downstream
+    # download-side verification in hub._extract_snapshot_tars reads
+    # this file and aborts on any tar whose bytes don't match. Tar
+    # entries whose sha256 is None (rare — only when re-running
+    # manifest without a fresh pack) are still written with a null
+    # value so the absence is explicit, not silent.
+    checksums_path = out_dir / "manifest" / "checksums.json"
+    checksums = {s.repo_path: s.sha256 for s in pack.shards}
+    checksums_path.write_text(
+        json.dumps(
+            {"sha256": checksums, "algorithm": "sha256"},
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
     log.info("wrote manifest: %d rows → %s", len(table), parquet_path)
+    n_with_sha = sum(1 for v in checksums.values() if v)
+    log.info(
+        "wrote checksums.json: %d/%d tar shards have SHA-256 → %s",
+        n_with_sha,
+        len(checksums),
+        checksums_path,
+    )
     if modality_extensions:
         log.info(
             "current.json modality_extensions: %s",

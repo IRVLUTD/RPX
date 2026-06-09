@@ -433,16 +433,52 @@ class RPXDataset:
         return path if path.is_absolute() else self.root / path
 
     def _load_rgb(self, relative_path: str) -> np.ndarray:
-        """Load 640×480 RGB image → uint8 H×W×3."""
+        """Load 640×480 RGB image → uint8 H×W×3.
+
+        Runtime contract: any divergence from ``(H, W, 3) uint8`` raises
+        ``ManifestError``. Catches the "decoder silently returned the
+        wrong dtype/shape" class of bug before the array reaches a model.
+        """
         path = self._resolve(relative_path)
         with Image.open(path) as im:
-            return np.array(im.convert("RGB"), dtype=np.uint8)
+            arr = np.array(im.convert("RGB"), dtype=np.uint8)
+        if arr.dtype != np.uint8 or arr.ndim != 3 or arr.shape[-1] != 3:
+            raise ManifestError(
+                f"RGB load contract violated at {path}: "
+                f"expected (H, W, 3) uint8, got shape {arr.shape} dtype {arr.dtype}",
+                hint=(
+                    "If you authored the adapter that called this, verify "
+                    "the on-disk file is a standard RGB image. If the file "
+                    "is correct, this is a decoder regression — file a bug."
+                ),
+            )
+        return arr
 
     def _load_depth(self, relative_path: str) -> np.ndarray:
-        """Load 16-bit PNG depth (millimetres) → float32 H×W in metres."""
+        """Load 16-bit PNG depth (millimetres) → float32 H×W in metres.
+
+        Runtime contract: the underlying PNG must decode to ``uint16``
+        (the I;16 mode PIL returns for 16-bit single-channel PNGs).
+        We then cast to float32 and divide by 1000 to produce metres.
+        A file that decodes to uint8 would silently lose 8 bits of
+        depth precision; this guard makes that case loud.
+        """
         path = self._resolve(relative_path)
         with Image.open(path) as im:
-            depth_mm = np.array(im, dtype=np.float32)
+            raw = np.asarray(im)
+        if raw.dtype != np.uint16:
+            raise ManifestError(
+                f"Depth load contract violated at {path}: "
+                f"expected uint16 (16-bit PNG), got dtype {raw.dtype}. "
+                f"A uint8 result here would silently truncate every depth "
+                f"value to 8-bit resolution.",
+                hint=(
+                    "The on-disk file is not a 16-bit PNG. RPX depth maps "
+                    "are written by save_device_data.py at 16-bit single "
+                    "channel and must stay that way through any conversion."
+                ),
+            )
+        depth_mm = raw.astype(np.float32)
         if depth_mm.ndim != 2:
             raise ManifestError(
                 f"Depth file at {path} is not 2-D: got shape {depth_mm.shape}",
@@ -485,26 +521,55 @@ class RPXDataset:
         T = np.eye(4, dtype=np.float64)
         T[:3, :3] = R
         T[:3, 3] = position
+        if T.shape != (4, 4) or T.dtype != np.float64:
+            raise ManifestError(
+                f"Pose load contract violated at {path}: "
+                f"expected (4, 4) float64, got shape {T.shape} dtype {T.dtype}",
+            )
         return T
 
     def _load_mask(self, relative_path: str) -> np.ndarray:
-        """Load segmentation mask PNG → int32 H×W (pixel values = instance IDs)."""
+        """Load segmentation mask PNG → int32 H×W (pixel values = instance IDs).
+
+        Runtime contract: the result must be 2-D ``int32`` (the
+        ``np.array(..., dtype=np.int32)`` cast normalises any palette /
+        I;16 / L mode the PNG declares to a uniform integer-ID
+        representation, but it should not introduce extra dimensions).
+        """
         path = self._resolve(relative_path)
         with Image.open(path) as im:
             mask = np.array(im, dtype=np.int32)
-        if mask.ndim != 2:
+        if mask.ndim != 2 or mask.dtype != np.int32:
             raise ManifestError(
-                f"Mask file at {path} is not 2-D: got shape {mask.shape}",
+                f"Mask file at {path}: expected 2-D int32, "
+                f"got shape {mask.shape} dtype {mask.dtype}",
                 hint="RPX instance masks are single-channel PNGs whose "
                 "pixel values are instance IDs.",
             )
         return mask
 
     def _load_gray(self, relative_path: str) -> np.ndarray:
-        """Load grayscale image (fisheye) → uint8 H×W."""
+        """Load grayscale image (fisheye) → uint8 H×W.
+
+        Runtime contract: must be 2-D ``uint8``. ``.convert("L")``
+        normalises 8-bit grayscale PNG / WebP-lossless / any other
+        single-channel container, so this cast cannot silently widen
+        to RGB.
+        """
         path = self._resolve(relative_path)
         with Image.open(path) as im:
-            return np.array(im.convert("L"), dtype=np.uint8)
+            arr = np.array(im.convert("L"), dtype=np.uint8)
+        if arr.ndim != 2 or arr.dtype != np.uint8:
+            raise ManifestError(
+                f"Grayscale image at {path}: expected 2-D uint8, "
+                f"got shape {arr.shape} dtype {arr.dtype}",
+                hint=(
+                    "RPX fisheye images are 8-bit single-channel. If you "
+                    "see a 3-channel result, the source file is not what "
+                    "the manifest declared."
+                ),
+            )
+        return arr
 
     def _load_boxes(self, relative_path: str):
         path = self._resolve(relative_path)

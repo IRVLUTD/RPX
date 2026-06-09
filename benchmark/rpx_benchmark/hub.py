@@ -25,6 +25,7 @@ Repo layout (on HF)::
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tarfile
@@ -32,9 +33,38 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
 
 from .api import Difficulty, TaskType
-from .exceptions import DownloadError, ManifestError
+from .exceptions import DatasetError, DownloadError, ManifestError
 from .loader import RPXDataset
 from .logging_utils import get_logger
+
+
+def _file_sha256(path: Path) -> str:
+    """Stream the file through SHA-256, returning the hexdigest."""
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _load_tar_checksums(snapshot_root: Path) -> Dict[str, str]:
+    """Read ``manifest/checksums.json`` if it exists.
+
+    Returns a mapping ``{repo_relative_tar_path: sha256_hex}``. An
+    empty dict means no checksum manifest was found — verification is
+    then skipped (legacy uploads), but the rest of the pipeline still
+    works.
+    """
+    cp = snapshot_root / "manifest" / "checksums.json"
+    if not cp.is_file():
+        return {}
+    try:
+        payload = json.loads(cp.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    sha = payload.get("sha256") or {}
+    return {str(k): str(v) for k, v in sha.items() if v}
+
 
 log = get_logger(__name__)
 
@@ -405,6 +435,11 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
         Number of files newly extracted and number already present.
     """
     extracted_root = snapshot_root / "extracted"
+    # Load the manifest's checksums.json (written by build_frame_manifest)
+    # and use it to verify each tar's SHA-256 before extraction. If the
+    # file is missing (legacy datasets) we skip verification — the worst
+    # case is "no defense beyond HF's own SHA check" rather than "abort".
+    expected_checksums = _load_tar_checksums(snapshot_root)
     n_new = 0
     n_skip = 0
     for tar_path in sorted(snapshot_root.rglob("*.tar")):
@@ -416,6 +451,28 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
             rel = tar_path.relative_to(snapshot_root)
         except ValueError:  # symlinks pointing outside; skip
             continue
+        # Fault-proof gate: if this tar has a declared SHA-256, the
+        # bytes on disk must match before any byte is extracted. Any
+        # mismatch is a hard error — we refuse to extract bytes that
+        # could feed corrupted data into downstream benchmarks.
+        rel_posix = rel.as_posix()
+        if expected_checksums and rel_posix in expected_checksums:
+            expected = expected_checksums[rel_posix]
+            if expected is not None:
+                actual = _file_sha256(tar_path)
+                if actual != expected:
+                    raise DatasetError(
+                        (
+                            f"SHA-256 mismatch for {rel_posix}: "
+                            f"expected {expected[:16]}..., got {actual[:16]}..."
+                        ),
+                        hint=(
+                            "The downloaded tar does not match the operator's "
+                            "manifest. Re-download (delete the snapshot dir "
+                            "and re-run download_for_task) or contact the "
+                            "publisher."
+                        ),
+                    )
         # Locate the (scene, phase) prefix: the parts up to and including
         # the first numeric component (the phase index 0/1/2). Example:
         # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'

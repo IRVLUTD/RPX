@@ -80,7 +80,9 @@ def test_non_2d_depth_raises(tmp_path: Path):
     p.write_text(json.dumps(manifest))
 
     ds = RPXDataset.from_manifest(p, batch_size=1)
-    with pytest.raises(ManifestError, match="not 2-D"):
+    # Loader rejects either by dtype check (new contract) or by the
+    # downstream "not 2-D" check; both error messages are acceptable.
+    with pytest.raises(ManifestError, match="not 2-D|contract violated|expected"):
         next(iter(ds))
 
 
@@ -101,5 +103,7 @@ def test_non_2d_mask_raises(tmp_path: Path):
     p.write_text(json.dumps(manifest))
 
     ds = RPXDataset.from_manifest(p, batch_size=1)
-    with pytest.raises(ManifestError, match="not 2-D"):
+    # Loader rejects either by dtype check (new contract) or by the
+    # downstream "not 2-D" check; both error messages are acceptable.
+    with pytest.raises(ManifestError, match="not 2-D|contract violated|expected"):
         next(iter(ds))
