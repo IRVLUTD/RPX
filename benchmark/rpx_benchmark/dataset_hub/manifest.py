@@ -42,7 +42,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from ..exceptions import DatasetError
 from ..logging_utils import get_logger
@@ -124,6 +124,58 @@ def _frame_filenames_for(
         if prefer in phase.modalities:
             return sorted(p.name for p in (src / prefer).iterdir() if p.is_file())
     return []
+
+
+# Logical-modality → on-disk sub-path relative to a phase root. These map
+# from the split-manifest's modality vocabulary onto where the actual
+# files live in the scanned tree. Used by :func:`_detect_modality_extensions`
+# to sniff per-modality file extensions for ``current.json``.
+_MODALITY_SUBPATH_FOR_DETECTION: Dict[str, str] = {
+    "rgb": "rgb",
+    "depth": "depth",
+    "fisheye": "fisheye",
+    "fisheye_left": "fisheye/left",
+    "fisheye_right": "fisheye/right",
+    "masks": "sam2/masks",
+    "cam_pose": "cam_pose",
+}
+
+
+def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
+    """Sniff one file per modality directory in the scanned tree and
+    return ``{modality_name: ".png" | ".webp" | ".npz" | ".npy"}``.
+
+    Records the dataset's *on-disk* extension per modality so the
+    split-manifest writer (and any other downstream consumer) can build
+    paths that resolve after extraction without hardcoded assumptions.
+
+    Backward-compatible: if a modality's directory is missing or empty
+    in the scanned tree, that modality is omitted from the returned
+    dict, and downstream code falls back to its built-in defaults.
+    """
+    found: Dict[str, str] = {}
+    for scene in scan.scenes:
+        if not scene.phases:
+            continue
+        sub = "mos" if scene.scene_type is SceneType.MULTI_OBJECT else "sos"
+        phase_root = scan.root / sub / scene.scene_id / str(scene.phases[0].phase_index)
+        for modality, subpath in _MODALITY_SUBPATH_FOR_DETECTION.items():
+            if modality in found:
+                continue
+            mod_dir = phase_root / subpath
+            if not mod_dir.is_dir():
+                continue
+            # Pick the first regular file under this modality's subdir;
+            # rglob handles the case where files live one level deeper
+            # (e.g. ``fisheye/`` has ``left/`` and ``right/`` subdirs but
+            # no files directly inside).
+            for entry in sorted(mod_dir.rglob("*")):
+                if entry.is_file():
+                    found[modality] = entry.suffix
+                    break
+        if len(found) == len(_MODALITY_SUBPATH_FOR_DETECTION):
+            break
+    return found
 
 
 def build_frame_manifest(
@@ -221,11 +273,23 @@ def build_frame_manifest(
     pq.write_table(table, parquet_path, compression="zstd")
 
     current_path = out_dir / "manifest" / "current.json"
+    modality_extensions = _detect_modality_extensions(scan)
+    current_payload: Dict[str, Any] = {
+        "label_versions": label_versions,
+        "schema_version": SCHEMA_VERSION,
+    }
+    if modality_extensions:
+        current_payload["modality_extensions"] = modality_extensions
     current_path.write_text(
-        json.dumps({"label_versions": label_versions, "schema_version": SCHEMA_VERSION}, indent=2),
+        json.dumps(current_payload, indent=2),
         encoding="utf-8",
     )
     log.info("wrote manifest: %d rows → %s", len(table), parquet_path)
+    if modality_extensions:
+        log.info(
+            "current.json modality_extensions: %s",
+            ", ".join(f"{k}={v}" for k, v in sorted(modality_extensions.items())),
+        )
     return ManifestPaths(parquet_path=parquet_path, current_json_path=current_path)
 
 

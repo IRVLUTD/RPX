@@ -62,7 +62,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +80,14 @@ log = logging.getLogger(__name__)
 # 16-bit mm, cam_pose → .npz containing the SE(3) matrix).
 
 _MODALITY_LAYOUT: Dict[str, Tuple[str, str, str]] = {
-    # modality_name → (parquet_col_suffix, extracted_subdir, ext)
+    # modality_name → (parquet_col_suffix, extracted_subdir, default_ext)
+    #
+    # ``default_ext`` is the v1-style extension. Real-world datasets are
+    # described by ``current.json``'s ``modality_extensions`` block
+    # (written by the manifest builder); when a per-modality entry is
+    # present there, it overrides this default at write-split-manifests
+    # time. Anything missing from ``current.json`` keeps the v1 default
+    # for backward compatibility with already-uploaded datasets.
     "rgb": ("rgb", "rgb", ".png"),
     "depth": ("depth", "depth", ".png"),
     "fisheye": ("fisheye", "fisheye", ".png"),  # see note for left/right
@@ -91,21 +98,50 @@ _MODALITY_LAYOUT: Dict[str, Tuple[str, str, str]] = {
 }
 
 
+# Active layout for the duration of one ``write_split_manifests`` call.
+# Module-level rather than a thread-local because this whole subsystem
+# is invoked single-threadedly from the CLI. Reset to ``None`` on the
+# way out so a subsequent call without overrides falls back to defaults.
+_active_layout: Optional[Dict[str, Tuple[str, str, str]]] = None
+
+
+def _current_layout() -> Dict[str, Tuple[str, str, str]]:
+    return _active_layout if _active_layout is not None else _MODALITY_LAYOUT
+
+
+def _layout_with_overrides(
+    extensions: Mapping[str, str],
+) -> Dict[str, Tuple[str, str, str]]:
+    """Return a copy of ``_MODALITY_LAYOUT`` with per-modality extensions
+    swapped in from ``extensions``. Unknown modality names in
+    ``extensions`` are ignored (forward compatibility with any new
+    modality the manifest writer might add later)."""
+    out: Dict[str, Tuple[str, str, str]] = {}
+    for modality, (col, subdir, default_ext) in _MODALITY_LAYOUT.items():
+        ext = extensions.get(modality, default_ext)
+        out[modality] = (col, subdir, ext)
+    return out
+
+
 def _modality_path(scene: str, phase: int, modality: str, frame_stem: str) -> str:
     """Build the manifest's path string for one (scene, phase, modality, frame).
 
     Path is relative to the manifest's ``root`` (set by ``download_split``
     to the snapshot root). After ``_extract_snapshot_tars`` runs, the
     file lives under ``extracted/scenes/...``.
+
+    Reads the active layout (set by :func:`write_split_manifests`); falls
+    back to :data:`_MODALITY_LAYOUT` defaults outside that context.
     """
-    if modality not in _MODALITY_LAYOUT:
+    layout = _current_layout()
+    if modality not in layout:
         from ..exceptions import ConfigError
 
         raise ConfigError(
             f"unknown modality {modality!r}",
-            hint=f"Known modalities: {', '.join(sorted(_MODALITY_LAYOUT))}",
+            hint=f"Known modalities: {', '.join(sorted(layout))}",
         )
-    _, subdir, ext = _MODALITY_LAYOUT[modality]
+    _, subdir, ext = layout[modality]
     return f"extracted/scenes/{scene}/{phase}/{subdir}/{frame_stem}{ext}"
 
 
@@ -113,6 +149,26 @@ def _has_col(modality: str) -> str:
     """Return the parquet ``has_<col>`` column name for a modality."""
     col_suffix, _, _ = _MODALITY_LAYOUT[modality]
     return f"has_{col_suffix}"
+
+
+def _load_modality_extensions(staging_root: Path) -> Dict[str, str]:
+    """Read ``modality_extensions`` from ``<staging>/manifest/current.json``.
+
+    Returns an empty dict if the file is missing, malformed, or
+    pre-dates the ``modality_extensions`` field — that's the backward-
+    compatible signal to keep the v1 hardcoded extensions.
+    """
+    cur_path = staging_root / "manifest" / "current.json"
+    if not cur_path.is_file():
+        return {}
+    try:
+        payload = json.loads(cur_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    raw = payload.get("modality_extensions") or {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k): str(v) for k, v in raw.items()}
 
 
 # ---------------------------------------------------------------------- #
@@ -462,10 +518,46 @@ def write_split_manifests(
         right_index=True,
     )
 
+    # Read per-modality extensions from current.json (v2+ datasets).
+    # Datasets without this field (v1) fall through to the hardcoded
+    # defaults in _MODALITY_LAYOUT.
+    extensions = _load_modality_extensions(staging_root)
+    layout_override = _layout_with_overrides(extensions) if extensions else None
+    if extensions:
+        log.info(
+            "split_manifests: using modality_extensions from current.json: %s",
+            ", ".join(f"{k}={v}" for k, v in sorted(extensions.items())),
+        )
+
     chosen = list(tasks) if tasks is not None else list(_TASK_SPECS.keys())
     manifests_dir = staging_root / "manifests"
     written: Dict[Tuple[str, str], Path] = {}
 
+    global _active_layout
+    _active_layout = layout_override
+    try:
+        written = _write_loop(
+            chosen=chosen,
+            df=df,
+            splits=splits,
+            manifests_dir=manifests_dir,
+        )
+    finally:
+        _active_layout = None
+
+    return written
+
+
+def _write_loop(
+    *,
+    chosen: List[str],
+    df,
+    splits: Iterable[str],
+    manifests_dir: Path,
+) -> Dict[Tuple[str, str], Path]:
+    """The per-task per-split write loop, factored out so the layout
+    override at module level wraps it in try/finally cleanly."""
+    written: Dict[Tuple[str, str], Path] = {}
     for recipe_key in chosen:
         if recipe_key not in _TASK_SPECS:
             log.warning("unknown task %r — skipping", recipe_key)
