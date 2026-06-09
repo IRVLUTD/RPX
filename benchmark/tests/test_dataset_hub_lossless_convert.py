@@ -23,7 +23,6 @@ Coverage map
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -43,7 +42,6 @@ from rpx_benchmark.dataset_hub.lossless_convert import (
 )
 from rpx_benchmark.dataset_hub.mock import MockSpec, generate_mock
 from rpx_benchmark.exceptions import DatasetError
-
 
 # --------------------------------------------------------------------------- #
 # Pillow / numpy are required by the converter itself; skip the suite cleanly
@@ -95,6 +93,7 @@ def cam_pose_tree(tmp_path: Path) -> Path:
         np.savez(cp_dir / f"{i:05d}.npz", position=pos, orientation=quat)
         # A token RGB so the classifier still finds at least one webp file.
         from PIL import Image
+
         Image.new("RGB", (8, 8), color=(i, i, i)).save(rgb_dir / f"{i:05d}.png")
     return root
 
@@ -168,15 +167,9 @@ def test_skip_toggles_route_to_link(tmp_path: Path):
     assert _classify(depth, tmp_path, spec=base) == ACTION_PNG_RECOMPRESS
     assert _classify(pose, tmp_path, spec=base) == ACTION_CAM_POSE
 
-    rgb_off = ConvertSpec(
-        src_root=tmp_path, out_root=tmp_path / "out", skip_rgb_webp=True
-    )
-    png_off = ConvertSpec(
-        src_root=tmp_path, out_root=tmp_path / "out", skip_png_recompress=True
-    )
-    pose_off = ConvertSpec(
-        src_root=tmp_path, out_root=tmp_path / "out", skip_cam_pose=True
-    )
+    rgb_off = ConvertSpec(src_root=tmp_path, out_root=tmp_path / "out", skip_rgb_webp=True)
+    png_off = ConvertSpec(src_root=tmp_path, out_root=tmp_path / "out", skip_png_recompress=True)
+    pose_off = ConvertSpec(src_root=tmp_path, out_root=tmp_path / "out", skip_cam_pose=True)
     assert _classify(rgb, tmp_path, spec=rgb_off) == ACTION_LINK
     assert _classify(depth, tmp_path, spec=png_off) == ACTION_LINK
     assert _classify(pose, tmp_path, spec=pose_off) == ACTION_LINK
@@ -184,9 +177,7 @@ def test_skip_toggles_route_to_link(tmp_path: Path):
 
 def test_constants_have_expected_names():
     assert WEBP_PARENT_DIRS == frozenset({"rgb", "fisheye"})
-    assert PNG_RECOMPRESS_PARENT_DIRS == frozenset(
-        {"depth", "masks", "masks_verified"}
-    )
+    assert PNG_RECOMPRESS_PARENT_DIRS == frozenset({"depth", "masks", "masks_verified"})
     assert CAM_POSE_PARENT_DIR == "cam_pose"
 
 
@@ -201,9 +192,7 @@ def _all(root: Path, suffix: str) -> list[Path]:
 
 def test_end_to_end_converts_each_modality_correctly(mock_tree: Path, tmp_path: Path):
     out = tmp_path / "out"
-    res = convert_capture_tree(
-        ConvertSpec(src_root=mock_tree, out_root=out, workers=1)
-    )
+    res = convert_capture_tree(ConvertSpec(src_root=mock_tree, out_root=out, workers=1))
 
     # rgb/ now contains only .webp
     for phase_dir in out.rglob("rgb"):
@@ -320,9 +309,7 @@ def test_cam_pose_round_trip_and_layout(cam_pose_tree: Path, tmp_path: Path):
     import numpy as np
 
     out = tmp_path / "out"
-    res = convert_capture_tree(
-        ConvertSpec(src_root=cam_pose_tree, out_root=out, workers=1)
-    )
+    res = convert_capture_tree(ConvertSpec(src_root=cam_pose_tree, out_root=out, workers=1))
 
     # The cam_pose action produced 3 .npy files, all in the right place.
     assert res.by_action[ACTION_CAM_POSE].files == 3
@@ -345,9 +332,7 @@ def test_cam_pose_round_trip_and_layout(cam_pose_tree: Path, tmp_path: Path):
 def test_cam_pose_skip_toggle_keeps_npz(cam_pose_tree: Path, tmp_path: Path):
     out = tmp_path / "out"
     res = convert_capture_tree(
-        ConvertSpec(
-            src_root=cam_pose_tree, out_root=out, workers=1, skip_cam_pose=True
-        )
+        ConvertSpec(src_root=cam_pose_tree, out_root=out, workers=1, skip_cam_pose=True)
     )
     assert ACTION_CAM_POSE not in res.by_action or res.by_action[ACTION_CAM_POSE].files == 0
     # The .npz files are now hard-linked through verbatim
@@ -362,9 +347,7 @@ def test_cam_pose_skip_toggle_keeps_npz(cam_pose_tree: Path, tmp_path: Path):
 
 def test_refuses_when_src_root_missing(tmp_path: Path):
     with pytest.raises(DatasetError, match="src_root does not exist"):
-        convert_capture_tree(
-            ConvertSpec(src_root=tmp_path / "nope", out_root=tmp_path / "out")
-        )
+        convert_capture_tree(ConvertSpec(src_root=tmp_path / "nope", out_root=tmp_path / "out"))
 
 
 def test_refuses_when_out_root_equals_src_root(mock_tree: Path):
@@ -374,9 +357,7 @@ def test_refuses_when_out_root_equals_src_root(mock_tree: Path):
 
 def test_refuses_when_out_root_is_inside_src(mock_tree: Path):
     with pytest.raises(DatasetError, match="overlap"):
-        convert_capture_tree(
-            ConvertSpec(src_root=mock_tree, out_root=mock_tree / "child")
-        )
+        convert_capture_tree(ConvertSpec(src_root=mock_tree, out_root=mock_tree / "child"))
 
 
 def test_refuses_non_empty_out_without_overwrite(mock_tree: Path, tmp_path: Path):
@@ -410,9 +391,7 @@ def test_overwrite_out_allows_non_empty(mock_tree: Path, tmp_path: Path):
 
 def test_dry_run_does_not_write_anything(mock_tree: Path, tmp_path: Path):
     out = tmp_path / "out"
-    res = convert_capture_tree(
-        ConvertSpec(src_root=mock_tree, out_root=out, dry_run=True)
-    )
+    res = convert_capture_tree(ConvertSpec(src_root=mock_tree, out_root=out, dry_run=True))
     assert res.files_converted > 0
     assert res.files_linked > 0
     assert list(out.rglob("*.webp")) == []
@@ -434,3 +413,133 @@ def test_plan_tree_classifies_every_file(mock_tree: Path):
     assert ACTION_WEBP in actions
     assert ACTION_PNG_RECOMPRESS in actions
     assert ACTION_LINK in actions
+
+
+# --------------------------------------------------------------------------- #
+# Worker error paths — every encoder must abort loudly, never silently
+# --------------------------------------------------------------------------- #
+
+
+def test_malformed_cam_pose_missing_keys_aborts(tmp_path: Path):
+    """A cam_pose .npz that lacks 'position' or 'orientation' must abort
+    the run with the offending filename, not silently produce a broken
+    .npy."""
+    import numpy as np
+
+    src = tmp_path / "src"
+    cp = src / "mos" / "scene" / "0" / "cam_pose"
+    cp.mkdir(parents=True)
+    np.savez(cp / "00000.npz", wrong_key=np.zeros(3))
+
+    with pytest.raises(DatasetError, match="missing required keys"):
+        convert_capture_tree(ConvertSpec(src_root=src, out_root=tmp_path / "out", workers=1))
+
+
+def test_malformed_cam_pose_wrong_shape_aborts(tmp_path: Path):
+    """A cam_pose .npz whose 'position' isn't (3,) or 'orientation'
+    isn't (4,) must abort the run, not silently truncate."""
+    import numpy as np
+
+    src = tmp_path / "src"
+    cp = src / "mos" / "scene" / "0" / "cam_pose"
+    cp.mkdir(parents=True)
+    np.savez(
+        cp / "00000.npz",
+        position=np.zeros(5, dtype=np.float64),  # wrong: should be (3,)
+        orientation=np.zeros(4, dtype=np.float64),
+    )
+
+    with pytest.raises(DatasetError, match="unexpected shapes"):
+        convert_capture_tree(ConvertSpec(src_root=src, out_root=tmp_path / "out", workers=1))
+
+
+def test_corrupt_webp_source_aborts(tmp_path: Path):
+    """A corrupt source PNG in an rgb/ dir aborts the WebP pass with the
+    file name surfaced — no silent skip, no partial output kept."""
+    src = tmp_path / "src"
+    rgb = src / "mos" / "scene" / "0" / "rgb"
+    rgb.mkdir(parents=True)
+    (rgb / "00000.png").write_bytes(b"not actually a png")
+
+    with pytest.raises(DatasetError, match="aborted"):
+        convert_capture_tree(ConvertSpec(src_root=src, out_root=tmp_path / "out", workers=1))
+
+
+def test_corrupt_png_recompress_source_aborts(tmp_path: Path):
+    """Same loudness contract for the PNG-recompress path."""
+    src = tmp_path / "src"
+    d = src / "mos" / "scene" / "0" / "depth"
+    d.mkdir(parents=True)
+    (d / "00000.png").write_bytes(b"not actually a png")
+
+    with pytest.raises(DatasetError, match="aborted"):
+        convert_capture_tree(ConvertSpec(src_root=src, out_root=tmp_path / "out", workers=1))
+
+
+# --------------------------------------------------------------------------- #
+# ConvertResult / ActionStats accounting
+# --------------------------------------------------------------------------- #
+
+
+def test_action_stats_saved_pct_zero_when_nothing_changed(tmp_path: Path):
+    """A tree that only triggers ACTION_LINK has saved_pct == 0.0 (and
+    no ZeroDivisionError)."""
+    src = tmp_path / "src" / "mos" / "scene" / "0" / "etc"
+    src.mkdir(parents=True)
+    (src / "notes.txt").write_text("hi")
+    res = convert_capture_tree(
+        ConvertSpec(src_root=tmp_path / "src", out_root=tmp_path / "out", workers=1)
+    )
+    assert res.by_action[ACTION_LINK].files == 1
+    assert res.saved_bytes == 0
+    assert res.saved_pct == 0.0
+
+
+def test_dry_run_reports_action_counts(mock_tree: Path, tmp_path: Path):
+    """Dry-run must populate by_action counts so the operator can sanity
+    check before committing to a real conversion."""
+    res = convert_capture_tree(
+        ConvertSpec(src_root=mock_tree, out_root=tmp_path / "out", dry_run=True)
+    )
+    assert ACTION_WEBP in res.by_action
+    assert ACTION_PNG_RECOMPRESS in res.by_action
+    assert ACTION_LINK in res.by_action
+    assert res.by_action[ACTION_WEBP].files > 0
+    assert res.by_action[ACTION_PNG_RECOMPRESS].files > 0
+    # bytes_before / bytes_after stay 0 in dry-run (no I/O)
+    assert res.bytes_before == 0
+    assert res.bytes_after == 0
+
+
+# --------------------------------------------------------------------------- #
+# Verify=False short-circuits the per-frame round-trip but still produces
+# bit-identical files (because PNG/WebP are lossless by spec — the verify
+# flag is belt-and-braces, not a correctness gate). We still want test
+# coverage of the non-verify branches in each worker.
+# --------------------------------------------------------------------------- #
+
+
+def test_verify_off_still_produces_valid_files(mock_tree: Path, tmp_path: Path):
+    out = tmp_path / "out"
+    res = convert_capture_tree(
+        ConvertSpec(src_root=mock_tree, out_root=out, workers=1, verify=False)
+    )
+    # All four code paths exercised, output is on disk, no exceptions.
+    assert res.by_action[ACTION_WEBP].files > 0
+    assert res.by_action[ACTION_PNG_RECOMPRESS].files > 0
+    assert list(out.rglob("*.webp")), "webp pass produced no output"
+    assert list(out.rglob("*.png")), "png-recompress pass produced no output"
+
+
+def test_verify_off_cam_pose_still_produces_valid_npy(cam_pose_tree: Path, tmp_path: Path):
+    import numpy as np
+
+    out = tmp_path / "out"
+    convert_capture_tree(ConvertSpec(src_root=cam_pose_tree, out_root=out, workers=1, verify=False))
+    npys = sorted((out / "mos" / "scene1" / "0" / "cam_pose").glob("*.npy"))
+    assert npys, "cam_pose verify=False path produced no .npy"
+    # Spot check: the .npy still round-trips even though encode didn't verify.
+    for p in npys:
+        arr = np.load(p)
+        assert arr.shape == (7,)
+        assert arr.dtype == np.float64

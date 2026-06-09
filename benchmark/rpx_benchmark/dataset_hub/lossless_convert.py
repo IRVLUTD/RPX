@@ -70,7 +70,6 @@ Usage
 
 from __future__ import annotations
 
-import io
 import os
 import shutil
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -88,10 +87,10 @@ log = get_logger(__name__)
 # Per-file actions
 # --------------------------------------------------------------------------- #
 
-ACTION_WEBP = "webp"                       # 8-bit PNG → lossless WebP
-ACTION_PNG_RECOMPRESS = "png-recompress"   # PNG → PNG at compress_level=9
-ACTION_CAM_POSE = "cam-pose"               # per-frame .npz → per-frame .npy
-ACTION_LINK = "link"                       # hardlink (or copy)
+ACTION_WEBP = "webp"  # 8-bit PNG → lossless WebP
+ACTION_PNG_RECOMPRESS = "png-recompress"  # PNG → PNG at compress_level=9
+ACTION_CAM_POSE = "cam-pose"  # per-frame .npz → per-frame .npy
+ACTION_LINK = "link"  # hardlink (or copy)
 
 # Modality directory names whose 8-bit PNG frames are re-encoded as
 # lossless WebP. A file is classified ``webp`` iff its suffix is .png
@@ -170,11 +169,7 @@ class ConvertResult:
     @property
     def files_converted(self) -> int:
         """Files that produced a re-encoded artefact (sum of non-link actions)."""
-        return sum(
-            s.files
-            for a, s in self.by_action.items()
-            if a != ACTION_LINK
-        )
+        return sum(s.files for a, s in self.by_action.items() if a != ACTION_LINK)
 
     @property
     def files_linked(self) -> int:
@@ -414,8 +409,7 @@ def _convert_cam_pose_one(
                     ),
                 )
             if not (
-                np.array_equal(restored[:3], position)
-                and np.array_equal(restored[3:], orientation)
+                np.array_equal(restored[:3], position) and np.array_equal(restored[3:], orientation)
             ):
                 return (
                     dst_path_s,
@@ -471,12 +465,10 @@ def _ensure_disjoint(src: Path, out: Path) -> None:
             )
     except AttributeError:
         # Python <3.9 — relative-to check unsupported; fall back to string prefix.
-        if str(out_r).startswith(str(src_r) + os.sep) or str(src_r).startswith(
-            str(out_r) + os.sep
-        ):
+        if str(out_r).startswith(str(src_r) + os.sep) or str(src_r).startswith(str(out_r) + os.sep):
             raise DatasetError(
                 f"src_root and out_root overlap: src={src_r}, out={out_r}",
-            )
+            ) from None
 
 
 def _dst_path_for(src_path: Path, action: str, src_root: Path, out_root: Path) -> Path:
@@ -549,9 +541,7 @@ def convert_capture_tree(spec: ConvertSpec) -> ConvertResult:
             return
         log.info("lossless-convert: %s — %d files", action, len(worklist))
         with ProcessPoolExecutor(max_workers=spec.workers) as ex:
-            futures = [
-                ex.submit(fn, src_s, dst_s, *extra_args) for src_s, dst_s in worklist
-            ]
+            futures = [ex.submit(fn, src_s, dst_s, *extra_args) for src_s, dst_s in worklist]
             done = 0
             for fut in as_completed(futures):
                 _, before_b, after_b, err = fut.result()
@@ -559,8 +549,7 @@ def convert_capture_tree(spec: ConvertSpec) -> ConvertResult:
                 if err:
                     ex.shutdown(wait=False, cancel_futures=True)
                     raise DatasetError(
-                        f"lossless-convert ({action}) aborted at "
-                        f"{done}/{len(worklist)}: {err}",
+                        f"lossless-convert ({action}) aborted at {done}/{len(worklist)}: {err}",
                         hint=(
                             "Inspect the offending file and the relevant codec "
                             "library version on this machine."
