@@ -155,14 +155,28 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         name="FE2E",
         task=TaskType.MONOCULAR_DEPTH,
         depth_output_kind="relative",
-        install_hint="pip install fe2e (TBD — clone upstream repo)",
+        # A community repo `exander/FE2E` exists on HF but has an
+        # empty README and no verified-official lineage. Team to
+        # locate the official release (likely on GitHub) before use.
+        install_hint=(
+            "no verified official release as of 2026-06-25; community "
+            "repo at huggingface.co/exander/FE2E exists but is "
+            "undocumented. Team must locate the official upstream "
+            "before wiring this adapter."
+        ),
         paper_ref="fe2e",
     ),
     "depthlm": DepthModelCard(
         name="DepthLM",
         task=TaskType.MONOCULAR_DEPTH,
-        depth_output_kind="relative",
-        install_hint="pip install depthlm (TBD — clone upstream repo)",
+        # DepthLM emits metric depth per the upstream HF model card
+        # (Pixtral-finetuned VLM); runner skips alignment.
+        depth_output_kind="metric",
+        install_hint=(
+            "pip install transformers torch accelerate; "
+            "weights at facebook/DepthLM (~24 GB; needs 40 GB+ VRAM or "
+            "bitsandbytes 4-bit)"
+        ),
         paper_ref="depthlm",
     ),
     # -------------------------------------------------------------- Video Depth
@@ -208,21 +222,37 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         name="D4RT",
         task=TaskType.VIDEO_DEPTH,
         depth_output_kind="metric",
-        install_hint="pip install d4rt (TBD — clone upstream repo)",
+        # Author HF repo found at AlysonIrene/D4RT_checkpoint —
+        # confirm against the paper authors before relying on it.
+        install_hint=(
+            "no verified official release as of 2026-06-25; "
+            "candidate weights at huggingface.co/AlysonIrene/D4RT_checkpoint. "
+            "Team to verify upstream lineage."
+        ),
         paper_ref="d4rt",
     ),
     "gem-depth": DepthModelCard(
         name="GemDepth",
         task=TaskType.VIDEO_DEPTH,
         depth_output_kind="metric",
-        install_hint="pip install gemdepth (TBD — clone upstream repo)",
+        # Author HF repo found at YuechengLiu/GemDepth — confirm
+        # upstream lineage and load incantation before wiring.
+        install_hint=(
+            "no verified official release as of 2026-06-25; "
+            "candidate weights at huggingface.co/YuechengLiu/GemDepth."
+        ),
         paper_ref="gemdepth",
     ),
     "vigeo": DepthModelCard(
         name="ViGeo",
         task=TaskType.VIDEO_DEPTH,
         depth_output_kind="metric",
-        install_hint="pip install vigeo (TBD — clone upstream repo)",
+        # Author HF repo found at pkqbajng/ViGeo — confirm upstream
+        # lineage and load incantation before wiring.
+        install_hint=(
+            "no verified official release as of 2026-06-25; "
+            "candidate weights at huggingface.co/pkqbajng/ViGeo."
+        ),
         paper_ref="vigeo",
     ),
     "monst3r": DepthModelCard(

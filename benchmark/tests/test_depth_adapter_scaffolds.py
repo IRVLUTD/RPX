@@ -135,19 +135,31 @@ def test_subclass_with_unknown_model_key_raises():
 
 @pytest.mark.parametrize(
     "key",
-    ["moge-2-vit-l", "hyden", "lotus-2", "fe2e", "depthlm"],
+    # Affine-invariant Image Depth models. DepthLM was originally
+    # listed here but the verified HF model card (facebook/DepthLM)
+    # describes it as a metric VLM — moved to the metric group below.
+    ["moge-2-vit-l", "hyden", "lotus-2", "fe2e"],
 )
 def test_known_relative_models_marked_relative(key):
-    """Paper §3.3: these five Image Depth models are affine-invariant."""
+    """Paper §3.3: these Image Depth models are affine-invariant."""
     assert DEPTH_MODEL_CARDS[key].depth_output_kind == "relative"
 
 
 @pytest.mark.parametrize(
     "key",
-    ["da3-metric-l", "da-v2-large", "depth-pro", "unidepth-v2", "metric3d-v2"],
+    [
+        "da3-metric-l",
+        "da-v2-large",
+        "depth-pro",
+        "unidepth-v2",
+        "metric3d-v2",
+        "depthlm",  # metric per huggingface.co/facebook/DepthLM
+    ],
 )
 def test_known_metric_models_marked_metric(key):
-    """Paper §3.3: these five Image Depth models emit metric depth directly."""
+    """Image Depth models that emit metric depth directly (no per-scene
+    alignment in the runner). Verified against upstream model cards.
+    """
     assert DEPTH_MODEL_CARDS[key].depth_output_kind == "metric"
 
 

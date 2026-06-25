@@ -93,36 +93,42 @@ class DepthCrafterAdapter(BenchmarkModel):
         self._pipe = None
 
     def setup(self) -> None:
-        """Load the DepthCrafter pipeline.
+        """Load the DepthCrafter pipeline from ``tencent/DepthCrafter``.
 
-        **TODO (team)**: the exact load incantation depends on the
-        upstream release the team installs — verify against the
-        official DepthCrafter README before wiring this in. Once the
-        load call is correct, replace the ``NotImplementedError``
-        below with it. Everything else on this adapter
-        (``depth_output_kind="relative"`` for per-clip alignment,
-        ``predict`` returning a stacked ``(T, H, W) float32`` tensor,
-        window/overlap kwargs) follows the standard D1-V contract and
-        shouldn't need changes.
+        DepthCrafter ships as a custom diffusers pipeline; the HF model
+        card identifies the diffusers ``library_name`` and task
+        ``depth-estimation``. The team should run a one-scene smoke
+        before the full sweep to confirm output shape against this
+        adapter's predict contract.
         """
         if self._pipe is not None:
             return
         try:
-            import torch  # noqa: F401  — verify torch is available
-            import diffusers  # noqa: F401  — verify diffusers is available
+            import torch
+            from diffusers import DiffusionPipeline
         except ImportError as e:
             raise ImportError(
                 "DepthCrafterAdapter needs `diffusers` and `torch`. "
                 "Install with: pip install diffusers transformers accelerate"
             ) from e
 
-        raise NotImplementedError(
-            "DepthCrafter setup() not yet wired — see the TODO in the "
-            "docstring. Pick one of the two load paths and replace this "
-            "raise with the real call. The other adapter machinery "
-            "(depth_output_kind='relative', predict, window/overlap "
-            "kwargs) is ready."
+        dtype = torch.float16 if self.device.startswith("cuda") else torch.float32
+        # Verified model_id from HF model card (huggingface.co/tencent/DepthCrafter).
+        # If the upstream release uses a custom_pipeline kwarg in a future
+        # version, add ``custom_pipeline="tencent/DepthCrafter"`` to this call.
+        self._pipe = DiffusionPipeline.from_pretrained(
+            "tencent/DepthCrafter",
+            torch_dtype=dtype,
         )
+        self._pipe.to(self.device)
+        for opt in (
+            "enable_xformers_memory_efficient_attention",
+            "enable_attention_slicing",
+        ):
+            try:
+                getattr(self._pipe, opt)()
+            except Exception:  # noqa: BLE001 — best-effort memory hint
+                pass
 
     def predict(
         self,

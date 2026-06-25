@@ -70,12 +70,19 @@ def test_video_depth_module_exposes_build(key):
 
 SKELETON_KEYS = [
     k for k in _video_keys()
-    # Real adapters that DON'T raise NotImplementedError on build():
-    #   - da-v2-video: full working baseline.
-    #   - depth-crafter: adapter shape is real but setup() raises
-    #     NotImplementedError until the team wires the HF load
-    #     incantation. Has its own test below.
-    if k not in {"da-v2-video", "depth-crafter"}
+    # Real adapters with verified HF model_id + load incantation —
+    # build() returns an instance, not a NotImplementedError. Each
+    # has a verification-status note in its module docstring.
+    if k not in {
+        "da-v2-video",       # frame-as-video baseline (da_v2_video.py)
+        "depth-crafter",     # tencent/DepthCrafter
+        "video-da",          # depth-anything/Video-Depth-Anything-Large
+        "rolling-depth",     # prs-eth/rollingdepth-v1-0
+        "chrono-depth",      # jhshao/ChronoDepth
+        "monst3r",           # Junyi42/MonST3R_*_dpt
+        "vggt-omega",        # facebook/VGGT-1B
+        "da3-video",         # depth-anything/DA3-LARGE
+    }
 ]
 
 
@@ -100,24 +107,43 @@ def test_skeleton_build_raises_with_install_hint(key):
     )
 
 
-def test_depth_crafter_adapter_has_real_shape_but_setup_is_todo():
-    """DepthCrafter is the template for the other 8 true-video adapters:
-    its task / depth_output_kind / name / predict are all wired
-    correctly, but its setup() raises NotImplementedError because the
-    exact HF load incantation depends on which DepthCrafter release the
-    team installs. This test pins the contract so a contributor knows
-    where to fill in.
+REAL_VIDEO_ADAPTERS = [
+    # All eight real video-depth adapters with verified HF model_id.
+    # Each module exposes build() that returns an instance with the
+    # correct task / depth_output_kind / name; setup() is expected to
+    # require GPU + model package (we don't run setup here).
+    ("depth-crafter",  "DepthCrafter",         "relative"),
+    ("video-da",       "Video Depth Anything", "relative"),
+    ("rolling-depth",  "RollingDepth",         "relative"),
+    ("chrono-depth",   "ChronoDepth",          "relative"),
+    ("monst3r",        "MonST3R",              "relative"),
+    ("vggt-omega",     "VGGT-Ω",               "relative"),
+    ("da3-video",      "DA3",                  "metric"),
+]
+
+
+@pytest.mark.parametrize("key,expected_name,expected_kind", REAL_VIDEO_ADAPTERS)
+def test_real_video_adapter_shape(key, expected_name, expected_kind):
+    """Every real video adapter must expose the right shape (task,
+    depth_output_kind, name). Loading the actual model weights is a
+    GPU + package-install concern; this test only pins the contract
+    that downstream Φ / J / alignment routing depends on.
     """
+    import importlib
+
     from rpx_benchmark.api import TaskType
-    from video_depth_models.depth_crafter import DepthCrafterAdapter, build
 
-    adapter = build(device="cpu")
-    assert isinstance(adapter, DepthCrafterAdapter)
-    assert adapter.task is TaskType.VIDEO_DEPTH
-    # Relative-depth model — the runner applies per-clip (s, t) alignment.
-    assert adapter.depth_output_kind == "relative"
-    assert adapter.name == "DepthCrafter"
+    module_name = key.replace("-", "_")
+    mod = importlib.import_module(f"video_depth_models.{module_name}")
+    adapter = mod.build(device="cpu")
 
-    # setup() raises NotImplementedError with a pointer at the TODO.
-    with pytest.raises(NotImplementedError, match="DepthCrafter setup"):
-        adapter.setup()
+    assert adapter.task is TaskType.VIDEO_DEPTH, (
+        f"{key}: adapter.task must be VIDEO_DEPTH for the runner to dispatch correctly"
+    )
+    assert adapter.depth_output_kind == expected_kind, (
+        f"{key}: depth_output_kind={adapter.depth_output_kind!r}, "
+        f"expected {expected_kind!r} (controls per-clip alignment)"
+    )
+    assert adapter.name == expected_name, (
+        f"{key}: adapter.name={adapter.name!r}, expected {expected_name!r}"
+    )
