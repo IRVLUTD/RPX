@@ -324,8 +324,90 @@ def list_models() -> list[str]:
     return sorted(MODEL_REGISTRY.keys())
 
 
+# --------------------------------------------------------------------------- #
+# Canonical roster bridge
+# --------------------------------------------------------------------------- #
+# The paper's canonical roster lives at
+# ``rpx_benchmark.adapters.depth_scaffold.DEPTH_MODEL_CARDS`` and uses
+# kebab-case keys (``da-v2-large``, ``depth-pro``, ...). This module's
+# ``MODEL_REGISTRY`` predates that roster and uses snake_case keys
+# (``da_v2_metric_indoor``, ``depth_pro``, ...). The bridge below maps
+# canonical → registry so the team can call adapters by their
+# paper-table names via ``scripts/run_depth.py --model da-v2-large``.
+#
+# Each canonical key maps to ONE registry adapter; multi-variant models
+# (DA-V2 indoor/outdoor) default to the indoor head since the bulk of
+# RPX scenes are indoor — pass ``--head outdoor`` to override
+# (handled at the CLI layer for the few adapters that support it).
+#
+# Three canonical entries have no registry adapter today
+# (DA3 Metric-L, FE2E, DepthLM): they map to ``None`` so a clean
+# resolution error is raised in lieu of a confusing KeyError.
+CANONICAL_TO_LEGACY: Dict[str, str | None] = {
+    # Working
+    "da-v2-large":   "da_v2_metric_indoor",
+    "depth-pro":     "depth_pro",
+    "unidepth-v2":   "unidepth_v2",
+    "metric3d-v2":   "metric3d_v2",
+    "moge-2-vit-l":  "moge_2",
+    "hyden":         "hyden_metric",
+    "lotus-2":       "lotus_2",
+    # No upstream implementation today — install when the team has one
+    "da3-metric-l":  None,
+    "fe2e":          None,
+    "depthlm":       None,
+}
+
+
+def resolve_model_key(name: str) -> str:
+    """Resolve a CLI ``--model`` value to a registry key.
+
+    Accepts both naming conventions:
+
+    * **Canonical roster** kebab-case keys
+      (:data:`~rpx_benchmark.adapters.depth_scaffold.DEPTH_MODEL_CARDS`):
+      ``da-v2-large``, ``depth-pro``, etc. Routed via
+      :data:`CANONICAL_TO_LEGACY`.
+
+    * **Legacy registry** snake_case keys: ``da_v2_metric_indoor``,
+      ``depth_pro``, etc. Passed through unchanged.
+
+    Raises
+    ------
+    SystemExit
+        Clean error if the name resolves to no known adapter, with the
+        full list of valid canonical + legacy names.
+    """
+    if name in MODEL_REGISTRY:
+        return name
+    if name in CANONICAL_TO_LEGACY:
+        legacy = CANONICAL_TO_LEGACY[name]
+        if legacy is None:
+            from rpx_benchmark.adapters.depth_scaffold import DEPTH_MODEL_CARDS
+
+            card = DEPTH_MODEL_CARDS.get(name)
+            hint = (
+                f"Install hint: {card.install_hint}" if card else
+                "No upstream implementation on this branch."
+            )
+            raise SystemExit(
+                f"--model {name!r} is in the canonical roster but has no "
+                f"adapter under scripts/depth_models/ yet. {hint}"
+            )
+        return legacy
+    canonical = sorted(CANONICAL_TO_LEGACY)
+    legacy = sorted(MODEL_REGISTRY)
+    raise SystemExit(
+        f"unknown --model {name!r}. "
+        f"Canonical roster names: {canonical}. "
+        f"Legacy registry names: {legacy}."
+    )
+
+
 __all__ = [
     "MODEL_REGISTRY",
     "MODEL_DISPLAY_NAMES",
+    "CANONICAL_TO_LEGACY",
     "list_models",
+    "resolve_model_key",
 ]

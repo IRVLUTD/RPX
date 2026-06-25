@@ -224,17 +224,25 @@ def _build_model(name: str, device: str, batch_size: int = 1):
     is constructed inside ``_run_via_local_manifest`` once the runner's
     batch size is known.
     """
-    from depth_models import MODEL_DISPLAY_NAMES, MODEL_REGISTRY, list_models
+    from depth_models import MODEL_DISPLAY_NAMES, MODEL_REGISTRY, resolve_model_key
 
     import rpx_benchmark as rpx
 
-    if name not in MODEL_REGISTRY:
-        raise SystemExit(
-            f"unknown --model {name!r}. Available: {list_models()}. "
-            "See scripts/depth_models/__init__.py to add a new adapter."
-        )
-    adapter = MODEL_REGISTRY[name](device=device, batch_size=batch_size)
-    display_name = MODEL_DISPLAY_NAMES.get(name, name)
+    # Resolve canonical roster keys (kebab-case, e.g. ``da-v2-large``)
+    # OR legacy registry keys (snake_case, e.g. ``da_v2_metric_indoor``)
+    # to the registry factory. ``resolve_model_key`` raises SystemExit
+    # with a friendly error if neither resolves.
+    registry_key = resolve_model_key(name)
+    adapter = MODEL_REGISTRY[registry_key](device=device, batch_size=batch_size)
+    # Prefer the canonical roster's display name when the caller used the
+    # canonical key; otherwise fall back to the legacy registry's display name.
+    from rpx_benchmark.adapters.depth_scaffold import DEPTH_MODEL_CARDS
+
+    display_name = (
+        DEPTH_MODEL_CARDS[name].name
+        if name in DEPTH_MODEL_CARDS
+        else MODEL_DISPLAY_NAMES.get(registry_key, registry_key)
+    )
     return rpx.make_numpy_depth_model(adapter, name=display_name), adapter
 
 
