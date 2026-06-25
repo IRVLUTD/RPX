@@ -312,7 +312,29 @@ class D1VDataset:
             raise ManifestError(
                 f"D1VDataset.from_manifest expected task='video_depth'; got {task_str!r}",
             )
-        root = Path(payload.get("root") or manifest_path.parent)
+        # Resolve the modality-file root. The manifest's ``root`` field
+        # is the canonical source — every frame_filename / depth_filename
+        # / pose_filename is resolved relative to it. If the manifest
+        # omits ``root`` (or sets it to None / ""), fall back to the
+        # manifest file's parent dir; warn loudly so the caller notices
+        # before a misleading FileNotFoundError downstream.
+        manifest_root = payload.get("root")
+        if manifest_root:
+            root = Path(manifest_root)
+        else:
+            from .logging_utils import get_logger
+
+            get_logger(__name__).warning(
+                "D1VDataset.from_manifest: %s has no 'root' field; falling "
+                "back to manifest parent dir %s. If your frame_filenames "
+                "are relative to a different root (e.g. an HF cache "
+                "snapshot or a staged dataset tree), set the 'root' field "
+                "explicitly in the manifest. See "
+                "benchmark/docs/team_run_guide.md for the manifest schema.",
+                manifest_path,
+                manifest_path.parent,
+            )
+            root = manifest_path.parent
         samples = payload.get("samples") or []
         if not isinstance(samples, list):
             raise ManifestError(
