@@ -49,7 +49,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-def _load_model(name: str, device: str):
+def _load_model(name: str, device: str, *, acknowledge_unverified: bool = False):
     """Resolve a model adapter by name.
 
     Lookup order:
@@ -80,7 +80,18 @@ def _load_model(name: str, device: str):
                 f"{module_name} found but exposes no `build(device)` function. "
                 "Add `def build(device: str) -> BenchmarkModel:` to the module."
             )
-        return mod.build(device)
+        # Only adapters with the safety rail (D4RT, GemDepth) accept
+        # acknowledge_unverified — try with it, fall back without.
+        kwargs = {"device": device}
+        if acknowledge_unverified:
+            kwargs["acknowledge_unverified"] = True
+        try:
+            return mod.build(**kwargs)
+        except TypeError as e:
+            if "acknowledge_unverified" in str(e):
+                kwargs.pop("acknowledge_unverified", None)
+                return mod.build(**kwargs)
+            raise
     raise SystemExit(
         f"No model adapter resolved for --model {name!r}. "
         f"Tried: {candidate_modules}. "
@@ -130,9 +141,21 @@ def main() -> None:
         action="store_true",
         help="After the run, ship results to UTD Box. Requires BOX_DEVELOPER_TOKEN.",
     )
+    ap.add_argument(
+        "--acknowledge-unverified",
+        action="store_true",
+        help="Run an adapter whose upstream weights are NOT verified "
+        "against the paper authors' release (D4RT, GemDepth today). "
+        "Use only after confirming the candidate weights match the paper; "
+        "otherwise published numbers may not reflect the named model.",
+    )
     args = ap.parse_args()
 
-    model = _load_model(args.model, args.device)
+    model = _load_model(
+        args.model,
+        args.device,
+        acknowledge_unverified=args.acknowledge_unverified,
+    )
 
     from rpx_benchmark.tasks.video_depth import VideoDepthRunConfig, run_video_depth
 

@@ -104,15 +104,43 @@ def test_resolve_unknown_raises_with_options():
     assert "legacy" in msg, "Error should mention legacy registry"
 
 
-def test_resolve_missing_canonical_uses_install_hint():
-    """For canonical roster entries with no adapter (FE2E, DepthLM,
-    DA3), the error must include the install hint from the model card
-    so the user knows what to install.
+def test_fe2e_now_resolves_via_safety_rail_adapter():
+    """FE2E previously mapped to None (no adapter). It now has a real
+    safety-rail adapter (scripts/depth_models/fe2e.py) — resolve_model_key
+    should route to it. Actually invoking the adapter without the
+    --acknowledge-unverified flag raises UnverifiedAdapterError; that
+    layer is tested separately.
     """
-    with pytest.raises(SystemExit) as exc:
-        resolve_model_key("fe2e")
-    msg = str(exc.value)
-    # The hint should reference installation, not just "missing".
-    assert "install" in msg.lower() or "fe2e" in msg.lower(), (
-        f"Missing-adapter error should include install hint: {msg}"
+    legacy = resolve_model_key("fe2e")
+    assert legacy == "fe2e", (
+        f"fe2e should resolve to MODEL_REGISTRY['fe2e'], got {legacy!r}"
     )
+    assert "fe2e" in MODEL_REGISTRY
+
+
+def test_fe2e_image_adapter_safety_rail():
+    """FE2E adapter is gated by the unverified-weights safety rail.
+
+    Building it without acknowledge_unverified=True raises
+    UnverifiedAdapterError with the candidate HF path and the
+    instructions for clearing the rail. Building with the flag clears
+    the rail but raises NotImplementedError because no upstream model
+    class is wired yet (the candidate HF repo has no code).
+    """
+    from depth_models import MODEL_REGISTRY
+    from rpx_benchmark.exceptions import UnverifiedAdapterError
+
+    factory = MODEL_REGISTRY["fe2e"]
+
+    # Default: no acknowledgement → UnverifiedAdapterError.
+    with pytest.raises(UnverifiedAdapterError) as exc:
+        factory(device="cpu", batch_size=1)
+    msg = str(exc.value)
+    assert "UNVERIFIED" in msg
+    assert "acknowledge_unverified" in msg
+    assert "exander/FE2E" in msg  # candidate HF path surfaced
+
+    # With acknowledgement: rail clears, but constructor still raises
+    # NotImplementedError because no upstream model class is wired.
+    with pytest.raises(NotImplementedError):
+        factory(device="cpu", batch_size=1, acknowledge_unverified=True)
