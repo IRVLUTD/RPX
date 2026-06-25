@@ -27,7 +27,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Sequence
+from typing import Any, Dict, Literal, Sequence
 
 import numpy as np
 
@@ -402,6 +402,21 @@ class BenchmarkModel(ABC):
         The task this model solves. Must be set by subclasses (either
         at class level or in ``__init__``). The runner checks that
         ``model.task == dataset.task`` before running.
+    depth_output_kind : Literal["metric", "relative"]
+        Only meaningful for depth tasks (``MONOCULAR_DEPTH`` and
+        ``VIDEO_DEPTH``). Declares whether the model emits depth in
+        physical units (``"metric"``, default — passes through the
+        runner unchanged) or up to an unknown scale and shift
+        (``"relative"`` — runner applies per-scene-phase scale+shift
+        alignment via :func:`~rpx_benchmark.metrics.depth_alignment.align_pred_to_gt_pooled`
+        before computing metrics, matching the Ranftl et al. 2020
+        protocol the paper §3.3 prescribes).
+
+        Adapters that wrap relative-depth models (Lotus-2, FE2E,
+        MoGe-2, HyDen, DepthLM, the DA-V2 relative variant) must set
+        this to ``"relative"``. Adapters wrapping metric models
+        (DA-Metric, Depth Pro, UniDepth V2, Metric3D V2, etc.) leave
+        the default. Ignored entirely for non-depth tasks.
 
     Examples
     --------
@@ -409,6 +424,7 @@ class BenchmarkModel(ABC):
 
         class MyDepth(BenchmarkModel):
             task = TaskType.MONOCULAR_DEPTH
+            # depth_output_kind defaults to "metric"
 
             def setup(self):
                 self.net = load_my_checkpoint()
@@ -418,6 +434,15 @@ class BenchmarkModel(ABC):
                     DepthPrediction(depth_map=self.net(s.rgb))
                     for s in batch
                 ]
+
+    Relative-depth wrapper (Lotus-2, FE2E, MoGe-2, ...)::
+
+        class MyRelativeDepth(BenchmarkModel):
+            task = TaskType.MONOCULAR_DEPTH
+            depth_output_kind = "relative"
+
+            def setup(self): ...
+            def predict(self, batch): ...   # returns up-to-scale depth
 
     Composed via :class:`BenchmarkableModel`::
 
@@ -431,6 +456,14 @@ class BenchmarkModel(ABC):
     """
 
     task: TaskType
+    #: Depth output convention — ``"metric"`` (default) means the
+    #: prediction is in metres and goes straight to the metric
+    #: calculators. ``"relative"`` means the prediction is up to an
+    #: unknown scale + shift; the runner applies per-scene-phase
+    #: pooled scale-and-shift alignment via
+    #: :func:`~rpx_benchmark.metrics.depth_alignment.align_pred_to_gt_pooled`
+    #: before computing metrics. Ignored for non-depth tasks.
+    depth_output_kind: Literal["metric", "relative"] = "metric"
 
     @abstractmethod
     def setup(self) -> None:

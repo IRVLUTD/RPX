@@ -1,0 +1,160 @@
+"""Run a D1-V (video-depth) model end-to-end against an RPX split.
+
+Mirrors ``scripts/run_depth.py`` (D1-F) but iterates per-clip
+(``(scene, phase)`` tuple) instead of per-frame, and routes the
+prediction through per-clip ``(s, t)`` alignment for relative-depth
+models. Outputs:
+
+* ``./rpx_results/<model>/<split>/result.json`` — aggregated metrics
+* ``./rpx_results/<model>/<split>/cells.parquet`` — per-(scene, phase) cells
+* ``./rpx_results/<model>/<split>/summary.md`` — short markdown summary
+
+Usage
+-----
+    PYTHONPATH=. python scripts/run_video_depth.py \\
+        --model depth-crafter --split easy
+
+    # Temporal-resolution ablation (paper §5.2):
+    PYTHONPATH=. python scripts/run_video_depth.py \\
+        --model depth-crafter --split easy \\
+        --frame-budget 75 --sampling fps_se3
+
+    # With Box upload (team workflow):
+    PYTHONPATH=. python scripts/run_video_depth.py \\
+        --model depth-crafter --split easy --upload-to-box
+
+The ``--model`` value must resolve to a callable that:
+
+* takes a ``(T, H, W, 3)`` uint8 RGB sequence (or a list of such
+  sequences for batched calls)
+* returns a ``(T, H, W) float32`` depth-in-metres tensor (or list)
+* declares ``depth_output_kind = "metric"`` or ``"relative"`` so the
+  runner knows whether to apply per-clip alignment.
+
+For now, model adapter registration is left to the contributor: the
+20 canonical models live in ``rpx_benchmark.adapters.video_depth``
+(skeletons) and ``scripts/depth_models/`` (D1-F implementations the
+video models will eventually port to). See
+``benchmark/docs/team_run_guide.md`` for the team handoff workflow.
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib
+import sys
+from pathlib import Path
+
+# Make ./scripts importable so `from depth_models.* import ...` works.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+
+def _load_model(name: str, device: str):
+    """Resolve a model adapter by name.
+
+    Lookup order:
+
+    1. ``rpx_benchmark.adapters.video_depth.<name>`` — a contributor's
+       drop-in module that exposes ``build(device)`` returning a
+       ``BenchmarkModel`` whose ``task = TaskType.VIDEO_DEPTH``.
+    2. ``video_depth_models.<name>`` — sibling of the existing
+       ``depth_models`` directory, for in-development adapters.
+
+    A new model is added by creating one of those modules and
+    implementing ``build(device) -> BenchmarkModel``. See the team
+    guide for a worked DA3 example.
+    """
+    candidate_modules = [
+        f"rpx_benchmark.adapters.video_depth.{name.replace('-', '_')}",
+        f"video_depth_models.{name.replace('-', '_')}",
+    ]
+    last_err: Exception | None = None
+    for module_name in candidate_modules:
+        try:
+            mod = importlib.import_module(module_name)
+        except ImportError as e:
+            last_err = e
+            continue
+        if not hasattr(mod, "build"):
+            raise SystemExit(
+                f"{module_name} found but exposes no `build(device)` function. "
+                "Add `def build(device: str) -> BenchmarkModel:` to the module."
+            )
+        return mod.build(device)
+    raise SystemExit(
+        f"No model adapter resolved for --model {name!r}. "
+        f"Tried: {candidate_modules}. "
+        f"Last error: {last_err}. "
+        f"See benchmark/docs/team_run_guide.md for how to add an adapter."
+    )
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(
+        description=__doc__.split("\n", 2)[0] if __doc__ else "",
+    )
+    ap.add_argument("--model", required=True, help="adapter name (kebab-case)")
+    ap.add_argument("--split", default="easy", help="easy | medium | hard")
+    ap.add_argument(
+        "--repo", default="itaykadosh/rpx-test", help="HuggingFace dataset repo"
+    )
+    ap.add_argument("--device", default="cuda")
+    ap.add_argument(
+        "--output-dir",
+        default=None,
+        help="default: ./rpx_results/<model>/<split>/",
+    )
+    ap.add_argument(
+        "--manifest-path",
+        default=None,
+        help="Local manifest JSON (skip HF download). Use for runs against "
+        "a staged lossless v2-webp tree before HF upload. Path is typically "
+        "<staging>/manifests/video_depth/<split>.json from "
+        "`python -m rpx_benchmark.dataset_hub.cli manifest`.",
+    )
+    ap.add_argument(
+        "--frame-budget",
+        type=int,
+        default=None,
+        help="Subsample to N frames per clip (paper §5.2 ablation). "
+        "Default: use every frame on disk.",
+    )
+    ap.add_argument(
+        "--sampling",
+        default="all",
+        choices=["all", "stride", "fps_se3"],
+        help="Subsampling strategy when --frame-budget is set",
+    )
+    ap.add_argument(
+        "--upload-to-box",
+        action="store_true",
+        help="After the run, ship results to UTD Box. Requires BOX_DEVELOPER_TOKEN.",
+    )
+    args = ap.parse_args()
+
+    model = _load_model(args.model, args.device)
+
+    from rpx_benchmark.tasks.video_depth import VideoDepthRunConfig, run_video_depth
+
+    cfg = VideoDepthRunConfig(
+        model=model,
+        split=args.split,
+        repo_id=args.repo,
+        device=args.device,
+        output_dir=args.output_dir,
+        manifest_path=args.manifest_path,
+        frame_budget=args.frame_budget,
+        sampling=args.sampling,
+        upload_to_box=args.upload_to_box,
+    )
+    result, _dr, paths = run_video_depth(cfg)
+    print("D1-V run complete.")
+    print(f"  result.json : {paths['json']}")
+    print(f"  cells       : {paths['cells']}")
+    print(f"  summary.md  : {paths['markdown']}")
+    if "box_remote" in paths:
+        print(f"  box         : {paths['box_remote']}")
+
+
+if __name__ == "__main__":
+    main()

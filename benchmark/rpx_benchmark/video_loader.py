@@ -232,11 +232,30 @@ class D1VDataset:
         if "intrinsics" in group:
             metadata["intrinsics"] = np.asarray(group["intrinsics"], dtype=np.float32)
 
+        from .api import Difficulty, Phase
+
+        _PHASE_BY_INT = {0: Phase.CLUTTER, 1: Phase.INTERACTION, 2: Phase.CLEAN}
+        try:
+            phase_enum: Phase | None = (
+                Phase(phase) if isinstance(phase, str) else _PHASE_BY_INT.get(int(phase))
+            )
+        except (ValueError, TypeError):
+            phase_enum = None
+        difficulty_str = group.get("difficulty")
+        try:
+            difficulty_enum: Difficulty | None = (
+                Difficulty(difficulty_str) if difficulty_str else None
+            )
+        except ValueError:
+            difficulty_enum = None
+
         return VideoSample(
             id=f"{scene}_{phase}_budget{metadata['frame_budget']}",
             rgb_seq=rgb_seq,
             ground_truth=gt,
             metadata=metadata,
+            phase=phase_enum,
+            difficulty=difficulty_enum,
             camera_pose_seq=camera_pose_seq,
         )
 
@@ -442,49 +461,33 @@ def align_scale_and_shift_per_clip(
     gt_seq: np.ndarray,
     valid_mask_seq: np.ndarray,
 ) -> np.ndarray:
-    """Solve a single per-clip scale + shift for affine-invariant models.
+    """Per-clip scale + shift alignment — thin wrapper around the shared
+    pooled solver.
 
-    Implements the closed-form least-squares solver from Ranftl et al.
-    2020 ("Towards Robust Monocular Depth Estimation"), pooled across
-    every valid pixel in the clip:
-
-        minimise   sum_{t, p ∈ valid_t}  ( s * pred[t, p] + t - gt[t, p] )^2
-        over       s, t  ∈ R
-
-    Per-clip (not per-frame) alignment is the standard convention for
-    video depth — per-frame would zero out the temporal-consistency
+    Delegates to :func:`~rpx_benchmark.metrics.depth_alignment.align_pred_to_gt_pooled`
+    in ``ls_affine`` mode so the math lives in exactly one place
+    (shared with the D1-F per-scene-phase aligner). Per-clip (not
+    per-frame) alignment is the standard convention for video depth —
+    per-frame alignment would zero out the temporal-consistency
     signal the video metrics measure.
 
-    Returns the aligned prediction sequence ``s * pred_seq + t`` so
-    callers can plug it straight into the metric calculators.
+    The returned sequence is ``s * pred_seq + t`` so callers can plug
+    it straight into the metric calculators.
     """
+    from .metrics.depth_alignment import align_pred_to_gt_pooled
+
     if pred_seq.shape != gt_seq.shape or pred_seq.shape != valid_mask_seq.shape:
         raise ConfigError(
             f"align_scale_and_shift_per_clip: shape mismatch "
             f"pred={pred_seq.shape} gt={gt_seq.shape} valid={valid_mask_seq.shape}",
             hint="All three sequences must be (T, H, W) with matching T/H/W.",
         )
-    valid = valid_mask_seq.astype(bool)
-    if not valid.any():
-        return pred_seq.copy()
-
-    p = pred_seq[valid].astype(np.float64)
-    g = gt_seq[valid].astype(np.float64)
-
-    # Closed-form: [[sum p^2, sum p], [sum p, N]] @ [s, t]^T = [[sum p g], [sum g]]
-    A = np.array(
-        [[np.sum(p * p), np.sum(p)], [np.sum(p), float(p.size)]],
-        dtype=np.float64,
+    return align_pred_to_gt_pooled(
+        pred_seq=pred_seq,
+        gt_seq=gt_seq,
+        mode="ls_affine",
+        valid_seq=valid_mask_seq.astype(bool),
     )
-    b = np.array([np.sum(p * g), np.sum(g)], dtype=np.float64)
-    try:
-        s, t = np.linalg.solve(A, b)
-    except np.linalg.LinAlgError:
-        # Degenerate (e.g. zero-variance prediction) — return unaligned.
-        log.warning("align_scale_and_shift_per_clip: degenerate system; returning identity")
-        return pred_seq.copy()
-
-    return (s * pred_seq + t).astype(pred_seq.dtype)
 
 
 __all__ = [
