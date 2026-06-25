@@ -216,7 +216,13 @@ def _find_torch_module(adapter):
     return None
 
 
-def _build_model(name: str, device: str, batch_size: int = 1):
+def _build_model(
+    name: str,
+    device: str,
+    batch_size: int = 1,
+    *,
+    acknowledge_unverified: bool = False,
+):
     """Build ``(BenchmarkableModel placeholder, raw_adapter)``.
 
     The placeholder model is only used for its ``.name`` attribute — the
@@ -233,7 +239,22 @@ def _build_model(name: str, device: str, batch_size: int = 1):
     # to the registry factory. ``resolve_model_key`` raises SystemExit
     # with a friendly error if neither resolves.
     registry_key = resolve_model_key(name)
-    adapter = MODEL_REGISTRY[registry_key](device=device, batch_size=batch_size)
+    # Only pass acknowledge_unverified to factories that accept it
+    # (currently only the FE2E safety-rail adapter). Other factories
+    # don't have the kwarg and would TypeError if we always passed it.
+    factory = MODEL_REGISTRY[registry_key]
+    kwargs = {"device": device, "batch_size": batch_size}
+    if acknowledge_unverified:
+        kwargs["acknowledge_unverified"] = True
+    try:
+        adapter = factory(**kwargs)
+    except TypeError as e:
+        if "acknowledge_unverified" in str(e):
+            # Factory doesn't accept the flag — drop it and retry.
+            kwargs.pop("acknowledge_unverified", None)
+            adapter = factory(**kwargs)
+        else:
+            raise
     # Prefer the canonical roster's display name when the caller used the
     # canonical key; otherwise fall back to the legacy registry's display name.
     from rpx_benchmark.adapters.depth_scaffold import DEPTH_MODEL_CARDS
@@ -479,6 +500,15 @@ def main() -> None:
         "Default: build manifest locally from cached Parquet.",
     )
     ap.add_argument(
+        "--acknowledge-unverified",
+        action="store_true",
+        help="Run an adapter whose upstream weights are NOT verified "
+        "against the paper authors' release (FE2E today; others may be "
+        "added if their official release is delayed). Use only after "
+        "confirming the candidate weights match the paper's model; "
+        "otherwise published numbers may not reflect the named model.",
+    )
+    ap.add_argument(
         "--manifest-path",
         default=None,
         help="Path to a pre-built manifest JSON (e.g. "
@@ -551,7 +581,12 @@ def main() -> None:
     )
 
     with cli_ux.working(f"Loading adapter '{args.model}' (may fetch weights)"):
-        model, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
+        model, adapter = _build_model(
+            args.model,
+            device=args.device,
+            batch_size=args.batch_size,
+            acknowledge_unverified=args.acknowledge_unverified,
+        )
 
     # Comprehensive metrics need predictions on disk
     if args.comprehensive_metrics:

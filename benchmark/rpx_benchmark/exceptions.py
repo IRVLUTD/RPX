@@ -159,6 +159,28 @@ class AdapterError(ModelError):
     """
 
 
+class UnverifiedAdapterError(ModelError):
+    """An adapter points at weights whose official-source lineage is
+    not verified, and the caller has not acknowledged the risk.
+
+    Some adapters in the canonical roster have no official HF / GitHub
+    release published by the paper authors today — only candidate
+    community uploads with empty READMEs. The adapter exists in the
+    codebase (so every roster slot is reachable via the CLI) but
+    refuses to run unless the caller explicitly passes
+    ``acknowledge_unverified=True`` to the constructor (or
+    ``--acknowledge-unverified`` to the CLI). The intent is to give
+    the team a working adapter to spike against without risking
+    accidental publication of numbers whose underlying weights might
+    not match the paper.
+
+    To clear this error: confirm with the paper authors that the
+    candidate weights match their published model, then either pass
+    the acknowledgement flag or rewrite the adapter to point at the
+    verified-official release path.
+    """
+
+
 # --------------------------------------------------------------------------- #
 # Metric-level errors
 # --------------------------------------------------------------------------- #
@@ -183,5 +205,6 @@ __all__ = [
     "DownloadError",
     "ModelError",
     "AdapterError",
+    "UnverifiedAdapterError",
     "MetricError",
 ]

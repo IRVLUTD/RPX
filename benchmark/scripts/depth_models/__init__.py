@@ -282,6 +282,18 @@ def _build_depthlm(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return DepthLMAdapter(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_fe2e(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """FE2E — paper roster entry; unverified upstream weights.
+
+    Behind a safety rail: raises UnverifiedAdapterError unless
+    ``acknowledge_unverified=True`` is passed. See ``fe2e.py`` for the
+    "verify and wire" instructions.
+    """
+    from .fe2e import FE2EAdapter
+
+    return FE2EAdapter(device=device, batch_size=batch_size, **kwargs)
+
+
 #: Public name → builder. ``--model X`` resolves through this table.
 #: Each entry is the canonical short id (snake_case) the team uses in
 #: result.json paths and the Box upload tree, so the same key shows up
@@ -299,6 +311,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "metric3d_v2": _build_metric3d_v2,
     "da3_metric_large": _build_da3_metric,
     "depthlm": _build_depthlm,
+    "fe2e": _build_fe2e,
     # ── Relative / aligned (native_alignment="ls_affine") ────────────────
     "da_v2_relative": _build_da_v2_relative,
     "da_v1": _build_da_v1,
@@ -331,6 +344,7 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "metric3d_v2": "Metric3D-V2-ViT-Giant",
     "da3_metric_large": "DA3-Metric-L",
     "depthlm": "DepthLM-12B",
+    "fe2e": "FE2E (unverified)",
     # Relative
     "da_v2_relative": "DA-V2-Relative-L",
     "da_v1": "DA-V1-Large",
@@ -380,9 +394,7 @@ CANONICAL_TO_LEGACY: Dict[str, str | None] = {
     "lotus-2":       "lotus_2",
     "da3-metric-l":  "da3_metric_large",       # depth-anything/DA3-LARGE (ByteDance)
     "depthlm":       "depthlm",                # facebook/DepthLM
-    # No verified-official upstream release yet — CLI raises install-hint
-    # error. Update hint in DEPTH_MODEL_CARDS when a release lands.
-    "fe2e":          None,
+    "fe2e":          "fe2e",                   # UNVERIFIED — safety rail; see fe2e.py
 }
 
 

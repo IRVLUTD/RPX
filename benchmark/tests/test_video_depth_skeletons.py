@@ -70,9 +70,9 @@ def test_video_depth_module_exposes_build(key):
 
 SKELETON_KEYS = [
     k for k in _video_keys()
-    # Real adapters with verified HF model_id + load incantation —
-    # build() returns an instance, not a NotImplementedError. Each
-    # has a verification-status note in its module docstring.
+    # Every video roster entry now has a real or safety-railed adapter
+    # — no pure skeletons remain in the Video Depth side. The image-
+    # depth side's FE2E entry uses the bridge mapping, tested separately.
     if k not in {
         "da-v2-video",       # frame-as-video baseline (da_v2_video.py)
         "depth-crafter",     # tencent/DepthCrafter
@@ -82,6 +82,9 @@ SKELETON_KEYS = [
         "monst3r",           # Junyi42/MonST3R_*_dpt
         "vggt-omega",        # facebook/VGGT-1B
         "da3-video",         # depth-anything/DA3-LARGE
+        "vigeo",             # pkqbajng/ViGeo (verified)
+        "d4rt",              # unverified, behind safety rail
+        "gem-depth",         # unverified, behind safety rail
     }
 ]
 
@@ -108,7 +111,7 @@ def test_skeleton_build_raises_with_install_hint(key):
 
 
 REAL_VIDEO_ADAPTERS = [
-    # All eight real video-depth adapters with verified HF model_id.
+    # All real video-depth adapters with verified HF model_id.
     # Each module exposes build() that returns an instance with the
     # correct task / depth_output_kind / name; setup() is expected to
     # require GPU + model package (we don't run setup here).
@@ -119,6 +122,16 @@ REAL_VIDEO_ADAPTERS = [
     ("monst3r",        "MonST3R",              "relative"),
     ("vggt-omega",     "VGGT-Ω",               "relative"),
     ("da3-video",      "DA3",                  "metric"),
+    ("vigeo",          "ViGeo",                "relative"),
+]
+
+
+UNVERIFIED_VIDEO_ADAPTERS = [
+    # Adapters behind the unverified-weights safety rail. build()
+    # returns an instance with the right task/name; setup() raises
+    # UnverifiedAdapterError unless acknowledge_unverified=True.
+    ("d4rt",      "D4RT",     "metric"),
+    ("gem-depth", "GemDepth", "metric"),
 ]
 
 
@@ -147,3 +160,45 @@ def test_real_video_adapter_shape(key, expected_name, expected_kind):
     assert adapter.name == expected_name, (
         f"{key}: adapter.name={adapter.name!r}, expected {expected_name!r}"
     )
+
+
+@pytest.mark.parametrize("key,expected_name,expected_kind", UNVERIFIED_VIDEO_ADAPTERS)
+def test_unverified_adapter_shape_and_safety_rail(key, expected_name, expected_kind):
+    """Unverified adapters: build() succeeds with the right shape, but
+    setup() raises UnverifiedAdapterError unless the caller explicitly
+    acknowledges the risk.
+    """
+    import importlib
+
+    from rpx_benchmark.api import TaskType
+    from rpx_benchmark.exceptions import UnverifiedAdapterError
+
+    module_name = key.replace("-", "_")
+    mod = importlib.import_module(f"video_depth_models.{module_name}")
+
+    # Default: no acknowledgement → setup() must raise.
+    adapter = mod.build(device="cpu")
+    assert adapter.task is TaskType.VIDEO_DEPTH
+    assert adapter.depth_output_kind == expected_kind
+    assert adapter.name == expected_name
+    assert getattr(adapter, "UNVERIFIED", False), (
+        f"{key}: adapter is missing the UNVERIFIED class attribute"
+    )
+    with pytest.raises(UnverifiedAdapterError) as exc:
+        adapter.setup()
+    msg = str(exc.value)
+    assert "UNVERIFIED" in msg
+    assert "acknowledge_unverified" in msg
+
+    # With acknowledgement: setup() proceeds (and may raise
+    # NotImplementedError if the upstream model class isn't wired).
+    # Either is acceptable — we only test that the safety rail clears.
+    acked = mod.build(device="cpu", acknowledge_unverified=True)
+    try:
+        acked.setup()
+    except NotImplementedError:
+        pass  # safety rail cleared; upstream code still pending
+    except UnverifiedAdapterError:
+        pytest.fail(
+            f"{key}: acknowledge_unverified=True did not clear the safety rail"
+        )
