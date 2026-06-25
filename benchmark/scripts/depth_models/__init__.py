@@ -260,6 +260,28 @@ def _build_metric3d_v2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return Metric3DV2(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_da3_metric(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """DA3 Metric-L — Depth Anything 3 (ByteDance, ICLR'26 Oral).
+
+    HF: depth-anything/DA3-LARGE; loads via custom ``depth_anything_3``
+    package. ``pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3``.
+    """
+    from .da3_metric import DA3Metric
+
+    return DA3Metric(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_depthlm(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """DepthLM — Meta vision-language depth model (ICLR'26 Oral).
+
+    HF: facebook/DepthLM; 12B parameters fine-tuned from Pixtral. Needs
+    a high-VRAM GPU (40 GB+) or 4-bit quantisation via bitsandbytes.
+    """
+    from .depthlm import DepthLMAdapter
+
+    return DepthLMAdapter(device=device, batch_size=batch_size, **kwargs)
+
+
 #: Public name → builder. ``--model X`` resolves through this table.
 #: Each entry is the canonical short id (snake_case) the team uses in
 #: result.json paths and the Box upload tree, so the same key shows up
@@ -275,6 +297,8 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "patchfusion": _build_patchfusion,
     "hyden_metric": _build_hyden_metric,
     "metric3d_v2": _build_metric3d_v2,
+    "da3_metric_large": _build_da3_metric,
+    "depthlm": _build_depthlm,
     # ── Relative / aligned (native_alignment="ls_affine") ────────────────
     "da_v2_relative": _build_da_v2_relative,
     "da_v1": _build_da_v1,
@@ -305,6 +329,8 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "patchfusion": "PatchFusion-ZoeDepth",
     "hyden_metric": "HyDen-DA2-Metric",
     "metric3d_v2": "Metric3D-V2-ViT-Giant",
+    "da3_metric_large": "DA3-Metric-L",
+    "depthlm": "DepthLM-12B",
     # Relative
     "da_v2_relative": "DA-V2-Relative-L",
     "da_v1": "DA-V1-Large",
@@ -344,18 +370,19 @@ def list_models() -> list[str]:
 # (DA3 Metric-L, FE2E, DepthLM): they map to ``None`` so a clean
 # resolution error is raised in lieu of a confusing KeyError.
 CANONICAL_TO_LEGACY: Dict[str, str | None] = {
-    # Working
-    "da-v2-large":   "da_v2_metric_indoor",
+    # Working (verified against HF model cards)
+    "da-v2-large":   "da_v2_metric_indoor",   # depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf
     "depth-pro":     "depth_pro",
     "unidepth-v2":   "unidepth_v2",
     "metric3d-v2":   "metric3d_v2",
-    "moge-2-vit-l":  "moge_2",
+    "moge-2-vit-l":  "moge_2",                 # Ruicheng/moge-2-vitl-normal
     "hyden":         "hyden_metric",
     "lotus-2":       "lotus_2",
-    # No upstream implementation today — install when the team has one
-    "da3-metric-l":  None,
+    "da3-metric-l":  "da3_metric_large",       # depth-anything/DA3-LARGE (ByteDance)
+    "depthlm":       "depthlm",                # facebook/DepthLM
+    # No verified-official upstream release yet — CLI raises install-hint
+    # error. Update hint in DEPTH_MODEL_CARDS when a release lands.
     "fe2e":          None,
-    "depthlm":       None,
 }
 
 

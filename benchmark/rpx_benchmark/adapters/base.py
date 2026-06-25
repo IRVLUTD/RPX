@@ -36,6 +36,8 @@ from ..api import (
     TaskType,
     Tracklet,
     TrackletPrediction,
+    VideoDepthPrediction,
+    VideoSample,
     VisualGroundingPrediction,
 )
 from ..exceptions import AdapterError
@@ -223,6 +225,125 @@ class _NumpyDepthOutput:
             pil = pil.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
             depth = np.asarray(pil, dtype=np.float32)
         return DepthPrediction(depth_map=depth)
+
+
+# --------------------------------------------------------------------------- #
+# Convenience factory: numpy-in / numpy-out video-depth model
+# --------------------------------------------------------------------------- #
+
+
+class _NumpyVideoDepthInput:
+    """Hand the model the raw ``(T, H, W, 3) uint8`` clip untouched."""
+
+    def prepare(self, sample: VideoSample) -> PreparedInput:
+        rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
+        return PreparedInput(
+            payload=rgb_seq,
+            context={"target_thw": rgb_seq.shape[:3]},
+        )
+
+
+class _NumpyVideoDepthOutput:
+    """Wrap a raw ``(T, H_pred, W_pred) float`` array into
+    :class:`VideoDepthPrediction`.
+
+    If the model returns a shape different from ``target_thw``, the
+    per-frame depth maps are bilinearly resized (via PIL) so the
+    runner can compare pixel-for-pixel against the GT clip. T must
+    match — a model that drops frames is a contract violation, not
+    something this output adapter is allowed to paper over.
+    """
+
+    def finalize(
+        self,
+        model_output: Any,
+        context: Dict[str, Any],
+        sample: VideoSample,
+    ) -> VideoDepthPrediction:
+        depth_seq = np.asarray(model_output, dtype=np.float32)
+        if depth_seq.ndim == 4 and depth_seq.shape[1] == 1:
+            # (T, 1, H, W) → (T, H, W); a common model output shape.
+            depth_seq = depth_seq.squeeze(1)
+        if depth_seq.ndim != 3:
+            raise AdapterError(
+                f"numpy video-depth model must return a 3-D (T, H, W) "
+                f"array; got shape {depth_seq.shape}",
+                hint="Your video-depth callable must return (T, H, W) "
+                "float32. A common mistake is returning (T, 1, H, W) "
+                "without squeezing the channel dim.",
+            )
+        target_thw = context.get("target_thw", depth_seq.shape)
+        target_t, target_h, target_w = target_thw
+        if depth_seq.shape[0] != target_t:
+            raise AdapterError(
+                f"numpy video-depth model returned {depth_seq.shape[0]} "
+                f"frames; clip has {target_t}. The model must emit one "
+                "depth map per input frame — runner / metric calculators "
+                "assume aligned T.",
+            )
+        if depth_seq.shape[1:] != (target_h, target_w):
+            from PIL import Image
+
+            resized = np.empty(
+                (target_t, target_h, target_w), dtype=np.float32
+            )
+            for t in range(target_t):
+                pil = Image.fromarray(depth_seq[t], mode="F")
+                pil = pil.resize((target_w, target_h), Image.BILINEAR)
+                resized[t] = np.asarray(pil, dtype=np.float32)
+            depth_seq = resized
+        return VideoDepthPrediction(depth_map_seq=depth_seq)
+
+
+def make_numpy_video_depth_model(
+    fn: Callable[[np.ndarray], np.ndarray],
+    *,
+    name: str = "numpy_video_depth_model",
+    depth_output_kind: str = "metric",
+) -> BenchmarkableModel:
+    """Wrap a plain numpy video-depth callable as a
+    :class:`BenchmarkableModel`.
+
+    The callable must accept a ``(T, H, W, 3) uint8`` RGB clip and
+    return a ``(T, H', W') float`` per-frame depth sequence (metres
+    if metric; up-to-scale if relative — the runner applies per-clip
+    ``(s, t)`` alignment for relative models). If ``(H', W') !=
+    (H, W)``, the output is bilinearly resized per frame to match.
+    ``T`` must match the input clip length.
+
+    Parameters
+    ----------
+    fn : callable
+        Signature: ``fn(rgb_seq_uint8) -> depth_seq_float``.
+    name : str
+        Display name used in logs and reports.
+    depth_output_kind : str
+        ``"metric"`` (default) — model emits metres; runner skips
+        alignment. ``"relative"`` — runner applies per-clip
+        ``(s, t)`` scale-and-shift alignment before metrics.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import rpx_benchmark as rpx
+    >>> def my_clip_depth(rgb_seq):
+    ...     T, H, W, _ = rgb_seq.shape
+    ...     return np.full((T, H, W), 2.0, dtype=np.float32)
+    >>> bm = rpx.make_numpy_video_depth_model(my_clip_depth, name="mine")
+    >>> bm.task is rpx.TaskType.VIDEO_DEPTH
+    True
+    """
+    model = BenchmarkableModel(
+        task=TaskType.VIDEO_DEPTH,
+        input_adapter=_NumpyVideoDepthInput(),
+        model=fn,
+        output_adapter=_NumpyVideoDepthOutput(),
+        invoker=lambda model, payload: model(payload),
+        name=name,
+    )
+    # Propagate depth_output_kind to the runner's alignment dispatch.
+    model.depth_output_kind = depth_output_kind
+    return model
 
 
 def make_numpy_depth_model(

@@ -93,42 +93,49 @@ class DepthCrafterAdapter(BenchmarkModel):
         self._pipe = None
 
     def setup(self) -> None:
-        """Load the DepthCrafter pipeline.
+        """Load the DepthCrafter pipeline via the upstream github package.
 
-        **TODO (team)**: the exact HF load incantation depends on which
-        DepthCrafter release the team has installed. The two known
-        patterns from the upstream README:
-
-        1. Via :class:`diffusers.DiffusionPipeline` with a
-           ``custom_pipeline`` argument (newer releases).
-        2. Via cloning the GitHub repo (``Tencent/DepthCrafter``) and
-           importing ``DepthCrafterPipeline`` from
-           ``depthcrafter.depth_crafter_pipeline``.
-
-        Verify the right path against whichever release you install,
-        then replace the ``NotImplementedError`` body below with the
-        load call. The rest of the adapter (depth_output_kind,
-        predict, window/overlap kwargs) matches the paper conventions
-        and shouldn't need changes.
+        The bare ``diffusers.DiffusionPipeline.from_pretrained`` path
+        returns 404 because the model card hosts custom Python that
+        diffusers can't introspect from the model_id alone. The
+        upstream README's documented path is to clone the github repo
+        and import ``DepthCrafterPipeline`` directly.
         """
         if self._pipe is not None:
             return
         try:
-            import torch  # noqa: F401  — verify torch is available
-            import diffusers  # noqa: F401  — verify diffusers is available
+            import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "DepthCrafterAdapter needs `diffusers` and `torch`. "
-                "Install with: pip install diffusers transformers accelerate"
+                "DepthCrafterAdapter needs `torch`. "
+                "Install with: pip install torch"
             ) from e
 
-        raise NotImplementedError(
-            "DepthCrafter setup() not yet wired — see the TODO in the "
-            "docstring. Pick one of the two load paths and replace this "
-            "raise with the real call. The other adapter machinery "
-            "(depth_output_kind='relative', predict, window/overlap "
-            "kwargs) is ready."
+        try:
+            # Upstream module path per github.com/Tencent/DepthCrafter README.
+            from depthcrafter.depth_crafter_ppl import DepthCrafterPipeline
+        except ImportError as e:
+            raise ImportError(
+                "DepthCrafterAdapter needs the upstream `depthcrafter` "
+                "package. Install with:\n"
+                "    git clone https://github.com/Tencent/DepthCrafter\n"
+                "    cd DepthCrafter && pip install -e ."
+            ) from e
+
+        dtype = torch.float16 if self.device.startswith("cuda") else torch.float32
+        self._pipe = DepthCrafterPipeline.from_pretrained(
+            "tencent/DepthCrafter",
+            torch_dtype=dtype,
         )
+        self._pipe.to(self.device)
+        for opt in (
+            "enable_xformers_memory_efficient_attention",
+            "enable_attention_slicing",
+        ):
+            try:
+                getattr(self._pipe, opt)()
+            except Exception:  # noqa: BLE001 — best-effort memory hint
+                pass
 
     def predict(
         self,
