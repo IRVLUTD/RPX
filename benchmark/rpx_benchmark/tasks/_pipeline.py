@@ -18,6 +18,7 @@ from typing import Dict, Optional, Tuple
 
 from ..adapters import BenchmarkableModel
 from ..api import Difficulty, TaskType
+from ..cell_log import cells_from_per_sample, write_cells
 from ..deployment import DeploymentReadinessReport
 from ..exceptions import ConfigError
 from ..hub import DEFAULT_REPO_ID, download_split
@@ -190,6 +191,29 @@ def run_pipeline(
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / "result.json"
     md_path = out_dir / "summary.md"
+    cells_path = out_dir / "cells.parquet"
+
+    # cells.parquet is the canonical artefact downstream Φ / 𝒥 / paper-
+    # table fills read from. Bucket per_sample (one row per frame) into
+    # per-(scene, phase) cells with the mean of every numeric metric.
+    # Mirrors the per-clip pipeline (_video_pipeline.py) so both tasks
+    # feed the same downstream path.
+    cells = cells_from_per_sample(
+        result.per_sample,
+        model_name=name,
+        task=task.value,
+    )
+    if cells:
+        write_cells(cells, cells_path)
+        log.info("wrote %d cell rows to %s", len(cells), cells_path)
+    else:
+        log.warning(
+            "no cells emitted for %s/%s — per_sample lacks scene/phase fields. "
+            "This usually means the dataset manifest's samples don't carry "
+            "scene_id + phase metadata, or the runner's metric_suite stripped "
+            "them. Downstream Φ/J aggregation will be unable to bucket.",
+            name, split_name,
+        )
 
     write_json(
         json_path,
@@ -213,7 +237,13 @@ def run_pipeline(
     )
     log.info("wrote %s and %s", json_path, md_path)
 
-    paths: Dict[str, Path] = {"json": json_path, "markdown": md_path, "out_dir": out_dir}
+    paths: Dict[str, Path] = {
+        "json": json_path,
+        "markdown": md_path,
+        "out_dir": out_dir,
+    }
+    if cells:
+        paths["cells"] = cells_path
 
     if cfg.upload_to_box:
         # Lazy import keeps Box deps (requests) out of the import path

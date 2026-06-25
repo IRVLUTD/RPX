@@ -95,21 +95,15 @@ class DepthCrafterAdapter(BenchmarkModel):
     def setup(self) -> None:
         """Load the DepthCrafter pipeline.
 
-        **TODO (team)**: the exact HF load incantation depends on which
-        DepthCrafter release the team has installed. The two known
-        patterns from the upstream README:
-
-        1. Via :class:`diffusers.DiffusionPipeline` with a
-           ``custom_pipeline`` argument (newer releases).
-        2. Via cloning the GitHub repo (``Tencent/DepthCrafter``) and
-           importing ``DepthCrafterPipeline`` from
-           ``depthcrafter.depth_crafter_pipeline``.
-
-        Verify the right path against whichever release you install,
-        then replace the ``NotImplementedError`` body below with the
-        load call. The rest of the adapter (depth_output_kind,
-        predict, window/overlap kwargs) matches the paper conventions
-        and shouldn't need changes.
+        **TODO (team)**: the exact load incantation depends on the
+        upstream release the team installs — verify against the
+        official DepthCrafter README before wiring this in. Once the
+        load call is correct, replace the ``NotImplementedError``
+        below with it. Everything else on this adapter
+        (``depth_output_kind="relative"`` for per-clip alignment,
+        ``predict`` returning a stacked ``(T, H, W) float32`` tensor,
+        window/overlap kwargs) follows the standard D1-V contract and
+        shouldn't need changes.
         """
         if self._pipe is not None:
             return
