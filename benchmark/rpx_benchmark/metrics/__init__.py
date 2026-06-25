@@ -45,7 +45,6 @@ Design notes
 # @register_metric decorators. Import-order matters: registry has to
 # exist first (imported above), then the calculator modules.
 from . import depth as _depth  # noqa: F401 — triggers registration
-from . import depth_robotics as _depth_robotics  # noqa: F401
 from . import detection as _detection  # noqa: F401
 from . import grounding as _grounding  # noqa: F401
 from . import keypoints as _keypoints  # noqa: F401
