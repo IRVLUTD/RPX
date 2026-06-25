@@ -2,20 +2,12 @@
 
 Per-clip metric depth from a full ``(scene, phase)`` RGB sequence. The
 D1-V roster (DepthCrafter, ChronoDepth, RollingDepth, MonST3R, VGGT-Ω,
-DA3 etc.) consumes the whole clip in one inference call and emits a
+DA3, etc.) consumes the whole clip in one inference call and emits a
 per-frame depth sequence.
 
-This module registers a ``TASK_SPEC`` so the runner registry knows
-about D1-V — required for the "every TaskType is in the registry"
-parity invariant.
-
-The ``run`` callable currently raises ``ConfigError`` because the
-full video-pipeline runner (the analogue of
-:func:`rpx_benchmark.tasks._pipeline.run_pipeline` adapted for per-clip
-iteration over :class:`~rpx_benchmark.video_loader.D1VDataset`) is
-landing in a follow-up PR with the first model adapter (DA3). Every
-other piece — the per-clip dataset, the metric calculators, the cell
-log column, the manifest writer — is already on ``main``.
+The end-to-end runner is :func:`run_video_pipeline`
+(:mod:`rpx_benchmark.tasks._video_pipeline`); this module wraps it
+with the D1-V task spec and registers it in the task registry.
 """
 
 from __future__ import annotations
@@ -23,42 +15,39 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..api import TaskType
-from ..exceptions import ConfigError
-from ._pipeline import PipelineResult, TaskRunConfig
+from ._pipeline import PipelineResult
+from ._video_pipeline import VideoTaskRunConfig, run_video_pipeline
 from .registry import TaskSpec, register_task
 
 PRIMARY_METRIC = "absrel"
 
 
 @dataclass
-class VideoDepthRunConfig(TaskRunConfig):
-    """Knobs for a D1-V run. Mirrors :class:`MonocularDepthRunConfig`
-    today; will grow ``frame_budget`` / ``sampling`` knobs once the
-    runner consumes :class:`~rpx_benchmark.video_loader.D1VDataset`."""
+class VideoDepthRunConfig(VideoTaskRunConfig):
+    """Knobs for a D1-V run.
+
+    Inherits ``frame_budget`` and ``sampling`` from
+    :class:`~rpx_benchmark.tasks._video_pipeline.VideoTaskRunConfig` for
+    the temporal-resolution ablation (paper §5.2); leave the defaults
+    (``frame_budget=None, sampling="all"``) for the headline run.
+    """
 
 
 def run_video_depth(cfg: VideoDepthRunConfig) -> PipelineResult:
-    """End-to-end D1-V pipeline. Not yet wired.
+    """End-to-end D1-V pipeline.
 
-    The infrastructure pieces are in place:
-
-    * :class:`~rpx_benchmark.video_loader.D1VDataset` yields
-      ``VideoSample`` per (scene, phase) clip.
-    * :class:`~rpx_benchmark.metrics.video_depth.VideoDepthErrorMetrics`
-      and ``VideoDepthTemporalMetrics`` are registered against
-      :data:`~rpx_benchmark.api.TaskType.VIDEO_DEPTH`.
-    * The cell-log writer accepts ``frame_budget``.
-
-    Missing piece: the video-pipeline runner itself — the analogue of
-    :func:`rpx_benchmark.tasks._pipeline.run_pipeline` adapted for
-    per-clip iteration. Lands with the first D1-V model adapter (DA3).
+    Delegates to :func:`run_video_pipeline`, which handles download →
+    :class:`~rpx_benchmark.video_loader.D1VDataset` build → per-clip
+    predict → per-clip ``(s, t)`` alignment (for relative-depth
+    models) →
+    :class:`~rpx_benchmark.metrics.video_depth.VideoDepthErrorMetrics`
+    + :class:`~rpx_benchmark.metrics.video_depth.VideoDepthTemporalMetrics`
+    → cell-log row → JSON / markdown summary.
     """
-    raise ConfigError(
-        "run_video_depth is registered but not yet implemented",
-        hint=(
-            "D1-V runner is pending the first model adapter integration. "
-            "Track progress in benchmark/docs/depth_metric_decisions.md."
-        ),
+    return run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric=PRIMARY_METRIC,
+        cfg=cfg,
     )
 
 

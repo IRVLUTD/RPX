@@ -49,6 +49,14 @@ class TaskRunConfig:
     revision: Optional[str] = None
     batch_size: int = 1
 
+    #: When set, the pipeline skips :func:`download_split` and loads
+    #: the manifest from disk. Use for runs against a locally-staged
+    #: lossless dataset (e.g. ``dataset_hub.cli manifest`` output)
+    #: before the v2-webp tree has been uploaded to HF. Path must point
+    #: at the JSON file (typically ``<staging>/manifests/<task>/<split>.json``);
+    #: the ``root`` inside that JSON resolves modality file paths.
+    manifest_path: Optional[str] = None
+
     device: str = "cuda"
     output_dir: Optional[str] = None
     progress: Optional[ProgressCallback] = None
@@ -131,13 +139,26 @@ def run_pipeline(
 
     log.info("pipeline: task=%s split=%s device=%s", task.value, split_name, cfg.device)
 
-    manifest_path = download_split(
-        task=task,
-        split=cfg.split,
-        repo_id=repo_id,
-        cache_dir=cfg.cache_dir,
-        revision=cfg.revision,
-    )
+    if cfg.manifest_path:
+        manifest_path = Path(cfg.manifest_path)
+        if not manifest_path.exists():
+            raise ConfigError(
+                f"manifest_path does not exist: {manifest_path}",
+                hint="Generate per-task manifests with "
+                "`python -m rpx_benchmark.dataset_hub.cli manifest "
+                "--src <raw> --staging <out> --splits "
+                "benchmark/data/splits/scene_splits.json` and pass the "
+                "resulting <out>/manifests/<task>/<split>.json path.",
+            )
+        log.info("using local manifest: %s", manifest_path)
+    else:
+        manifest_path = download_split(
+            task=task,
+            split=cfg.split,
+            repo_id=repo_id,
+            cache_dir=cfg.cache_dir,
+            revision=cfg.revision,
+        )
     dataset = RPXDataset.from_manifest(manifest_path, batch_size=cfg.batch_size)
     log.info("loaded %d samples from %s", len(dataset), manifest_path)
 

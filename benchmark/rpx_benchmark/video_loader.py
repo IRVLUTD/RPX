@@ -232,11 +232,30 @@ class D1VDataset:
         if "intrinsics" in group:
             metadata["intrinsics"] = np.asarray(group["intrinsics"], dtype=np.float32)
 
+        from .api import Difficulty, Phase
+
+        _PHASE_BY_INT = {0: Phase.CLUTTER, 1: Phase.INTERACTION, 2: Phase.CLEAN}
+        try:
+            phase_enum: Phase | None = (
+                Phase(phase) if isinstance(phase, str) else _PHASE_BY_INT.get(int(phase))
+            )
+        except (ValueError, TypeError):
+            phase_enum = None
+        difficulty_str = group.get("difficulty")
+        try:
+            difficulty_enum: Difficulty | None = (
+                Difficulty(difficulty_str) if difficulty_str else None
+            )
+        except ValueError:
+            difficulty_enum = None
+
         return VideoSample(
             id=f"{scene}_{phase}_budget{metadata['frame_budget']}",
             rgb_seq=rgb_seq,
             ground_truth=gt,
             metadata=metadata,
+            phase=phase_enum,
+            difficulty=difficulty_enum,
             camera_pose_seq=camera_pose_seq,
         )
 

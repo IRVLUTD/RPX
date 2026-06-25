@@ -239,10 +239,25 @@ def _build_model(name: str, device: str, batch_size: int = 1):
 
 
 def _run_via_official_pipeline(
-    *, model, split: str, repo_id: str, device: str, output_dir: str | None, batch_size: int
+    *,
+    model,
+    split: str,
+    repo_id: str,
+    device: str,
+    output_dir: str | None,
+    batch_size: int,
+    manifest_path: str | None = None,
 ):
-    """Path A: toolkit's `run_monocular_depth`. Works once the per-task manifests
-    are published on the HF repo."""
+    """Path A: toolkit's `run_monocular_depth`.
+
+    Two sub-paths:
+
+    * ``manifest_path is not None`` — load that manifest from disk
+      directly. Use for runs against a locally-staged lossless
+      (v2-webp) tree before the HF upload.
+    * ``manifest_path is None`` — pull ``manifests/<task>/<split>.json``
+      from the HF repo (the canonical post-publish path).
+    """
     from rpx_benchmark import MonocularDepthRunConfig, run_monocular_depth
 
     cfg = MonocularDepthRunConfig(
@@ -252,6 +267,7 @@ def _run_via_official_pipeline(
         device=device,
         output_dir=output_dir,
         batch_size=batch_size,
+        manifest_path=manifest_path,
     )
     return run_monocular_depth(cfg)
 
@@ -455,6 +471,16 @@ def main() -> None:
         "Default: build manifest locally from cached Parquet.",
     )
     ap.add_argument(
+        "--manifest-path",
+        default=None,
+        help="Path to a pre-built manifest JSON (e.g. "
+        "<staging>/manifests/monocular_depth/<split>.json from "
+        "`python -m rpx_benchmark.dataset_hub.cli manifest`). Used to "
+        "benchmark against a locally-staged lossless v2-webp tree "
+        "before HF upload. Skips both --use-official and the local "
+        "Parquet fallback.",
+    )
+    ap.add_argument(
         "--save-predictions",
         action="store_true",
         help="also save each per-frame .npz prediction (default: off; "
@@ -524,7 +550,7 @@ def main() -> None:
         args.save_predictions = True
 
     cli_ux.section("Run")
-    if args.use_official:
+    if args.manifest_path or args.use_official:
         result, dr_report, paths = _run_via_official_pipeline(
             model=model,
             split=args.split,
@@ -532,6 +558,7 @@ def main() -> None:
             device=args.device,
             output_dir=args.output_dir,
             batch_size=args.batch_size,
+            manifest_path=args.manifest_path,
         )
     else:
         result, dr_report, paths = _run_via_local_manifest(
