@@ -127,6 +127,7 @@ from .tasks.relative_pose import RelativePoseRunConfig, run_relative_pose
 from .tasks.segmentation import SegmentationRunConfig, run_segmentation
 from .tasks.sparse_depth import SparseDepthRunConfig, run_sparse_depth
 from .tasks.tracking import ObjectTrackingRunConfig, run_object_tracking
+from .tasks.video_depth import VideoDepthRunConfig, run_video_depth
 from .tasks.visual_grounding import VisualGroundingRunConfig, run_visual_grounding
 
 # Optional subpackages that require extras. We import them best-effort
@@ -232,6 +233,8 @@ __all__ = [
     # Task runners
     "MonocularDepthRunConfig",
     "run_monocular_depth",
+    "VideoDepthRunConfig",
+    "run_video_depth",
     "SegmentationRunConfig",
     "run_segmentation",
     "ObjectDetectionRunConfig",
