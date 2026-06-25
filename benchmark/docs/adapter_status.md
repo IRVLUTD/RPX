@@ -1,94 +1,144 @@
-# Adapter Status — Live
+# Depth Models — Who Owns What, What Works
 
-**Last verified**: 2026-06-25 via WebFetch against each upstream HF model card.
-**Updated by**: whoever ships a new adapter / verifies a candidate weights repo / passes a real smoke.
+**Pick your model. Run the install. Smoke it. Update the table.**
 
-This is the source of truth for "what works today" across all benchmark tasks.
-The canonical roster lives in `rpx_benchmark/adapters/depth_scaffold.py:DEPTH_MODEL_CARDS`.
-
-**Two columns to read carefully**:
-
-- **Status**: adapter-code state. "READY" means the adapter file exists, the model_id is verified, and the shape contract is enforced. It does NOT mean the model has actually been run end-to-end.
-- **Smoke**: real-GPU end-to-end test state. "passed/<host>" means weights loaded, `predict()` ran on a real RPX clip, `cells.parquet` emitted with reasonable numbers. "pending" means nobody has done this yet on real hardware.
-
-Until a row's Smoke column flips to "passed/<host>", **do not publish numbers from it in Table 3 / 4**.
+Last updated: 2026-06-25
 
 ---
 
-## D1 — Depth (20 / 20 slots filled; 2 / 17 smoke-passed end-to-end)
+## Quick read
 
-### Image Depth (10)
+We have 20 depth models in the paper (10 single-image, 10 video). The code is wired up for all of them. **Only 1 has actually been run on a GPU end-to-end so far** — the rest just need somebody to install the upstream package and do a 10-minute test.
 
-| # | Roster key | Display name | Status | Smoke | Upstream | Install hint |
-|---|---|---|---|---|---|---|
-| 1 | `da-v2-large` | DA-V2 Large | ✓ READY | **✓ passed/RTX 5070** (2026-06-25) | `depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf` | `pip install transformers torch timm pillow` |
-| 2 | `da3-metric-l` | DA3 Metric-L | ✓ READY (needs pkg) | ○ pending lab GPU | `depth-anything/DA3-LARGE` (ByteDance) | `pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3` |
-| 3 | `depth-pro` | Depth Pro | ✓ READY | ○ pending lab GPU | (existing in `scripts/depth_models/depth_pro.py`) | (existing — `pip install depth-pro`) |
-| 4 | `depthlm` | DepthLM-12B | ✓ READY (needs pkg, 40+ GB VRAM) | ○ pending lab GPU | `facebook/DepthLM` | `pip install transformers torch accelerate` |
-| 5 | `fe2e` | FE2E | ⚠ UNVERIFIED (safety rail) | ✗ blocked — no verified weights | candidate: `exander/FE2E` (empty README) | locate official upstream first |
-| 6 | `hyden` | HyDen Metric | ✓ READY (needs pkg) | ○ pending lab GPU | (existing) | (existing) |
-| 7 | `lotus-2` | Lotus-2 | ✓ READY (needs pkg) | ○ pending lab GPU | `jingheya/lotus-depth-d-v2-0-disparity` | `pip install diffusers transformers` |
-| 8 | `metric3d-v2` | Metric3D-V2-ViT-Giant | ✓ READY | ○ pending lab GPU | (existing torch.hub) | (existing) |
-| 9 | `moge-2-vit-l` | MoGe-2-ViTL | ✓ READY (needs pkg) | ○ pending lab GPU | `Ruicheng/moge-2-vitl-normal` | `pip install moge` (or upstream repo) |
-| 10 | `unidepth-v2` | UniDepth-V2-ViTL14 | ✓ READY | ○ pending lab GPU | (existing) | (existing) |
+| | Code wired | Actually run on GPU | Blocked |
+| --- | --- | --- | --- |
+| Single-image depth | 10 / 10 | 1 / 10 | 1 (FE2E) |
+| Video depth | 10 / 10 | 0 / 10 | 2 (D4RT, GemDepth) |
 
-**Image Depth smoke summary**: 1 of 10 smoke-passed end-to-end (`da-v2-large`).
-Each "pending" row is one team-member-PR away from "passed": `pip install <pkg>` → `python scripts/run_depth.py --model <key> --split easy --max-samples 25` → verify `cells.parquet`.
-
-### Video Depth (10)
-
-| # | Roster key | Display name | Status | Smoke | Upstream | Install hint |
-|---|---|---|---|---|---|---|
-| 1 | `chrono-depth` | ChronoDepth | ✓ READY (needs pkg) | ○ pending lab GPU | `jhshao/ChronoDepth` + github | `git clone github.com/jhShao/ChronoDepth && pip install -e .` |
-| 2 | `d4rt` | D4RT | ⚠ UNVERIFIED (safety rail) | ✗ blocked — no verified weights | candidate: `AlysonIrene/D4RT_checkpoint` | locate official upstream first |
-| 3 | `da3-video` | DA3 (video) | ✓ READY (needs pkg) | ○ pending lab GPU | `depth-anything/DA3-LARGE` (same weights as `da3-metric-l`) | `pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3` |
-| 4 | `depth-crafter` | DepthCrafter | ✓ READY (needs pkg) | ○ pending lab GPU | `tencent/DepthCrafter` + github | `git clone github.com/Tencent/DepthCrafter && pip install -e .` |
-| 5 | `gem-depth` | GemDepth | ⚠ UNVERIFIED (safety rail) | ✗ blocked — no verified weights | candidate: `YuechengLiu/GemDepth` (empty README) | locate official upstream first |
-| 6 | `monst3r` | MonST3R | ✓ READY (needs pkg) | ○ pending lab GPU | `Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt` | `pip install git+https://github.com/Junyi42/monst3r` |
-| 7 | `rolling-depth` | RollingDepth | ✓ READY (needs pkg) | ○ pending lab GPU | `prs-eth/rollingdepth-v1-0` + github | `git clone github.com/prs-eth/rollingdepth && pip install -e .` |
-| 8 | `vggt-omega` | VGGT-Ω | ✓ READY (needs pkg) | ○ pending lab GPU | `facebook/VGGT-1B` + github | `git clone github.com/facebookresearch/vggt && pip install -e .` |
-| 9 | `video-da` | Video Depth Anything | ✓ READY (needs pkg) | ○ pending lab GPU | `depth-anything/Video-Depth-Anything-Large` + github | `git clone github.com/DepthAnything/Video-Depth-Anything && pip install -e .` |
-| 10 | `vigeo` | ViGeo | ✓ READY (needs pkg) | ○ pending lab GPU | `pkqbajng/ViGeo` + github | `git clone github.com/aigc3d/ViGeo && pip install -e .` |
-
-**Video Depth smoke summary**: 0 of 10 smoke-passed end-to-end. (Adjacent: the `da-v2-video` frame-as-video baseline — outside the canonical roster — passed smoke on RTX 5070 on 2026-06-25, but it isn't one of the paper Table 4 rows.)
-
-**Total smoke status: 1 of 17 real adapters smoke-passed end-to-end on a real GPU.** The other 16 need per-model `pip install` + one-clip smoke on the lab GPU before their numbers ship.
+**The "Blocked" 3 are waiting on someone to find the official model release** — the HF repos we found for them look like community uploads, not the paper authors' actual weights.
 
 ---
 
-## D2–D7 — Other tasks (not yet audited)
+## Single-image depth (10 models)
 
-Each of the remaining 6 tasks has its own ~10-model roster. These haven't been WebFetch-verified or wired to the canonical bridge yet. **Per-task team owners should follow the playbook in [`new_task_playbook.md`](./new_task_playbook.md) when they start their task** — that doc captures every pattern (canonical bridge, safety rails, smoke protocol, etc.) so the verification work doesn't get redone per task.
+The team CLI: `python scripts/run_depth.py --model <name> --split easy`
 
-| Task | Canonical roster location | Status |
-|---|---|---|
-| D2 Detection | (none yet — needs the same scaffold treatment as D1) | not started |
-| D3 Tracking | (none yet) | not started |
-| D4 Scene QA | (none yet) | not started |
-| D5 Spatial QA | (none yet) | not started |
-| D6 Relative Pose | (none yet — model-side scripts exist under `scripts/pose_models/`) | not started |
-| D7 NVS | (none yet — model-side scripts exist under `scripts/nvs_models/`) | not started |
+| Model | Owner | Status | What's needed |
+| --- | --- | --- | --- |
+| **da-v2-large** | — | ✅ Done | Already tested on RTX 5070 — works |
+| **da3-metric-l** | — | ⏳ Needs smoke | `pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3` then smoke |
+| **depth-pro** | — | ⏳ Needs smoke | (package already installed in repo) — just run the smoke |
+| **depthlm** | — | ⏳ Needs smoke | `pip install transformers torch accelerate` — needs ≥24 GB VRAM |
+| **fe2e** | — | 🚫 Blocked | Find the official upstream release (community HF repo looks unofficial) |
+| **hyden** | — | ⏳ Needs smoke | (existing) |
+| **lotus-2** | — | ⏳ Needs smoke | `pip install diffusers transformers` |
+| **metric3d-v2** | — | ⏳ Needs smoke | (existing torch.hub) |
+| **moge-2-vit-l** | — | ⏳ Needs smoke | `pip install moge` |
+| **unidepth-v2** | — | ⏳ Needs smoke | (existing) |
 
 ---
 
-## Status legend
+## Video depth (10 models)
 
-**Status column (adapter code state):**
+The team CLI: `python scripts/run_video_depth.py --model <name> --split easy`
 
-- **✓ READY** — adapter exists, model_id verified against upstream model card, shape contract enforced, can be invoked. Does NOT mean it has actually been run on real weights.
-- **✓ READY (needs pkg)** — same as READY, but the upstream Python package must be `pip install`ed first. Without it, the adapter raises a clean `ImportError` with the exact install command.
-- **⚠ UNVERIFIED (safety rail)** — adapter exists and CLI resolves the canonical name, but actually running it requires `--acknowledge-unverified` (CLI) or `acknowledge_unverified=True` (constructor). Candidate weights are from author/community HF handles with no documented lineage to the paper authors.
+| Model | Owner | Status | What's needed |
+| --- | --- | --- | --- |
+| **chrono-depth** | — | ⏳ Needs smoke | `git clone github.com/jhShao/ChronoDepth && pip install -e .` |
+| **d4rt** | — | 🚫 Blocked | Find the official upstream release |
+| **da3-video** | — | ⏳ Needs smoke | Same install as `da3-metric-l` (shared weights) |
+| **depth-crafter** | — | ⏳ Needs smoke | `git clone github.com/Tencent/DepthCrafter && pip install -e .` |
+| **gem-depth** | — | 🚫 Blocked | Find the official upstream release |
+| **monst3r** | — | ⏳ Needs smoke | `pip install git+https://github.com/Junyi42/monst3r` |
+| **rolling-depth** | — | ⏳ Needs smoke | `git clone github.com/prs-eth/rollingdepth && pip install -e .` |
+| **vggt-omega** | — | ⏳ Needs smoke | `git clone github.com/facebookresearch/vggt && pip install -e .` |
+| **video-da** | — | ⏳ Needs smoke | `git clone github.com/DepthAnything/Video-Depth-Anything && pip install -e .` |
+| **vigeo** | — | ⏳ Needs smoke | `git clone github.com/aigc3d/ViGeo && pip install -e .` |
 
-**Smoke column (real-GPU verification state):**
+---
 
-- **✓ passed/&lt;host&gt;** — weights loaded on real GPU, `predict()` ran on a real RPX clip, `cells.parquet` emitted with reasonable numbers. Date + host recorded.
-- **○ pending lab GPU** — no real smoke yet. One team-member-PR away.
-- **✗ blocked** — cannot smoke because the upstream weights are not verified (safety-railed adapters). Will become "pending" once lineage is confirmed and the safety rail is dropped.
+## How to smoke your model (10 minutes)
 
-## Publication gate
+```bash
+# 1. SSH to the lab GPU box
+ssh <lab-gpu>
+cd ~/code/RPX/benchmark
+git pull
 
-**Do not publish a row's numbers in paper Table 3 / 4 / etc. until that row's Smoke column reads "✓ passed".** A "READY" adapter is necessary but not sufficient — the predict-output shape, alignment behaviour, and metric values all need real-data validation per model.
+# 2. Install your model's upstream package (see "What's needed" above)
+<the install command for your model>
 
-## Updating this table
+# 3. Run a small test on one scene
+PYTHONPATH=. python scripts/run_depth.py \
+    --model <your-model> --split easy --max-samples 25
 
-When you ship or fix an adapter — or pass a smoke — update this file in the same PR. The merge bot enforces nothing; the discipline does.
+# Or for video models:
+PYTHONPATH=. python scripts/run_video_depth.py \
+    --model <your-model> --split easy --frame-budget 25 --sampling stride
+
+# 4. Check the output looks reasonable
+ls rpx_results/<your-model>/easy/
+# Should have: cells.parquet, result.json, summary.md
+
+# 5. If it works, kick off the full sweep:
+PYTHONPATH=. python scripts/run_depth.py \
+    --model <your-model> --split easy --upload-to-box
+# (also do --split medium and --split hard)
+
+# 6. Edit this table: replace "⏳ Needs smoke" with "✅ Done (your-name, date)"
+```
+
+---
+
+## When things break
+
+The most common issue: the model loads fine but `predict()` fails because the model's output shape doesn't match what the adapter expects.
+
+What you'll see:
+```
+AdapterError: <model>: predict returned depth_seq shape (T, X, Y); expected (T, H, W) = (...)
+```
+
+The fix is usually 5 lines in the adapter's `predict()` body — squeeze a channel dim, transpose, resize, etc. Edit `scripts/depth_models/<your-model>.py` or `scripts/video_depth_models/<your-model>.py`, push a fix-up PR, re-smoke.
+
+If the error is something else (CUDA OOM, missing package, weights download fails), drop a message in #rpx-eng and we'll triage.
+
+---
+
+## The 3 blocked models — what to do
+
+For **FE2E**, **D4RT**, and **GemDepth** the HF repos we found look unofficial (empty READMEs, author personal handles, no clear link to the paper authors). Running them right now would risk publishing benchmark numbers under those model names that aren't actually the paper's model.
+
+To unblock any of them:
+
+1. Find the paper's official GitHub repo (check the paper PDF's "code" link or arxiv "code" tab)
+2. Confirm whether the weights match what's on the candidate HF repo (or use the official repo's instructions instead)
+3. Update the adapter file (`scripts/depth_models/fe2e.py` for FE2E, or `scripts/video_depth_models/d4rt.py` / `gem_depth.py` for the other two) — drop the safety-rail check and wire up the real load path
+4. Smoke it, then update this table
+
+---
+
+## Important rule before publication
+
+A model goes into paper Table 3 or Table 4 **only after its row here says ✅ Done**. "Wired up" just means the code is correct — it doesn't mean the model has actually been run on real data. The smoke is what catches the per-model surprises.
+
+---
+
+## Once you're done
+
+After every model in your list shows ✅, we run the downstream pipeline:
+
+1. Aggregate all the `cells.parquet` files from Box into one big table
+2. Compute Φ (phase stability) and J (deployment desirability) per model
+3. Fill those numbers into Tables 3 and 4 in the paper
+4. PDF rebuild + share for review
+
+ETA: 24 hours after the last sweep finishes.
+
+---
+
+## Other tasks (D2–D7) — not started yet
+
+When we start on Detection / Tracking / QA / Pose / NVS, the same pattern repeats. The recipe is in **`benchmark/docs/new_task_playbook.md`** — it's an 8-step checklist so the next task doesn't take as long as D1 did.
+
+Owners for D2–D7? Sign up in #rpx-eng.
