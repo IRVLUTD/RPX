@@ -30,6 +30,13 @@ from rpx_benchmark.schemas import (
 # else flows through ``extra='allow'``.
 _MIN_SAMPLES = {
     TaskType.MONOCULAR_DEPTH: {"id": "s0", "rgb": "rgb/0.png", "depth": "depth/0.png"},
+    TaskType.VIDEO_DEPTH: {
+        "id": "s0",
+        "rgb": "rgb/0.png",
+        "rgb_seq": ["rgb/0.png", "rgb/1.png"],
+        "depth_seq": ["depth/0.png", "depth/1.png"],
+        "frame_indices": [0, 1],
+    },
     TaskType.OBJECT_DETECTION: {"id": "s0", "rgb": "rgb/0.png", "boxes": "boxes/0.json"},
     TaskType.OPEN_VOCAB_DETECTION: {"id": "s0", "rgb": "rgb/0.png", "boxes": "boxes/0.json"},
     TaskType.OBJECT_SEGMENTATION: {"id": "s0", "rgb": "rgb/0.png", "mask": "mask/0.png"},

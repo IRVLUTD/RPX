@@ -119,6 +119,36 @@ class DepthSampleEntry(BaseSampleEntry):
     depth: str = Field(..., description="Path to a 16-bit PNG depth map in millimetres.")
 
 
+class VideoDepthSampleEntry(BaseSampleEntry):
+    """Per-clip sample entry for the D1-V (video depth) task.
+
+    Differs from :class:`DepthSampleEntry` in that ``rgb`` and ``depth``
+    fields refer to entire frame sequences:
+
+    * ``rgb`` carries the *first* frame's path (kept for compatibility
+      with :class:`BaseSampleEntry`'s required field); the full clip
+      is in ``rgb_seq``.
+    * ``rgb_seq``, ``depth_seq`` are lists of relative-or-absolute
+      paths in temporal order.
+    * ``frame_indices`` records which original phase-relative indices
+      these paths correspond to (for adapters that downsample, this
+      lets the metric runner reconcile predictions to GT).
+    """
+
+    rgb_seq: List[str] = Field(
+        ...,
+        description="Ordered list of RGB frame paths for one (scene, phase) clip.",
+    )
+    depth_seq: List[str] = Field(
+        ...,
+        description="Ordered list of 16-bit PNG depth maps in millimetres.",
+    )
+    frame_indices: List[int] = Field(
+        ...,
+        description="Phase-relative integer indices for each frame in the clip.",
+    )
+
+
 class DetectionSampleEntry(BaseSampleEntry):
     boxes: str = Field(..., description="Path to a JSON list of {bbox: [x1,y1,x2,y2], label: str}.")
 
@@ -164,6 +194,7 @@ class KeypointMatchingSampleEntry(BaseSampleEntry):
 #: Dispatch table: ``TaskType → SampleEntry`` model class.
 SAMPLE_MODELS: Dict[TaskType, Type[BaseSampleEntry]] = {
     TaskType.MONOCULAR_DEPTH: DepthSampleEntry,
+    TaskType.VIDEO_DEPTH: VideoDepthSampleEntry,
     TaskType.OBJECT_DETECTION: DetectionSampleEntry,
     TaskType.OPEN_VOCAB_DETECTION: DetectionSampleEntry,
     TaskType.OBJECT_SEGMENTATION: SegmentationSampleEntry,

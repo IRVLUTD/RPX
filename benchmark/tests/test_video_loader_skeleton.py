@@ -248,18 +248,16 @@ def test_align_scale_and_shift_per_clip_recovers_known_affine(tmp_path):
 
 
 def test_d1v_dataset_rejects_budget_with_all_mode():
-    """sampling='all' + frame_budget is an error — refuses to construct."""
-    with pytest.raises(ValueError, match="incompatible with a frame_budget"):
+    """sampling='all' + frame_budget is a ConfigError — refuses to construct."""
+    from pathlib import Path
+
+    from rpx_benchmark.exceptions import ConfigError
+
+    with pytest.raises(ConfigError, match="incompatible with a frame_budget"):
         D1VDataset(
             samples=[],
             task=TaskType.VIDEO_DEPTH,
-            root=tmp_path_factory_unused(),
+            root=Path("."),
             frame_budget=50,
             sampling="all",
         )
-
-
-def tmp_path_factory_unused():
-    from pathlib import Path
-
-    return Path(".")

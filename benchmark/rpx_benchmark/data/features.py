@@ -65,6 +65,28 @@ def _depth_features() -> Features:
     )
 
 
+def _video_depth_features() -> Features:
+    """Features for D1-V (video depth).
+
+    Each row is a clip — not a frame — so the image columns become
+    sequences. Tooling that consumes this schema must iterate the
+    sequences pairwise (rgb_seq[t] aligns with depth_seq[t]).
+    """
+    return Features(
+        {
+            **_shared_columns(),
+            # Per-clip arrays. Each list element is the same modality
+            # in :func:`_depth_features` for one frame within the clip.
+            "rgb_seq": Sequence(Image(decode=True)),
+            "depth_seq": Sequence(Image(decode=True)),
+            # Original phase-relative indices of the frames in this
+            # clip (lets adapters that downsample report which frames
+            # they kept). int32 on the wire.
+            "frame_indices": Sequence(Value("int32")),
+        }
+    )
+
+
 def _detection_features() -> Features:
     return Features(
         {
@@ -159,6 +181,7 @@ def _keypoint_features() -> Features:
 #: Dispatch table: TaskType → HF `Features` definition.
 RPX_FEATURES: Dict[TaskType, Features] = {
     TaskType.MONOCULAR_DEPTH: _depth_features(),
+    TaskType.VIDEO_DEPTH: _video_depth_features(),
     TaskType.OBJECT_DETECTION: _detection_features(),
     TaskType.OPEN_VOCAB_DETECTION: _detection_features(),
     TaskType.OBJECT_SEGMENTATION: _segmentation_features(),
