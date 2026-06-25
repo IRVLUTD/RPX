@@ -1,16 +1,18 @@
 """Video Depth Anything — sliding-window video-depth from the Depth Anything team.
 
-Real adapter wrapping the official ``depth-anything/Video-Depth-Anything-Large``
-HF release. Verified by HF model-card lookup
-(huggingface.co/depth-anything/Video-Depth-Anything-Large): the model
-loads via ``transformers.AutoModel.from_pretrained``.
+Real adapter wrapping the official Video Depth Anything release. The
+HF model card (huggingface.co/depth-anything/Video-Depth-Anything-Large)
+ships weights but **not** a transformers-compatible ``config.json`` —
+the upstream README directs callers to clone the repository and run
+inference via the bundled CLI (``run.py``). This adapter wraps that
+inference pattern.
 
-**Verification status**: model_id and load_path verified against the
-public HF model card; predict-loop shape contract (T, H, W float32)
-verified by the FrameDepthAsVideo baseline that already runs end-to-end
-in the toolkit. The team should still run a one-scene smoke on the
-lab GPU before queueing the full sweep — the per-clip forward call
-signature in newer transformers releases may differ.
+**Verification status**: model_id verified against the HF model card;
+load_path requires the github clone (verified by smoke run on
+2026-06-25 — the bare ``AutoModel.from_pretrained`` path fails with
+"Unrecognized model" because the config doesn't declare
+``model_type``). The clone + module-level import path below matches
+the upstream README.
 
 Paper: Chen et al. "Video Depth Anything: Consistent Depth Estimation
 for Super-Long Videos", CVPR 2025 (arxiv 2501.12375). Cited in
@@ -21,7 +23,10 @@ Install
 
 ::
 
-    pip install transformers torch
+    git clone https://github.com/DepthAnything/Video-Depth-Anything.git
+    cd Video-Depth-Anything
+    pip install -r requirements.txt
+    pip install -e .
     # Weights pulled lazily from HF (~1.5 GB Large variant; cached).
 """
 
@@ -72,92 +77,109 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         self._processor = None
 
     def setup(self) -> None:
+        """Load the model via the upstream github package.
+
+        VDA's HF release does NOT ship a transformers-compatible
+        ``config.json``; the canonical inference path is via the
+        ``video_depth_anything`` package built from
+        ``github.com/DepthAnything/Video-Depth-Anything``.
+        """
         if self._loaded:
             return
         try:
-            import torch
-            from transformers import AutoModel, AutoProcessor
+            import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "VideoDepthAnythingAdapter needs `transformers` and `torch`. "
-                "Install with: pip install transformers torch"
+                "VideoDepthAnythingAdapter needs `torch`. "
+                "Install with: pip install torch"
             ) from e
 
-        dtype = (
-            torch.float16
-            if (self.fp16 and self.device.startswith("cuda"))
-            else torch.float32
-        )
-        # Verified load path from HF model-card lookup.
-        self._model = AutoModel.from_pretrained(
-            self.model_id,
-            torch_dtype=dtype,
-        ).to(self.device).eval()
         try:
-            self._processor = AutoProcessor.from_pretrained(self.model_id)
-        except Exception:  # noqa: BLE001 — some releases ship only the model
-            self._processor = None
+            # Upstream module path per the github README.
+            from video_depth_anything.video_depth import VideoDepthAnything
+        except ImportError as e:
+            raise ImportError(
+                "VideoDepthAnythingAdapter needs the upstream "
+                "`video_depth_anything` package. Install with:\n"
+                "    git clone https://github.com/DepthAnything/Video-Depth-Anything\n"
+                "    cd Video-Depth-Anything && pip install -e ."
+            ) from e
+
+        # Encoder size — upstream supports 'vits' and 'vitl'.
+        encoder = "vits" if self.size == "small" else "vitl"
+
+        # Build the model and load the weights. The HF release hosts a
+        # state_dict; the upstream Python class loads it via
+        # ``model.load_state_dict``.
+        self._model = VideoDepthAnything(encoder=encoder)
+        try:
+            from huggingface_hub import hf_hub_download
+
+            ckpt_path = hf_hub_download(
+                repo_id=self.model_id,
+                filename=(
+                    "video_depth_anything_vits.pth"
+                    if encoder == "vits"
+                    else "video_depth_anything_vitl.pth"
+                ),
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"VideoDepthAnythingAdapter: could not download weights "
+                f"from {self.model_id} via huggingface_hub: {e}"
+            ) from e
+
+        state = torch.load(ckpt_path, map_location="cpu")
+        self._model.load_state_dict(state)
+        self._model = self._model.to(self.device).eval()
+        if self.fp16 and self.device.startswith("cuda"):
+            self._model = self._model.half()
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
-        """Run the per-clip forward pass.
+        """Run the per-clip forward pass via VDA's ``infer_video_depth``.
 
-        VDA's clip-mode forward takes a (T, 3, H, W) tensor and returns
-        a (T, H, W) depth tensor. If the release exposes a higher-level
-        ``forward_video`` or ``predict`` method instead, swap it in
-        here — the rest of the contract is unchanged.
+        Upstream exposes a higher-level helper that takes a list of
+        BGR/RGB numpy frames and returns a (T, H, W) depth tensor.
         """
-        import torch
-
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
 
-        # (T, H, W, 3) uint8 → (T, 3, H, W) float in [0, 1]
-        x = torch.from_numpy(rgb_seq).permute(0, 3, 1, 2).float() / 255.0
-        x = x.to(self.device)
-        if next(self._model.parameters()).dtype == torch.float16:
-            x = x.half()
-
-        with torch.no_grad():
-            # Prefer a dedicated video forward path if the release exposes one;
-            # fall back to the generic forward signature.
-            if hasattr(self._model, "forward_video"):
-                out = self._model.forward_video(x)
-            else:
-                out = self._model(x)
-        # Out can be a tensor, a dict with ``predicted_depth``, or a
-        # ModelOutput; normalise to (T, H, W) numpy float32.
-        depth = (
-            out
-            if isinstance(out, torch.Tensor)
-            else getattr(out, "predicted_depth", None)
-            if hasattr(out, "predicted_depth")
-            else out.get("predicted_depth") if isinstance(out, dict) else None
-        )
-        if depth is None:
+        # The upstream API: ``infer_video_depth(frames, target_fps,
+        # input_size, device, fp32)``. We pass each (H, W, 3) uint8
+        # frame as-is (the helper handles the rest).
+        if hasattr(self._model, "infer_video_depth"):
+            depth_seq, _meta = self._model.infer_video_depth(
+                [rgb_seq[t] for t in range(T)],
+                target_fps=30,
+                input_size=518,  # upstream default
+                device=self.device,
+                fp32=(not self.fp16),
+            )
+        else:
             from rpx_benchmark.exceptions import AdapterError
 
             raise AdapterError(
-                f"VideoDepthAnythingAdapter: forward returned {type(out).__name__} "
-                "with no recognised depth field. Expected a Tensor, a dict with "
-                "'predicted_depth', or a ModelOutput with .predicted_depth."
+                "VideoDepthAnythingAdapter: model has no "
+                "infer_video_depth method. Upstream API may have "
+                "moved; check the video_depth_anything release version."
             )
-        depth = depth.detach().cpu().float().numpy()
-        if depth.ndim == 4:  # (T, 1, H, W) — squeeze channel
-            depth = depth.squeeze(1)
-        if depth.shape != (T, H, W):
-            # Resize per-frame to (H, W) if the model emits a coarser map.
+
+        depth_seq = np.asarray(depth_seq, dtype=np.float32)
+        if depth_seq.ndim == 4:
+            depth_seq = depth_seq.squeeze(1)
+        if depth_seq.shape != (T, H, W):
             from PIL import Image as _Image
 
             resized = np.empty((T, H, W), dtype=np.float32)
             for t in range(T):
                 resized[t] = np.asarray(
-                    _Image.fromarray(depth[t].astype(np.float32), mode="F")
+                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F")
                     .resize((W, H), _Image.BILINEAR),
                     dtype=np.float32,
                 )
-            depth = resized
-        return depth.astype(np.float32)
+            depth_seq = resized
+        return depth_seq.astype(np.float32)
 
 
 def build(device: str = "cuda", **kwargs):
