@@ -1,6 +1,6 @@
 """Tests for the FrameDepthAsVideo wrapper.
 
-Proves the shim that turns any per-frame depth adapter into a D1-V
+Proves the shim that turns any per-frame depth adapter into a Video Depth
 :class:`BenchmarkModel`:
 
 * per-frame outputs land in the right slot of the stacked sequence
@@ -48,7 +48,7 @@ class _IdentityAdapter:
 
     Used as a deterministic stand-in for a real per-frame model. The
     output is ``(H, W) float32`` of the same shape as the input,
-    matching every D1-F adapter's contract.
+    matching every Image Depth adapter's contract.
     """
 
     def __call__(self, rgb):

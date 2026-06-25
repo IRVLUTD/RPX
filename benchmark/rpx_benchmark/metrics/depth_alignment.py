@@ -162,8 +162,8 @@ def align_pred_to_gt_pooled(
     pooling every valid pixel across all frames in that cell into a
     single least-squares solve. The same scope applies to:
 
-    * D1-V (paper task ``video_depth``) — pool over ``(T, H, W)``.
-    * D1-F (paper task ``monocular_depth``) — pool over the phase's
+    * Video Depth (paper task ``video_depth``) — pool over ``(T, H, W)``.
+    * Image Depth (paper task ``monocular_depth``) — pool over the phase's
       ~250 frames, with each ``(H, W)`` slice contributing its valid
       pixels.
 

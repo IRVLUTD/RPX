@@ -41,11 +41,11 @@ class TaskType(str, Enum):
     Members
     -------
     MONOCULAR_DEPTH
-        Dense metric depth from a single RGB frame (paper task D1-F).
+        Dense metric depth from a single RGB frame (paper task Image Depth).
     VIDEO_DEPTH
         Dense metric depth from a full phase clip (~250 RGB frames),
         producing a per-frame depth sequence with temporal consistency
-        (paper task D1-V). Same scenes and ground truth as
+        (paper task Video Depth). Same scenes and ground truth as
         MONOCULAR_DEPTH; differs in input context and metric set
         (per-frame metrics + temporal metrics).
     OBJECT_DETECTION
@@ -152,7 +152,7 @@ class DepthGroundTruth:
 
 @dataclass
 class VideoDepthGroundTruth:
-    """Per-clip ground truth for the D1-V (video depth) task.
+    """Per-clip ground truth for the Video Depth task.
 
     The model receives the full phase clip as an RGB sequence and is
     scored against a depth sequence of the same shape. ``valid_mask_seq``
@@ -276,7 +276,7 @@ class Sample:
 
 @dataclass
 class VideoSample:
-    """One input unit for video tasks (D1-V today, possibly more later).
+    """One input unit for video tasks (Video Depth today, possibly more later).
 
     Mirrors :class:`Sample` but carries sequence-shaped fields so a
     video model can ingest the entire phase clip in one call. The

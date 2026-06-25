@@ -1,4 +1,4 @@
-"""Skeleton adapter classes for every D1-F (monocular depth) model.
+"""Skeleton adapter classes for every Image Depth (monocular depth) model.
 
 Each class is a one-line subclass of :class:`DepthAdapterSkeleton`
 that pins it to a particular ``MODEL_KEY``; the scaffold infers

@@ -1,6 +1,6 @@
-"""Generic wrapper: turn any per-frame D1-F adapter into a D1-V model.
+"""Generic wrapper: turn any per-frame Image Depth adapter into a Video Depth model.
 
-Used to (a) get a working D1-V row out of every D1-F adapter the team
+Used to (a) get a working Video Depth row out of every Image Depth adapter the team
 already has, and (b) provide a no-temporal-context baseline against
 which true video models (DepthCrafter, MonST3R, RollingDepth, etc.)
 are scored — if a true video model can't beat the
@@ -10,7 +10,7 @@ zero.
 The wrapper does **not** introduce any temporal smoothing,
 cross-frame averaging, or carry-over state. Each frame is processed
 in isolation; the only "video-ness" is that we stack the per-frame
-outputs into the ``(T, H, W)`` tensor the D1-V metric calculators
+outputs into the ``(T, H, W)`` tensor the Video Depth metric calculators
 expect. This is by design: any temporal behaviour visible in OPW /
 TAE for a frame-as-video model is from the model itself (e.g.,
 batchnorm statistics shifting across a batched call), not from this
@@ -32,7 +32,7 @@ from rpx_benchmark.api import (
 
 
 class FrameDepthAsVideo(BenchmarkModel):
-    """Adapter shim: callable per-frame depth model → D1-V BenchmarkModel.
+    """Adapter shim: callable per-frame depth model → Video Depth BenchmarkModel.
 
     Parameters
     ----------

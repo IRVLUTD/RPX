@@ -1,4 +1,4 @@
-"""Per-clip pipeline for video tasks (D1-V today, future per-clip tasks
+"""Per-clip pipeline for video tasks (Video Depth today, future per-clip tasks
 later).
 
 The sibling of :mod:`rpx_benchmark.tasks._pipeline`, which handles
@@ -6,10 +6,10 @@ per-frame tasks. The two pipelines are deliberately split rather than
 overloaded onto a single ``run_pipeline``: the iteration unit is
 different (frame vs. clip), the dataset class is different
 (:class:`~rpx_benchmark.loader.RPXDataset` vs.
-:class:`~rpx_benchmark.video_loader.D1VDataset`), and per-clip tasks
+:class:`~rpx_benchmark.video_loader.VideoDepthDataset`), and per-clip tasks
 have an explicit alignment hook between ``model.predict`` and the
 metric suite that per-frame tasks don't need. Mixing both into one
-function obscured both code paths during the D1-V prototype; the
+function obscured both code paths during the Video Depth prototype; the
 split is the result of that prototype's lesson.
 
 The contract for a video model is exactly what
@@ -40,7 +40,7 @@ from ..logging_utils import get_logger
 from ..metrics.depth_alignment import align_pred_to_gt_pooled
 from ..metrics.registry import BenchmarkResult, MetricSuite
 from ..reports import format_markdown_summary, write_json
-from ..video_loader import D1VDataset
+from ..video_loader import VideoDepthDataset
 from ._pipeline import PipelineResult, TaskRunConfig, resolve_device
 
 log = get_logger(__name__)
@@ -53,7 +53,7 @@ log = get_logger(__name__)
 
 @dataclass
 class VideoTaskRunConfig(TaskRunConfig):
-    """Adds D1-V-specific knobs to :class:`TaskRunConfig`.
+    """Adds Video Depth-specific knobs to :class:`TaskRunConfig`.
 
     ``frame_budget`` and ``sampling`` are the temporal-resolution
     ablation knobs from the paper (\\S5.2). Defaults mean "use every
@@ -107,7 +107,7 @@ def run_video_pipeline(
     """End-to-end per-clip pipeline: download → load → predict (+ align)
     → metric suite → cell-log row → JSON / markdown summary.
 
-    The only D1-V-specific knobs are ``frame_budget`` and ``sampling``;
+    The only Video Depth-specific knobs are ``frame_budget`` and ``sampling``;
     everything else lines up with the per-frame
     :func:`~rpx_benchmark.tasks._pipeline.run_pipeline` so the team
     doesn't have to learn two contracts.
@@ -144,7 +144,7 @@ def run_video_pipeline(
             cache_dir=cfg.cache_dir,
             revision=cfg.revision,
         )
-    dataset = D1VDataset.from_manifest(
+    dataset = VideoDepthDataset.from_manifest(
         manifest_path,
         batch_size=cfg.batch_size,
         frame_budget=cfg.frame_budget,

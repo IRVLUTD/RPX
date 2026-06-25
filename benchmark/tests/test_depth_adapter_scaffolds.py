@@ -26,11 +26,11 @@ from rpx_benchmark.exceptions import ConfigError
 
 
 def test_roster_has_ten_d1f_and_ten_d1v_entries():
-    """Paper claims 10 D1-F + 10 D1-V models; the roster must agree."""
+    """Paper claims 10 Image Depth + 10 Video Depth models; the roster must agree."""
     d1f = [k for k, c in DEPTH_MODEL_CARDS.items() if c.task is TaskType.MONOCULAR_DEPTH]
     d1v = [k for k, c in DEPTH_MODEL_CARDS.items() if c.task is TaskType.VIDEO_DEPTH]
-    assert len(d1f) == 10, f"D1-F roster size drifted: {sorted(d1f)}"
-    assert len(d1v) == 10, f"D1-V roster size drifted: {sorted(d1v)}"
+    assert len(d1f) == 10, f"Image Depth roster size drifted: {sorted(d1f)}"
+    assert len(d1v) == 10, f"Video Depth roster size drifted: {sorted(d1v)}"
 
 
 def test_roster_keys_are_unique_kebab_case():
@@ -129,7 +129,7 @@ def test_subclass_with_unknown_model_key_raises():
 
 
 # --------------------------------------------------------------------------- #
-# Specific D1-F / D1-V invariants the paper relies on
+# Specific Image Depth / Video Depth invariants the paper relies on
 # --------------------------------------------------------------------------- #
 
 
@@ -138,7 +138,7 @@ def test_subclass_with_unknown_model_key_raises():
     ["moge-2-vit-l", "hyden", "lotus-2", "fe2e", "depthlm"],
 )
 def test_known_relative_models_marked_relative(key):
-    """Paper §3.3: these five D1-F models are affine-invariant."""
+    """Paper §3.3: these five Image Depth models are affine-invariant."""
     assert DEPTH_MODEL_CARDS[key].depth_output_kind == "relative"
 
 
@@ -147,11 +147,11 @@ def test_known_relative_models_marked_relative(key):
     ["da3-metric-l", "da-v2-large", "depth-pro", "unidepth-v2", "metric3d-v2"],
 )
 def test_known_metric_models_marked_metric(key):
-    """Paper §3.3: these five D1-F models emit metric depth directly."""
+    """Paper §3.3: these five Image Depth models emit metric depth directly."""
     assert DEPTH_MODEL_CARDS[key].depth_output_kind == "metric"
 
 
 def test_da3_appears_in_both_rosters():
-    """DA3 is the shared model across D1-F and D1-V — same weights, different feed."""
+    """DA3 is the shared model across Image Depth and Video Depth — same weights, different feed."""
     assert DEPTH_MODEL_CARDS["da3-metric-l"].task is TaskType.MONOCULAR_DEPTH
     assert DEPTH_MODEL_CARDS["da3-video"].task is TaskType.VIDEO_DEPTH

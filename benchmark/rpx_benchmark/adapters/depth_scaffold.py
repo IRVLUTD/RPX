@@ -1,10 +1,10 @@
-"""Shared scaffold for depth-model adapters (D1-F and D1-V).
+"""Shared scaffold for depth-model adapters (Image Depth and Video Depth).
 
 Every adapter in ``rpx_benchmark/adapters/depth/`` and
 ``rpx_benchmark/adapters/video_depth/`` follows the same shape:
 
-* Declare ``task`` (``TaskType.MONOCULAR_DEPTH`` for D1-F,
-  ``TaskType.VIDEO_DEPTH`` for D1-V).
+* Declare ``task`` (``TaskType.MONOCULAR_DEPTH`` for Image Depth,
+  ``TaskType.VIDEO_DEPTH`` for Video Depth).
 * Declare ``depth_output_kind`` (``"metric"`` or ``"relative"``) so
   the runner knows whether to apply per-scene-phase scale-and-shift
   alignment before metric computation.
@@ -19,7 +19,7 @@ The scaffold provides:
   defaults and a ``predict`` stub that raises a descriptive
   ``NotImplementedError`` until a real implementation lands.
 * A central :data:`DEPTH_MODEL_CARDS` table that documents every
-  model in the paper rosters (D1-F + D1-V) — name, task, output
+  model in the paper rosters (Image Depth + Video Depth) — name, task, output
   kind, paper reference, install hint. Tests assert the table covers
   every roster entry so we can't accidentally drop a model.
 * :func:`available_depth_adapters` — programmatic introspection of
@@ -67,7 +67,7 @@ class DepthModelCard:
     Table 2 / Table 3 spelling exactly (e.g. ``"DA3 Metric-L"``)."""
 
     task: TaskType
-    """``MONOCULAR_DEPTH`` (D1-F) or ``VIDEO_DEPTH`` (D1-V)."""
+    """``MONOCULAR_DEPTH`` (Image Depth) or ``VIDEO_DEPTH`` (Video Depth)."""
 
     depth_output_kind: Literal["metric", "relative"]
     """Determines whether the runner applies per-scene-phase scale +
@@ -92,9 +92,9 @@ class DepthModelCard:
 #: skeleton importable from the adapters package.
 #:
 #: Source: paper-submission/overleaf/text/neurips_v2/04_tasks.tex
-#: (the D1-F and D1-V rows of Table 2).
+#: (the Image Depth and Video Depth rows of Table 2).
 DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
-    # -------------------------------------------------------------- D1-F
+    # -------------------------------------------------------------- Image Depth
     "da3-metric-l": DepthModelCard(
         name="DA3 Metric-L",
         task=TaskType.MONOCULAR_DEPTH,
@@ -165,7 +165,7 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         install_hint="pip install depthlm (TBD — clone upstream repo)",
         paper_ref="depthlm",
     ),
-    # -------------------------------------------------------------- D1-V
+    # -------------------------------------------------------------- Video Depth
     "da3-video": DepthModelCard(
         name="DA3",
         task=TaskType.VIDEO_DEPTH,

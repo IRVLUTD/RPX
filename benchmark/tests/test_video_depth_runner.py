@@ -1,9 +1,9 @@
-"""End-to-end test for the D1-V (video depth) runner.
+"""End-to-end test for the Video Depth runner.
 
 Exercises the per-clip pipeline with a fake adapter and a synthetic
 two-clip manifest. Proves:
 
-* download → ``D1VDataset`` → per-clip ``model.predict`` → metric
+* download → ``VideoDepthDataset`` → per-clip ``model.predict`` → metric
   suite → cell-log writes complete without GPU or real model weights;
 * relative-depth models get per-clip ``(s, t)`` alignment applied
   before metric computation;
@@ -226,7 +226,7 @@ def test_video_pipeline_frame_budget(fake_dataset_root, tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Frame-as-video integration: D1-F adapter shape → D1-V cell log row
+# Frame-as-video integration: Image Depth adapter shape → Video Depth cell log row
 # --------------------------------------------------------------------------- #
 
 
@@ -245,7 +245,7 @@ class _FakePerFrameAdapter:
 
 def test_frame_as_video_runs_through_full_pipeline(fake_dataset_root, tmp_path):
     """The shim that wraps any per-frame adapter must produce a cell-log
-    row populated with every D1-V metric (spatial + temporal) when run
+    row populated with every Video Depth metric (spatial + temporal) when run
     through the full pipeline. This proves the team's first real
     adapter (DA-V2 in per-clip mode) will work end-to-end without any
     further runner changes.
@@ -282,11 +282,11 @@ def test_frame_as_video_runs_through_full_pipeline(fake_dataset_root, tmp_path):
     cells_df = pq.read_table(paths["cells"]).to_pandas()
     assert len(cells_df) == 6  # 2 scenes × 3 phases
 
-    # Every D1-V metric must be present on the row — spatial + temporal.
+    # Every Video Depth metric must be present on the row — spatial + temporal.
     metric_cols = [c for c in cells_df.columns if c.startswith("metric:")]
     expected_metrics = {"absrel", "rmse", "delta1", "tae", "opw"}
     for m in expected_metrics:
         assert f"metric:{m}" in metric_cols, (
-            f"Cell log missing metric:{m} — D1-V pipeline regressed. "
+            f"Cell log missing metric:{m} — Video Depth pipeline regressed. "
             f"Found: {sorted(metric_cols)}"
         )

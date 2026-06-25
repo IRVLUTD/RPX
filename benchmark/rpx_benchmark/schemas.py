@@ -120,7 +120,7 @@ class DepthSampleEntry(BaseSampleEntry):
 
 
 class VideoDepthSampleEntry(BaseSampleEntry):
-    """Per-clip sample entry for the D1-V (video depth) task.
+    """Per-clip sample entry for the Video Depth task.
 
     Differs from :class:`DepthSampleEntry` in that ``rgb`` and ``depth``
     fields refer to entire frame sequences:

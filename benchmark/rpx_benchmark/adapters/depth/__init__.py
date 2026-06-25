@@ -1,6 +1,6 @@
-"""Depth-model adapters (paper task D1-F: MONOCULAR_DEPTH).
+"""Depth-model adapters (paper task Image Depth: MONOCULAR_DEPTH).
 
-This subpackage holds one adapter class per model in the D1-F roster.
+This subpackage holds one adapter class per model in the Image Depth roster.
 Adapters are skeletons today (see ``skeletons.py``) — they declare the
 right ``task`` and ``depth_output_kind`` and raise
 ``NotImplementedError`` with the install hint when ``predict`` is
