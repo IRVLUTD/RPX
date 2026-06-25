@@ -25,7 +25,7 @@ from ..hub import DEFAULT_REPO_ID, download_split
 from ..loader import RPXDataset
 from ..logging_utils import get_logger
 from ..metrics.registry import BenchmarkResult, MetricSuite
-from ..profiler import EfficiencyMetadata, count_parameters
+from ..profiler import EfficiencyMetadata, SystemCard, count_parameters
 from ..reports import format_markdown_summary, write_json
 from ..runner import BenchmarkRunner, ProgressCallback
 
@@ -170,6 +170,13 @@ def run_pipeline(
     efficiency = _count_params(model)
     if efficiency.params_m is not None:
         log.info("model %s: %.2f M params", name, efficiency.params_m)
+    # SystemCard auto-detects GPU / precision / batch_size and is
+    # stamped onto every cell row so cross-host aggregation can
+    # disambiguate cells produced on different hardware.
+    efficiency.system_card = SystemCard.auto_detect(
+        precision=getattr(model, "native_precision", "fp32"),
+        batch_size=cfg.batch_size,
+    )
 
     runner = BenchmarkRunner(
         model=model,
@@ -202,6 +209,7 @@ def run_pipeline(
         result.per_sample,
         model_name=name,
         task=task.value,
+        system_card=efficiency.system_card,
     )
     if cells:
         write_cells(cells, cells_path)

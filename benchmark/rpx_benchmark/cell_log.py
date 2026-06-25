@@ -83,6 +83,15 @@ FIXED_COLUMNS: tuple[str, ...] = (
     "n_samples",
     "frame_budget",
     "latency_ms_mean",
+    # Hardware context — required so cross-host aggregation can tell
+    # apart cells produced on different GPUs / precisions. The runner
+    # auto-detects via SystemCard.auto_detect() and threads the dict
+    # into cells_from_per_sample as ``system_card``. None for any field
+    # the host couldn't detect (e.g. running on CPU has gpu_name="").
+    "gpu_name",
+    "gpu_memory_gb",
+    "precision",
+    "batch_size",
     "toolkit_version",
     "git_sha",
     "timestamp_utc",
@@ -122,6 +131,7 @@ def cells_from_per_sample(
     task: str,
     git_sha: Optional[str] = None,
     metric_keys: Optional[Sequence[str]] = None,
+    system_card: Optional[Any] = None,
 ) -> List[Dict[str, Any]]:
     """Group per-sample metric rows into per-(scene, phase) cells.
 
@@ -142,6 +152,14 @@ def cells_from_per_sample(
     metric_keys
         If given, only these metric columns are emitted. Otherwise all
         numeric keys that aren't fixed-schema metadata are kept.
+    system_card
+        Optional :class:`~rpx_benchmark.profiler.SystemCard` dict (as
+        produced by ``card.to_dict()``). When provided, ``gpu_name``,
+        ``gpu_memory_gb``, ``precision``, and ``batch_size`` from the
+        card are stamped onto every emitted cell so cross-host /
+        cross-precision aggregation can disambiguate them. None means
+        those columns will be empty / None in the output — fine for
+        synthetic tests but not for production sweeps.
 
     Returns
     -------
@@ -172,6 +190,25 @@ def cells_from_per_sample(
     timestamp = datetime.now(timezone.utc).isoformat()
     version = _toolkit_version()
 
+    # Accept either a SystemCard dataclass or its .to_dict() form for
+    # ergonomics — third-party users on the public API typically have
+    # the dataclass, internal pipelines pass dicts.
+    if system_card is None:
+        sc: Mapping[str, Any] = {}
+    elif hasattr(system_card, "to_dict"):
+        sc = system_card.to_dict()
+    elif isinstance(system_card, Mapping):
+        sc = system_card
+    else:
+        raise TypeError(
+            f"system_card must be a SystemCard, a dict, or None; "
+            f"got {type(system_card).__name__}"
+        )
+    sc_gpu_name = sc.get("gpu_name") or None
+    sc_gpu_mem = sc.get("gpu_memory_gb")
+    sc_precision = sc.get("precision") or None
+    sc_batch_size = sc.get("batch_size")
+
     cells: List[Dict[str, Any]] = []
     for (scene, phase), rows in buckets.items():
         # frame_budget is the first-seen value for the cell (per-sample
@@ -191,6 +228,13 @@ def cells_from_per_sample(
             "n_samples": len(rows),
             "frame_budget": budget,
             "latency_ms_mean": _mean_or_none(rows, "latency_ms"),
+            # Hardware context from the runner's SystemCard. Columns
+            # always present in the schema; values are None when the
+            # caller didn't pass a system_card.
+            "gpu_name": sc_gpu_name,
+            "gpu_memory_gb": sc_gpu_mem,
+            "precision": sc_precision,
+            "batch_size": sc_batch_size,
             "toolkit_version": version,
             "git_sha": git_sha,
             "timestamp_utc": timestamp,
@@ -399,6 +443,10 @@ def _write_parquet(cells: Sequence[Mapping[str, Any]], path: Path) -> None:
                 pa.field("n_samples", pa.int64()),
                 pa.field("frame_budget", pa.int64()),
                 pa.field("latency_ms_mean", pa.float64()),
+                pa.field("gpu_name", pa.string()),
+                pa.field("gpu_memory_gb", pa.float64()),
+                pa.field("precision", pa.string()),
+                pa.field("batch_size", pa.int64()),
                 pa.field("toolkit_version", pa.string()),
                 pa.field("git_sha", pa.string()),
                 pa.field("timestamp_utc", pa.string()),

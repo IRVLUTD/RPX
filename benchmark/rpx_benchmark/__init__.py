@@ -96,6 +96,15 @@ from .hub import (
     load,
     mount,
 )
+from .cell_log import (
+    FIXED_COLUMNS,
+    cell_from_metrics,
+    cells_from_per_sample,
+    metric_col,
+    metric_keys,
+    read_cells,
+    write_cells,
+)
 from .loader import RPXDataset
 from .logging_utils import configure_logging, get_logger
 from .profiler import (
@@ -203,6 +212,14 @@ __all__ = [
     "estimate_memory_traffic_gb",
     "profile_model",
     "count_parameters",
+    # Cell log (per-(model, scene, phase) artefact every task uses)
+    "FIXED_COLUMNS",
+    "cell_from_metrics",
+    "cells_from_per_sample",
+    "metric_col",
+    "metric_keys",
+    "read_cells",
+    "write_cells",
     # Hub
     "hub",
     "DEFAULT_REPO_ID",
