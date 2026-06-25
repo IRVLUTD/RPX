@@ -36,7 +36,6 @@ import numpy as np
 from ..api import TaskType, VideoDepthGroundTruth, VideoDepthPrediction
 from ..exceptions import MetricError
 from ..logging_utils import get_logger
-from .depth_temporal import compute_temporal_depth_metrics
 from .registry import MetricCalculator, register_metric
 
 log = get_logger(__name__)
@@ -151,6 +150,27 @@ class VideoDepthTemporalMetrics(MetricCalculator):
         prediction: VideoDepthPrediction,
         ground_truth: VideoDepthGroundTruth,
     ) -> Dict[str, float]:
+        # Lazy import: ``metrics.depth_temporal`` and its dependencies
+        # (``deployment.se3_reproject_depth``, etc.) are not yet on
+        # ``main`` — they live in a sibling work-in-progress branch.
+        # Importing them eagerly at module load time would break CI on
+        # any PR (like this one) that ships ``video_depth.py`` before
+        # ``depth_temporal.py`` lands. The lazy import lets the
+        # calculator register at task-discovery time and only fail
+        # loudly if a caller actually invokes it before the temporal
+        # module is available.
+        try:
+            from .depth_temporal import compute_temporal_depth_metrics
+        except ImportError:
+            log.warning(
+                "video_depth_temporal: depth_temporal module not "
+                "available on this branch — emitting NaN for all "
+                "temporal metrics. Land depth_temporal.py in a follow-up "
+                "PR to populate these.",
+            )
+            return {"tae": float("nan"), "opw": float("nan"),
+                    "tgm": float("nan"), "tcc": float("nan")}
+
         _validate_shapes(prediction, ground_truth)
         pred_seq = prediction.depth_map_seq.astype(np.float32)
         gt_seq = ground_truth.depth_map_seq.astype(np.float32)
