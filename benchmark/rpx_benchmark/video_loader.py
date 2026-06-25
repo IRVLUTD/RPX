@@ -52,7 +52,7 @@ import numpy as np
 
 from .api import TaskType, VideoDepthGroundTruth, VideoSample
 from .decode_contracts import safe_load_depth, safe_load_pose, safe_load_rgb
-from .exceptions import ManifestError
+from .exceptions import ConfigError, ManifestError
 from .logging_utils import get_logger
 
 log = get_logger(__name__)
@@ -110,20 +110,20 @@ class D1VDataset:
 
     def __post_init__(self) -> None:
         if self.sampling == "all" and self.frame_budget is not None:
-            raise ValueError(
-                "sampling='all' is incompatible with a frame_budget — "
-                "drop the budget (None means take every frame) or pick "
-                "sampling='stride' or 'fps_se3'."
+            raise ConfigError(
+                "sampling='all' is incompatible with a frame_budget",
+                hint="Drop the budget (None means take every frame) or "
+                "pick sampling='stride' or 'fps_se3'.",
             )
         if self.sampling != "all" and self.frame_budget is None:
-            raise ValueError(
-                f"sampling={self.sampling!r} requires a frame_budget; "
-                "pass frame_budget=<int> or set sampling='all'."
+            raise ConfigError(
+                f"sampling={self.sampling!r} requires a frame_budget",
+                hint="Pass frame_budget=<int> or set sampling='all'.",
             )
         if self.frame_budget is not None and self.frame_budget < 2:
-            raise ValueError(
-                f"frame_budget must be >= 2 (got {self.frame_budget}); "
-                "temporal metrics need at least two frames."
+            raise ConfigError(
+                f"frame_budget must be >= 2 (got {self.frame_budget})",
+                hint="Temporal metrics need at least two frames.",
             )
 
     # ------------------------------------------------------------------ #
@@ -180,7 +180,10 @@ class D1VDataset:
                 positions = _read_translation_track(self.root, pose_files)
                 keep = _fps_se3(positions, self.frame_budget)
             else:  # pragma: no cover — guarded by __post_init__
-                raise ValueError(f"unknown sampling mode {self.sampling!r}")
+                raise ConfigError(
+                    f"unknown sampling mode {self.sampling!r}",
+                    hint="Pick one of 'all', 'stride', 'fps_se3'.",
+                )
 
         # 2. Decode RGB + depth + poses ONLY for the kept indices.
         #    Reading 250 PNGs then throwing 200 away would waste 80% of
@@ -357,13 +360,15 @@ def _fps_se3(positions: np.ndarray, budget: int) -> np.ndarray:
         Sorted indices, shape ``(budget,)``, dtype int32.
     """
     if positions.ndim != 2 or positions.shape[1] != 3:
-        raise ValueError(
+        raise ConfigError(
             f"_fps_se3: expected (T, 3) positions, got {positions.shape}",
+            hint="Pass T265 translations as an (N, 3) float64 array.",
         )
     T_full = positions.shape[0]
     if not (2 <= budget <= T_full):
-        raise ValueError(
+        raise ConfigError(
             f"_fps_se3: budget {budget} out of range [2, {T_full}]",
+            hint="Budget must be in [2, len(positions)].",
         )
 
     selected = [0]
@@ -454,9 +459,10 @@ def align_scale_and_shift_per_clip(
     callers can plug it straight into the metric calculators.
     """
     if pred_seq.shape != gt_seq.shape or pred_seq.shape != valid_mask_seq.shape:
-        raise ValueError(
+        raise ConfigError(
             f"align_scale_and_shift_per_clip: shape mismatch "
             f"pred={pred_seq.shape} gt={gt_seq.shape} valid={valid_mask_seq.shape}",
+            hint="All three sequences must be (T, H, W) with matching T/H/W.",
         )
     valid = valid_mask_seq.astype(bool)
     if not valid.any():
