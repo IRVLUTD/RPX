@@ -160,6 +160,17 @@ def run_video_pipeline(
     if is_relative:
         log.info("model %s is relative-depth → per-clip (s,t) alignment will be applied", name)
 
+    # Auto-detect SystemCard (GPU / precision / batch_size) so every
+    # cell row carries the host hardware context. Required for
+    # downstream cross-host aggregation per
+    # benchmark/docs/adapter_status.md publication gate.
+    from ..profiler import SystemCard
+
+    system_card = SystemCard.auto_detect(
+        precision=getattr(model, "native_precision", "fp32"),
+        batch_size=cfg.batch_size,
+    )
+
     metric_suite = MetricSuite.for_task(task)
 
     per_sample: List[dict] = []
@@ -223,6 +234,7 @@ def run_video_pipeline(
         model_name=name,
         task=task.value,
         metric_keys=auto_metric_keys,
+        system_card=system_card,
     )
     write_cells(cells, cells_path)
     log.info("wrote %d cell rows to %s", len(cells), cells_path)

@@ -38,9 +38,13 @@ def _sample_meta(sample: Any) -> Dict[str, Any]:
     if sample.difficulty is not None:
         meta["difficulty"] = sample.difficulty.value
     # Scene id is not part of the Sample contract, but the loader passes
-    # it through via id-prefix or metadata when available.
-    if sample.metadata and "scene" in sample.metadata:
-        meta["scene"] = sample.metadata["scene"]
+    # it through via metadata. Manifests write "scene_id"; accept either
+    # so the cell-log bucketing (keyed on "scene") never silently drops
+    # rows. See cell_log.cells_from_per_sample.
+    if sample.metadata:
+        scene = sample.metadata.get("scene_id") or sample.metadata.get("scene")
+        if scene is not None:
+            meta["scene"] = scene
     return meta
 
 
@@ -58,6 +62,23 @@ def _sum_nested_counts(node: Any) -> int:
         return int(node)
     except (TypeError, ValueError):
         return 0
+
+
+def _make_cuda_sync():
+    """Return a callable that synchronises CUDA when available, else a no-op.
+
+    Resolved once at runner setup so the per-batch hot loop only pays
+    the function-call overhead (no per-call ``torch.cuda.is_available()``
+    branch). On CPU-only systems or when torch is missing, returns a
+    no-op so the runner stays usable in lightweight test environments.
+    """
+    try:
+        import torch
+    except ImportError:
+        return lambda: None
+    if not torch.cuda.is_available():
+        return lambda: None
+    return torch.cuda.synchronize
 
 
 def _count_flops_of(fn, *args, **kwargs) -> Tuple[Optional[float], Any]:
@@ -234,11 +255,21 @@ class BenchmarkRunner:
         memory = MemoryProfiler().reset()
         first_batch_flops_g: Optional[float] = None
 
+        # CUDA kernels are async — ``model.predict`` returns when work
+        # is *queued*, not when it *completes*. Without a synchronise
+        # before stopping the timer, latency_ms in the cell log
+        # silently undercounts every GPU-bound model. Sync once before
+        # t0 (so kernels from outside the loop don't bleed into our
+        # measurement) and once after predict (so we measure to GPU
+        # completion). On CPU-only runs this is a no-op.
+        _cuda_sync = _make_cuda_sync()
+
         if progress:
             progress(0, total, "predict")
 
         first_batch = True
         for batch in self.dataset:
+            _cuda_sync()
             t0 = time.perf_counter()
             if first_batch and not skip_flops:
                 # Count FLOPs on a single sample to avoid scaling
@@ -255,6 +286,7 @@ class BenchmarkRunner:
                 first_batch = False
             else:
                 predictions = self.model.predict(batch)
+            _cuda_sync()
             batch_seconds = time.perf_counter() - t0
 
             if len(predictions) != len(batch):
