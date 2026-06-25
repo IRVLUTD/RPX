@@ -205,6 +205,55 @@ class _SingleFrameDepthSpec(_TaskSpec):
         return [_single_frame_entry(row, ["rgb", "depth"]) for _, row in df.iterrows()]
 
 
+class _VideoDepthSpec(_TaskSpec):
+    """``video_depth``: rgb + depth GT, one entry per ``(scene, phase)`` clip.
+
+    Emits ONE entry per (scene, phase) — not per-frame — with the
+    relevant frame filename lists pre-resolved so ``D1VDataset`` can
+    iterate clips directly. The structure differs from every other
+    spec on this page because D1-V's iteration unit is a clip, not a
+    frame; the cell-log key for the runner becomes
+    ``(model, task, scene, phase, frame_budget)`` and one row per clip
+    is the right granularity.
+    """
+
+    task_type_value = "video_depth"
+    required_modalities = ("rgb", "depth")
+
+    def build_entries(self, df) -> List[Dict[str, Any]]:
+        # Group the per-frame parquet rows by (scene_id, phase) and
+        # collapse each group into a single clip entry.
+        rows: List[Dict[str, Any]] = []
+        # GroupBy preserves first-row metadata for scene_type/difficulty
+        # which are constant within a (scene, phase) cell.
+        for (scene, phase), group in df.groupby(["scene_id", "phase"], sort=True):
+            stems = sorted(_frame_stem(r) for _, r in group.iterrows())
+            rgb_paths = [_modality_path(scene, int(phase), "rgb", s) for s in stems]
+            depth_paths = [_modality_path(scene, int(phase), "depth", s) for s in stems]
+            pose_paths = [_modality_path(scene, int(phase), "cam_pose", s) for s in stems]
+            # Use the first row for cell-level metadata (split, difficulty,
+            # scene_type). All rows in this group carry the same values.
+            first = next(iter(group.itertuples()))
+            rows.append(
+                {
+                    "id": f"{scene}__{int(phase)}",
+                    "scene_id": scene,
+                    "phase": int(phase),
+                    "scene_type": getattr(first, "scene_type", None),
+                    "difficulty": str(getattr(first, "split", "")) or None,
+                    "frame_filenames": rgb_paths,
+                    "depth_filenames": depth_paths,
+                    "pose_filenames": pose_paths,
+                    "metadata": {
+                        "scene_id": scene,
+                        "phase_idx": int(phase),
+                        "n_frames": len(stems),
+                    },
+                }
+            )
+        return rows
+
+
 class _SegmentationSpec(_TaskSpec):
     """``segmentation``: rgb + mask (singular!) GT.
 
@@ -394,6 +443,7 @@ class _VQASpec(_TaskSpec):
 # Recipe-key → spec instance.
 _TASK_SPECS: Dict[str, _TaskSpec] = {
     "monocular_depth": _SingleFrameDepthSpec(),
+    "video_depth": _VideoDepthSpec(),
     "segmentation": _SegmentationSpec(),
     "rgbd_segmentation": _RGBDSegmentationSpec(),
     "stereo_depth": _StereoDepthSpec(),

@@ -1,55 +1,64 @@
 """Sequence-shaped loader for video tasks (D1-V today; future video tasks).
 
-Skeleton — wiring contract is final, metric integration and the actual
-clip iterator are TODOs that land once Feynman's depth-metric study
-(:file:`benchmark/docs/depth_metric_decisions.md`) finalises the
-temporal metric tuple.
+Iterates per ``(scene, phase)`` clip, yielding
+:class:`~rpx_benchmark.api.VideoSample`. The loader supports an
+optional ``frame_budget`` + ``sampling`` mode for the temporal-
+resolution ablation study (run at full 250 frames + downsampled
+budgets such as 150/75/25 to characterise how each video depth model
+degrades with sparser input).
 
-Design contract (already agreed with the user):
+Cell-log granularity
+--------------------
 
-* Iteration unit is one ``(scene, phase)`` clip — yields
-  :class:`~rpx_benchmark.api.VideoSample`, NOT per-frame
-  :class:`~rpx_benchmark.api.Sample`.
-* Cell-log key for the runner is ``(model, task, scene, phase)``;
-  D1-V models produce a sequence prediction in one inference call, so
-  per-frame keys would over-count.
-* RGB/depth files are decoded through the canonical
-  :mod:`~rpx_benchmark.decode_contracts` helpers — sequence-shaped
-  arrays come out the other side stacked along axis 0.
-* Memory budget per clip at D435 resolution: ~537 MB
-  (250 × 640 × 480 × 3 B RGB + 250 × 640 × 480 × 4 B depth). Workable
-  on a 64 GB host with one clip in flight per worker.
-* Video models that emit affine-invariant (relative) depth get
-  per-clip (not per-frame) scale-and-shift alignment before metric
-  computation — aligning per-frame would defeat the temporal
-  consistency metrics. Per-clip alignment is the canonical Ranftl
-  et al. 2020 procedure for video depth evaluation.
+One ``(scene, phase)`` clip → one cell-log row keyed
+``(model, task, scene, phase, frame_budget)``. ``frame_budget=None``
+(or the literal 0) is the canonical "full clip" row that feeds Φ;
+non-None budgets feed the ablation plot. Φ is computed only over
+``frame_budget=None`` rows to keep the comparison across models
+honest.
 
-What is NOT yet implemented (deliberately):
+Sampling modes
+--------------
 
-* The actual ``__iter__`` walk over the parquet manifest, grouping
-  by ``(scene, phase)``. The contract is fixed but the
-  implementation needs the manifest reader pattern from
-  :class:`~rpx_benchmark.loader.RPXDataset` extended to consume
-  grouped rows.
-* Temporal metric computation. Waiting on Feynman's recommendation
-  for the temporal metric tuple (TGM / TAE / OPW / TCC / scale-drift).
-* Per-clip scale-and-shift solver for affine-invariant models.
+* ``"all"`` — every frame on disk (the default). ``frame_budget`` must
+  be ``None`` in this mode.
+* ``"stride"`` — uniform stride keeping the first and last frame
+  anchored. Reduces to FPS-in-1D-timestamp when frames are evenly
+  spaced (our 30 fps capture is).
+* ``"fps_se3"`` — farthest-point sampling in 3D camera-translation
+  space (T265 positions). First and last frame anchored. Selects
+  ``frame_budget`` frames that maximise spatial coverage of the
+  camera path. This is the most interesting mode for a robotics
+  paper: it answers "does losing frames hurt because of less data
+  or because we miss key viewpoints?" — only the second is
+  diagnostic. Deterministic given ``(scene, phase, frame_budget)``.
+
+Per-clip scale-and-shift alignment for affine-invariant models is
+applied at the runner level, not here — this loader is decode-only.
+
+Memory budget per full-budget clip at D435 resolution: ~540 MB
+(250 × 640 × 480 × 3 B RGB + 250 × 640 × 480 × 4 B depth). Workable
+on a 64 GB host with one clip in flight per worker.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, List
+from typing import Iterator, List, Literal, Optional
 
 import numpy as np
 
-from .api import TaskType, VideoSample
+from .api import TaskType, VideoDepthGroundTruth, VideoSample
+from .decode_contracts import safe_load_depth, safe_load_pose, safe_load_rgb
 from .exceptions import ManifestError
 from .logging_utils import get_logger
 
 log = get_logger(__name__)
+
+
+SamplingMode = Literal["all", "stride", "fps_se3"]
 
 
 @dataclass
@@ -59,29 +68,63 @@ class D1VDataset:
     Yielded value is :class:`~rpx_benchmark.api.VideoSample` whose
     ``rgb_seq`` is a ``(T, H, W, 3) uint8`` stack and whose
     ``ground_truth`` is :class:`~rpx_benchmark.api.VideoDepthGroundTruth`
-    with the same ``T``. ``T`` is whatever the phase actually has on
-    disk — no padding, no truncation. Adapters must handle variable
-    ``T`` (the alternative — fixed-length sub-clips — would break the
-    temporal metrics by hiding any frame-drop boundary).
+    with the same ``T``. When ``frame_budget`` is ``None`` (the
+    canonical run), ``T`` is whatever the phase has on disk; otherwise
+    ``T == frame_budget`` and ``metadata['frame_indices']`` records
+    which original-phase indices were kept.
 
     Parameters
     ----------
-    manifest_path : str or Path
-        Path to a per-task per-split manifest JSON (the kind
+    samples : list[dict]
+        Per-clip manifest entries (one dict per (scene, phase)).
+        Produced by
         :func:`rpx_benchmark.dataset_hub.split_manifests.write_split_manifests`
-        emits, but with rows grouped by ``(scene, phase)`` rather than
-        per-frame). The manifest writer currently does NOT produce
-        video-task manifests; that wiring is part of this work.
+        in its ``"video_depth"`` mode. Each dict carries ``scene_id``,
+        ``phase``, ``frame_filenames`` (sorted list), and optionally
+        ``pose_filenames``, ``intrinsics`` (3×3 list), ``difficulty``.
+    task : TaskType
+        Must be :data:`~rpx_benchmark.api.TaskType.VIDEO_DEPTH`.
+    root : Path
+        Snapshot root that ``frame_filenames`` and ``pose_filenames``
+        are resolved against.
+    batch_size : int
+        Always 1 for D1-V — clips are not stackable. Kept for API
+        uniformity with :class:`~rpx_benchmark.loader.RPXDataset`.
+    frame_budget : int or None
+        If set, subsample each clip to exactly this many frames via
+        ``sampling``. ``None`` means use every frame on disk.
+    sampling : Literal["all", "stride", "fps_se3"]
+        Subsampling strategy. ``"all"`` requires
+        ``frame_budget is None``. ``"stride"`` is uniform-with-anchored-
+        endpoints. ``"fps_se3"`` is farthest-point sampling in T265
+        position space (requires ``pose_filenames`` in the manifest
+        entry).
     """
 
-    # The fields below mirror :class:`RPXDataset`'s shape so adapter
-    # registration and the runner's iteration protocol can stay
-    # uniform across single-frame and video tasks. The downstream
-    # iteration just yields VideoSample instead of Sample.
-    samples: List[dict]  # grouped manifest entries, one per (scene, phase)
+    samples: List[dict]
     task: TaskType
     root: Path
-    batch_size: int = 1  # always 1 for D1-V: clips are not stackable
+    batch_size: int = 1
+    frame_budget: Optional[int] = None
+    sampling: SamplingMode = "all"
+
+    def __post_init__(self) -> None:
+        if self.sampling == "all" and self.frame_budget is not None:
+            raise ValueError(
+                "sampling='all' is incompatible with a frame_budget — "
+                "drop the budget (None means take every frame) or pick "
+                "sampling='stride' or 'fps_se3'."
+            )
+        if self.sampling != "all" and self.frame_budget is None:
+            raise ValueError(
+                f"sampling={self.sampling!r} requires a frame_budget; "
+                "pass frame_budget=<int> or set sampling='all'."
+            )
+        if self.frame_budget is not None and self.frame_budget < 2:
+            raise ValueError(
+                f"frame_budget must be >= 2 (got {self.frame_budget}); "
+                "temporal metrics need at least two frames."
+            )
 
     # ------------------------------------------------------------------ #
     # Iteration
@@ -91,41 +134,107 @@ class D1VDataset:
         return len(self.samples)
 
     def __iter__(self) -> Iterator[List[VideoSample]]:
-        # NOTE: not yet implemented. The intended shape is:
-        #
-        #   for group in self.samples:                     # one (scene, phase)
-        #       rgb_seq = np.stack([safe_load_rgb(...) for ...])
-        #       depth_seq = np.stack([safe_load_depth(...) / 1000.0 for ...])
-        #       valid_seq = depth_seq > 0   # D435 sentinel
-        #       gt = VideoDepthGroundTruth(
-        #           depth_map_seq=depth_seq.astype(np.float32),
-        #           valid_mask_seq=valid_seq,
-        #           frame_indices=np.array(group["frame_indices"], dtype=np.int32),
-        #       )
-        #       sample = VideoSample(
-        #           id=f"{group['scene_id']}_{group['phase']}",
-        #           rgb_seq=rgb_seq,
-        #           ground_truth=gt,
-        #           metadata={...},
-        #           phase=...,
-        #           camera_pose_seq=...,
-        #       )
-        #       yield [sample]
-        #
-        # The blocker is the per-task per-split manifest format: the
-        # writer in ``split_manifests.py`` currently emits flat-per-frame
-        # JSONs. Either (a) extend the writer to emit
-        # ``manifests/video_depth/<split>.json`` with rows grouped by
-        # (scene, phase) and frame_indices arrays, or (b) regroup on
-        # read here. We will go with (a) when the metric tuple lands.
-        raise NotImplementedError(
-            "D1VDataset.__iter__ is not yet wired. The contract is "
-            "stable (yields lists of VideoSample, one per (scene, phase) "
-            "clip), but implementation is deferred until "
-            "benchmark/docs/depth_metric_decisions.md finalises the "
-            "temporal metric tuple — that pins down which fields the "
-            "clip must carry (e.g. whether we need ego_motion_seq for "
-            "optical-flow-warped error)."
+        for group in self.samples:
+            yield [self._load_one_clip(group)]
+
+    # ------------------------------------------------------------------ #
+    # Per-clip loading
+    # ------------------------------------------------------------------ #
+
+    def _load_one_clip(self, group: dict) -> VideoSample:
+        scene = group["scene_id"]
+        phase = group["phase"]
+        frame_files = list(group["frame_filenames"])
+        pose_files = list(group.get("pose_filenames") or [])
+
+        if not frame_files:
+            raise ManifestError(
+                f"clip {scene}/{phase}: frame_filenames is empty",
+            )
+        if pose_files and len(pose_files) != len(frame_files):
+            raise ManifestError(
+                f"clip {scene}/{phase}: pose_filenames length "
+                f"{len(pose_files)} != frame_filenames length "
+                f"{len(frame_files)}",
+            )
+
+        # 1. Decide which frame indices to keep.
+        T_full = len(frame_files)
+        if self.frame_budget is None:
+            keep = np.arange(T_full, dtype=np.int32)
+        else:
+            if self.frame_budget > T_full:
+                raise ManifestError(
+                    f"clip {scene}/{phase}: frame_budget="
+                    f"{self.frame_budget} exceeds available frame count "
+                    f"{T_full}",
+                )
+            if self.sampling == "stride":
+                keep = _stride_sample(T_full, self.frame_budget)
+            elif self.sampling == "fps_se3":
+                if not pose_files:
+                    raise ManifestError(
+                        f"clip {scene}/{phase}: sampling='fps_se3' "
+                        f"requires pose_filenames in the manifest entry",
+                    )
+                positions = _read_translation_track(self.root, pose_files)
+                keep = _fps_se3(positions, self.frame_budget)
+            else:  # pragma: no cover — guarded by __post_init__
+                raise ValueError(f"unknown sampling mode {self.sampling!r}")
+
+        # 2. Decode RGB + depth + poses ONLY for the kept indices.
+        #    Reading 250 PNGs then throwing 200 away would waste 80% of
+        #    the I/O budget; kept-only decode is the only sane strategy
+        #    when the budget is small.
+        rgb_seq = np.stack([safe_load_rgb(self.root / frame_files[i]) for i in keep])
+        # Frame files come from the rgb manifest; depth files mirror
+        # the layout (rgb/<stem>.png ↔ depth/<stem>.png). Group dicts
+        # carry an explicit ``depth_filenames`` list to avoid relying on
+        # that convention; fall back if it's absent.
+        depth_files = group.get("depth_filenames") or [
+            _swap_modality(p, "rgb", "depth") for p in frame_files
+        ]
+        depth_u16 = np.stack([safe_load_depth(self.root / depth_files[i]) for i in keep])
+        depth_seq = depth_u16.astype(np.float32) / 1000.0
+        valid_seq = depth_u16 > 0  # D435 zero sentinel
+
+        camera_pose_seq: Optional[np.ndarray] = None
+        if pose_files:
+            poses = []
+            for i in keep:
+                pos, quat = safe_load_pose(self.root / pose_files[i])
+                T_mat = _se3_from_pos_quat(pos, quat)
+                poses.append(T_mat)
+            camera_pose_seq = np.stack(poses)
+
+        gt = VideoDepthGroundTruth(
+            depth_map_seq=depth_seq,
+            valid_mask_seq=valid_seq,
+            frame_indices=keep.astype(np.int32),
+        )
+        # Stash optional extras the temporal calculator may want on the
+        # GT object (the calculator reads them via getattr so absence is
+        # graceful).
+        if camera_pose_seq is not None:
+            object.__setattr__(gt, "poses", camera_pose_seq)
+        object.__setattr__(gt, "rgb_seq", rgb_seq)
+
+        metadata: dict = {
+            "scene_id": scene,
+            "phase_idx": phase,
+            "frame_indices": keep.tolist(),
+            "frame_budget": int(self.frame_budget) if self.frame_budget else 0,
+            "sampling": self.sampling,
+        }
+        if "intrinsics" in group:
+            metadata["intrinsics"] = np.asarray(group["intrinsics"], dtype=np.float32)
+
+        return VideoSample(
+            id=f"{scene}_{phase}_budget{metadata['frame_budget']}",
+            rgb_seq=rgb_seq,
+            ground_truth=gt,
+            metadata=metadata,
+            camera_pose_seq=camera_pose_seq,
         )
 
     # ------------------------------------------------------------------ #
@@ -137,32 +246,189 @@ class D1VDataset:
         cls,
         manifest_path: str | Path,
         batch_size: int = 1,
+        frame_budget: Optional[int] = None,
+        sampling: SamplingMode = "all",
     ) -> "D1VDataset":
-        """Build a D1VDataset from a per-task per-split JSON manifest.
+        """Build a D1VDataset from a per-clip JSON manifest.
 
-        Not yet operational — depends on the writer producing a
-        per-clip manifest shape. The shape this constructor expects is
-        documented in the module docstring. Raises ``NotImplementedError``
-        until both ends are wired.
+        Expected JSON shape::
+
+            {
+              "task": "video_depth",
+              "root": "/abs/path/or/snapshot/root",
+              "samples": [
+                {
+                  "scene_id": "scene_001",
+                  "phase": 0,
+                  "frame_filenames": ["scenes/scene_001/0/rgb/00000.png", ...],
+                  "depth_filenames": ["scenes/scene_001/0/depth/00000.png", ...],
+                  "pose_filenames":  ["scenes/scene_001/0/cam_pose/00000.npz", ...],
+                  "intrinsics": [[fx,0,cx],[0,fy,cy],[0,0,1]],
+                  "difficulty": "easy"
+                },
+                ...
+              ]
+            }
+
+        The writer for this shape lives in
+        :func:`rpx_benchmark.dataset_hub.split_manifests.write_split_manifests`
+        under the ``video_depth`` recipe.
         """
         manifest_path = Path(manifest_path)
         if not manifest_path.is_file():
             raise ManifestError(
                 f"Manifest file not found: {manifest_path}",
-                hint=(
-                    "D1VDataset requires a per-clip manifest produced by a "
-                    "future version of write_split_manifests (the current "
-                    "writer emits flat per-frame JSONs)."
-                ),
             )
-        raise NotImplementedError(
-            "D1VDataset.from_manifest is not yet wired — see the open "
-            "TODO in benchmark/docs/depth_metric_decisions.md."
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ManifestError(
+                f"Manifest at {manifest_path} is not valid JSON: {e}",
+            ) from e
+        task_str = payload.get("task")
+        if task_str != "video_depth":
+            raise ManifestError(
+                f"D1VDataset.from_manifest expected task='video_depth'; got {task_str!r}",
+            )
+        root = Path(payload.get("root") or manifest_path.parent)
+        samples = payload.get("samples") or []
+        if not isinstance(samples, list):
+            raise ManifestError(
+                f"Manifest 'samples' must be a list, got {type(samples).__name__}",
+            )
+        return cls(
+            samples=samples,
+            task=TaskType.VIDEO_DEPTH,
+            root=root,
+            batch_size=batch_size,
+            frame_budget=frame_budget,
+            sampling=sampling,
         )
 
 
 # --------------------------------------------------------------------------- #
-# Per-clip scale-and-shift alignment (deferred)
+# Frame-selection helpers
+# --------------------------------------------------------------------------- #
+
+
+def _stride_sample(T_full: int, budget: int) -> np.ndarray:
+    """Uniform-stride frame selection with first/last anchored.
+
+    Equivalent to FPS in 1D timestamp space at constant frame rate.
+    Always includes indices 0 and ``T_full - 1`` so the clip endpoints
+    are preserved (matters for temporal-edge metrics).
+    """
+    if budget == T_full:
+        return np.arange(T_full, dtype=np.int32)
+    # np.linspace(0, T_full-1, budget) gives evenly-spaced floats with
+    # both endpoints; round and dedupe.
+    raw = np.linspace(0, T_full - 1, budget)
+    idx = np.unique(np.round(raw).astype(np.int32))
+    # In rare cases rounding collapses adjacent picks; pad with the
+    # nearest missing indices to hit the exact budget.
+    if len(idx) < budget:
+        all_idx = set(idx.tolist())
+        for cand in range(T_full):
+            if cand not in all_idx:
+                all_idx.add(cand)
+                if len(all_idx) == budget:
+                    break
+        idx = np.sort(np.fromiter(all_idx, dtype=np.int32))
+    return idx[:budget]
+
+
+def _fps_se3(positions: np.ndarray, budget: int) -> np.ndarray:
+    """Farthest-point sampling in 3D camera-translation space.
+
+    Anchors the first frame (index 0) and iteratively adds the index
+    whose minimum Euclidean distance to the selected set is largest.
+    Deterministic given ``(positions, budget)``.
+
+    Parameters
+    ----------
+    positions : (T_full, 3) float64
+        T265 camera positions in metres.
+    budget : int
+        Number of frames to select. Must satisfy ``2 <= budget <= T_full``.
+
+    Returns
+    -------
+    np.ndarray
+        Sorted indices, shape ``(budget,)``, dtype int32.
+    """
+    if positions.ndim != 2 or positions.shape[1] != 3:
+        raise ValueError(
+            f"_fps_se3: expected (T, 3) positions, got {positions.shape}",
+        )
+    T_full = positions.shape[0]
+    if not (2 <= budget <= T_full):
+        raise ValueError(
+            f"_fps_se3: budget {budget} out of range [2, {T_full}]",
+        )
+
+    selected = [0]
+    # Squared distance from each frame to the closest selected frame.
+    sq_dist_to_set = np.sum((positions - positions[0]) ** 2, axis=1)
+    sq_dist_to_set[0] = -np.inf  # never re-pick
+
+    while len(selected) < budget:
+        next_idx = int(np.argmax(sq_dist_to_set))
+        selected.append(next_idx)
+        # Update min-distance bookkeeping.
+        new_sq = np.sum((positions - positions[next_idx]) ** 2, axis=1)
+        sq_dist_to_set = np.minimum(sq_dist_to_set, new_sq)
+        sq_dist_to_set[next_idx] = -np.inf
+
+    return np.sort(np.array(selected, dtype=np.int32))
+
+
+def _se3_from_pos_quat(position: np.ndarray, quat_xyzw: np.ndarray) -> np.ndarray:
+    """Pack a (3,) position + (4,) xyzw quaternion into a 4×4 SE(3)."""
+    qx, qy, qz, qw = quat_xyzw
+    # Standard xyzw → rotation matrix
+    R = np.array(
+        [
+            [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
+            [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
+            [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
+        ],
+        dtype=np.float64,
+    )
+    T_mat = np.eye(4, dtype=np.float64)
+    T_mat[:3, :3] = R
+    T_mat[:3, 3] = position
+    return T_mat
+
+
+def _read_translation_track(root: Path, pose_files: List[str]) -> np.ndarray:
+    """Read pose files and return ``(T, 3) float64`` translation track.
+
+    Uses :func:`~rpx_benchmark.decode_contracts.safe_load_pose` to honour
+    both ``.npz`` (legacy) and ``.npy`` (v2) on-disk formats.
+    """
+    positions = []
+    for p in pose_files:
+        pos, _quat = safe_load_pose(root / p)
+        positions.append(pos)
+    return np.stack(positions).astype(np.float64)
+
+
+def _swap_modality(rel_path: str, src: str, dst: str) -> str:
+    """``scenes/x/0/rgb/00000.png`` → ``scenes/x/0/depth/00000.png``.
+
+    Only swaps the *first* occurrence of ``/src/`` to avoid corrupting
+    paths that happen to mention ``rgb`` or ``depth`` elsewhere.
+    """
+    needle = f"/{src}/"
+    repl = f"/{dst}/"
+    i = rel_path.find(needle)
+    if i < 0:
+        return rel_path  # caller will surface a missing-file error downstream
+    return rel_path[:i] + repl + rel_path[i + len(needle) :]
+
+
+# --------------------------------------------------------------------------- #
+# Per-clip scale-and-shift alignment for affine-invariant video models
 # --------------------------------------------------------------------------- #
 
 
@@ -173,21 +439,51 @@ def align_scale_and_shift_per_clip(
 ) -> np.ndarray:
     """Solve a single per-clip scale + shift for affine-invariant models.
 
-    For D1-V, the alignment is solved *once per clip*, not per frame —
-    aligning per frame would zero out the temporal-consistency signal
-    the video metrics are designed to measure. See Ranftl et al. 2020
-    for the closed-form least-squares solution; the per-clip variant
-    pools every valid pixel across all frames.
+    Implements the closed-form least-squares solver from Ranftl et al.
+    2020 ("Towards Robust Monocular Depth Estimation"), pooled across
+    every valid pixel in the clip:
 
-    Not yet implemented. Signature is fixed so adapters can stub
-    against it.
+        minimise   sum_{t, p ∈ valid_t}  ( s * pred[t, p] + t - gt[t, p] )^2
+        over       s, t  ∈ R
+
+    Per-clip (not per-frame) alignment is the standard convention for
+    video depth — per-frame would zero out the temporal-consistency
+    signal the video metrics measure.
+
+    Returns the aligned prediction sequence ``s * pred_seq + t`` so
+    callers can plug it straight into the metric calculators.
     """
-    raise NotImplementedError(
-        "align_scale_and_shift_per_clip is not yet implemented. "
-        "The plan is the closed-form Ranftl 2020 least-squares solver "
-        "pooled across (T, H, W) valid pixels, returning (s, t) such "
-        "that ``s * pred + t`` matches gt in the L2 sense over the clip."
+    if pred_seq.shape != gt_seq.shape or pred_seq.shape != valid_mask_seq.shape:
+        raise ValueError(
+            f"align_scale_and_shift_per_clip: shape mismatch "
+            f"pred={pred_seq.shape} gt={gt_seq.shape} valid={valid_mask_seq.shape}",
+        )
+    valid = valid_mask_seq.astype(bool)
+    if not valid.any():
+        return pred_seq.copy()
+
+    p = pred_seq[valid].astype(np.float64)
+    g = gt_seq[valid].astype(np.float64)
+
+    # Closed-form: [[sum p^2, sum p], [sum p, N]] @ [s, t]^T = [[sum p g], [sum g]]
+    A = np.array(
+        [[np.sum(p * p), np.sum(p)], [np.sum(p), float(p.size)]],
+        dtype=np.float64,
     )
+    b = np.array([np.sum(p * g), np.sum(g)], dtype=np.float64)
+    try:
+        s, t = np.linalg.solve(A, b)
+    except np.linalg.LinAlgError:
+        # Degenerate (e.g. zero-variance prediction) — return unaligned.
+        log.warning("align_scale_and_shift_per_clip: degenerate system; returning identity")
+        return pred_seq.copy()
+
+    return (s * pred_seq + t).astype(pred_seq.dtype)
 
 
-__all__ = ["D1VDataset", "align_scale_and_shift_per_clip"]
+__all__ = [
+    "D1VDataset",
+    "_fps_se3",
+    "_stride_sample",
+    "align_scale_and_shift_per_clip",
+]
