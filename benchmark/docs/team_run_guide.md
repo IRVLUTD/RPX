@@ -2,7 +2,7 @@
 
 How to run the RPX benchmark on the shared lab GPU server, add a new
 model adapter, and ship results to the team Box folder. Covers both
-**D1-F** (frame-level depth) and **D1-V** (video-level depth) end to
+**Image Depth** (frame-level depth) and **Video Depth** (video-level depth) end to
 end.
 
 ## TL;DR
@@ -15,13 +15,13 @@ git pull origin main
 # 2. Activate the project env (assumes you ran `pip install -e .` once)
 conda activate rpx  # or source venv/bin/activate
 
-# 3. Run a D1-F model on the easy split
+# 3. Run a Image Depth model on the easy split
 PYTHONPATH=. python scripts/run_depth.py \
     --model da-v2-large --split easy
 
-# 4. Run a D1-V model on the easy split
+# 4. Run a Video Depth model on the easy split
 #    `da-v2-video` is the first real adapter — DA-V2 Large wrapped per-clip.
-#    Use it as your smoke test before adding new D1-V adapters.
+#    Use it as your smoke test before adding new Video Depth adapters.
 PYTHONPATH=. python scripts/run_video_depth.py \
     --model da-v2-video --split easy
 
@@ -41,22 +41,22 @@ Outputs land in `./rpx_results/<model>/<split>/`:
 
 | Task | Models implemented | Runner | Status |
 | --- | --- | --- | --- |
-| **D1-F** (frame depth) | 11 adapters under `scripts/depth_models/` (DA-V2, Depth Pro, UniDepth V2, Metric3D V2, MoGe, Marigold, Lotus, ZoeDepth, HyDen, Geowizard, PatchFusion) | `scripts/run_depth.py` | Works today |
-| **D1-V** (video depth) | First real adapter `da-v2-video` (DA-V2 Large per-clip baseline) under `scripts/video_depth_models/`; 9 others (DepthCrafter, MonST3R, RollingDepth, ChronoDepth, VGGT-Ω, D4RT, ViGeo, GemDepth, Video DA) still need real forward calls | `scripts/run_video_depth.py` | First model runs end-to-end; team adds the remaining 9 per the recipe below |
+| **Image Depth** (frame depth) | 11 adapters under `scripts/depth_models/` (DA-V2, Depth Pro, UniDepth V2, Metric3D V2, MoGe, Marigold, Lotus, ZoeDepth, HyDen, Geowizard, PatchFusion) | `scripts/run_depth.py` | Works today |
+| **Video Depth** (video depth) | First real adapter `da-v2-video` (DA-V2 Large per-clip baseline) under `scripts/video_depth_models/`; 9 others (DepthCrafter, MonST3R, RollingDepth, ChronoDepth, VGGT-Ω, D4RT, ViGeo, GemDepth, Video DA) still need real forward calls | `scripts/run_video_depth.py` | First model runs end-to-end; team adds the remaining 9 per the recipe below |
 
-The full canonical roster (10 D1-F + 10 D1-V models, 19 unique) is in
+The full canonical roster (10 Image Depth + 10 Video Depth models, 19 unique) is in
 `rpx_benchmark/adapters/depth_scaffold.py:DEPTH_MODEL_CARDS`. Tests in
 `tests/test_depth_adapter_scaffolds.py` enforce that every roster entry
 has a registered skeleton class.
 
-## The reference D1-V adapter pattern: `da-v2-video`
+## The reference Video Depth adapter pattern: `da-v2-video`
 
 Before you write a new adapter, look at `scripts/video_depth_models/da_v2_video.py` — it's ~20 lines and shows the two pieces every adapter needs:
 
 1. A **per-clip model class** (here, `FrameDepthAsVideo` wrapping the per-frame DA-V2 adapter). Either subclass `BenchmarkModel` directly (for true video models with temporal state) or reuse `FrameDepthAsVideo` (for any per-frame adapter you want as a baseline).
 2. A **`build(device)` factory** that the runner discovers by name.
 
-The reusable `FrameDepthAsVideo` wrapper turns *any* `scripts/depth_models/*.py` adapter into a D1-V model in one line. That gives you a baseline row per existing D1-F model with zero new code — useful for paper Table 4's "what does temporal context buy?" diagnostic.
+The reusable `FrameDepthAsVideo` wrapper turns *any* `scripts/depth_models/*.py` adapter into a Video Depth model in one line. That gives you a baseline row per existing Image Depth model with zero new code — useful for paper Table 4's "what does temporal context buy?" diagnostic.
 
 ## Adding a new TRUE video model adapter — DepthCrafter example
 
@@ -160,7 +160,7 @@ Video Depth Anything).
 
 ## The manifest's `root` field — set it explicitly
 
-Every D1-V (and D1-F) manifest carries a top-level `"root"` field that
+Every Video Depth (and Image Depth) manifest carries a top-level `"root"` field that
 tells the loader where modality files live. **Frame filenames in the
 manifest are resolved relative to this root**, not to the manifest
 file's location.
@@ -231,7 +231,7 @@ to change anything in adapters or metrics.
 
 ---
 
-## Temporal-resolution ablation (D1-V only)
+## Temporal-resolution ablation (Video Depth only)
 
 The paper §5.2 ablation sweeps the number of frames per phase clip.
 The `frame_budget` + `sampling` knobs are wired through the runner:
@@ -270,10 +270,10 @@ The lab box has one consumer GPU (RTX 5070, 8 GB VRAM). Two rules:
 If a model OOMs at the default batch size:
 
 ```bash
-# D1-F: drop batch size
+# Image Depth: drop batch size
 PYTHONPATH=. python scripts/run_depth.py --model X --split easy --batch-size 1
 
-# D1-V: clips are always batch=1, but try smaller --frame-budget
+# Video Depth: clips are always batch=1, but try smaller --frame-budget
 PYTHONPATH=. python scripts/run_video_depth.py --model X --split easy \
     --frame-budget 75 --sampling stride
 ```
@@ -289,7 +289,7 @@ Each run writes:
 | `cells.parquet` | One row per (model, task, scene, phase). Carries every metric we computed. **This is the canonical artefact** — downstream J / Φ / paper-table fills all read from here. | `scripts/fill_paper_table.py`, `scripts/analyze_experiment.py`, the paper |
 | `result.json` | Aggregated metrics (means / stds across phases) + deployment-readiness report. Convenient single-file summary. | Reviewers, quick eyeballing |
 | `summary.md` | Two-paragraph markdown of the result. | Slack / Box previews |
-| `predictions/` (D1-F with `--save-predictions`) | Per-frame `.npz` depth maps. Off by default — opt in only when you need post-hoc analytics. | Analytics, qualitative figures |
+| `predictions/` (Image Depth with `--save-predictions`) | Per-frame `.npz` depth maps. Off by default — opt in only when you need post-hoc analytics. | Analytics, qualitative figures |
 
 ### Upload to Box
 
@@ -310,9 +310,9 @@ are size-matched and skip identical files, so re-running is cheap.
 | --- | --- | --- |
 | `ConfigError: manifest_path does not exist` | Path typo or missing `dataset_hub.cli manifest` step | Re-run the manifest command from the "lossless" section above |
 | `ImportError: No module named depth_anything_3` (or any model package) | Adapter dependency not installed in this env | `pip install depth-anything-3` (check the adapter's docstring for the exact package) |
-| `RuntimeError: CUDA out of memory` | Model + batch size > VRAM | Drop `--batch-size` (D1-F) or `--frame-budget` (D1-V) |
+| `RuntimeError: CUDA out of memory` | Model + batch size > VRAM | Drop `--batch-size` (Image Depth) or `--frame-budget` (Video Depth) |
 | `Box upload failed (401)` | Token expired | Mint a new token in UTD Box, re-export `BOX_DEVELOPER_TOKEN`, re-run `scripts/sync_results_to_box.py` to backfill |
-| `D1-V cells.parquet missing some scenes` | Scene's manifest didn't list `pose_filenames` and `sampling="fps_se3"` was used | Switch to `--sampling stride` or fix the manifest |
+| `Video Depth cells.parquet missing some scenes` | Scene's manifest didn't list `pose_filenames` and `sampling="fps_se3"` was used | Switch to `--sampling stride` or fix the manifest |
 
 ---
 
@@ -336,6 +336,6 @@ cells.parquet  ←  this is the artefact the paper reads from
 Tables 3 & 4 in neurips.root.pdf
 ```
 
-See `rpx_benchmark/tasks/_pipeline.py` (D1-F) and
-`rpx_benchmark/tasks/_video_pipeline.py` (D1-V) for the runner
+See `rpx_benchmark/tasks/_pipeline.py` (Image Depth) and
+`rpx_benchmark/tasks/_video_pipeline.py` (Video Depth) for the runner
 implementations.

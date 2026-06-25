@@ -1,13 +1,13 @@
-"""Depth Anything V2 Metric — D1-V baseline adapter.
+"""Depth Anything V2 Metric — Video Depth baseline adapter.
 
 Wraps the per-frame :class:`~depth_models.depth_anything_v2.DepthAnythingV2Metric`
-adapter into a D1-V :class:`BenchmarkModel` via
+adapter into a Video Depth :class:`BenchmarkModel` via
 :class:`FrameDepthAsVideo`.
 
 This is **not** a true video model — each clip frame is processed in
 isolation, no temporal context. Its purpose is twofold:
 
-1. End-to-end smoke-test of the D1-V runner with real model weights
+1. End-to-end smoke-test of the Video Depth runner with real model weights
    and real RPX scenes, before the harder true-video adapters
    (DepthCrafter, MonST3R, RollingDepth) land.
 
@@ -15,7 +15,7 @@ isolation, no temporal context. Its purpose is twofold:
    "DA-V2-L per frame" on OPW + TAE has zero temporal contribution.
    Paper-meaningful diagnostic.
 
-Two checkpoints are wrapped, mirroring the D1-F adapter: the indoor
+Two checkpoints are wrapped, mirroring the Image Depth adapter: the indoor
 (Hypersim) head is the default since RPX has ~60 indoor scenes; the
 outdoor (VKITTI) head is for the ~40 outdoor scenes
 (``scene55.TENNISCOURTS``, etc.). The team can pick which by passing

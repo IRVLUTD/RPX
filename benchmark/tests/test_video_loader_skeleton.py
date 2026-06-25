@@ -1,4 +1,4 @@
-"""Skeleton tests for the D1-V (video depth) loader.
+"""Skeleton tests for the Video Depth loader.
 
 These tests assert the **contract** is in place — types importable,
 TaskType / recipe / dataclass shapes correct — without exercising the
@@ -23,7 +23,7 @@ from rpx_benchmark.api import (
 )
 from rpx_benchmark.dataset_hub.recipes import DEPTH, MULTI_OBJECT_TASK_RECIPES, RGB
 from rpx_benchmark.video_loader import (
-    D1VDataset,
+    VideoDepthDataset,
     align_scale_and_shift_per_clip,
 )
 
@@ -40,13 +40,13 @@ def test_video_depth_task_type_exists():
 
 def test_video_depth_recipe_registered():
     """The recipe table has a ``video_depth`` entry with the same
-    modality shape as ``monocular_depth`` — D1-V shares scenes and GT
-    with D1-F, only the iteration unit differs."""
+    modality shape as ``monocular_depth`` — Video Depth shares scenes and GT
+    with Image Depth, only the iteration unit differs."""
     assert "video_depth" in MULTI_OBJECT_TASK_RECIPES
     recipe = MULTI_OBJECT_TASK_RECIPES["video_depth"]
     assert recipe.inputs == frozenset({RGB})
     assert recipe.labels == frozenset({DEPTH})
-    # Same modality shape as D1-F:
+    # Same modality shape as Image Depth:
     mono = MULTI_OBJECT_TASK_RECIPES["monocular_depth"]
     assert recipe.inputs == mono.inputs
     assert recipe.labels == mono.labels
@@ -86,7 +86,7 @@ def test_video_depth_prediction_carries_sequence_shaped_depth():
 
 
 # --------------------------------------------------------------------------- #
-# D1VDataset — skeleton state assertions
+# VideoDepthDataset — skeleton state assertions
 # --------------------------------------------------------------------------- #
 
 
@@ -97,7 +97,7 @@ def test_d1v_dataset_constructor_smoke():
     the metric tuple is locked."""
     from pathlib import Path
 
-    ds = D1VDataset(samples=[], task=TaskType.VIDEO_DEPTH, root=Path("."))
+    ds = VideoDepthDataset(samples=[], task=TaskType.VIDEO_DEPTH, root=Path("."))
     assert ds.task is TaskType.VIDEO_DEPTH
     assert len(ds) == 0
 
@@ -133,7 +133,7 @@ def test_d1v_dataset_iteration_yields_video_sample(tmp_path):
         "depth_filenames": [f"depth/{i:05d}.png" for i in range(4)],
         "pose_filenames": [f"cam_pose/{i:05d}.npz" for i in range(4)],
     }
-    ds = D1VDataset(samples=[group], task=TaskType.VIDEO_DEPTH, root=tmp_path)
+    ds = VideoDepthDataset(samples=[group], task=TaskType.VIDEO_DEPTH, root=tmp_path)
     assert len(ds) == 1
 
     batch = next(iter(ds))
@@ -176,7 +176,7 @@ def test_d1v_dataset_frame_budget_with_stride(tmp_path):
         "depth_filenames": [f"depth/{i:05d}.png" for i in range(10)],
         "pose_filenames": [f"cam_pose/{i:05d}.npz" for i in range(10)],
     }
-    ds = D1VDataset(
+    ds = VideoDepthDataset(
         samples=[group],
         task=TaskType.VIDEO_DEPTH,
         root=tmp_path,
@@ -191,7 +191,7 @@ def test_d1v_dataset_frame_budget_with_stride(tmp_path):
 
 
 def test_d1v_dataset_from_manifest_round_trip(tmp_path):
-    """from_manifest reads the JSON shape D1VDataset expects and
+    """from_manifest reads the JSON shape VideoDepthDataset expects and
     iterates without error."""
     import json
 
@@ -219,7 +219,7 @@ def test_d1v_dataset_from_manifest_round_trip(tmp_path):
     }
     p = tmp_path / "manifest.json"
     p.write_text(json.dumps(manifest))
-    ds = D1VDataset.from_manifest(p)
+    ds = VideoDepthDataset.from_manifest(p)
     assert len(ds) == 1
     sample = next(iter(ds))[0]
     assert sample.rgb_seq.shape == (2, 4, 4, 3)
@@ -230,7 +230,7 @@ def test_d1v_dataset_from_manifest_missing_file_raises_manifest_error(tmp_path):
     from rpx_benchmark.exceptions import ManifestError
 
     with pytest.raises(ManifestError):
-        D1VDataset.from_manifest(tmp_path / "does_not_exist.json")
+        VideoDepthDataset.from_manifest(tmp_path / "does_not_exist.json")
 
 
 def test_align_scale_and_shift_per_clip_recovers_known_affine(tmp_path):
@@ -254,7 +254,7 @@ def test_d1v_dataset_rejects_budget_with_all_mode():
     from rpx_benchmark.exceptions import ConfigError
 
     with pytest.raises(ConfigError, match="incompatible with a frame_budget"):
-        D1VDataset(
+        VideoDepthDataset(
             samples=[],
             task=TaskType.VIDEO_DEPTH,
             root=Path("."),
@@ -272,7 +272,7 @@ def test_d1v_from_manifest_warns_when_root_missing(tmp_path, caplog):
     import json
     import logging
 
-    from rpx_benchmark.video_loader import D1VDataset
+    from rpx_benchmark.video_loader import VideoDepthDataset
 
     # Manifest without "root" — should trigger the warning.
     manifest_no_root = tmp_path / "manifest.json"
@@ -283,7 +283,7 @@ def test_d1v_from_manifest_warns_when_root_missing(tmp_path, caplog):
     }))
 
     with caplog.at_level(logging.WARNING):
-        D1VDataset.from_manifest(manifest_no_root)
+        VideoDepthDataset.from_manifest(manifest_no_root)
 
     assert any(
         "no 'root' field" in rec.message for rec in caplog.records
@@ -303,7 +303,7 @@ def test_d1v_from_manifest_warns_when_root_missing(tmp_path, caplog):
     }))
 
     with caplog.at_level(logging.WARNING):
-        D1VDataset.from_manifest(manifest_with_root)
+        VideoDepthDataset.from_manifest(manifest_with_root)
 
     assert not any(
         "no 'root' field" in rec.message for rec in caplog.records

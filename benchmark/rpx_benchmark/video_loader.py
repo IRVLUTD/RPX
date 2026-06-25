@@ -1,4 +1,4 @@
-"""Sequence-shaped loader for video tasks (D1-V today; future video tasks).
+"""Sequence-shaped loader for video tasks (Video Depth today; future video tasks).
 
 Iterates per ``(scene, phase)`` clip, yielding
 :class:`~rpx_benchmark.api.VideoSample`. The loader supports an
@@ -62,7 +62,7 @@ SamplingMode = Literal["all", "stride", "fps_se3"]
 
 
 @dataclass
-class D1VDataset:
+class VideoDepthDataset:
     """Iterates per ``(scene, phase)`` clip for the video-depth task.
 
     Yielded value is :class:`~rpx_benchmark.api.VideoSample` whose
@@ -88,7 +88,7 @@ class D1VDataset:
         Snapshot root that ``frame_filenames`` and ``pose_filenames``
         are resolved against.
     batch_size : int
-        Always 1 for D1-V — clips are not stackable. Kept for API
+        Always 1 for Video Depth — clips are not stackable. Kept for API
         uniformity with :class:`~rpx_benchmark.loader.RPXDataset`.
     frame_budget : int or None
         If set, subsample each clip to exactly this many frames via
@@ -270,8 +270,8 @@ class D1VDataset:
         batch_size: int = 1,
         frame_budget: Optional[int] = None,
         sampling: SamplingMode = "all",
-    ) -> "D1VDataset":
-        """Build a D1VDataset from a per-clip JSON manifest.
+    ) -> "VideoDepthDataset":
+        """Build a VideoDepthDataset from a per-clip JSON manifest.
 
         Expected JSON shape::
 
@@ -310,7 +310,7 @@ class D1VDataset:
         task_str = payload.get("task")
         if task_str != "video_depth":
             raise ManifestError(
-                f"D1VDataset.from_manifest expected task='video_depth'; got {task_str!r}",
+                f"VideoDepthDataset.from_manifest expected task='video_depth'; got {task_str!r}",
             )
         # Resolve the modality-file root. The manifest's ``root`` field
         # is the canonical source — every frame_filename / depth_filename
@@ -325,7 +325,7 @@ class D1VDataset:
             from .logging_utils import get_logger
 
             get_logger(__name__).warning(
-                "D1VDataset.from_manifest: %s has no 'root' field; falling "
+                "VideoDepthDataset.from_manifest: %s has no 'root' field; falling "
                 "back to manifest parent dir %s. If your frame_filenames "
                 "are relative to a different root (e.g. an HF cache "
                 "snapshot or a staged dataset tree), set the 'root' field "
@@ -488,7 +488,7 @@ def align_scale_and_shift_per_clip(
 
     Delegates to :func:`~rpx_benchmark.metrics.depth_alignment.align_pred_to_gt_pooled`
     in ``ls_affine`` mode so the math lives in exactly one place
-    (shared with the D1-F per-scene-phase aligner). Per-clip (not
+    (shared with the Image Depth per-scene-phase aligner). Per-clip (not
     per-frame) alignment is the standard convention for video depth —
     per-frame alignment would zero out the temporal-consistency
     signal the video metrics measure.
@@ -512,7 +512,15 @@ def align_scale_and_shift_per_clip(
     )
 
 
+# Backwards-compatibility alias. Earlier branches (jishnu/d1v-runner-
+# first-adapter, jishnu/d1v-manifest-root-warning) and external callers
+# import ``D1VDataset`` directly. Keeping the alias avoids forcing every
+# caller to update their import line in lockstep with the rename.
+D1VDataset = VideoDepthDataset
+
+
 __all__ = [
+    "VideoDepthDataset",
     "D1VDataset",
     "_fps_se3",
     "_stride_sample",

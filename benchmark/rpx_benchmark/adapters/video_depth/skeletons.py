@@ -1,6 +1,6 @@
-"""Skeleton adapter classes for every D1-V (video depth) model.
+"""Skeleton adapter classes for every Video Depth model.
 
-Same one-line-subclass pattern as the D1-F skeletons; see
+Same one-line-subclass pattern as the Image Depth skeletons; see
 :mod:`rpx_benchmark.adapters.depth.skeletons` for the conventions
 and :mod:`rpx_benchmark.adapters.depth_scaffold` for the base class.
 """

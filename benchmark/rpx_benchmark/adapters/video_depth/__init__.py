@@ -1,7 +1,7 @@
-"""Video-depth adapters (paper task D1-V: VIDEO_DEPTH).
+"""Video-depth adapters (paper task Video Depth: VIDEO_DEPTH).
 
 Same skeleton pattern as :mod:`rpx_benchmark.adapters.depth`. The
-D1-V roster differs from D1-F in iteration unit (per-clip) and in
+Video Depth roster differs from Image Depth in iteration unit (per-clip) and in
 the model family — sliding-window video models (DepthCrafter,
 ChronoDepth, RollingDepth, Video DA), streaming models, and
 multi-view 3D models (MonST3R, VGGT-Ω). DA3 appears in both

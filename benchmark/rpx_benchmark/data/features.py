@@ -66,7 +66,7 @@ def _depth_features() -> Features:
 
 
 def _video_depth_features() -> Features:
-    """Features for D1-V (video depth).
+    """Features for Video Depth.
 
     Each row is a clip — not a frame — so the image columns become
     sequences. Tooling that consumes this schema must iterate the

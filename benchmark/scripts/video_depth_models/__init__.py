@@ -1,6 +1,6 @@
-"""D1-V (video depth) model adapters.
+"""Video Depth model adapters.
 
-Mirrors the layout of ``scripts/depth_models/`` (D1-F adapters). Each
+Mirrors the layout of ``scripts/depth_models/`` (Image Depth adapters). Each
 file in this package exposes a ``build(device: str) -> BenchmarkModel``
 factory that the team-facing CLI
 (``scripts/run_video_depth.py --model <name>``) discovers by name.
@@ -12,15 +12,15 @@ Two kinds of adapter live here:
   whole clip in one forward call and emit a temporally-consistent
   depth sequence.
 
-* **Frame-model-as-video baselines** — any per-frame D1-F adapter
+* **Frame-model-as-video baselines** — any per-frame Image Depth adapter
   wrapped via :class:`FrameDepthAsVideo`. The clip is processed
-  frame-by-frame with no temporal context; the resulting D1-V row
+  frame-by-frame with no temporal context; the resulting Video Depth row
   exposes how much (or little) temporal context buys, and is the
   baseline every true video model must beat on OPW + TAE.
 
 The first concrete adapter shipped here is ``da_v2_video`` — DA-V2
-Large run per-frame on each clip. Same weights as the working D1-F
-``da-v2-large``, just fed per-clip. Used to validate the D1-V runner
+Large run per-frame on each clip. Same weights as the working Image Depth
+``da-v2-large``, just fed per-clip. Used to validate the Video Depth runner
 end-to-end on real data and to populate a baseline row in Table 4.
 """
 

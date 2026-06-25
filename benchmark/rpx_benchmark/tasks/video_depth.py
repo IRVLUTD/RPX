@@ -1,13 +1,13 @@
-"""Video absolute depth (paper task D1-V).
+"""Video absolute depth (paper task Video Depth).
 
 Per-clip metric depth from a full ``(scene, phase)`` RGB sequence. The
-D1-V roster (DepthCrafter, ChronoDepth, RollingDepth, MonST3R, VGGT-Ω,
+Video Depth roster (DepthCrafter, ChronoDepth, RollingDepth, MonST3R, VGGT-Ω,
 DA3, etc.) consumes the whole clip in one inference call and emits a
 per-frame depth sequence.
 
 The end-to-end runner is :func:`run_video_pipeline`
 (:mod:`rpx_benchmark.tasks._video_pipeline`); this module wraps it
-with the D1-V task spec and registers it in the task registry.
+with the Video Depth task spec and registers it in the task registry.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ PRIMARY_METRIC = "absrel"
 
 @dataclass
 class VideoDepthRunConfig(VideoTaskRunConfig):
-    """Knobs for a D1-V run.
+    """Knobs for a Video Depth run.
 
     Inherits ``frame_budget`` and ``sampling`` from
     :class:`~rpx_benchmark.tasks._video_pipeline.VideoTaskRunConfig` for
@@ -34,10 +34,10 @@ class VideoDepthRunConfig(VideoTaskRunConfig):
 
 
 def run_video_depth(cfg: VideoDepthRunConfig) -> PipelineResult:
-    """End-to-end D1-V pipeline.
+    """End-to-end Video Depth pipeline.
 
     Delegates to :func:`run_video_pipeline`, which handles download →
-    :class:`~rpx_benchmark.video_loader.D1VDataset` build → per-clip
+    :class:`~rpx_benchmark.video_loader.VideoDepthDataset` build → per-clip
     predict → per-clip ``(s, t)`` alignment (for relative-depth
     models) →
     :class:`~rpx_benchmark.metrics.video_depth.VideoDepthErrorMetrics`
@@ -57,7 +57,7 @@ TASK_SPEC = TaskSpec(
     description=(
         "Metric depth (metres) from the full ~250-frame phase RGB clip. "
         "Differs from MONOCULAR_DEPTH in iteration unit (per-clip) and "
-        "metric set (adds temporal consistency metrics on top of D1-F's "
+        "metric set (adds temporal consistency metrics on top of Image Depth's "
         "per-frame metrics)."
     ),
     primary_metric=PRIMARY_METRIC,

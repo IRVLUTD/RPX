@@ -209,9 +209,9 @@ class _VideoDepthSpec(_TaskSpec):
     """``video_depth``: rgb + depth GT, one entry per ``(scene, phase)`` clip.
 
     Emits ONE entry per (scene, phase) — not per-frame — with the
-    relevant frame filename lists pre-resolved so ``D1VDataset`` can
+    relevant frame filename lists pre-resolved so ``VideoDepthDataset`` can
     iterate clips directly. The structure differs from every other
-    spec on this page because D1-V's iteration unit is a clip, not a
+    spec on this page because Video Depth's iteration unit is a clip, not a
     frame; the cell-log key for the runner becomes
     ``(model, task, scene, phase, frame_budget)`` and one row per clip
     is the right granularity.

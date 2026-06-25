@@ -1,6 +1,6 @@
-"""Run a D1-V (video-depth) model end-to-end against an RPX split.
+"""Run a Video Depth model end-to-end against an RPX split.
 
-Mirrors ``scripts/run_depth.py`` (D1-F) but iterates per-clip
+Mirrors ``scripts/run_depth.py`` (Image Depth) but iterates per-clip
 (``(scene, phase)`` tuple) instead of per-frame, and routes the
 prediction through per-clip ``(s, t)`` alignment for relative-depth
 models. Outputs:
@@ -33,7 +33,7 @@ The ``--model`` value must resolve to a callable that:
 
 For now, model adapter registration is left to the contributor: the
 20 canonical models live in ``rpx_benchmark.adapters.video_depth``
-(skeletons) and ``scripts/depth_models/`` (D1-F implementations the
+(skeletons) and ``scripts/depth_models/`` (Image Depth implementations the
 video models will eventually port to). See
 ``benchmark/docs/team_run_guide.md`` for the team handoff workflow.
 """
@@ -148,7 +148,7 @@ def main() -> None:
         upload_to_box=args.upload_to_box,
     )
     result, _dr, paths = run_video_depth(cfg)
-    print("D1-V run complete.")
+    print("Video Depth run complete.")
     print(f"  result.json : {paths['json']}")
     print(f"  cells       : {paths['cells']}")
     print(f"  summary.md  : {paths['markdown']}")

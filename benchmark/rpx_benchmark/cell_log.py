@@ -40,11 +40,11 @@ One row per (model, task, scene, phase, frame_budget) cell:
   difficulty        str|null  "easy" | "medium" | "hard" (when known)
   n_samples         int       number of frames averaged into this cell
   frame_budget      int       0 = full clip / per-frame task; >0 = the
-                              subsampled clip size for the D1-V temporal-
+                              subsampled clip size for the Video Depth temporal-
                               resolution ablation (typical values 25,
                               75, 150). Defaulting to 0 keeps the column
-                              meaningful for D1-F (always 0) while
-                              giving D1-V a single column to slice on.
+                              meaningful for Image Depth (always 0) while
+                              giving Video Depth a single column to slice on.
   latency_ms_mean   float|n   mean per-sample latency
   toolkit_version   str       rpx_benchmark.__version__
   git_sha           str|null  caller-supplied (e.g. adapter version)
@@ -176,7 +176,7 @@ def cells_from_per_sample(
     for (scene, phase), rows in buckets.items():
         # frame_budget is the first-seen value for the cell (per-sample
         # rows for one (scene, phase) should always carry the same
-        # budget — they come from one D1VDataset run). Defaults to 0
+        # budget — they come from one VideoDepthDataset run). Defaults to 0
         # for per-frame tasks that don't subsample.
         budget = next(
             (int(r["frame_budget"]) for r in rows if isinstance(r.get("frame_budget"), int)),
@@ -236,7 +236,7 @@ def cell_from_metrics(
     """Build one canonical (scene, phase) cell from *pre-aggregated* metrics.
 
     Companion to :func:`cells_from_per_sample`.  Use this for
-    clip/sequence-level tasks (D1-V, tracking) where one model forward
+    clip/sequence-level tasks (Video Depth, tracking) where one model forward
     already yields a single cell's worth of numbers — there are no
     per-sample rows to group.  The emitted row has the **identical
     schema** (:data:`FIXED_COLUMNS` + ``metric:`` columns), so per-frame

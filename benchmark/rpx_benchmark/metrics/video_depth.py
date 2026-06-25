@@ -1,6 +1,6 @@
-"""Metric calculators bound to ``TaskType.VIDEO_DEPTH`` (paper task D1-V).
+"""Metric calculators bound to ``TaskType.VIDEO_DEPTH`` (paper task Video Depth).
 
-D1-V scores a model on the same per-frame quality as D1-F **plus** a
+Video Depth scores a model on the same per-frame quality as Image Depth **plus** a
 small set of temporal-consistency metrics. The implementation already
 exists in :mod:`rpx_benchmark.metrics.depth` (per-frame error metrics)
 and :mod:`rpx_benchmark.metrics.depth_temporal` (TAE / OPW / TGM / TCC);
@@ -21,7 +21,7 @@ What the final metric tuple is
 
 The full set this module exposes is intentionally broader than what
 the paper's headline Φ MANOVA uses. The final K-metric tuple (5? 6?
-8?) for D1-V Φ is being decided in Feynman's depth-metric study
+8?) for Video Depth Φ is being decided in Feynman's depth-metric study
 (:file:`benchmark/docs/depth_metric_decisions.md`); the downstream
 selection happens in :mod:`rpx_benchmark.analyze_experiment` from the
 cell-log column subset, not by deleting calculators here.
@@ -94,12 +94,12 @@ def _per_frame_error_metrics(
 
 @register_metric(TaskType.VIDEO_DEPTH)
 class VideoDepthErrorMetrics(MetricCalculator):
-    """Per-clip aggregate of D1-F's per-frame error metrics.
+    """Per-clip aggregate of Image Depth's per-frame error metrics.
 
     Emits five scalars (``absrel``, ``rmse``, ``delta1``, ``delta2``,
     ``delta3``) computed per frame and arithmetically averaged over the
     clip's valid frames. This is the *per-frame quality* component of
-    D1-V — it lets D1-V models be compared against D1-F models on the
+    Video Depth — it lets Video Depth models be compared against Image Depth models on the
     same scene state.
     """
 
@@ -215,7 +215,7 @@ def _validate_shapes(
                 "If your adapter subsampled the clip via frame_budget, it "
                 "must return predictions only for those frames AND the "
                 "ground-truth must already be sliced to the same indices "
-                "by D1VDataset (this happens automatically when the loader "
+                "by VideoDepthDataset (this happens automatically when the loader "
                 "honours frame_indices)."
             ),
         )
