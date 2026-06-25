@@ -261,3 +261,50 @@ def test_d1v_dataset_rejects_budget_with_all_mode():
             frame_budget=50,
             sampling="all",
         )
+
+
+def test_d1v_from_manifest_warns_when_root_missing(tmp_path, caplog):
+    """Manifests without a 'root' field silently resolved to manifest_path.parent
+    in earlier versions, producing misleading FileNotFoundErrors when the
+    actual data lived elsewhere (HF cache, staged tree). The loader must
+    now warn loudly so the caller knows to set root explicitly.
+    """
+    import json
+    import logging
+
+    from rpx_benchmark.video_loader import D1VDataset
+
+    # Manifest without "root" — should trigger the warning.
+    manifest_no_root = tmp_path / "manifest.json"
+    manifest_no_root.write_text(json.dumps({
+        "task": "video_depth",
+        "split": "easy",
+        "samples": [],
+    }))
+
+    with caplog.at_level(logging.WARNING):
+        D1VDataset.from_manifest(manifest_no_root)
+
+    assert any(
+        "no 'root' field" in rec.message for rec in caplog.records
+    ), (
+        "Expected a warning about missing 'root' field; got: "
+        f"{[rec.message for rec in caplog.records]}"
+    )
+
+    # Manifest with explicit root — should NOT warn.
+    caplog.clear()
+    manifest_with_root = tmp_path / "manifest2.json"
+    manifest_with_root.write_text(json.dumps({
+        "task": "video_depth",
+        "split": "easy",
+        "root": str(tmp_path),
+        "samples": [],
+    }))
+
+    with caplog.at_level(logging.WARNING):
+        D1VDataset.from_manifest(manifest_with_root)
+
+    assert not any(
+        "no 'root' field" in rec.message for rec in caplog.records
+    ), "Did not expect a root-warning when 'root' was explicitly set"
