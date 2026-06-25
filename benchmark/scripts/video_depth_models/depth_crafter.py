@@ -93,30 +93,37 @@ class DepthCrafterAdapter(BenchmarkModel):
         self._pipe = None
 
     def setup(self) -> None:
-        """Load the DepthCrafter pipeline from ``tencent/DepthCrafter``.
+        """Load the DepthCrafter pipeline via the upstream github package.
 
-        DepthCrafter ships as a custom diffusers pipeline; the HF model
-        card identifies the diffusers ``library_name`` and task
-        ``depth-estimation``. The team should run a one-scene smoke
-        before the full sweep to confirm output shape against this
-        adapter's predict contract.
+        The bare ``diffusers.DiffusionPipeline.from_pretrained`` path
+        returns 404 because the model card hosts custom Python that
+        diffusers can't introspect from the model_id alone. The
+        upstream README's documented path is to clone the github repo
+        and import ``DepthCrafterPipeline`` directly.
         """
         if self._pipe is not None:
             return
         try:
-            import torch
-            from diffusers import DiffusionPipeline
+            import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "DepthCrafterAdapter needs `diffusers` and `torch`. "
-                "Install with: pip install diffusers transformers accelerate"
+                "DepthCrafterAdapter needs `torch`. "
+                "Install with: pip install torch"
+            ) from e
+
+        try:
+            # Upstream module path per github.com/Tencent/DepthCrafter README.
+            from depthcrafter.depth_crafter_ppl import DepthCrafterPipeline
+        except ImportError as e:
+            raise ImportError(
+                "DepthCrafterAdapter needs the upstream `depthcrafter` "
+                "package. Install with:\n"
+                "    git clone https://github.com/Tencent/DepthCrafter\n"
+                "    cd DepthCrafter && pip install -e ."
             ) from e
 
         dtype = torch.float16 if self.device.startswith("cuda") else torch.float32
-        # Verified model_id from HF model card (huggingface.co/tencent/DepthCrafter).
-        # If the upstream release uses a custom_pipeline kwarg in a future
-        # version, add ``custom_pipeline="tencent/DepthCrafter"`` to this call.
-        self._pipe = DiffusionPipeline.from_pretrained(
+        self._pipe = DepthCrafterPipeline.from_pretrained(
             "tencent/DepthCrafter",
             torch_dtype=dtype,
         )

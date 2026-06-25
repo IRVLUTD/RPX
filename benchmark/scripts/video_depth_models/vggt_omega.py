@@ -55,24 +55,58 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
         self._model = None
 
     def setup(self) -> None:
+        """Load VGGT via the upstream ``vggt`` package.
+
+        The bare ``AutoModel.from_pretrained`` path fails with
+        ``Unrecognized model in facebook/VGGT-1B`` — the model card
+        hosts state-dict weights but the config doesn't declare a
+        transformers ``model_type``. The upstream repo provides the
+        ``VGGT`` class that loads the weights.
+        """
         if self._loaded:
             return
         try:
-            import torch
-            from transformers import AutoModel
+            import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "VGGTOmegaAdapter needs `transformers` and `torch`. "
-                "Install with: pip install transformers torch"
+                "VGGTOmegaAdapter needs `torch`. "
+                "Install with: pip install torch"
             ) from e
 
-        dtype = torch.float16 if self.device.startswith("cuda") else torch.float32
-        # Verified load path from HF model card.
-        self._model = AutoModel.from_pretrained(
-            _MODEL_ID,
-            torch_dtype=dtype,
-            trust_remote_code=True,
-        ).to(self.device).eval()
+        try:
+            # Upstream module path per github.com/facebookresearch/vggt.
+            from vggt.models.vggt import VGGT
+        except ImportError as e:
+            raise ImportError(
+                "VGGTOmegaAdapter needs the upstream `vggt` package. "
+                "Install with:\n"
+                "    git clone https://github.com/facebookresearch/vggt\n"
+                "    cd vggt && pip install -e ."
+            ) from e
+
+        # Build the model and load the state_dict from HF.
+        self._model = VGGT()
+        try:
+            from huggingface_hub import hf_hub_download
+
+            ckpt = hf_hub_download(
+                repo_id=_MODEL_ID,
+                filename="model.safetensors",
+            )
+            try:
+                from safetensors.torch import load_file
+
+                state = load_file(ckpt)
+            except ImportError:
+                state = torch.load(ckpt, map_location="cpu")
+        except Exception as e:
+            raise RuntimeError(
+                f"VGGTOmegaAdapter: could not download weights from {_MODEL_ID}: {e}"
+            ) from e
+        self._model.load_state_dict(state, strict=False)
+        self._model = self._model.to(self.device).eval()
+        if self.device.startswith("cuda"):
+            self._model = self._model.half()
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:

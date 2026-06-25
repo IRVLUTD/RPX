@@ -64,21 +64,38 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
         self._pipe = None
 
     def setup(self) -> None:
+        """Load via the upstream ``rollingdepth`` package.
+
+        The bare ``DiffusionPipeline.from_pretrained`` path fails with
+        ``module diffusers has no attribute RollingDepthPipeline``
+        because RollingDepth's config declares a custom pipeline class
+        that the diffusers core library doesn't ship. The upstream
+        github repo provides the class.
+        """
         if self._loaded:
             return
         try:
-            import torch
-            from diffusers import DiffusionPipeline
+            import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "RollingDepthAdapter needs `diffusers` and `torch`. "
-                "Install with: pip install diffusers transformers accelerate"
+                "RollingDepthAdapter needs `torch`. "
+                "Install with: pip install torch"
             ) from e
 
-        # Verified model_id from HF model card. The model card recommends
-        # bfloat16 on CUDA; we honour that when available, else fp32.
+        try:
+            # Upstream module path per github.com/prs-eth/rollingdepth README.
+            from rollingdepth import RollingDepthPipeline
+        except ImportError as e:
+            raise ImportError(
+                "RollingDepthAdapter needs the upstream `rollingdepth` "
+                "package. Install with:\n"
+                "    git clone https://github.com/prs-eth/rollingdepth\n"
+                "    cd rollingdepth && pip install -e .\n"
+                "Or: pip install rollingdepth (if a release tag is available)."
+            ) from e
+
         dtype = torch.bfloat16 if self.device.startswith("cuda") else torch.float32
-        self._pipe = DiffusionPipeline.from_pretrained(
+        self._pipe = RollingDepthPipeline.from_pretrained(
             "prs-eth/rollingdepth-v1-0",
             torch_dtype=dtype,
         )

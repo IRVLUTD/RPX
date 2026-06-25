@@ -38,20 +38,36 @@ class ChronoDepthAdapter(VideoDepthAdapterBase):
         self._pipe = None
 
     def setup(self) -> None:
+        """Load via the upstream ``chronodepth`` package.
+
+        The bare ``DiffusionPipeline.from_pretrained`` path fails with
+        ``module diffusers has no attribute ChronoDepthPipeline`` —
+        ChronoDepth's config declares a custom pipeline class. The
+        upstream github repo provides it.
+        """
         if self._loaded:
             return
         try:
-            import torch
-            from diffusers import DiffusionPipeline
+            import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "ChronoDepthAdapter needs `diffusers` and `torch`. "
-                "Install with: pip install diffusers transformers accelerate"
+                "ChronoDepthAdapter needs `torch`. "
+                "Install with: pip install torch"
+            ) from e
+
+        try:
+            # Upstream module path per github.com/jhShao/ChronoDepth.
+            from chronodepth_pipeline import ChronoDepthPipeline
+        except ImportError as e:
+            raise ImportError(
+                "ChronoDepthAdapter needs the upstream `chronodepth` "
+                "package. Install with:\n"
+                "    git clone https://github.com/jhShao/ChronoDepth\n"
+                "    cd ChronoDepth && pip install -e ."
             ) from e
 
         dtype = torch.bfloat16 if self.device.startswith("cuda") else torch.float32
-        # Verified model_id from HF model card.
-        self._pipe = DiffusionPipeline.from_pretrained(
+        self._pipe = ChronoDepthPipeline.from_pretrained(
             "jhshao/ChronoDepth",
             torch_dtype=dtype,
         )

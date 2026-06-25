@@ -28,6 +28,7 @@ from .base import (
     make_numpy_pose_model,
     make_numpy_sparse_depth_model,
     make_numpy_tracking_model,
+    make_numpy_video_depth_model,
 )
 from .batched_depth import BatchedDepthBenchmarkModel
 from .batched_multimodal import (
@@ -57,4 +58,5 @@ __all__ = [
     "make_numpy_pose_model",
     "make_numpy_sparse_depth_model",
     "make_numpy_tracking_model",
+    "make_numpy_video_depth_model",
 ]
