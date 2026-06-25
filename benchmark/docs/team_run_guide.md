@@ -16,6 +16,9 @@ git pull origin main
 conda activate rpx  # or source venv/bin/activate
 
 # 3. Run a Image Depth model on the easy split
+#    Two naming conventions are accepted:
+#    - canonical roster (kebab-case, matches Table 3): `da-v2-large`, `depth-pro`, ...
+#    - legacy registry (snake_case): `da_v2_metric_indoor`, `depth_pro`, ...
 PYTHONPATH=. python scripts/run_depth.py \
     --model da-v2-large --split easy
 
@@ -41,8 +44,8 @@ Outputs land in `./rpx_results/<model>/<split>/`:
 
 | Task | Models implemented | Runner | Status |
 | --- | --- | --- | --- |
-| **Image Depth** (frame depth) | 11 adapters under `scripts/depth_models/` (DA-V2, Depth Pro, UniDepth V2, Metric3D V2, MoGe, Marigold, Lotus, ZoeDepth, HyDen, Geowizard, PatchFusion) | `scripts/run_depth.py` | Works today |
-| **Video Depth** (video depth) | First real adapter `da-v2-video` (DA-V2 Large per-clip baseline) under `scripts/video_depth_models/`; 9 others (DepthCrafter, MonST3R, RollingDepth, ChronoDepth, VGGT-Ω, D4RT, ViGeo, GemDepth, Video DA) still need real forward calls | `scripts/run_video_depth.py` | First model runs end-to-end; team adds the remaining 9 per the recipe below |
+| **Image Depth** (frame depth) | 11 adapters under `scripts/depth_models/` (DA-V2, Depth Pro, UniDepth V2, Metric3D V2, MoGe, Marigold, Lotus, ZoeDepth, HyDen, Geowizard, PatchFusion). **7 of the 10 canonical roster entries bridged** — run via `--model da-v2-large` (or any canonical kebab-case name from Table 3). Three roster entries (`da3-metric-l`, `fe2e`, `depthlm`) have no upstream impl yet; the CLI raises a clean install-hint error. | `scripts/run_depth.py` | Works today |
+| **Video Depth** (video depth) | First real adapter `da-v2-video` (DA-V2 Large per-clip baseline) under `scripts/video_depth_models/`. **DepthCrafter** ships as a template (correct adapter shape, `depth_output_kind="relative"`, predict wired — only `setup()` needs the team's HF load incantation). 8 other true-video skeletons (`monst3r`, `rolling-depth`, `chrono-depth`, `vggt-omega`, `d4rt`, `vigeo`, `gem-depth`, `video-da`, `da3-video`) raise `NotImplementedError` with each model's install hint. | `scripts/run_video_depth.py` | First adapter end-to-end; DepthCrafter template ready; 8 skeletons unblock the team's per-model integration |
 
 The full canonical roster (10 Image Depth + 10 Video Depth models, 19 unique) is in
 `rpx_benchmark/adapters/depth_scaffold.py:DEPTH_MODEL_CARDS`. Tests in
