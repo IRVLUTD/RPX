@@ -41,7 +41,13 @@ class TaskType(str, Enum):
     Members
     -------
     MONOCULAR_DEPTH
-        Dense metric depth from a single RGB frame.
+        Dense metric depth from a single RGB frame (paper task D1-F).
+    VIDEO_DEPTH
+        Dense metric depth from a full phase clip (~250 RGB frames),
+        producing a per-frame depth sequence with temporal consistency
+        (paper task D1-V). Same scenes and ground truth as
+        MONOCULAR_DEPTH; differs in input context and metric set
+        (per-frame metrics + temporal metrics).
     OBJECT_DETECTION
         Closed-vocabulary detection with category labels.
     OBJECT_SEGMENTATION
@@ -71,6 +77,7 @@ class TaskType(str, Enum):
     """
 
     MONOCULAR_DEPTH = "monocular_depth"
+    VIDEO_DEPTH = "video_depth"
     OBJECT_DETECTION = "object_detection"
     OBJECT_SEGMENTATION = "object_segmentation"
     OBJECT_TRACKING = "object_tracking"
@@ -141,6 +148,30 @@ ESD_WEIGHTS: Dict[Difficulty, float] = {
 @dataclass
 class DepthGroundTruth:
     depth_map: np.ndarray  # H x W float32 meters
+
+
+@dataclass
+class VideoDepthGroundTruth:
+    """Per-clip ground truth for the D1-V (video depth) task.
+
+    The model receives the full phase clip as an RGB sequence and is
+    scored against a depth sequence of the same shape. ``valid_mask_seq``
+    follows the same D435 sentinel convention as
+    :class:`DepthGroundTruth` (zero entries mark invalid pixels — no
+    IR return); the loader populates it once when reading the clip
+    so per-frame masking is cheap during metric computation.
+
+    Shapes
+    ------
+    depth_map_seq   : (T, H, W) float32, metres
+    valid_mask_seq  : (T, H, W) bool
+    frame_indices   : (T,) int32, original phase-relative frame indices
+                      so models that want temporal context can use them
+    """
+
+    depth_map_seq: np.ndarray
+    valid_mask_seq: np.ndarray
+    frame_indices: np.ndarray
 
 
 @dataclass
@@ -244,8 +275,64 @@ class Sample:
 
 
 @dataclass
+class VideoSample:
+    """One input unit for video tasks (D1-V today, possibly more later).
+
+    Mirrors :class:`Sample` but carries sequence-shaped fields so a
+    video model can ingest the entire phase clip in one call. The
+    iteration unit is a ``(scene, phase)`` clip, not a frame, so the
+    cell-log key for video tasks is ``(model, task, scene, phase)``
+    rather than ``(..., frame)``.
+
+    Shapes
+    ------
+    id              : ``"{scene}_{phase}"``
+    rgb_seq         : (T, H, W, 3) uint8
+    ground_truth    : task-specific (e.g. :class:`VideoDepthGroundTruth`)
+    metadata        : dict — must include ``frame_indices`` (T,) int32,
+                      ``intrinsics`` (3, 3) float32, and optionally
+                      ``ego_motion_seq`` (T, 4, 4) float64 from T265
+    phase           : :class:`Phase` enum value for this clip
+    difficulty      : :class:`Difficulty` of the ``(scene, phase)``
+    camera_pose_seq : (T, 4, 4) float64, camera → world per frame, or
+                      ``None`` if the task does not need pose context
+
+    The split from :class:`Sample` is deliberate: trying to bolt
+    sequence fields into a single Sample type would have made
+    every per-frame consumer guard against ``rgb_seq is None``. Two
+    explicit shapes keep adapters honest about which task they implement.
+    """
+
+    id: str
+    rgb_seq: np.ndarray
+    ground_truth: Any
+    metadata: Dict[str, Any] | None = None
+    phase: Phase | None = None
+    difficulty: Difficulty | None = None
+    camera_pose_seq: np.ndarray | None = None
+
+
+@dataclass
 class DepthPrediction:
     depth_map: np.ndarray  # H x W float32
+
+
+@dataclass
+class VideoDepthPrediction:
+    """A video depth model's output for one phase clip.
+
+    Shape
+    -----
+    depth_map_seq : (T, H, W) float32, metres. Models that emit
+        affine-invariant (relative) depth should still return a
+        metric-scale tensor; the loader/runner will handle per-clip
+        scale-and-shift alignment before metric computation (canonical
+        Ranftl et al. 2020 procedure). Aligning per-frame would defeat
+        the temporal consistency metrics; aligning per-clip is the
+        standard convention for video-depth evaluation.
+    """
+
+    depth_map_seq: np.ndarray
 
 
 @dataclass

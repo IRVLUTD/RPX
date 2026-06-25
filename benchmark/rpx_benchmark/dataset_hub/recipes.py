@@ -84,7 +84,30 @@ MULTI_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
         scene_type=SceneType.MULTI_OBJECT,
         inputs=frozenset({RGB}),
         labels=frozenset({DEPTH}),
-        notes="RGB → depth regression. Depth captured by D435 is the GT.",
+        notes=(
+            "Paper task D1-F. Frame-level: model receives one RGB frame, "
+            "outputs one depth map. Depth captured by D435 is the GT."
+        ),
+    ),
+    "video_depth": TaskRecipe(
+        name="video_depth",
+        scene_type=SceneType.MULTI_OBJECT,
+        # Same modalities as monocular_depth — D1-V differs only in
+        # iteration unit (per-(scene, phase) clip) and metric set
+        # (adds temporal metrics on top of D1-F's per-frame ones).
+        # Downloading via `download_for_task("video_depth", ...)` pulls
+        # the exact same tar shards as monocular_depth; the runner
+        # decides how to feed them to the model.
+        inputs=frozenset({RGB}),
+        labels=frozenset({DEPTH}),
+        notes=(
+            "Paper task D1-V. Video-level: model receives the full "
+            "~250-frame phase clip as RGB sequence, outputs a per-frame "
+            "depth sequence. Same scenes and GT as monocular_depth; "
+            "differs in iteration unit and metric set (per-frame metrics "
+            "+ temporal metrics — TODO: finalise from Feynman's research "
+            "in benchmark/docs/depth_metric_decisions.md)."
+        ),
     ),
     "rgbd_segmentation": TaskRecipe(
         name="rgbd_segmentation",

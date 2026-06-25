@@ -45,6 +45,7 @@ Design notes
 # @register_metric decorators. Import-order matters: registry has to
 # exist first (imported above), then the calculator modules.
 from . import depth as _depth  # noqa: F401 — triggers registration
+from . import depth_robotics as _depth_robotics  # noqa: F401
 from . import detection as _detection  # noqa: F401
 from . import grounding as _grounding  # noqa: F401
 from . import keypoints as _keypoints  # noqa: F401
@@ -53,6 +54,7 @@ from . import pose as _pose  # noqa: F401
 from . import segmentation as _segmentation  # noqa: F401
 from . import sparse_depth as _sparse_depth  # noqa: F401
 from . import tracking as _tracking  # noqa: F401
+from . import video_depth as _video_depth  # noqa: F401  # registers VIDEO_DEPTH
 from .registry import (
     MetricCalculator,
     MetricSuite,
