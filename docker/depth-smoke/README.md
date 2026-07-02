@@ -57,7 +57,10 @@ never enables FE2E, D4RT or GemDepth's unverified-weight override.
 ## Build and publish
 
 The helper refuses a dirty source tree and tags both `latest` and the immutable
-`sha-<12 characters>` revision:
+`sha-<12 characters>` revision. It automatically reuses the setup helper's
+`../depth-smoke-envs/.wheelhouse` when present; set `RPX_TORCH_WHEELHOUSE` to
+override it. The wheelhouse is mounted only during the build and is not copied
+into the image:
 
 ```bash
 docker/depth-smoke/build_and_push.sh

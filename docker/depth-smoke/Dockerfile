@@ -43,12 +43,16 @@ WORKDIR /opt/rpx
 COPY docker/depth-smoke/requirements.lock /tmp/requirements.lock
 
 RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
     python -m pip install --upgrade pip==25.3 && \
-    python -m pip install \
-      --index-url https://download.pytorch.org/whl/cu128 \
-      torch==2.10.0+cu128 \
-      torchvision==0.25.0+cu128 && \
-    python -m pip install -r /tmp/requirements.lock
+    if find /wheelhouse -maxdepth 1 -name 'torch-2.10.0+cu128-*.whl' | grep -q .; then \
+      python -m pip install --no-index --find-links /wheelhouse \
+        torch==2.10.0+cu128 torchvision==0.25.0+cu128; \
+    else \
+      python -m pip install --index-url https://download.pytorch.org/whl/cu128 \
+        torch==2.10.0+cu128 torchvision==0.25.0+cu128; \
+    fi && \
+    python -m pip install --find-links /wheelhouse -r /tmp/requirements.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
     git init /opt/rpx-envs/sources/unidepth2 && \
