@@ -124,6 +124,38 @@ def test_gate_distinguishes_access_from_missing_weights() -> None:
     )
 
 
+def test_container_code_identity_uses_valid_embedded_revision(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    revision = "a" * 40
+    monkeypatch.setenv("RPX_GIT_SHA", revision)
+    monkeypatch.setattr(
+        gate,
+        "_run_text",
+        lambda _args, cwd=None: (_ for _ in ()).throw(
+            gate.subprocess.CalledProcessError(128, "git")
+        ),
+    )
+    assert gate._code_identity(tmp_path) == (revision, False)
+
+
+def test_container_code_identity_rejects_unpinned_revision(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("RPX_GIT_SHA", "latest")
+    monkeypatch.setattr(
+        gate,
+        "_run_text",
+        lambda _args, cwd=None: (_ for _ in ()).throw(
+            gate.subprocess.CalledProcessError(128, "git")
+        ),
+    )
+    with pytest.raises(gate.subprocess.CalledProcessError):
+        gate._code_identity(tmp_path)
+
+
 def test_matrix_environment_requires_completion_metadata(tmp_path: Path) -> None:
     env_root = tmp_path / "envs"
     python = env_root / "unidepth2" / "bin" / "python"

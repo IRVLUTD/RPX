@@ -14,6 +14,7 @@ import json
 import math
 import os
 import platform
+import re
 import shutil
 import signal
 import socket
@@ -127,13 +128,26 @@ def _gpu_state(gpu_index: int) -> tuple[list[dict], list[str], str]:
     return gpus, processes, smi
 
 
-def _git_sha(path: Path) -> str:
-    return _run_text(["git", "rev-parse", "HEAD"], cwd=path)
+def _git_sha(path: Path, *, allow_image_revision: bool = False) -> str:
+    """Resolve a Git SHA, with an explicit immutable-container fallback."""
+    try:
+        return _run_text(["git", "rev-parse", "HEAD"], cwd=path)
+    except subprocess.CalledProcessError:
+        revision = os.environ.get("RPX_GIT_SHA", "") if allow_image_revision else ""
+        if re.fullmatch(r"[0-9a-f]{40}", revision):
+            return revision
+        raise
 
 
 def _code_identity(path: Path) -> tuple[str, bool]:
-    sha = _git_sha(path)
-    status = _run_text(["git", "status", "--porcelain"], cwd=path)
+    sha = _git_sha(path, allow_image_revision=True)
+    try:
+        status = _run_text(["git", "status", "--porcelain"], cwd=path)
+    except subprocess.CalledProcessError:
+        # Release containers intentionally omit .git. Their OCI label and
+        # RPX_GIT_SHA environment value are injected from a clean source
+        # commit by the build helper, so the image is an immutable identity.
+        return sha, False
     if not status:
         return sha, False
     digest = hashlib.sha256()
@@ -320,7 +334,7 @@ def main() -> None:
 
     benchmark_dir = Path(__file__).resolve().parent.parent
     repo_root = benchmark_dir.parent
-    sha = _git_sha(repo_root)
+    sha = _git_sha(repo_root, allow_image_revision=True)
     code_id, git_dirty = _code_identity(repo_root)
     host = socket.gethostname()
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
