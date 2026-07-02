@@ -32,14 +32,9 @@ RUN test -n "${RPX_GIT_SHA}" && \
       bash \
       ca-certificates \
       curl \
-      ffmpeg \
       git \
-      libgl1 \
       libglib2.0-0 \
       libgomp1 \
-      libsm6 \
-      libxext6 \
-      libxrender1 \
       procps && \
     rm -rf /var/lib/apt/lists/*
 
@@ -69,7 +64,7 @@ RUN mkdir -p /opt/rpx-envs/sources && \
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     python -m pip install --no-deps /opt/rpx-envs/sources/unidepth2 && \
-    python -m pip install /opt/rpx-envs/sources/moge2
+    python -m pip install --no-deps /opt/rpx-envs/sources/moge2
 
 COPY benchmark /opt/rpx/benchmark
 RUN --mount=type=cache,target=/root/.cache/pip \

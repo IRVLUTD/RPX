@@ -7,7 +7,7 @@ einops==0.8.2
 huggingface_hub[hf_xet]==1.21.0
 matplotlib==3.11.0
 numpy==2.2.6
-opencv-python==5.0.0.93
+opencv-python-headless==5.0.0.93
 pillow==12.2.0
 protobuf==7.35.1
 safetensors==0.8.0
@@ -18,5 +18,7 @@ timm==1.0.26
 tqdm==4.68.3
 transformers==5.5.3
 trimesh==4.12.2
+pipeline @ git+https://github.com/EasternJournalist/pipeline.git@866f059d2a05cde05e4a52211ec5051fd5f276d6
+utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3fab839f0be9931dac7c8488eb0e1600c236e183
 wandb==0.28.0
 xformers==0.0.35
