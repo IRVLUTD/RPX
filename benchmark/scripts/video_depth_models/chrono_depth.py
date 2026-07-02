@@ -1,8 +1,7 @@
 """ChronoDepth — sliding-window video-depth via diffusion (Shao et al.).
 
-Real adapter wrapping the official ``jhshao/ChronoDepth`` HF release.
-Verified by HF model-card lookup (huggingface.co/jhshao/ChronoDepth):
-loads via ``diffusers.DiffusionPipeline.from_pretrained``. Paper:
+Real adapter wrapping the official ``jhshao/ChronoDepth-v1`` UNet and
+Stable Video Diffusion base model. Paper:
 Shao et al. "Learning Temporally Consistent Video Depth from Video
 Diffusion Priors" (2024).
 
@@ -32,7 +31,7 @@ class ChronoDepthAdapter(VideoDepthAdapterBase):
     DISPLAY_NAME = "ChronoDepth"
     OUTPUT_KIND = "relative"  # Affine-invariant per the paper.
 
-    def __init__(self, device: str = "cuda", *, num_inference_steps: int = 10) -> None:
+    def __init__(self, device: str = "cuda", *, num_inference_steps: int = 5) -> None:
         super().__init__(device=device)
         self.num_inference_steps = int(num_inference_steps)
         self._pipe = None
@@ -51,26 +50,36 @@ class ChronoDepthAdapter(VideoDepthAdapterBase):
             import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "ChronoDepthAdapter needs `torch`. "
-                "Install with: pip install torch"
+                "ChronoDepthAdapter needs `torch`. Install with: pip install torch"
             ) from e
 
         try:
-            # Upstream module path per github.com/jhShao/ChronoDepth.
-            from chronodepth_pipeline import ChronoDepthPipeline
+            from chronodepth import ChronoDepthPipeline
+            from chronodepth.unet_chronodepth import (
+                DiffusersUNetSpatioTemporalConditionModelChronodepth,
+            )
         except ImportError as e:
             raise ImportError(
                 "ChronoDepthAdapter needs the upstream `chronodepth` "
                 "package. Install with:\n"
-                "    git clone https://github.com/jhShao/ChronoDepth\n"
-                "    cd ChronoDepth && pip install -e ."
+                "    git clone https://github.com/jiahao-shao1/ChronoDepth\n"
+                "    add that checkout to PYTHONPATH"
             ) from e
 
-        dtype = torch.bfloat16 if self.device.startswith("cuda") else torch.float32
-        self._pipe = ChronoDepthPipeline.from_pretrained(
-            "jhshao/ChronoDepth",
+        dtype = torch.float16 if self.device.startswith("cuda") else torch.float32
+        unet = DiffusersUNetSpatioTemporalConditionModelChronodepth.from_pretrained(
+            "jhshao/ChronoDepth-v1",
+            low_cpu_mem_usage=True,
             torch_dtype=dtype,
         )
+        self._pipe = ChronoDepthPipeline.from_pretrained(
+            "stabilityai/stable-video-diffusion-img2vid-xt",
+            unet=unet,
+            torch_dtype=dtype,
+            variant="fp16" if self.device.startswith("cuda") else None,
+        )
+        self._pipe.n_tokens = 10
+        self._pipe.chunk_size = 5
         self._pipe.to(self.device)
         for opt in (
             "enable_xformers_memory_efficient_attention",
@@ -83,28 +92,51 @@ class ChronoDepthAdapter(VideoDepthAdapterBase):
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
-        from PIL import Image
-
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
-        pil_frames = [Image.fromarray(rgb_seq[t]) for t in range(T)]
+        # The official pipeline requires spatial dimensions divisible by 64.
+        # Resize only for model input; the prediction is restored below.
+        proc_h = max(64, round(H / 64) * 64)
+        proc_w = max(64, round(W / 64) * 64)
+        if (proc_h, proc_w) != (H, W):
+            from PIL import Image
+
+            rgb_input = np.stack(
+                [
+                    np.asarray(Image.fromarray(frame).resize((proc_w, proc_h), Image.BILINEAR))
+                    for frame in rgb_seq
+                ]
+            )
+        else:
+            rgb_input = rgb_seq
 
         result = self._pipe(
-            pil_frames,
+            rgb_input.astype(np.float32) / 255.0,
+            height=proc_h,
+            width=proc_w,
             num_inference_steps=self.num_inference_steps,
+            decode_chunk_size=min(8, T),
+            noise_aug_strength=0.0,
+            infer_mode="ours",
+            sigma_epsilon=-4.0,
+            show_progress_bar=False,
         )
         depth_seq = result.frames if hasattr(result, "frames") else result[0]
         depth_seq = np.asarray(depth_seq, dtype=np.float32)
-        if depth_seq.ndim == 4:
-            depth_seq = depth_seq.squeeze(1)
+        while depth_seq.ndim > 3:
+            axis = next((i for i, n in enumerate(depth_seq.shape) if n == 1), None)
+            if axis is None:
+                break
+            depth_seq = np.squeeze(depth_seq, axis=axis)
         if depth_seq.shape != (T, H, W):
             from PIL import Image as _Image
 
             resized = np.empty((T, H, W), dtype=np.float32)
             for t in range(T):
                 resized[t] = np.asarray(
-                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F")
-                    .resize((W, H), _Image.BILINEAR),
+                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F").resize(
+                        (W, H), _Image.BILINEAR
+                    ),
                     dtype=np.float32,
                 )
             depth_seq = resized

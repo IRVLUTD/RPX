@@ -13,10 +13,10 @@ Two opt-in features for our team's analytics workflow:
 
 Two manifest paths:
 
-* If the HF repo has ``manifests/<task>/<split>.json`` published, use the
-  toolkit's :func:`run_monocular_depth` (download → load → metrics → report).
-* If not (the case for ``itaykadosh/rpx-test`` today), fall back to building a
-  local manifest from the cached frames Parquet (``local_manifest.py``).
+* Default: use the official pinned HF manifest via
+  :func:`run_monocular_depth` (download → load → metrics → report).
+* Explicit legacy fallback: build a local manifest from the cached frames
+  Parquet (``local_manifest.py``).
 
 Usage
 -----
@@ -33,6 +33,9 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+
+DEFAULT_DATASET_REPO = "IRVLUTD/RPX"
+PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 
 
 def _human_bytes(n: int) -> str:
@@ -52,7 +55,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from rpx_benchmark.adapters.batched_depth import BatchedDepthBenchmarkModel  # noqa: E402
 
 
-def _stage_timing(adapter, dataset, max_samples: int | None = None) -> dict:
+def _stage_timing(
+    adapter,
+    dataset,
+    max_samples: int | None = None,
+    alignment: str = "none",
+) -> dict:
     """Time three stages independently per sample: data loading, model run,
     and metric calculation (a single AbsRel pass — proxy for the full basket).
 
@@ -87,7 +95,7 @@ def _stage_timing(adapter, dataset, max_samples: int | None = None) -> dict:
     n = len(entries)
 
     # Stage 1: data loading (decoded sample → np.ndarray RGB ready for the model)
-    samples, gts, data_ms = [], [], []
+    samples, gts, sample_objs, data_ms = [], [], [], []
     for entry in entries:
         t0 = _t.perf_counter()
         s = dataset._load_sample(entry)
@@ -105,6 +113,7 @@ def _stage_timing(adapter, dataset, max_samples: int | None = None) -> dict:
         data_ms.append((_t.perf_counter() - t0) * 1000.0)
         samples.append(rgb)
         gts.append(gt)
+        sample_objs.append(s)
 
     # Warm up — first 1–3 forwards include CUDA kernel selection / cuDNN
     # autotune / lazy weight uploads that distort the latency CI.
@@ -124,6 +133,24 @@ def _stage_timing(adapter, dataset, max_samples: int | None = None) -> dict:
         _sync()
         model_ms.append((_t.perf_counter() - t0) * 1000.0)
         preds.append(_np.asarray(p, dtype=_np.float32))
+
+    if alignment != "none" and preds:
+        from collections import defaultdict as _defaultdict
+
+        from rpx_benchmark.metrics.depth_alignment import align_pred_to_gt_pooled
+
+        groups = _defaultdict(list)
+        for i, sample in enumerate(sample_objs):
+            meta = sample.metadata or {}
+            groups[(meta.get("scene_id"), sample.phase)].append(i)
+        for indices in groups.values():
+            aligned = align_pred_to_gt_pooled(
+                _np.stack([preds[i] for i in indices]),
+                _np.stack([gts[i] for i in indices]),
+                mode=alignment,
+            )
+            for cell_idx, source_idx in enumerate(indices):
+                preds[source_idx] = aligned[cell_idx]
 
     # Stage 3: metric calculation — full per-sample depth basket
     # (AbsRel, SqRel, RMSE, RMSElog, MAE, δ1, δ2, δ3). Each sample's
@@ -264,18 +291,30 @@ def _build_model(
         if name in DEPTH_MODEL_CARDS
         else MODEL_DISPLAY_NAMES.get(registry_key, registry_key)
     )
-    return rpx.make_numpy_depth_model(adapter, name=display_name), adapter
+    native_alignment = getattr(adapter, "native_alignment", "none")
+    return rpx.make_numpy_depth_model(
+        adapter,
+        name=display_name,
+        depth_output_kind=("relative" if native_alignment != "none" else "metric"),
+        native_alignment=native_alignment,
+    ), adapter
 
 
 def _run_via_official_pipeline(
     *,
     model,
+    adapter,
     split: str,
     repo_id: str,
     device: str,
     output_dir: str | None,
     batch_size: int,
     manifest_path: str | None = None,
+    revision: str | None = None,
+    max_samples: int | None = None,
+    save_predictions: bool = False,
+    require_cuda: bool = True,
+    skip_flops: bool = False,
 ):
     """Path A: toolkit's `run_monocular_depth`.
 
@@ -289,16 +328,32 @@ def _run_via_official_pipeline(
     """
     from rpx_benchmark import MonocularDepthRunConfig, run_monocular_depth
 
+    name = getattr(model, "name", "model").replace("/", "__")
+    out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
+    pred_dir = out_dir / "predictions"
+    benchmark_model = BatchedDepthBenchmarkModel(
+        adapter,
+        name=name,
+        save_dir=(pred_dir if save_predictions else None),
+        native_alignment=getattr(adapter, "native_alignment", "none"),
+    )
     cfg = MonocularDepthRunConfig(
-        model=model,
+        model=benchmark_model,
         split=split,
         repo_id=repo_id,
         device=device,
         output_dir=output_dir,
         batch_size=batch_size,
         manifest_path=manifest_path,
+        revision=revision,
+        max_samples=max_samples,
+        require_cuda=require_cuda,
+        skip_flops=skip_flops,
     )
-    return run_monocular_depth(cfg)
+    result, report, paths = run_monocular_depth(cfg)
+    if save_predictions:
+        paths["predictions_dir"] = pred_dir
+    return result, report, paths
 
 
 def _run_via_local_manifest(
@@ -312,6 +367,9 @@ def _run_via_local_manifest(
     batch_size: int,
     max_samples: int | None,
     save_predictions: bool,
+    revision: str | None,
+    require_cuda: bool,
+    skip_flops: bool,
 ):
     """Path B: build a manifest locally from the cached frames Parquet, then
     call BenchmarkRunner directly. Mirrors `_pipeline.run_pipeline` minus the
@@ -331,13 +389,14 @@ def _run_via_local_manifest(
     from rpx_benchmark.runner import BenchmarkRunner
     from rpx_benchmark.tasks._pipeline import resolve_device
 
-    device = resolve_device(device)
+    device = resolve_device(device, require_cuda=require_cuda)
     print(f"[local-pipeline] task=monocular_depth split={split} device={device}")
 
     res = build_local_manifest(
         task="monocular_depth",
         split=split,
         repo_id=repo_id,
+        revision=revision,
         max_samples=max_samples,
     )
     print(f"[local-pipeline] manifest: {res.manifest_path}  ({res.n_samples} samples)")
@@ -410,6 +469,7 @@ def _run_via_local_manifest(
         efficiency=eff,
         compute_ts=True,
         compute_sgc_flag=False,
+        skip_flops=skip_flops,
     )
     # ↑ At this point dr_report carries the full Tier 1/2/3 efficiency
     # picture (params, flops, macs, mem-traffic, arithmetic intensity,
@@ -422,7 +482,11 @@ def _run_via_local_manifest(
     # The runner's `latency_ms` is end-to-end; this gives us where the time
     # actually goes so we can compare adapters fairly. Re-runs the dataset
     # without the deployment-readiness wrapper to keep the numbers clean.
-    timing = _stage_timing(adapter, dataset)
+    timing = _stage_timing(
+        adapter,
+        dataset,
+        alignment=getattr(adapter, "native_alignment", "none"),
+    )
     print(
         "[timing] data_load_ms (mean/median/p95): "
         f"{timing['data_load']['mean']:.1f}/"
@@ -481,8 +545,18 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 2)[0])
     ap.add_argument("--model", default="zoedepth", help="adapter to use")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")
-    ap.add_argument("--repo", default="itaykadosh/rpx-test", help="HuggingFace dataset repo")
+    ap.add_argument("--repo", default=DEFAULT_DATASET_REPO, help="HuggingFace dataset repo")
+    ap.add_argument(
+        "--revision",
+        default=PINNED_DATASET_REVISION,
+        help="immutable Hugging Face dataset commit",
+    )
     ap.add_argument("--device", default="cuda")
+    ap.add_argument(
+        "--allow-cpu",
+        action="store_true",
+        help="allow an explicit CPU diagnostic; depth runs are GPU-only by default",
+    )
     ap.add_argument("--output-dir", default=None, help="default: ./rpx_results/<model>/<split>/")
     ap.add_argument(
         "--batch-size",
@@ -494,10 +568,23 @@ def main() -> None:
     )
     ap.add_argument("--max-samples", type=int, default=None, help="cap (smoke testing)")
     ap.add_argument(
-        "--use-official",
+        "--skip-flops",
         action="store_true",
-        help="use download_split (requires manifests/ on HF). "
-        "Default: build manifest locally from cached Parquet.",
+        help="skip first-sample FLOP instrumentation (recommended for smoke/OOM safety)",
+    )
+    manifest_group = ap.add_mutually_exclusive_group()
+    manifest_group.add_argument(
+        "--use-official",
+        dest="use_official",
+        action="store_true",
+        default=True,
+        help="use the official pinned HF manifest (default)",
+    )
+    manifest_group.add_argument(
+        "--use-local-cache-manifest",
+        dest="use_official",
+        action="store_false",
+        help="legacy fallback: build a manifest from cached frames_v1.parquet",
     )
     ap.add_argument(
         "--acknowledge-unverified",
@@ -556,6 +643,12 @@ def main() -> None:
         "RPX-Outputs folder). Override per environment.",
     )
     args = ap.parse_args()
+    if args.max_samples is not None and args.max_samples < 1:
+        ap.error("--max-samples must be >= 1")
+
+    from rpx_benchmark.tasks._pipeline import resolve_device
+
+    args.device = resolve_device(args.device, require_cuda=not args.allow_cpu)
 
     from rpx_benchmark import cli_ux
 
@@ -569,7 +662,10 @@ def main() -> None:
             "model":              args.model,
             "split":              args.split,
             "repo":               args.repo,
+            "revision":           args.revision,
             "device":             args.device,
+            "require-cuda":       not args.allow_cpu,
+            "skip-flops":         args.skip_flops,
             "batch-size":         args.batch_size,
             "max-samples":        args.max_samples or "(all)",
             "alignment":          args.alignment,
@@ -596,12 +692,18 @@ def main() -> None:
     if args.manifest_path or args.use_official:
         result, dr_report, paths = _run_via_official_pipeline(
             model=model,
+            adapter=adapter,
             split=args.split,
             repo_id=args.repo,
             device=args.device,
             output_dir=args.output_dir,
             batch_size=args.batch_size,
             manifest_path=args.manifest_path,
+            revision=args.revision,
+            max_samples=args.max_samples,
+            save_predictions=args.save_predictions,
+            require_cuda=not args.allow_cpu,
+            skip_flops=args.skip_flops,
         )
     else:
         result, dr_report, paths = _run_via_local_manifest(
@@ -614,15 +716,34 @@ def main() -> None:
             batch_size=args.batch_size,
             max_samples=args.max_samples,
             save_predictions=args.save_predictions,
+            revision=args.revision,
+            require_cuda=not args.allow_cpu,
+            skip_flops=args.skip_flops,
         )
 
     if args.comprehensive_metrics:
-        from comprehensive_depth_metrics import compute_run
-        from local_manifest import _hf_snapshot_root
+        import json as _json
 
-        # Find the manifest we just used (build_local_manifest writes a known path)
-        snap = _hf_snapshot_root(args.repo)
-        manifest_path = snap / "extracted" / "manifests" / "monocular_depth" / f"{args.split}.json"
+        from comprehensive_depth_metrics import compute_run
+        if args.manifest_path:
+            manifest_path = Path(args.manifest_path)
+        elif args.use_official:
+            from rpx_benchmark.api import TaskType
+            from rpx_benchmark.hub import download_split
+
+            manifest_path = download_split(
+                task=TaskType.MONOCULAR_DEPTH,
+                split=args.split,
+                repo_id=args.repo,
+                revision=args.revision,
+            )
+        else:
+            from local_manifest import _hf_snapshot_root
+
+            snap = _hf_snapshot_root(args.repo, revision=args.revision)
+            manifest_path = (
+                snap / "extracted" / "manifests" / "monocular_depth" / f"{args.split}.json"
+            )
         pred_dir = paths["predictions_dir"]
         # Resolve 'auto' to the adapter's native alignment.
         chosen_alignment = args.alignment
@@ -630,10 +751,19 @@ def main() -> None:
             chosen_alignment = getattr(adapter, "native_alignment", "none")
         cli_ux.section(f"Comprehensive metrics (alignment={chosen_alignment})")
         with cli_ux.working("computing per-sample errors + CIs + stratifications"):
-            extras = compute_run(pred_dir, manifest_path, alignment=chosen_alignment, snapshot_root=snap)
+            manifest_payload = _json.loads(manifest_path.read_text())
+            snapshot_root = (
+                snap
+                if not args.manifest_path and not args.use_official
+                else Path(manifest_payload["root"])
+            )
+            extras = compute_run(
+                pred_dir,
+                manifest_path,
+                alignment=chosen_alignment,
+                snapshot_root=snapshot_root,
+            )
         out = paths["out_dir"] / "comprehensive_metrics.json"
-        import json as _json
-
         out.write_text(_json.dumps(extras, indent=2))
         cli_ux.step(f"wrote {out}  ({len(extras['per_sample'])} samples)")
         for k in sorted(extras["aggregated"]):

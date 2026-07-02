@@ -270,6 +270,7 @@ class VideoDepthDataset:
         batch_size: int = 1,
         frame_budget: Optional[int] = None,
         sampling: SamplingMode = "all",
+        max_samples: Optional[int] = None,
     ) -> "VideoDepthDataset":
         """Build a VideoDepthDataset from a per-clip JSON manifest.
 
@@ -340,6 +341,12 @@ class VideoDepthDataset:
             raise ManifestError(
                 f"Manifest 'samples' must be a list, got {type(samples).__name__}",
             )
+        if max_samples is not None:
+            if max_samples < 1:
+                raise ConfigError(
+                    f"max_samples must be >= 1, got {max_samples}",
+                )
+            samples = samples[:max_samples]
         return cls(
             samples=samples,
             task=TaskType.VIDEO_DEPTH,

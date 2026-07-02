@@ -22,7 +22,7 @@ from rpx_benchmark import (
     SystemCard,
     cells_from_per_sample,
 )
-
+from rpx_benchmark.exceptions import ConfigError
 
 # --------------------------------------------------------------------------- #
 # SystemCard threading
@@ -103,10 +103,10 @@ def test_no_system_card_leaves_fields_none_but_present():
 
 def test_invalid_system_card_type_raises_clear_error():
     """Passing something that's neither a SystemCard nor a dict should
-    surface a clear TypeError naming what was passed, not crash deep
+    surface a clear ConfigError naming what was passed, not crash deep
     in the bucketing loop with a misleading attribute error.
     """
-    with pytest.raises(TypeError, match="SystemCard, a dict, or None"):
+    with pytest.raises(ConfigError, match="SystemCard, a dict, or None"):
         cells_from_per_sample(
             _per_sample_rows(),
             model_name="my-model",

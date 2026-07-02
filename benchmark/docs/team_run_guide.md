@@ -44,10 +44,11 @@ Outputs land in `./rpx_results/<model>/<split>/`:
 
 | Task | Models implemented | Runner | Status |
 | --- | --- | --- | --- |
-| **Image Depth** (frame depth) | 11 adapters under `scripts/depth_models/` (DA-V2, Depth Pro, UniDepth V2, Metric3D V2, MoGe, Marigold, Lotus, ZoeDepth, HyDen, Geowizard, PatchFusion). **7 of the 10 canonical roster entries bridged** — run via `--model da-v2-large` (or any canonical kebab-case name from Table 3). Three roster entries (`da3-metric-l`, `fe2e`, `depthlm`) have no upstream impl yet; the CLI raises a clean install-hint error. | `scripts/run_depth.py` | Works today |
-| **Video Depth** (video depth) | First real adapter `da-v2-video` (DA-V2 Large per-clip baseline) under `scripts/video_depth_models/`. **DepthCrafter** ships as a template (correct adapter shape, `depth_output_kind="relative"`, predict wired — only `setup()` needs the team's HF load incantation). 8 other true-video skeletons (`monst3r`, `rolling-depth`, `chrono-depth`, `vggt-omega`, `d4rt`, `vigeo`, `gem-depth`, `video-da`, `da3-video`) raise `NotImplementedError` with each model's install hint. | `scripts/run_video_depth.py` | First adapter end-to-end; DepthCrafter template ready; 8 skeletons unblock the team's per-model integration |
+| **Image Depth** (frame depth) | All 10 canonical names resolve to real adapters. Nine have official weights wired; FE2E remains behind the unverified-weights safety rail. The larger legacy registry contains additional historical variants and baselines. | `scripts/run_depth.py` | 4 acceptance passed; 3 server-only pending; HyDen access-blocked; Lotus-2 server retest; FE2E blocked |
+| **Video Depth** (video depth) | All 10 canonical names resolve. Eight official adapters await GPU smoke; D4RT and GemDepth remain behind safety rails. DA-V2 frame-as-video is an extra control, not a canonical roster row. | `scripts/run_video_depth.py` | 8 pending; 2 blocked |
 
-The full canonical roster (10 Image Depth + 10 Video Depth models, 19 unique) is in
+The full canonical roster has 20 rows (10 Image Depth + 10 Video Depth;
+19 model families because DA3 supplies both an image and video row) and is in
 `rpx_benchmark/adapters/depth_scaffold.py:DEPTH_MODEL_CARDS`. Tests in
 `tests/test_depth_adapter_scaffolds.py` enforce that every roster entry
 has a registered skeleton class.

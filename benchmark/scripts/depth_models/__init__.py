@@ -225,11 +225,11 @@ def _build_patchfusion(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 
 
 def _build_hyden_metric(*, device: str = "cuda", batch_size: int = 1, **kwargs):
-    """HyDen — Meta's metric-depth head (ICLR'26)."""
+    """HyDen-MoGeV2 — Meta's metric-point head (ICLR'26)."""
     from .hyden import HyDen
 
     return HyDen(
-        model_id="facebook/hyden-da2-metric-depth",
+        model_id="facebook/hyden-mogev2-metric-point",
         device=device,
         batch_size=batch_size,
         native_alignment="none",

@@ -22,15 +22,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from rpx_benchmark.api import (
-    BenchmarkModel,
-    TaskType,
-    VideoDepthGroundTruth,
-    VideoDepthPrediction,
-    VideoSample,
-)
+from rpx_benchmark.api import BenchmarkModel, TaskType, VideoDepthPrediction
 from rpx_benchmark.tasks._video_pipeline import VideoTaskRunConfig, run_video_pipeline
-
 
 # --------------------------------------------------------------------------- #
 # Fake data — two scenes × three phases × 4 frames each
@@ -125,7 +118,14 @@ def fake_dataset_root(tmp_path, monkeypatch):
     """Build a fake manifest and stub download_split to return its path."""
     manifest_path = _make_fake_manifest(tmp_path)
 
-    def _fake_download(task, split, repo_id, cache_dir=None, revision=None):
+    def _fake_download(
+        task,
+        split,
+        repo_id,
+        cache_dir=None,
+        revision=None,
+        max_samples=None,
+    ):
         return manifest_path
 
     # Patch download_split in the video pipeline module
@@ -223,6 +223,50 @@ def test_video_pipeline_frame_budget(fake_dataset_root, tmp_path):
 
     cells_df = pq.read_table(paths["cells"]).to_pandas()
     assert (cells_df["frame_budget"] == 2).all()
+
+
+def test_video_pipeline_max_samples_means_clips(fake_dataset_root, tmp_path):
+    cfg = VideoTaskRunConfig(
+        model=_FakeVideoDepthModel(output_kind="metric"),
+        split="easy",
+        device="cpu",
+        output_dir=str(tmp_path / "out_max_clips"),
+        max_samples=2,
+    )
+    result, _dr, paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+
+    import pyarrow.parquet as pq
+
+    assert result.num_samples == 2
+    assert len(pq.read_table(paths["cells"])) == 2
+
+
+def test_video_pipeline_synchronizes_around_each_prediction(
+    fake_dataset_root,
+    tmp_path,
+    monkeypatch,
+):
+    from rpx_benchmark.tasks import _video_pipeline as vp
+
+    sync_calls = []
+    monkeypatch.setattr(vp, "_make_cuda_sync", lambda: lambda: sync_calls.append(True))
+    cfg = VideoTaskRunConfig(
+        model=_FakeVideoDepthModel(output_kind="metric"),
+        split="easy",
+        device="cpu",
+        output_dir=str(tmp_path / "out_sync"),
+        max_samples=2,
+    )
+    run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert len(sync_calls) == 4  # before + after each of two clips
 
 
 # --------------------------------------------------------------------------- #

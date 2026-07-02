@@ -109,8 +109,11 @@ def _member_filename(modality: str, frame_filename: str) -> str:
     return f"{stem}{ext}"
 
 
-def _hf_snapshot_root(repo_id: str = "itaykadosh/RPX") -> Path:
-    """Resolve the most recent local snapshot of an HF dataset cache."""
+def _hf_snapshot_root(
+    repo_id: str = "IRVLUTD/RPX",
+    revision: str | None = None,
+) -> Path:
+    """Resolve a requested local HF snapshot, or the most recent one."""
     cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
     repo_dir = cache / f"datasets--{repo_id.replace('/', '--')}" / "snapshots"
     if not repo_dir.exists():
@@ -120,6 +123,17 @@ def _hf_snapshot_root(repo_id: str = "itaykadosh/RPX") -> Path:
             f"no snapshots for {repo_id} under {cache}.",
             hint="Run `python -m rpx_benchmark.dataset_hub.cli download "
             "--task <task> --split <split>` first to populate the HF cache.",
+        )
+    if revision:
+        pinned = repo_dir / revision
+        if pinned.is_dir():
+            return pinned
+        from rpx_benchmark.exceptions import DatasetError
+
+        raise DatasetError(
+            f"pinned snapshot {revision} for {repo_id} is not cached under {repo_dir}.",
+            hint="Prefetch that exact revision first, or use --use-official so the "
+            "runner downloads and verifies it from Hugging Face.",
         )
     snaps = sorted(repo_dir.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True)
     if not snaps:
@@ -188,7 +202,8 @@ def build_local_manifest(
     *,
     task: str,
     split: str,
-    repo_id: str = "itaykadosh/RPX",
+    repo_id: str = "IRVLUTD/RPX",
+    revision: str | None = None,
     snapshot_root: Path | None = None,
     extracted_root: Path | None = None,
     max_samples: int | None = None,
@@ -212,7 +227,7 @@ def build_local_manifest(
             f"unknown task {task!r}",
             hint=f"Known tasks: {sorted(TASK_MODALITIES)}.",
         )
-    snap = snapshot_root or _hf_snapshot_root(repo_id)
+    snap = snapshot_root or _hf_snapshot_root(repo_id, revision=revision)
     parquet = snap / "manifest" / "frames_v1.parquet"
     if not parquet.exists():
         from rpx_benchmark.exceptions import DatasetError

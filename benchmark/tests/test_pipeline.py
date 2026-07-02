@@ -12,17 +12,26 @@ import time
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 import rpx_benchmark as rpx
 from rpx_benchmark.api import TaskType
 from rpx_benchmark.evaluators import MetricSuite
 from rpx_benchmark.reports import format_markdown_summary, write_json
 from rpx_benchmark.runner import BenchmarkRunner
+from rpx_benchmark.tasks._pipeline import resolve_device
 
 
 def _perfect_depth(rgb: np.ndarray) -> np.ndarray:
     """Return 2 m everywhere — matches the 2000 mm synthetic GT exactly."""
     return np.full(rgb.shape[:2], 2.0, dtype=np.float32)
+
+
+def test_gpu_only_resolution_rejects_cpu_request():
+    from rpx_benchmark.exceptions import ConfigError
+
+    with pytest.raises(ConfigError, match="GPU-only"):
+        resolve_device("cpu", require_cuda=True)
 
 
 def test_runner_attaches_per_sample_metadata(synthetic_depth_dataset):
@@ -163,3 +172,44 @@ def test_progress_callback_fires_once_per_sample(synthetic_depth_dataset):
     assert "predict" in stages
     done_counts = [e[0] for e in events if e[2] == "predict"]
     assert done_counts[-1] == 6
+
+
+def test_relative_depth_alignment_is_pooled_per_scene_phase(
+    synthetic_depth_dataset,
+    monkeypatch,
+):
+    """The evaluator must solve three phase cells, not six frames."""
+    from rpx_benchmark import runner as runner_module
+
+    # The shared fixture predates scene metadata; add the canonical field
+    # that official/local RPX manifests carry.
+    for entry in synthetic_depth_dataset.samples:
+        entry["metadata"] = {"scene_id": "scene_000"}
+
+    real_align = runner_module.align_pred_to_gt_pooled
+    calls = []
+
+    def recording_align(pred_seq, gt_seq, mode, valid_seq=None):
+        calls.append((pred_seq.shape, mode))
+        return real_align(pred_seq, gt_seq, mode, valid_seq)
+
+    monkeypatch.setattr(runner_module, "align_pred_to_gt_pooled", recording_align)
+    bm = rpx.make_numpy_depth_model(
+        lambda rgb: np.full(rgb.shape[:2], 7.0, dtype=np.float32),
+        depth_output_kind="relative",
+        native_alignment="ls_affine",
+    )
+    result, _ = BenchmarkRunner(
+        bm,
+        synthetic_depth_dataset,
+        MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
+    ).run_with_report(
+        primary_metric="absrel",
+        compute_ts=False,
+        compute_sgc_flag=False,
+    )
+
+    assert len(calls) == 3
+    assert all(shape[0] == 2 for shape, _mode in calls)
+    assert {mode for _shape, mode in calls} == {"ls_affine"}
+    assert result.aggregated["absrel"] < 1e-6

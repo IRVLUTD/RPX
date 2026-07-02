@@ -412,10 +412,11 @@ class BenchmarkModel(ABC):
         before computing metrics, matching the Ranftl et al. 2020
         protocol the paper §3.3 prescribes).
 
-        Adapters that wrap relative-depth models (Lotus-2, FE2E,
-        MoGe-2, HyDen, DepthLM, the DA-V2 relative variant) must set
+        Adapters that wrap relative-depth models (Lotus-2, FE2E and
+        the DA-V2 relative variant) must set
         this to ``"relative"``. Adapters wrapping metric models
-        (DA-Metric, Depth Pro, UniDepth V2, Metric3D V2, etc.) leave
+        (DA-Metric, Depth Pro, UniDepth V2, Metric3D V2, MoGe-2,
+        canonical HyDen metric, DepthLM, etc.) leave
         the default. Ignored entirely for non-depth tasks.
 
     Examples

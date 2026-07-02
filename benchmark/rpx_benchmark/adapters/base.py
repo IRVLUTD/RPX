@@ -350,11 +350,15 @@ def make_numpy_depth_model(
     fn: Callable[[np.ndarray], np.ndarray],
     *,
     name: str = "numpy_depth_model",
+    depth_output_kind: str = "metric",
+    native_alignment: str | None = None,
 ) -> BenchmarkableModel:
     """Wrap a plain numpy depth callable as a :class:`BenchmarkableModel`.
 
     The callable must accept a ``(H, W, 3) uint8`` RGB image and return a
-    ``(H', W') float`` metric depth map (in metres). If ``(H', W') !=
+    ``(H', W') float`` depth map. If ``depth_output_kind="metric"`` the
+    values are metres. Relative outputs remain raw until the runner fits
+    one pooled alignment per ``(scene, phase)`` cell. If ``(H', W') !=
     (H, W)``, the output is bilinearly resized to match the ground truth.
 
     Parameters
@@ -363,6 +367,11 @@ def make_numpy_depth_model(
         The depth function. Signature: ``fn(rgb_uint8) -> depth_float``.
     name : str
         Display name used in logs and reports.
+    depth_output_kind : str
+        ``"metric"`` (default) or ``"relative"``.
+    native_alignment : str, optional
+        Alignment used for relative output. Defaults to ``"ls_affine"``
+        for relative models and ``"none"`` for metric models.
 
     Examples
     --------
@@ -374,7 +383,11 @@ def make_numpy_depth_model(
     >>> bm.task is rpx.TaskType.MONOCULAR_DEPTH
     True
     """
-    return BenchmarkableModel(
+    if depth_output_kind not in {"metric", "relative"}:
+        raise AdapterError(
+            f"depth_output_kind must be 'metric' or 'relative', got {depth_output_kind!r}",
+        )
+    model = BenchmarkableModel(
         task=TaskType.MONOCULAR_DEPTH,
         input_adapter=_NumpyDepthInput(),
         model=fn,
@@ -382,6 +395,11 @@ def make_numpy_depth_model(
         invoker=lambda model, payload: model(payload),
         name=name,
     )
+    model.depth_output_kind = depth_output_kind
+    model.native_alignment = native_alignment or (
+        "ls_affine" if depth_output_kind == "relative" else "none"
+    )
+    return model
 
 
 # --------------------------------------------------------------------------- #

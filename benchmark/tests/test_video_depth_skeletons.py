@@ -157,6 +157,9 @@ def test_real_video_adapter_shape(key, expected_name, expected_kind):
         f"{key}: depth_output_kind={adapter.depth_output_kind!r}, "
         f"expected {expected_kind!r} (controls per-clip alignment)"
     )
+    assert DEPTH_MODEL_CARDS[key].depth_output_kind == expected_kind, (
+        f"{key}: canonical card and real adapter disagree on output kind"
+    )
     assert adapter.name == expected_name, (
         f"{key}: adapter.name={adapter.name!r}, expected {expected_name!r}"
     )

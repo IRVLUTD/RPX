@@ -121,6 +121,7 @@ class RPXDataset:
         manifest_path: str | Path,
         batch_size: int = 1,
         validate: bool = False,
+        max_samples: int | None = None,
     ) -> "RPXDataset":
         """Load a manifest JSON file from disk and return a dataset.
 
@@ -138,6 +139,9 @@ class RPXDataset:
             constructing the dataset. Requires the ``schemas`` extra
             (``pip install 'rpx-benchmark[schemas]'``). Default
             ``False`` preserves historical, tolerant behaviour.
+        max_samples : int, optional
+            Keep only the first N manifest samples. Intended for smoke
+            validation; must be at least 1 when provided.
 
         Returns
         -------
@@ -164,12 +168,19 @@ class RPXDataset:
             raise ManifestError(
                 f"Manifest at {manifest_path} is not valid JSON: {e}",
             ) from e
-        return cls.from_dict(
+        dataset = cls.from_dict(
             manifest,
             batch_size=batch_size,
             default_root=manifest_path.parent,
             validate=validate,
         )
+        if max_samples is not None:
+            if max_samples < 1:
+                raise ManifestError(
+                    f"max_samples must be >= 1, got {max_samples}",
+                )
+            dataset.samples = dataset.samples[:max_samples]
+        return dataset
 
     @classmethod
     def from_dict(

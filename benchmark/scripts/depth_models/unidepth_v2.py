@@ -59,8 +59,8 @@ class UniDepthV2:
             from unidepth.models import UniDepthV2 as _UniDepthV2Backbone
         except ImportError as e:
             raise ImportError(
-                "UniDepthV2 needs `unidepth`. Install with: "
-                "pip install unidepth torch timm pillow huggingface-hub"
+                "UniDepthV2 needs the pinned upstream runtime dependencies. "
+                "Run setup_depth_smoke_env.py --model unidepth-v2."
             ) from e
         self.model_id = model_id
         self.device = device

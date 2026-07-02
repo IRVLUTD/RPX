@@ -30,7 +30,7 @@ Save layout
 -----------
 When ``save_dir`` is provided, predictions are written as
 ``<save_dir>/<scene>/<phase>/<frame>.npz`` (key ``"depth"``, float16
-metres) — the same scene/phase shape as the on-disk dataset, so Box
+in the model's native output space) — the same scene/phase shape as the on-disk dataset, so Box
 mirroring, downstream analytics, and per-scene plotting all share one
 navigation pattern. Downstream readers (``comprehensive_depth_metrics``,
 metric/alignment modules) cast back to float32 on load, so storing
@@ -65,31 +65,11 @@ from ..api import DepthPrediction, Sample, TaskType
 __all__ = ["BatchedDepthBenchmarkModel"]
 
 
-from ..metrics.depth_alignment import align_pred_to_gt as _align_pred_to_gt
-
-
 def _resize_bilinear_2d(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     """Resize a 2D float array to ``(H, W)``. PIL-only — no OpenCV dependency."""
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)
-
-
-def _extract_gt_depth(sample: Sample) -> Optional[np.ndarray]:
-    """Pull GT depth (metres, float32) off a Sample, or None if missing.
-
-    Sample.ground_truth is the task-specific GT dataclass; for monocular
-    depth that's a ``DepthGroundTruth`` with a ``depth_map`` field.
-    """
-    gt_obj = getattr(sample, "ground_truth", None)
-    if gt_obj is None:
-        return None
-    arr = getattr(gt_obj, "depth_map", None)
-    if arr is None:
-        arr = getattr(gt_obj, "depth", None)
-    if arr is None:
-        return None
-    return np.asarray(arr, dtype=np.float32)
 
 
 class BatchedDepthBenchmarkModel:
@@ -112,7 +92,8 @@ class BatchedDepthBenchmarkModel:
         UniDepth V2 / Depth Pro; ``"ls_affine"`` for up-to-scale models
         like Marigold / Lotus-2). The runner reads this to apply the
         right alignment by default. Falls back to ``"none"`` if the
-        adapter doesn't declare it.
+        adapter doesn't declare it. The wrapper returns raw predictions;
+        the runner applies this mode once per complete scene/phase cell.
     native_precision
         Declared by the adapter (``"fp32"``, ``"fp16"``, ``"bf16"``).
         Used by the runner to record the OperatingPoint precision
@@ -140,6 +121,9 @@ class BatchedDepthBenchmarkModel:
         )
         self.native_precision: str = (
             native_precision or getattr(adapter, "native_precision", None) or "fp32"
+        )
+        self.depth_output_kind: str = (
+            "relative" if self.native_alignment != "none" else "metric"
         )
         # Profiler walker reaches the underlying nn.Module via this attr.
         self.model = adapter
@@ -173,23 +157,10 @@ class BatchedDepthBenchmarkModel:
             # actually predicted) — same on disk regardless of alignment.
             self._maybe_save(sample, d_raw)
 
-            # For the runner's primary metric (AbsRel et al), apply the
-            # adapter's declared native alignment. Without this,
-            # relative-depth models report nonsensical raw-space numbers
-            # in result.json["aggregated"] (e.g. AbsRel ≈ 100+ for MiDaS)
-            # while the comprehensive post-processor's aligned numbers
-            # disagree wildly. This keeps result.json's headline numbers
-            # honest under the model's declared alignment policy.
-            d_for_runner = d_raw
-            if self.native_alignment != "none":
-                gt_arr = _extract_gt_depth(sample)
-                if gt_arr is not None:
-                    d_for_runner = _align_pred_to_gt(
-                        d_raw,
-                        gt_arr,
-                        mode=self.native_alignment,
-                    )
-            preds.append(DepthPrediction(depth_map=d_for_runner))
+            # Return the raw prediction. Relative outputs are deliberately
+            # aligned later by BenchmarkRunner, after every frame in the
+            # same (scene, phase) cell is available for one pooled solve.
+            preds.append(DepthPrediction(depth_map=d_raw))
         return preds
 
     def _maybe_save(self, sample: Sample, depth: np.ndarray) -> None:

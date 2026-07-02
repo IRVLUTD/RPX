@@ -29,7 +29,11 @@ class Metric3DV2:
     """Universal metric depth: rgb → depth (metres)."""
 
     DEFAULT_HUB_ENTRY = "metric3d_vit_giant2"
-    DEFAULT_HUB_REPO = "YvanYin/Metric3D"
+    # Pin the upstream source so local/server smoke runs execute identical
+    # model code even if the repository's default branch moves.
+    DEFAULT_HUB_REPO = (
+        "YvanYin/Metric3D:eb5b6fac0dc155e4e52f576e304fbf11655ff339"
+    )
 
     native_alignment: str = "none"  # metric
     native_precision: str = "fp32"

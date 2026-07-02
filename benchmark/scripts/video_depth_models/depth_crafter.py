@@ -107,13 +107,15 @@ class DepthCrafterAdapter(BenchmarkModel):
             import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "DepthCrafterAdapter needs `torch`. "
-                "Install with: pip install torch"
+                "DepthCrafterAdapter needs `torch`. Install with: pip install torch"
             ) from e
 
         try:
             # Upstream module path per github.com/Tencent/DepthCrafter README.
             from depthcrafter.depth_crafter_ppl import DepthCrafterPipeline
+            from depthcrafter.unet import (
+                DiffusersUNetSpatioTemporalConditionModelDepthCrafter,
+            )
         except ImportError as e:
             raise ImportError(
                 "DepthCrafterAdapter needs the upstream `depthcrafter` "
@@ -123,9 +125,16 @@ class DepthCrafterAdapter(BenchmarkModel):
             ) from e
 
         dtype = torch.float16 if self.device.startswith("cuda") else torch.float32
-        self._pipe = DepthCrafterPipeline.from_pretrained(
+        unet = DiffusersUNetSpatioTemporalConditionModelDepthCrafter.from_pretrained(
             "tencent/DepthCrafter",
+            low_cpu_mem_usage=True,
             torch_dtype=dtype,
+        )
+        self._pipe = DepthCrafterPipeline.from_pretrained(
+            "stabilityai/stable-video-diffusion-img2vid-xt",
+            unet=unet,
+            torch_dtype=dtype,
+            variant="fp16" if self.device.startswith("cuda") else None,
         )
         self._pipe.to(self.device)
         for opt in (
@@ -142,9 +151,7 @@ class DepthCrafterAdapter(BenchmarkModel):
         batch: Sequence[VideoSample],
     ) -> list[VideoDepthPrediction]:
         if self._pipe is None:
-            raise RuntimeError(
-                "DepthCrafterAdapter.setup() must be called before predict()."
-            )
+            raise RuntimeError("DepthCrafterAdapter.setup() must be called before predict().")
         out: list[VideoDepthPrediction] = []
         for sample in batch:
             rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)  # (T, H, W, 3)
@@ -152,22 +159,24 @@ class DepthCrafterAdapter(BenchmarkModel):
             # uint8 array in [0, 255]. The official pipeline returns an
             # (T, H, W) float tensor.
             result = self._pipe(
-                rgb_seq,
+                rgb_seq.astype(np.float32) / 255.0,
                 num_inference_steps=self.num_inference_steps,
                 guidance_scale=self.guidance_scale,
                 window_size=self.window_size,
                 overlap=self.overlap,
+                output_type="np",
             )
             # The pipeline returns a tuple-like object whose ``frames``
             # attribute holds the depth sequence. Some releases return
             # (depth_seq,) directly; handle both.
-            depth_seq = (
-                result.frames if hasattr(result, "frames") else result[0]
-            )
+            depth_seq = result.frames if hasattr(result, "frames") else result[0]
             depth_seq = np.asarray(depth_seq, dtype=np.float32)
-            if depth_seq.ndim == 4:
-                # Some pipelines emit (T, 1, H, W); squeeze the channel.
-                depth_seq = depth_seq.squeeze(1)
+            if depth_seq.ndim == 5 and depth_seq.shape[0] == 1:
+                depth_seq = depth_seq[0]
+            if depth_seq.ndim == 4 and depth_seq.shape[1] == 1:
+                depth_seq = depth_seq[:, 0]
+            elif depth_seq.ndim == 4 and depth_seq.shape[-1] in {1, 3}:
+                depth_seq = depth_seq.mean(axis=-1)
             if depth_seq.shape != rgb_seq.shape[:3]:
                 from rpx_benchmark.exceptions import AdapterError
 

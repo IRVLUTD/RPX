@@ -96,7 +96,7 @@ def _write_depth_dataset(root: Path, n: int = 3) -> Path:
 
 
 def test_runner_dispatches_temporal_hook_via_taskspec(tmp_path: Path, monkeypatch) -> None:
-    """The runner must invoke ``spec.temporal_stability_fn`` — not hardcoded branches."""
+    """Depth TS streams adjacent pairs through the TaskSpec hook."""
     from rpx_benchmark.loader import RPXDataset
     from rpx_benchmark.runner import BenchmarkRunner
 
@@ -124,7 +124,8 @@ def test_runner_dispatches_temporal_hook_via_taskspec(tmp_path: Path, monkeypatc
         primary_metric="absrel",
         model_name="unit",
     )
-    assert calls["n"] == 1, "runner did not dispatch through the TaskSpec hook"
+    assert calls["n"] == len(ds) - 1, "runner did not stream pairs through the TaskSpec hook"
+    assert report.temporal_stability.num_pairs == len(ds) - 1
     # Runner now populates latency percentiles into the report directly
     # via the injected LatencyProfiler; the median field is a float.
     assert isinstance(report.latency_ms_per_sample, float)

@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, Set, Tuple
 
 from .api import Difficulty, TaskType
-from .exceptions import DatasetError, DownloadError, ManifestError
+from .exceptions import ConfigError, DatasetError, DownloadError, ManifestError
 from .loader import RPXDataset
 from .logging_utils import get_logger
 
@@ -169,7 +169,7 @@ def verify_dataset(
 
 log = get_logger(__name__)
 
-DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "IRVLUTD/rpx-benchmark")
+DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "IRVLUTD/RPX")
 REPO_TYPE = "dataset"
 
 # ------------------------------------------------------------------ #
@@ -192,6 +192,10 @@ GENERAL_QA = "general_qa.json"
 
 TASK_MODALITIES: Dict[TaskType, List[str]] = {
     TaskType.MONOCULAR_DEPTH: [RGB, DEPTH],
+    # VideoDepthDataset consumes pose_filenames whenever the official
+    # manifest provides them, even for stride sampling. Fetch the pose shard
+    # with RGB/depth so a clip cannot fail after download_split succeeds.
+    TaskType.VIDEO_DEPTH: [RGB, DEPTH, POSE],
     TaskType.SPARSE_DEPTH: [RGB, DEPTH, SPARSE_DEPTH_DIR],
     TaskType.OBJECT_SEGMENTATION: [RGB, MASK],
     TaskType.OBJECT_DETECTION: [RGB, MASK, TRACKLETS],
@@ -332,6 +336,9 @@ def _extract_scene_phase_pairs(manifest: Dict[str, Any]) -> Set[Tuple[str, str]]
             pairs.add((str(entry["scene"]), str(entry["phase"])))
         return pairs
     for sample in manifest.get("samples", []):
+        if sample.get("scene_id") is not None and sample.get("phase") is not None:
+            pairs.add((str(sample["scene_id"]), str(sample["phase"])))
+            continue
         for key in ("rgb", "depth", "mask"):
             p = sample.get(key)
             if not p:
@@ -347,12 +354,25 @@ def _build_allow_patterns(
     modalities: Sequence[str],
     scene_phase_pairs: Iterable[Tuple[str, str]],
 ) -> List[str]:
+    # Keep legacy extracted-file globs while also requesting the current
+    # lossless tar shards. A snapshot may contain one layout or the other.
+    tar_for_modality = {
+        RGB: "rgb.tar",
+        DEPTH: "depth.tar",
+        MASK: "labels/masks/v1.tar",
+        POSE: "labels/cam_pose/v1.tar",
+        FISHEYE_L: "fisheye.tar",
+        FISHEYE_R: "fisheye.tar",
+    }
     patterns: List[str] = []
     for scene, phase in sorted(scene_phase_pairs):
         base = f"scenes/{scene}/{phase}"
         for m in modalities:
             patterns.append(f"{base}/{m}")
-    return patterns
+            tar_path = tar_for_modality.get(m)
+            if tar_path is not None:
+                patterns.append(f"{base}/{tar_path}")
+    return list(dict.fromkeys(patterns))
 
 
 # ------------------------------------------------------------------ #
@@ -368,6 +388,7 @@ def download_split(
     revision: str | None = None,
     extra_modalities: Sequence[str] | None = None,
     max_workers: int = 8,
+    max_samples: int | None = None,
 ) -> Path:
     """Download only the files (task, split) needs, return resolved manifest path.
 
@@ -382,6 +403,14 @@ def download_split(
     split_enum = Difficulty(split) if isinstance(split, str) else split
 
     manifest = fetch_manifest(task_enum, split_enum, repo_id, cache_dir, revision)
+    if max_samples is not None:
+        if max_samples < 1:
+            raise ConfigError(
+                f"max_samples must be >= 1, got {max_samples}",
+                hint="Use None for the complete split.",
+            )
+        manifest = dict(manifest)
+        manifest["samples"] = list(manifest.get("samples") or [])[:max_samples]
 
     pairs = _extract_scene_phase_pairs(manifest)
     if not pairs:
@@ -397,6 +426,7 @@ def download_split(
 
     allow_patterns = _build_allow_patterns(modalities, pairs)
     allow_patterns.append(_manifest_repo_path(task_enum, split_enum))
+    allow_patterns.append("manifest/checksums.json")
 
     log.info(
         "downloading %d file patterns for task=%s split=%s from %s",
@@ -457,6 +487,7 @@ def load(
     cache_dir: str | Path | None = None,
     revision: str | None = None,
     batch_size: int = 1,
+    max_samples: int | None = None,
 ) -> RPXDataset:
     """Download (task, split) and return an iterable :class:`RPXDataset`.
 
@@ -474,8 +505,13 @@ def load(
         repo_id=repo_id,
         cache_dir=cache_dir,
         revision=revision,
+        max_samples=max_samples,
     )
-    return RPXDataset.from_manifest(manifest_path, batch_size=batch_size)
+    return RPXDataset.from_manifest(
+        manifest_path,
+        batch_size=batch_size,
+        max_samples=max_samples,
+    )
 
 
 # ------------------------------------------------------------------ #

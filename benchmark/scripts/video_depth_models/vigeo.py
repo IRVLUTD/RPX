@@ -35,7 +35,6 @@ from rpx_benchmark.exceptions import AdapterError
 
 from ._video_adapter_base import VideoDepthAdapterBase
 
-
 # Verified model_id from HF model card.
 _MODEL_ID = "pkqbajng/ViGeo"
 
@@ -80,22 +79,26 @@ class ViGeoAdapter(VideoDepthAdapterBase):
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
+        import torch
+
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
 
-        # Upstream API per the HF quick-start: model.infer(images, mode=...)
-        # returns a dict with depth, points, normals, confidence, pose.
-        out = self._model.infer([rgb_seq[t] for t in range(T)], mode=self.mode)
+        # Official API: RGB float tensor [T, 3, H, W] in [0, 1].
+        images = torch.from_numpy(rgb_seq).permute(0, 3, 1, 2).float() / 255.0
+        images = images.to(self.device)
+        with torch.inference_mode():
+            out = self._model.infer(images, mode=self.mode)
 
         depth_seq = None
         if isinstance(out, dict):
-            depth_seq = out.get("depth") or out.get("depth_map")
+            depth_seq = out.get("depth_pred")
         elif hasattr(out, "depth"):
             depth_seq = out.depth
         if depth_seq is None:
             raise AdapterError(
                 "ViGeo.infer() returned no recognised depth field. "
-                "Expected dict with 'depth' or attribute .depth. "
+                "Expected the official dict key 'depth_pred'. "
                 f"Got: {type(out).__name__}"
             )
 
@@ -110,8 +113,9 @@ class ViGeoAdapter(VideoDepthAdapterBase):
             resized = np.empty((T, H, W), dtype=np.float32)
             for t in range(T):
                 resized[t] = np.asarray(
-                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F")
-                    .resize((W, H), _Image.BILINEAR),
+                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F").resize(
+                        (W, H), _Image.BILINEAR
+                    ),
                     dtype=np.float32,
                 )
             depth_seq = resized

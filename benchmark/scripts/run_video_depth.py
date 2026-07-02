@@ -45,6 +45,9 @@ import importlib
 import sys
 from pathlib import Path
 
+DEFAULT_DATASET_REPO = "IRVLUTD/RPX"
+PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+
 # Make ./scripts importable so `from depth_models.* import ...` works.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -107,9 +110,19 @@ def main() -> None:
     ap.add_argument("--model", required=True, help="adapter name (kebab-case)")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")
     ap.add_argument(
-        "--repo", default="itaykadosh/rpx-test", help="HuggingFace dataset repo"
+        "--repo", default=DEFAULT_DATASET_REPO, help="HuggingFace dataset repo"
+    )
+    ap.add_argument(
+        "--revision",
+        default=PINNED_DATASET_REVISION,
+        help="immutable Hugging Face dataset commit",
     )
     ap.add_argument("--device", default="cuda")
+    ap.add_argument(
+        "--allow-cpu",
+        action="store_true",
+        help="allow an explicit CPU diagnostic; depth runs are GPU-only by default",
+    )
     ap.add_argument(
         "--output-dir",
         default=None,
@@ -122,6 +135,12 @@ def main() -> None:
         "a staged lossless v2-webp tree before HF upload. Path is typically "
         "<staging>/manifests/video_depth/<split>.json from "
         "`python -m rpx_benchmark.dataset_hub.cli manifest`.",
+    )
+    ap.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="Maximum number of clips to run (smoke testing)",
     )
     ap.add_argument(
         "--frame-budget",
@@ -150,6 +169,12 @@ def main() -> None:
         "otherwise published numbers may not reflect the named model.",
     )
     args = ap.parse_args()
+    if args.max_samples is not None and args.max_samples < 1:
+        ap.error("--max-samples must be >= 1")
+
+    from rpx_benchmark.tasks._pipeline import resolve_device
+
+    args.device = resolve_device(args.device, require_cuda=not args.allow_cpu)
 
     model = _load_model(
         args.model,
@@ -163,11 +188,14 @@ def main() -> None:
         model=model,
         split=args.split,
         repo_id=args.repo,
+        revision=args.revision,
         device=args.device,
+        require_cuda=not args.allow_cpu,
         output_dir=args.output_dir,
         manifest_path=args.manifest_path,
         frame_budget=args.frame_budget,
         sampling=args.sampling,
+        max_samples=args.max_samples,
         upload_to_box=args.upload_to_box,
     )
     result, _dr, paths = run_video_depth(cfg)

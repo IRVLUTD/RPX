@@ -31,7 +31,6 @@ from rpx_benchmark.api import VideoSample
 
 from ._video_adapter_base import VideoDepthAdapterBase
 
-
 # Verified model_id from HF model card.
 _MODEL_ID = "facebook/VGGT-1B"
 
@@ -69,8 +68,7 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
             import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "VGGTOmegaAdapter needs `torch`. "
-                "Install with: pip install torch"
+                "VGGTOmegaAdapter needs `torch`. Install with: pip install torch"
             ) from e
 
         try:
@@ -84,29 +82,15 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
                 "    cd vggt && pip install -e ."
             ) from e
 
-        # Build the model and load the state_dict from HF.
-        self._model = VGGT()
         try:
-            from huggingface_hub import hf_hub_download
-
-            ckpt = hf_hub_download(
-                repo_id=_MODEL_ID,
-                filename="model.safetensors",
-            )
-            try:
-                from safetensors.torch import load_file
-
-                state = load_file(ckpt)
-            except ImportError:
-                state = torch.load(ckpt, map_location="cpu")
+            # Official package uses PyTorchModelHubMixin and currently ships
+            # ``model.pt``; delegating avoids hard-coding the wrong filename.
+            self._model = VGGT.from_pretrained(_MODEL_ID)
         except Exception as e:
             raise RuntimeError(
                 f"VGGTOmegaAdapter: could not download weights from {_MODEL_ID}: {e}"
             ) from e
-        self._model.load_state_dict(state, strict=False)
         self._model = self._model.to(self.device).eval()
-        if self.device.startswith("cuda"):
-            self._model = self._model.half()
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
@@ -118,18 +102,37 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
         installed release uses a different key, update the extraction
         block below.
         """
+        import tempfile
+        from contextlib import nullcontext
+
         import torch
+        from PIL import Image
+        from vggt.utils.load_fn import load_and_preprocess_images
 
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
 
-        # (T, H, W, 3) uint8 → (1, T, 3, H, W) float in [0, 1]
-        x = torch.from_numpy(rgb_seq).permute(0, 3, 1, 2).float() / 255.0
-        x = x.unsqueeze(0).to(self.device)
-        if next(self._model.parameters()).dtype == torch.float16:
-            x = x.half()
+        # Reuse the official resize/crop path. PNG keeps this boundary
+        # lossless and avoids reimplementing release-specific preprocessing.
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = []
+            for index, frame in enumerate(rgb_seq):
+                path = f"{tmp}/{index:06d}.png"
+                Image.fromarray(frame).save(path)
+                paths.append(path)
+            x = load_and_preprocess_images(paths).to(self.device)
 
-        with torch.no_grad():
+        if self.device.startswith("cuda"):
+            device_index = int(self.device.split(":")[-1]) if ":" in self.device else 0
+            dtype = (
+                torch.bfloat16
+                if torch.cuda.get_device_capability(device_index)[0] >= 8
+                else torch.float16
+            )
+            autocast = torch.amp.autocast("cuda", dtype=dtype)
+        else:
+            autocast = nullcontext()
+        with torch.inference_mode(), autocast:
             out = self._model(x)
 
         # Extract the depth field. Try the most common key names.
@@ -145,8 +148,10 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
             from rpx_benchmark.exceptions import AdapterError
 
             keys = (
-                list(out.keys()) if isinstance(out, dict)
-                else dir(out) if hasattr(out, "__dict__")
+                list(out.keys())
+                if isinstance(out, dict)
+                else dir(out)
+                if hasattr(out, "__dict__")
                 else "<unknown>"
             )
             raise AdapterError(
@@ -154,19 +159,19 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
                 f"Tried: depth_map, depth, predicted_depth. Found: {keys}"
             )
         depth = depth.detach().cpu().float().numpy()
-        # Strip batch and per-view singletons: (1, T, 1, H, W) → (T, H, W)
-        while depth.ndim > 3:
-            depth = depth.squeeze(0) if depth.shape[0] == 1 else depth.squeeze(2)
-            if depth.ndim == 3:
-                break
+        if depth.ndim == 5 and depth.shape[0] == 1:
+            depth = depth[0]
+        if depth.ndim == 4 and depth.shape[-1] == 1:
+            depth = depth[..., 0]
         if depth.shape != (T, H, W):
             from PIL import Image as _Image
 
             resized = np.empty((T, H, W), dtype=np.float32)
             for t in range(T):
                 resized[t] = np.asarray(
-                    _Image.fromarray(depth[t].astype(np.float32), mode="F")
-                    .resize((W, H), _Image.BILINEAR),
+                    _Image.fromarray(depth[t].astype(np.float32), mode="F").resize(
+                        (W, H), _Image.BILINEAR
+                    ),
                     dtype=np.float32,
                 )
             depth = resized

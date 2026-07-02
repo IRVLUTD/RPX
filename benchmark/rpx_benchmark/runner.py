@@ -3,9 +3,19 @@
 from __future__ import annotations
 
 import time
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from .api import BenchmarkModel, Difficulty, Phase, TaskType, validate_prediction
+import numpy as np
+
+from .api import (
+    BenchmarkModel,
+    DepthPrediction,
+    Difficulty,
+    Phase,
+    TaskType,
+    validate_prediction,
+)
 from .deployment import (
     DeploymentReadinessReport,
     StackGeometricCoherenceResult,
@@ -17,6 +27,7 @@ from .evaluators import BenchmarkResult, MetricSuite
 from .exceptions import ModelError
 from .loader import RPXDataset
 from .logging_utils import get_logger
+from .metrics.depth_alignment import align_pred_to_gt_pooled
 from .profiler import EfficiencyMetadata, LatencyProfiler, MemoryProfiler
 
 log = get_logger(__name__)
@@ -46,6 +57,49 @@ def _sample_meta(sample: Any) -> Dict[str, Any]:
         if scene is not None:
             meta["scene"] = scene
     return meta
+
+
+def _align_monocular_depth_predictions_pooled(
+    predictions: List[DepthPrediction],
+    samples: List[Any],
+    *,
+    mode: str,
+) -> List[DepthPrediction]:
+    """Align raw relative-depth predictions once per scene/phase cell.
+
+    The manifest may interleave cells, so grouping is by explicit metadata
+    rather than iteration adjacency. Metric models never enter this helper.
+    """
+    groups: Dict[tuple[str, str], List[int]] = defaultdict(list)
+    for idx, sample in enumerate(samples):
+        meta = _sample_meta(sample)
+        scene = meta.get("scene")
+        phase = meta.get("phase")
+        if scene is None or phase is None:
+            raise ModelError(
+                "Relative Image Depth evaluation requires scene and phase metadata "
+                "for pooled alignment.",
+                hint=(
+                    "Use an RPX manifest whose samples include scene_id and phase; "
+                    "per-frame alignment is intentionally not used."
+                ),
+            )
+        groups[(str(scene), str(phase))].append(idx)
+
+    aligned: List[DepthPrediction | None] = [None] * len(predictions)
+    for indices in groups.values():
+        pred_seq = np.stack(
+            [np.asarray(predictions[i].depth_map, dtype=np.float32) for i in indices]
+        )
+        gt_seq = np.stack(
+            [np.asarray(samples[i].ground_truth.depth_map, dtype=np.float32) for i in indices]
+        )
+        aligned_seq = align_pred_to_gt_pooled(pred_seq, gt_seq, mode=mode)
+        for frame_idx, source_idx in enumerate(indices):
+            aligned[source_idx] = DepthPrediction(
+                depth_map=np.asarray(aligned_seq[frame_idx], dtype=np.float32)
+            )
+    return [pred for pred in aligned if pred is not None]
 
 
 def _sum_nested_counts(node: Any) -> int:
@@ -185,6 +239,12 @@ class BenchmarkRunner:
 
         total = len(self.dataset)
         per_sample: List[dict] = []
+        all_predictions: List[Any] = []
+        all_samples: List[Any] = []
+        is_relative_depth = (
+            self.model.task is TaskType.MONOCULAR_DEPTH
+            and getattr(self.model, "depth_output_kind", "metric") == "relative"
+        )
         if progress:
             progress(0, total, "predict")
         for batch in self.dataset:
@@ -197,10 +257,25 @@ class BenchmarkRunner:
                 )
             for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
-                metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
-                per_sample.append(metrics)
+                all_predictions.append(pred)
+                all_samples.append(sample)
+                if not is_relative_depth:
+                    metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
+                    per_sample.append(metrics)
                 if progress:
-                    progress(len(per_sample), total, "predict")
+                    progress(len(all_samples), total, "predict")
+
+        if is_relative_depth:
+            mode = getattr(self.model, "native_alignment", "ls_affine")
+            all_predictions = _align_monocular_depth_predictions_pooled(
+                all_predictions,
+                all_samples,
+                mode=mode,
+            )
+            per_sample = [
+                self.metric_suite.evaluate(pred, sample.ground_truth)
+                for sample, pred in zip(all_samples, all_predictions, strict=True)
+            ]
 
         return self.metric_suite.build_result(per_sample)
 
@@ -247,6 +322,76 @@ class BenchmarkRunner:
         per_sample_poses: List[Any] = []
         all_predictions: List[Any] = []
         all_samples: List[Any] = []
+        spec = self._task_spec_or_none()
+        is_relative_depth = (
+            self.model.task is TaskType.MONOCULAR_DEPTH
+            and getattr(self.model, "depth_output_kind", "metric") == "relative"
+        )
+        incremental_depth_ts = (
+            self.model.task is TaskType.MONOCULAR_DEPTH
+            and compute_ts
+            and spec is not None
+            and spec.temporal_stability_fn is not None
+        )
+        retain_for_hooks = (
+            not incremental_depth_ts
+            and (
+                (compute_ts and spec is not None and spec.temporal_stability_fn is not None)
+                or (
+                    compute_sgc_flag
+                    and spec is not None
+                    and spec.geometric_coherence_fn is not None
+                )
+            )
+        )
+        depth_ts_scores: List[float] = []
+        previous_depth_prediction: Any = None
+        previous_depth_pose: Any = None
+        previous_depth_key: tuple[str, str] | None = None
+        pending_samples: List[Any] = []
+        pending_predictions: List[DepthPrediction] = []
+        pending_key: tuple[str, str] | None = None
+        closed_keys: set[tuple[str, str]] = set()
+
+        def _record_evaluation(sample: Any, pred: Any) -> None:
+            nonlocal previous_depth_key, previous_depth_pose, previous_depth_prediction
+            metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
+            metrics.update(_sample_meta(sample))
+            per_sample_metrics.append(metrics)
+            per_sample_phases.append(sample.phase)
+            per_sample_difficulties.append(sample.difficulty)
+            per_sample_poses.append(sample.camera_pose)
+            if incremental_depth_ts:
+                meta = _sample_meta(sample)
+                current_key = (str(meta.get("scene")), str(meta.get("phase")))
+                if previous_depth_prediction is not None and previous_depth_key == current_key:
+                    pair_result = spec.temporal_stability_fn(
+                        [previous_depth_prediction, pred],
+                        [None, None],
+                        [previous_depth_pose, sample.camera_pose],
+                    )
+                    if pair_result.per_pair:
+                        depth_ts_scores.extend(float(value) for value in pair_result.per_pair)
+                previous_depth_prediction = pred
+                previous_depth_pose = sample.camera_pose
+                previous_depth_key = current_key
+            elif retain_for_hooks:
+                all_predictions.append(pred)
+                all_samples.append(sample)
+
+        def _flush_relative_cell() -> None:
+            if not pending_samples:
+                return
+            mode = getattr(self.model, "native_alignment", "ls_affine")
+            aligned = _align_monocular_depth_predictions_pooled(
+                pending_predictions,
+                pending_samples,
+                mode=mode,
+            )
+            for cell_sample, cell_pred in zip(pending_samples, aligned, strict=True):
+                _record_evaluation(cell_sample, cell_pred)
+            pending_samples.clear()
+            pending_predictions.clear()
 
         # Latency + memory profiling. Both backends skip gracefully on
         # devices / libraries that don't support them, so this adds no
@@ -268,6 +413,7 @@ class BenchmarkRunner:
             progress(0, total, "predict")
 
         first_batch = True
+        prediction_count = 0
         for batch in self.dataset:
             _cuda_sync()
             t0 = time.perf_counter()
@@ -299,16 +445,42 @@ class BenchmarkRunner:
 
             for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
-                metrics = self.metric_suite.evaluate(pred, sample.ground_truth)
-                metrics.update(_sample_meta(sample))
-                per_sample_metrics.append(metrics)
-                per_sample_phases.append(sample.phase)
-                per_sample_difficulties.append(sample.difficulty)
-                per_sample_poses.append(sample.camera_pose)
-                all_predictions.append(pred)
-                all_samples.append(sample)
+                if is_relative_depth:
+                    meta = _sample_meta(sample)
+                    if meta.get("scene") is None or meta.get("phase") is None:
+                        raise ModelError(
+                            "Relative Image Depth evaluation requires scene and phase "
+                            "metadata for pooled alignment.",
+                            hint="Use an RPX manifest with scene_id and phase fields.",
+                        )
+                    key = (str(meta["scene"]), str(meta["phase"]))
+                    if pending_key is None:
+                        pending_key = key
+                    elif key != pending_key:
+                        _flush_relative_cell()
+                        closed_keys.add(pending_key)
+                        if key in closed_keys:
+                            raise ModelError(
+                                f"Manifest cell {key!r} is non-contiguous; pooled alignment "
+                                "cannot be streamed safely.",
+                                hint="Sort manifest samples by scene_id, phase and frame_idx.",
+                            )
+                        pending_key = key
+                    pending_samples.append(sample)
+                    pending_predictions.append(pred)
+                else:
+                    _record_evaluation(sample, pred)
+                prediction_count += 1
                 if progress:
-                    progress(len(per_sample_metrics), total, "predict")
+                    progress(prediction_count, total, "predict")
+
+        if is_relative_depth:
+            log.info(
+                "model %s is relative-depth: applying %s once per streamed scene/phase cell",
+                model_name,
+                getattr(self.model, "native_alignment", "ls_affine"),
+            )
+            _flush_relative_cell()
 
         # Attach per-sample latency_ms so downstream analysis can group
         # timings with the metric values. LatencyProfiler.samples_ms()
@@ -345,10 +517,14 @@ class BenchmarkRunner:
         # that wants Temporal Stability or Stack Geometric Coherence
         # registers its own implementation on its TaskSpec; tasks
         # without a registered hook silently skip the computation.
-        spec = self._task_spec_or_none()
-
         ts_result: TemporalStabilityResult | None = None
-        if (
+        if incremental_depth_ts:
+            ts_result = TemporalStabilityResult(
+                ts_score=float(np.mean(depth_ts_scores)) if depth_ts_scores else 1.0,
+                num_pairs=len(depth_ts_scores),
+                per_pair=depth_ts_scores,
+            )
+        elif (
             compute_ts
             and len(all_predictions) >= 2
             and spec is not None

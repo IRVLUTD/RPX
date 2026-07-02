@@ -39,6 +39,8 @@ from typing import Optional
 import numpy as np
 from PIL import Image
 
+from rpx_benchmark.metrics.depth_alignment import align_pred_to_gt_pooled
+
 log = logging.getLogger(__name__)
 
 
@@ -80,18 +82,7 @@ def _valid(pred: np.ndarray, gt_m: np.ndarray) -> np.ndarray:
 # ───────────────────────────  Alignment  ────────────────────────────────────
 
 # Single source of truth lives in rpx_benchmark.metrics.depth_alignment so
-# the runner-side alignment (BatchedDepthBenchmarkModel.predict) and the
-# post-processor here stay bit-identical.
-from rpx_benchmark.metrics.depth_alignment import align_pred_to_gt as _align_canonical
-
-
-def _align(pred: np.ndarray, gt: np.ndarray, valid: np.ndarray, mode: str) -> np.ndarray:
-    """Thin shim with the historical (pred, gt, valid, mode) signature.
-
-    Delegates to the canonical aligner; the precomputed valid mask is
-    threaded through so we don't recompute it.
-    """
-    return _align_canonical(pred, gt, mode, valid=valid)
+# the runner and this post-processor use the same pooled cell-level solve.
 
 
 # ───────────────────────────  Error / accuracy  ─────────────────────────────
@@ -381,7 +372,7 @@ def _load_mask_from_cache(
     return None
 
 
-def _hf_snapshot_root(repo_id: str = "itaykadosh/RPX") -> Path:
+def _hf_snapshot_root(repo_id: str = "IRVLUTD/RPX") -> Path:
     import os as _os
 
     cache = Path(_os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
@@ -413,66 +404,83 @@ def compute_run(
 
     per_sample = []
     per_object_rows_all: list[dict] = []
-    for s in manifest["samples"]:
-        sid = s["id"]
-        # Predictions can sit in either the legacy flat layout
-        # (``<dir>/<id>.npz``) or the scene/phase/frame layout
-        # (``<dir>/<scene>/<phase>/<frame>.npz``). Try the scene/phase
-        # path first since it's the new default; fall back to flat.
-        scene = str(s.get("scene_id") or "")
-        phase = str(s.get("phase") if s.get("phase") is not None else "")
-        frame = Path(s.get("rgb", f"{sid}.png")).stem  # frame number, no ext
-        pred_path = Path(predictions_dir) / scene / phase / f"{frame}.npz"
-        if not pred_path.exists():
-            pred_path = Path(predictions_dir) / f"{sid}.npz"
-        if not pred_path.exists():
+
+    # Work one cell at a time: enough context for the canonical pooled fit,
+    # without retaining the entire 24,750-frame split in memory.
+    grouped_samples: dict[tuple[str, str], list[dict]] = {}
+    for sample in manifest["samples"]:
+        scene = str(sample.get("scene_id") or "")
+        phase = str(sample.get("phase") if sample.get("phase") is not None else "")
+        grouped_samples.setdefault((scene, phase), []).append(sample)
+
+    for cell_samples in grouped_samples.values():
+        records: list[tuple[dict, np.ndarray, np.ndarray]] = []
+        for s in cell_samples:
+            sid = s["id"]
+            scene = str(s.get("scene_id") or "")
+            phase = str(s.get("phase") if s.get("phase") is not None else "")
+            frame = Path(s.get("rgb", f"{sid}.png")).stem
+            pred_path = Path(predictions_dir) / scene / phase / f"{frame}.npz"
+            if not pred_path.exists():
+                pred_path = Path(predictions_dir) / f"{sid}.npz"
+            if not pred_path.exists():
+                continue
+            pred = np.load(pred_path)["depth"].astype(np.float32)
+            gt_mm = np.array(Image.open(extracted_root / s["depth"]))
+            gt_m = gt_mm.astype(np.float32) / 1000.0
+            records.append((s, pred, gt_m))
+
+        if not records:
             continue
-        pred = np.load(pred_path)["depth"].astype(np.float32)
-        gt_path = extracted_root / s["depth"]
-        gt_mm = np.array(Image.open(gt_path))
-        gt_m = gt_mm.astype(np.float32) / 1000.0
-        valid = _valid(pred, gt_m)
-
-        pred_aligned = _align(pred, gt_m, valid, alignment) if valid.any() else pred
-
-        row: dict = {
-            "id": sid,
-            "scene_id": s.get("scene_id"),
-            "phase": s.get("phase"),
-            "alignment": alignment,
-        }
-        row.update(_basket(pred_aligned, gt_m, valid))
-        row.update(_by_depth_band(pred_aligned, gt_m, valid))
-
-        # Mask-dependent metrics, if a mask is reachable from the cache.
-        mask = (
-            _load_mask_from_cache(
-                snapshot, str(s.get("scene_id", "")), int(s.get("phase", 0)), Path(s["rgb"]).name
-            )
-            if s.get("scene_id") is not None
-            else None
+        pred_seq = np.stack([record[1] for record in records])
+        gt_seq = np.stack([record[2] for record in records])
+        fit_valid_seq = np.stack([_valid(pred, gt) for _s, pred, gt in records])
+        aligned_seq = align_pred_to_gt_pooled(
+            pred_seq,
+            gt_seq,
+            mode=alignment,
+            valid_seq=fit_valid_seq,
         )
-        # Hole statistics — independent of model quality. Reported even
-        # when there's no mask (just the overall hole fraction then).
-        row.update(_hole_stats(gt_m, mask))
-        if mask is not None:
-            row.update(_by_mask(pred_aligned, gt_m, valid, mask))
-            row.update(_boundary_metrics(pred_aligned, gt_m, valid, mask))
-            row.update(_ord(pred_aligned, gt_m, valid, mask))
 
-            # Per-object detail and per-frame aggregate.
-            obj_rows = _per_object_rows(pred_aligned, gt_m, valid, mask)
-            for obj in obj_rows:
-                per_object_rows_all.append(
-                    {
-                        "id": sid,
-                        "scene_id": s.get("scene_id"),
-                        "phase": s.get("phase"),
-                        **obj,
-                    }
+        for (s, _pred, gt_m), pred_aligned in zip(records, aligned_seq, strict=True):
+            sid = s["id"]
+            valid = _valid(pred_aligned, gt_m)
+            row: dict = {
+                "id": sid,
+                "scene_id": s.get("scene_id"),
+                "phase": s.get("phase"),
+                "alignment": alignment,
+            }
+            row.update(_basket(pred_aligned, gt_m, valid))
+            row.update(_by_depth_band(pred_aligned, gt_m, valid))
+
+            mask = (
+                _load_mask_from_cache(
+                    snapshot,
+                    str(s.get("scene_id", "")),
+                    int(s.get("phase", 0)),
+                    Path(s["rgb"]).name,
                 )
-            row.update(_per_object_aggregate(obj_rows))
-        per_sample.append(row)
+                if s.get("scene_id") is not None
+                else None
+            )
+            row.update(_hole_stats(gt_m, mask))
+            if mask is not None:
+                row.update(_by_mask(pred_aligned, gt_m, valid, mask))
+                row.update(_boundary_metrics(pred_aligned, gt_m, valid, mask))
+                row.update(_ord(pred_aligned, gt_m, valid, mask))
+                obj_rows = _per_object_rows(pred_aligned, gt_m, valid, mask)
+                for obj in obj_rows:
+                    per_object_rows_all.append(
+                        {
+                            "id": sid,
+                            "scene_id": s.get("scene_id"),
+                            "phase": s.get("phase"),
+                            **obj,
+                        }
+                    )
+                row.update(_per_object_aggregate(obj_rows))
+            per_sample.append(row)
 
     if not per_sample:
         return {

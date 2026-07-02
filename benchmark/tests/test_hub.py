@@ -36,6 +36,14 @@ def test_modalities_for_task_type():
     assert "depth/*" in mods
 
 
+def test_video_depth_uses_rgb_depth_and_pose_modalities():
+    assert hub._modalities_for(TaskType.VIDEO_DEPTH) == [
+        "rgb/*",
+        "depth/*",
+        "pose/*",
+    ]
+
+
 def test_modalities_for_alias_string():
     mods = hub._modalities_for("qa_spatial")
     assert "rgb/*" in mods
@@ -65,6 +73,19 @@ def test_extract_scene_phase_pairs_from_sample_paths():
     assert pairs == {("scene_042", "2"), ("scene_007", "0")}
 
 
+def test_extract_scene_phase_pairs_from_video_entries():
+    manifest = {
+        "samples": [
+            {
+                "scene_id": "scene_004",
+                "phase": 0,
+                "frame_filenames": ["extracted/scenes/scene_004/0/rgb/00000.webp"],
+            }
+        ]
+    }
+    assert hub._extract_scene_phase_pairs(manifest) == {("scene_004", "0")}
+
+
 def test_build_allow_patterns_expands_modalities_per_pair():
     pats = hub._build_allow_patterns(
         modalities=["rgb/*", "depth/*"],
@@ -74,7 +95,19 @@ def test_build_allow_patterns_expands_modalities_per_pair():
     assert "scenes/scene_000/0/depth/*" in pats
     assert "scenes/scene_001/1/rgb/*" in pats
     assert "scenes/scene_001/1/depth/*" in pats
-    assert len(pats) == 4
+    assert "scenes/scene_000/0/rgb.tar" in pats
+    assert "scenes/scene_000/0/depth.tar" in pats
+    assert len(pats) == 8
+
+
+def test_video_allow_patterns_include_lossless_pose_tar():
+    pats = hub._build_allow_patterns(
+        modalities=hub._modalities_for(TaskType.VIDEO_DEPTH),
+        scene_phase_pairs=[("scene_004", "0")],
+    )
+    assert "scenes/scene_004/0/rgb.tar" in pats
+    assert "scenes/scene_004/0/depth.tar" in pats
+    assert "scenes/scene_004/0/labels/cam_pose/v1.tar" in pats
 
 
 # --------------------------------------------------------------------------- #
@@ -162,3 +195,48 @@ def test_download_split_wraps_snapshot_download_failure(
     monkeypatch.setattr(hub, "_hub", lambda: _FakeHub)
     with pytest.raises(DownloadError, match="snapshot_download failed"):
         hub.download_split(TaskType.MONOCULAR_DEPTH, Difficulty.HARD)
+
+
+def test_download_split_limits_pairs_before_bulk_fetch(tmp_path, monkeypatch):
+    manifest = {
+        "task": "monocular_depth",
+        "samples": [
+            {
+                "id": "a",
+                "scene_id": "scene_a",
+                "phase": 0,
+                "rgb": "extracted/scenes/scene_a/0/rgb/00000.webp",
+                "depth": "extracted/scenes/scene_a/0/depth/00000.png",
+            },
+            {
+                "id": "b",
+                "scene_id": "scene_b",
+                "phase": 0,
+                "rgb": "extracted/scenes/scene_b/0/rgb/00000.webp",
+                "depth": "extracted/scenes/scene_b/0/depth/00000.png",
+            },
+        ],
+    }
+    captured = {}
+
+    class _FakeHub:
+        @staticmethod
+        def snapshot_download(**kwargs):
+            captured.update(kwargs)
+            return str(tmp_path / "snapshot")
+
+    (tmp_path / "snapshot").mkdir()
+    monkeypatch.setattr(hub, "_hub", lambda: _FakeHub)
+    monkeypatch.setattr(hub, "fetch_manifest", lambda *args, **kwargs: manifest)
+    monkeypatch.setattr(hub, "_extract_snapshot_tars", lambda root: (0, 0))
+    monkeypatch.setenv("RPX_CACHE_DIR", str(tmp_path / "resolved"))
+
+    resolved = hub.download_split(
+        TaskType.MONOCULAR_DEPTH,
+        Difficulty.EASY,
+        max_samples=1,
+    )
+    allow = captured["allow_patterns"]
+    assert "scenes/scene_a/0/rgb.tar" in allow
+    assert not any("scene_b" in pattern for pattern in allow)
+    assert len(json.loads(resolved.read_text())["samples"]) == 1

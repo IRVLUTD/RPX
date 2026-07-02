@@ -31,7 +31,6 @@ from rpx_benchmark.exceptions import AdapterError
 
 from ._video_adapter_base import VideoDepthAdapterBase
 
-
 # Verified model_id from HF model-card lookup. The MonST3R upstream
 # uploaded a single checkpoint under this name; if the team wants to
 # swap variants, change this constant.
@@ -69,9 +68,7 @@ class MonST3RAdapter(VideoDepthAdapterBase):
             ) from e
 
         # Verified load incantation from HF model card.
-        self._model = AsymmetricCroCo3DStereo.from_pretrained(_MODEL_ID).to(
-            self.device
-        ).eval()
+        self._model = AsymmetricCroCo3DStereo.from_pretrained(_MODEL_ID).to(self.device).eval()
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
@@ -97,43 +94,47 @@ class MonST3RAdapter(VideoDepthAdapterBase):
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
 
-        # Build (t, t+1) pairs and let dust3r's loader normalise.
-        # If the team's release exposes a higher-level video path
-        # (e.g. a ``predict_video`` method), swap it in here.
+        # Build (t, t+1) pairs and let the pinned MonST3R loader normalise.
+        # That loader accepts file paths, so use lossless temporary PNGs.
+        import tempfile
+
         from PIL import Image
 
-        pil_frames = [Image.fromarray(rgb_seq[t]) for t in range(T)]
-        images = load_images(pil_frames, size=512)  # upstream's default
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = []
+            for index, frame in enumerate(rgb_seq):
+                path = f"{tmp}/{index:06d}.png"
+                Image.fromarray(frame).save(path)
+                paths.append(path)
+            images = load_images(paths, size=512, verbose=False)
 
-        depths = np.zeros((T, H, W), dtype=np.float32)
-        with torch.no_grad():
-            for t in range(T):
-                t_next = min(t + 1, T - 1)
-                pair = [images[t], images[t_next]]
-                output = inference([pair], self._model, self.device)
-                # Output schema (upstream): dict with 'view1' / 'view2',
-                # each having 'pts3d' (B, H, W, 3). Depth = pts3d[..., 2].
-                view1 = output[0].get("view1") if isinstance(output, list) else output.get("view1")
-                if view1 is None or "pts3d" not in view1:
-                    raise AdapterError(
-                        "MonST3R inference output did not contain "
-                        "view1.pts3d. Upstream may have changed schema; "
-                        "check the dust3r release version against the "
-                        "adapter."
+            depths = np.zeros((T, H, W), dtype=np.float32)
+            with torch.no_grad():
+                for t in range(T):
+                    t_next = min(t + 1, T - 1)
+                    output = inference(
+                        [(images[t], images[t_next])],
+                        self._model,
+                        self.device,
+                        batch_size=1,
+                        verbose=False,
                     )
-                pts3d = view1["pts3d"]
-                if hasattr(pts3d, "detach"):
-                    pts3d = pts3d.detach().cpu().numpy()
-                else:
-                    pts3d = np.asarray(pts3d)
-                if pts3d.ndim == 4:  # (B=1, H, W, 3)
-                    pts3d = pts3d[0]
-                # Depth = z-coordinate; resize back to (H, W).
-                from PIL import Image as _Image
-
-                d = pts3d[..., 2].astype(np.float32)
-                d_img = _Image.fromarray(d, mode="F").resize((W, H), _Image.BILINEAR)
-                depths[t] = np.asarray(d_img, dtype=np.float32)
+                    pred1 = output.get("pred1") if isinstance(output, dict) else None
+                    if pred1 is None or "pts3d" not in pred1:
+                        raise AdapterError(
+                            "MonST3R inference output did not contain "
+                            "pred1.pts3d. Check the pinned upstream revision."
+                        )
+                    pts3d = pred1["pts3d"]
+                    if hasattr(pts3d, "detach"):
+                        pts3d = pts3d.detach().cpu().numpy()
+                    else:
+                        pts3d = np.asarray(pts3d)
+                    if pts3d.ndim == 4:  # (B=1, H, W, 3)
+                        pts3d = pts3d[0]
+                    d = pts3d[..., 2].astype(np.float32)
+                    d_img = Image.fromarray(d, mode="F").resize((W, H), Image.BILINEAR)
+                    depths[t] = np.asarray(d_img, dtype=np.float32)
 
         return depths
 

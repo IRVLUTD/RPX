@@ -38,8 +38,9 @@ from ..exceptions import ConfigError
 from ..hub import DEFAULT_REPO_ID, download_split
 from ..logging_utils import get_logger
 from ..metrics.depth_alignment import align_pred_to_gt_pooled
-from ..metrics.registry import BenchmarkResult, MetricSuite
+from ..metrics.registry import MetricSuite
 from ..reports import format_markdown_summary, write_json
+from ..runner import _make_cuda_sync
 from ..video_loader import VideoDepthDataset
 from ._pipeline import PipelineResult, TaskRunConfig, resolve_device
 
@@ -112,7 +113,7 @@ def run_video_pipeline(
     :func:`~rpx_benchmark.tasks._pipeline.run_pipeline` so the team
     doesn't have to learn two contracts.
     """
-    cfg.device = resolve_device(cfg.device)
+    cfg.device = resolve_device(cfg.device, require_cuda=cfg.require_cuda)
     split_name = cfg.split.value if hasattr(cfg.split, "value") else str(cfg.split)
     repo_id = cfg.repo_id or DEFAULT_REPO_ID
 
@@ -143,12 +144,14 @@ def run_video_pipeline(
             repo_id=repo_id,
             cache_dir=cfg.cache_dir,
             revision=cfg.revision,
+            max_samples=cfg.max_samples,
         )
     dataset = VideoDepthDataset.from_manifest(
         manifest_path,
         batch_size=cfg.batch_size,
         frame_budget=cfg.frame_budget,
         sampling=cfg.sampling,
+        max_samples=cfg.max_samples,
     )
     log.info("loaded %d clips from %s", len(dataset), manifest_path)
 
@@ -175,11 +178,14 @@ def run_video_pipeline(
 
     per_sample: List[dict] = []
     n_clips = len(dataset)
+    cuda_sync = _make_cuda_sync()
     for clip_idx, batch in enumerate(dataset, start=1):
         if not batch:
             continue
+        cuda_sync()
         t0 = time.perf_counter()
         predictions = model.predict(batch)
+        cuda_sync()
         latency_ms = (time.perf_counter() - t0) * 1000.0 / max(len(batch), 1)
 
         if len(predictions) != len(batch):

@@ -194,7 +194,7 @@ Per the RPX benchmark CHANGELOG, these are explicitly deferred:
 | 7 | MetricSolver | arXiv Apr 2025 | [github](https://github.com/Tele-AI/MetricSolver) | In repo | Sliding anchor, MIT license |
 | 8 | ZoeDepth | arXiv 2023 | [github](https://github.com/isl-org/ZoeDepth) | In repo | Legacy baseline, archived May 2025 |
 | 9 | PatchFusion | CVPR 2024 | [github](https://github.com/zhyever/PatchFusion) | `zhyever/patchfusion_zoedepth` + variants | Tile-based high-res metric, MIT |
-| 10 | HyDen (MetaDepth) | ICLR 2026 | [github](https://github.com/facebookresearch/metadepth) | `facebook/hyden-da2-metric-depth` | Meta, hybrid dual-path encoder |
+| 10 | HyDen-MoGeV2 (MetaDepth) | ICLR 2026 | [github](https://github.com/facebookresearch/metadepth) | `facebook/hyden-mogev2-metric-point` | Meta, metric point-map Z depth |
 
 ### 4.2 Relative Depth Models (10)
 
