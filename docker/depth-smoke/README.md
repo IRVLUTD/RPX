@@ -32,9 +32,9 @@ sudo systemctl restart docker
 ## Pull and verify
 
 ```bash
-docker pull irvlutd/rpx-depth-smoke:latest
+docker pull vndhiran123/rpx-depth-smoke:latest
 docker run --rm --gpus all --ipc=host --shm-size=8g \
-  irvlutd/rpx-depth-smoke:latest verify
+  vndhiran123/rpx-depth-smoke:latest verify
 ```
 
 ## Run all four smoke gates
@@ -46,7 +46,7 @@ docker run --rm --gpus all --ipc=host --shm-size=8g \
   -e HF_TOKEN \
   -v "$HOME/.cache/huggingface:/cache/huggingface" \
   -v "$PWD/rpx-smoke:/outputs" \
-  irvlutd/rpx-depth-smoke:latest smoke
+  vndhiran123/rpx-depth-smoke:latest smoke
 ```
 
 The command runs sequentially and resumes from the matrix JSON for the exact
