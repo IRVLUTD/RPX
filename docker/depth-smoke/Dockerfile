@@ -41,17 +41,70 @@ RUN test -n "${RPX_GIT_SHA}" && \
 WORKDIR /opt/rpx
 
 COPY docker/depth-smoke/requirements.lock /tmp/requirements.lock
+COPY --chmod=0755 docker/depth-smoke/install_pinned.sh /usr/local/bin/rpx-pip-install
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
-    python -m pip install --upgrade pip==25.3 && \
-    if find /wheelhouse -maxdepth 1 -name 'torch-2.10.0+cu128-*.whl' | grep -q .; then \
-      python -m pip install --no-index --find-links /wheelhouse \
-        torch==2.10.0+cu128 torchvision==0.25.0+cu128; \
-    else \
-      python -m pip install --index-url https://download.pytorch.org/whl/cu128 \
-        torch==2.10.0+cu128 torchvision==0.25.0+cu128; \
-    fi && \
+# Keep the large CUDA wheels in separate layers. Besides improving layer reuse,
+# this prevents a single multi-gigabyte registry upload from exceeding Docker
+# Hub's upload-session window on slower links. The package set is exactly the
+# dependency closure declared by torch 2.10.0+cu128.
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install --upgrade pip==25.3
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install \
+      filelock==3.29.0 \
+      typing-extensions==4.15.0 \
+      sympy==1.14.0 \
+      networkx==3.6.1 \
+      jinja2==3.1.6 \
+      fsspec==2026.4.0 \
+      cuda-bindings==12.9.4 \
+      cuda-pathfinder==1.2.2
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install \
+      nvidia-cuda-nvrtc-cu12==12.8.93 \
+      nvidia-cuda-runtime-cu12==12.8.90 \
+      nvidia-cuda-cupti-cu12==12.8.90 \
+      nvidia-nvtx-cu12==12.8.90 \
+      nvidia-nvjitlink-cu12==12.8.93 \
+      nvidia-cufile-cu12==1.13.1.3
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install nvidia-cublas-cu12==12.8.4.1
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install nvidia-cudnn-cu12==9.10.2.21
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install \
+      nvidia-cufft-cu12==11.3.3.83 \
+      nvidia-curand-cu12==10.3.9.90
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install nvidia-cusparse-cu12==12.5.8.93
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install nvidia-cusparselt-cu12==0.7.1
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install nvidia-cusolver-cu12==11.7.3.90
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install \
+      nvidia-nccl-cu12==2.27.5 \
+      nvidia-nvshmem-cu12==3.4.5
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install triton==3.6.0
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install --no-deps torch==2.10.0+cu128
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
+    rpx-pip-install --no-deps torchvision==0.25.0+cu128
+
+RUN --mount=type=bind,from=torch_wheelhouse,target=/wheelhouse,readonly \
     python -m pip install --find-links /wheelhouse -r /tmp/requirements.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
