@@ -29,7 +29,6 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 
-
 _MODEL_ID = "facebook/DepthLM"
 
 

@@ -23,7 +23,6 @@ import numpy as np
 
 from rpx_benchmark.exceptions import AdapterError, UnverifiedAdapterError
 
-
 _CANDIDATE_HF = "exander/FE2E"
 
 

@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from PIL import Image
 
 from rpx_benchmark.api import BenchmarkModel, TaskType, VideoDepthPrediction
 from rpx_benchmark.tasks._video_pipeline import VideoTaskRunConfig, run_video_pipeline
@@ -32,8 +33,6 @@ from rpx_benchmark.tasks._video_pipeline import VideoTaskRunConfig, run_video_pi
 
 def _make_fake_manifest(root: Path) -> Path:
     """Write a tiny extractive manifest + RGB/depth PNGs for two clips."""
-    import imageio.v3 as iio
-
     H, W, T = 8, 8, 4
     samples = []
     for scene_id in ["scene_a", "scene_b"]:
@@ -49,8 +48,8 @@ def _make_fake_manifest(root: Path) -> Path:
                 depth_mm = (500 + np.random.rand(H, W) * 3500).astype(np.uint16)
                 rgb_p = frames_dir / f"{t:05d}.png"
                 d_p = depth_dir / f"{t:05d}.png"
-                iio.imwrite(rgb_p, rgb)
-                iio.imwrite(d_p, depth_mm)
+                Image.fromarray(rgb).save(rgb_p)
+                Image.fromarray(depth_mm).save(d_p)
                 frame_files.append(str(rgb_p.relative_to(root)))
                 depth_files.append(str(d_p.relative_to(root)))
             samples.append({

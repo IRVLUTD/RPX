@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import sys
 import types
 from pathlib import Path
@@ -448,6 +449,7 @@ def test_vggt_uses_release_preprocessor_and_depth_key(monkeypatch) -> None:
 
 def test_monst3r_reads_pred1_points_from_official_schema(monkeypatch) -> None:
     sample = _sample()
+    torch_module = types.ModuleType("torch")
     inference_module = types.ModuleType("dust3r.inference")
     image_module = types.ModuleType("dust3r.utils.image")
 
@@ -463,6 +465,8 @@ def test_monst3r_reads_pred1_points_from_official_schema(monkeypatch) -> None:
 
     image_module.load_images = load_images
     inference_module.inference = inference
+    torch_module.no_grad = contextlib.nullcontext
+    monkeypatch.setitem(sys.modules, "torch", torch_module)
     monkeypatch.setitem(sys.modules, "dust3r", types.ModuleType("dust3r"))
     monkeypatch.setitem(sys.modules, "dust3r.utils", types.ModuleType("dust3r.utils"))
     monkeypatch.setitem(sys.modules, "dust3r.utils.image", image_module)

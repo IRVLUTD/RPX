@@ -24,7 +24,6 @@ from rpx_benchmark.exceptions import AdapterError
 from ._unverified import UnverifiedAdapterMixin
 from ._video_adapter_base import VideoDepthAdapterBase
 
-
 _CANDIDATE_HF = "AlysonIrene/D4RT_checkpoint"
 
 

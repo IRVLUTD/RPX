@@ -35,7 +35,6 @@ from rpx_benchmark.api import VideoSample
 
 from ._video_adapter_base import VideoDepthAdapterBase
 
-
 # Verified model_id from HF model card.
 _MODEL_ID = "depth-anything/DA3-LARGE"
 
