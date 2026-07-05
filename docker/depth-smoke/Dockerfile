@@ -329,8 +329,8 @@ FROM depth_all_geometry_video AS depth_all_diffusion_video
 ARG CHRONO_SHA=2580e891eb33a5c3a95eab27b745f64ac28b3514
 ARG DEPTHCRAFTER_SHA=fc83d365f2b781ab05aeb94b13f7e97417df7d97
 
-COPY docker/depth-smoke/requirements-chrono.in /tmp/requirements-chrono.in
-COPY docker/depth-smoke/requirements-depthcrafter.in /tmp/requirements-depthcrafter.in
+COPY docker/depth-smoke/requirements-chrono.lock /tmp/requirements-chrono.lock
+COPY docker/depth-smoke/requirements-depthcrafter.lock /tmp/requirements-depthcrafter.lock
 
 RUN git init /opt/rpx-envs/sources/chrono && \
     git -C /opt/rpx-envs/sources/chrono remote add origin \
@@ -347,14 +347,14 @@ RUN git init /opt/rpx-envs/sources/depthcrafter && \
 RUN python -m venv --system-site-packages /opt/rpx-envs/chrono && \
     /opt/rpx-envs/chrono/bin/python -m pip install \
       --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
-    /opt/rpx-envs/chrono/bin/python -m pip install -r /tmp/requirements-chrono.in && \
+    /opt/rpx-envs/chrono/bin/python -m pip install --no-deps -r /tmp/requirements-chrono.lock && \
     /opt/rpx-envs/chrono/bin/python -c \
       "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-chrono.pth').write_text('/opt/rpx-envs/sources/chrono\n')"
 
 RUN python -m venv --system-site-packages /opt/rpx-envs/depthcrafter && \
     /opt/rpx-envs/depthcrafter/bin/python -m pip install \
       --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
-    /opt/rpx-envs/depthcrafter/bin/python -m pip install -r /tmp/requirements-depthcrafter.in && \
+    /opt/rpx-envs/depthcrafter/bin/python -m pip install --no-deps -r /tmp/requirements-depthcrafter.lock && \
     /opt/rpx-envs/depthcrafter/bin/python -c \
       "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-depthcrafter.pth').write_text('/opt/rpx-envs/sources/depthcrafter\n')"
 
