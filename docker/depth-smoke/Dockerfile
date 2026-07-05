@@ -250,7 +250,7 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/metric3d && \
     /opt/rpx-envs/metric3d/bin/python -m pip install \
       -r /tmp/requirements-metric3d.in && \
     /opt/rpx-envs/metric3d/bin/python -m pip install \
-      --no-deps mmcv==1.7.2
+      --no-build-isolation --no-deps mmcv==1.7.2
 
 COPY benchmark /opt/rpx/benchmark
 
