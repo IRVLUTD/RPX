@@ -191,7 +191,7 @@ LABEL org.opencontainers.image.title="RPX isolated depth runtimes with Lotus-2" 
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
 
-COPY docker/depth-smoke/requirements-lotus2.in /tmp/requirements-lotus2.in
+COPY docker/depth-smoke/requirements-lotus2.lock /tmp/requirements-lotus2.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
     git init /opt/rpx-envs/sources/lotus2 && \
@@ -204,7 +204,7 @@ RUN mkdir -p /opt/rpx-envs/sources && \
 RUN python -m venv --system-site-packages /opt/rpx-envs/lotus2 && \
     /opt/rpx-envs/lotus2/bin/python -m pip install --upgrade pip==25.3 && \
     /opt/rpx-envs/lotus2/bin/python -m pip install \
-      -r /tmp/requirements-lotus2.in && \
+      -r /tmp/requirements-lotus2.lock && \
     /opt/rpx-envs/lotus2/bin/python -c \
       "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-lotus2-source.pth').write_text('/opt/rpx-envs/sources/lotus2\n')"
 
