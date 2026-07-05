@@ -267,3 +267,59 @@ RUN python -m pip install \
       "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/metric3d/rpx-environment.json').write_text(json.dumps({'container': True, 'family': 'metric3d', 'models': ['metric3d-v2'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstream_revision': '${METRIC3D_SHA}'}, indent=2)+'\n')"
 
 WORKDIR /opt/rpx/benchmark
+
+
+# Shared geometry-video environment for VGGT-Ω and ViGeo.
+FROM depth_all_metric3d AS depth_all_geometry_video
+
+ARG RPX_GIT_SHA
+ARG VGGT_SHA=a288dd0f14786c93483e45524328726ab7b1b4ce
+ARG VIGEO_SHA=c2cf70302be459ca7be758185fa71b89949ee4b5
+
+LABEL org.opencontainers.image.title="RPX geometry-video depth runtime" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+
+COPY docker/depth-smoke/requirements-geometry-video.in \
+     /tmp/requirements-geometry-video.in
+
+RUN mkdir -p /opt/rpx-envs/sources && \
+    git init /opt/rpx-envs/sources/vggt && \
+    git -C /opt/rpx-envs/sources/vggt remote add origin \
+      https://github.com/facebookresearch/vggt.git && \
+    git -C /opt/rpx-envs/sources/vggt fetch \
+      --depth 1 origin "${VGGT_SHA}" && \
+    git -C /opt/rpx-envs/sources/vggt checkout --detach FETCH_HEAD && \
+    git init /opt/rpx-envs/sources/vigeo && \
+    git -C /opt/rpx-envs/sources/vigeo remote add origin \
+      https://github.com/aigc3d/ViGeo.git && \
+    git -C /opt/rpx-envs/sources/vigeo fetch \
+      --depth 1 origin "${VIGEO_SHA}" && \
+    git -C /opt/rpx-envs/sources/vigeo checkout --detach FETCH_HEAD
+
+RUN python -m venv \
+      --system-site-packages /opt/rpx-envs/geometry-video && \
+    /opt/rpx-envs/geometry-video/bin/python -m pip install \
+      --upgrade pip==25.3 && \
+    /opt/rpx-envs/geometry-video/bin/python -m pip install \
+      -r /tmp/requirements-geometry-video.in && \
+    /opt/rpx-envs/geometry-video/bin/python -m pip install \
+      --no-deps \
+      /opt/rpx-envs/sources/vggt \
+      /opt/rpx-envs/sources/vigeo && \
+    ln -s /opt/rpx-envs/geometry-video /opt/rpx-envs/vggt && \
+    ln -s /opt/rpx-envs/geometry-video /opt/rpx-envs/vigeo
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/geometry-video/bin/python -c \
+      "import numpy,torch,einops,safetensors,vggt,vigeo; from vggt.models.vggt import VGGT; from vigeo import ViGeo; assert numpy.__version__ == '1.26.4'; assert torch.__version__ == '2.10.0+cu128'; print('VGGT and ViGeo imports ready')" && \
+    /opt/rpx-envs/geometry-video/bin/python -m pip freeze \
+      > /opt/rpx-envs/geometry-video/pip-freeze.txt && \
+    /opt/rpx-envs/geometry-video/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/geometry-video/rpx-environment.json').write_text(json.dumps({'container': True, 'family': 'geometry-video', 'models': ['vggt-omega','vigeo'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstreams': {'vggt': '${VGGT_SHA}', 'vigeo': '${VIGEO_SHA}'}}, indent=2)+'\n')"
+
+WORKDIR /opt/rpx/benchmark
