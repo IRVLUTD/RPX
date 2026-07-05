@@ -234,7 +234,7 @@ ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
     RPX_METRIC3D_SOURCE=/opt/rpx-envs/sources/metric3d \
     TORCH_HOME=/cache/torch
 
-COPY docker/depth-smoke/requirements-metric3d.in /tmp/requirements-metric3d.in
+COPY docker/depth-smoke/requirements-metric3d.lock /tmp/requirements-metric3d.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
     git init /opt/rpx-envs/sources/metric3d && \
@@ -248,7 +248,7 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/metric3d && \
     /opt/rpx-envs/metric3d/bin/python -m pip install \
       --upgrade pip==25.3 && \
     /opt/rpx-envs/metric3d/bin/python -m pip install \
-      -r /tmp/requirements-metric3d.in && \
+      --no-deps -r /tmp/requirements-metric3d.lock && \
     /opt/rpx-envs/metric3d/bin/python -m pip install \
       --no-deps mmengine==0.10.7 && \
     /opt/rpx-envs/metric3d/bin/python -m pip install \
