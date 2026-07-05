@@ -219,3 +219,49 @@ RUN python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
       "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/lotus2/rpx-environment.json').write_text(json.dumps({'container': True, 'family': 'lotus2', 'models': ['lotus-2'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstream_revision': '${LOTUS2_SHA}'}, indent=2)+'\n')"
 
 WORKDIR /opt/rpx/benchmark
+
+
+# Metric3D V2 isolated runtime, extending the accepted Lotus-2 stage.
+FROM depth_all_lotus2 AS depth_all_metric3d
+
+ARG RPX_GIT_SHA
+ARG METRIC3D_SHA=eb5b6fac0dc155e4e52f576e304fbf11655ff339
+
+LABEL org.opencontainers.image.title="RPX isolated depth runtimes with Metric3D V2" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_METRIC3D_SOURCE=/opt/rpx-envs/sources/metric3d \
+    TORCH_HOME=/cache/torch
+
+COPY docker/depth-smoke/requirements-metric3d.in /tmp/requirements-metric3d.in
+
+RUN mkdir -p /opt/rpx-envs/sources && \
+    git init /opt/rpx-envs/sources/metric3d && \
+    git -C /opt/rpx-envs/sources/metric3d remote add origin \
+      https://github.com/YvanYin/Metric3D.git && \
+    git -C /opt/rpx-envs/sources/metric3d fetch \
+      --depth 1 origin "${METRIC3D_SHA}" && \
+    git -C /opt/rpx-envs/sources/metric3d checkout --detach FETCH_HEAD
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/metric3d && \
+    /opt/rpx-envs/metric3d/bin/python -m pip install \
+      --upgrade pip==25.3 && \
+    /opt/rpx-envs/metric3d/bin/python -m pip install \
+      -r /tmp/requirements-metric3d.in && \
+    /opt/rpx-envs/metric3d/bin/python -m pip install \
+      --no-deps mmcv==1.7.2
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx-envs/sources/metric3d \
+      /opt/rpx-envs/metric3d/bin/python -c \
+      "import runpy,torch,numpy,cv2,mmcv,mmengine; ns=runpy.run_path('/opt/rpx-envs/sources/metric3d/hubconf.py'); assert 'metric3d_vit_giant2' in ns; assert torch.__version__ == '2.10.0+cu128'; assert numpy.__version__ == '1.26.4'; print('Metric3D imports ready')" && \
+    /opt/rpx-envs/metric3d/bin/python -m pip freeze \
+      > /opt/rpx-envs/metric3d/pip-freeze.txt && \
+    /opt/rpx-envs/metric3d/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/metric3d/rpx-environment.json').write_text(json.dumps({'container': True, 'family': 'metric3d', 'models': ['metric3d-v2'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstream_revision': '${METRIC3D_SHA}'}, indent=2)+'\n')"
+
+WORKDIR /opt/rpx/benchmark
