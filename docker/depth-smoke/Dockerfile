@@ -136,3 +136,45 @@ WORKDIR /opt/rpx/benchmark
 VOLUME ["/cache/huggingface", "/outputs"]
 ENTRYPOINT ["/usr/local/bin/rpx-depth-smoke"]
 CMD ["help"]
+
+
+# Extend the exact four-model image that passed the GPU acceptance matrix.
+FROM vndhiran123/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f AS depth_all_da3
+
+ARG RPX_GIT_SHA
+ARG DA3_SHA=41736238f5bced4debf3f2a12375d2466874866d
+
+LABEL org.opencontainers.image.title="RPX isolated depth runtimes" \
+      org.opencontainers.image.description="Accepted four-model runtime plus isolated Depth Anything 3 family" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+
+COPY docker/depth-smoke/requirements-da3.in /tmp/requirements-da3.in
+
+RUN mkdir -p /opt/rpx-envs/sources && \
+    git init /opt/rpx-envs/sources/da3 && \
+    git -C /opt/rpx-envs/sources/da3 remote add origin \
+      https://github.com/ByteDance-Seed/depth-anything-3.git && \
+    git -C /opt/rpx-envs/sources/da3 fetch --depth 1 origin "${DA3_SHA}" && \
+    git -C /opt/rpx-envs/sources/da3 checkout --detach FETCH_HEAD
+
+# Share the large CUDA/PyTorch installation, while allowing DA3-specific
+# packages such as NumPy 1.26 to override the four-model environment.
+RUN python -m venv --system-site-packages /opt/rpx-envs/da3 && \
+    /opt/rpx-envs/da3/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/da3/bin/python -m pip install -r /tmp/requirements-da3.in && \
+    /opt/rpx-envs/da3/bin/python -m pip install \
+      --no-deps -e /opt/rpx-envs/sources/da3
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/da3/bin/python -c \
+      "import numpy, torch, xformers; from depth_anything_3.api import DepthAnything3; assert numpy.__version__ == '1.26.4'; assert torch.__version__ == '2.10.0+cu128'; print('DA3 imports ready')" && \
+    /opt/rpx-envs/da3/bin/python -m pip freeze \
+      > /opt/rpx-envs/da3/pip-freeze.txt && \
+    /opt/rpx-envs/da3/bin/python -c \
+      "import json,pathlib,sys; p=pathlib.Path('/opt/rpx-envs/da3/rpx-environment.json'); p.write_text(json.dumps({'container': True, 'family': 'da3', 'models': ['da3-metric-l','da3-video'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstream_revision': '${DA3_SHA}'}, indent=2)+'\n')"
+
+WORKDIR /opt/rpx/benchmark
