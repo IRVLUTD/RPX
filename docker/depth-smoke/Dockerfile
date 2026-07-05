@@ -178,3 +178,44 @@ RUN python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
       "import json,pathlib,sys; p=pathlib.Path('/opt/rpx-envs/da3/rpx-environment.json'); p.write_text(json.dumps({'container': True, 'family': 'da3', 'models': ['da3-metric-l','da3-video'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstream_revision': '${DA3_SHA}'}, indent=2)+'\n')"
 
 WORKDIR /opt/rpx/benchmark
+
+
+# Lotus-2 isolated runtime, extending the accepted six-model DA3 stage.
+FROM depth_all_da3 AS depth_all_lotus2
+
+ARG RPX_GIT_SHA
+ARG LOTUS2_SHA=2d5e4522f7213611184fd31992d0fac17ec36035
+
+LABEL org.opencontainers.image.title="RPX isolated depth runtimes with Lotus-2" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+
+COPY docker/depth-smoke/requirements-lotus2.in /tmp/requirements-lotus2.in
+
+RUN mkdir -p /opt/rpx-envs/sources && \
+    git init /opt/rpx-envs/sources/lotus2 && \
+    git -C /opt/rpx-envs/sources/lotus2 remote add origin \
+      https://github.com/EnVision-Research/Lotus-2.git && \
+    git -C /opt/rpx-envs/sources/lotus2 fetch \
+      --depth 1 origin "${LOTUS2_SHA}" && \
+    git -C /opt/rpx-envs/sources/lotus2 checkout --detach FETCH_HEAD
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/lotus2 && \
+    /opt/rpx-envs/lotus2/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/lotus2/bin/python -m pip install \
+      -r /tmp/requirements-lotus2.in && \
+    /opt/rpx-envs/lotus2/bin/python -c \
+      "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-lotus2-source.pth').write_text('/opt/rpx-envs/sources/lotus2\n')"
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/lotus2/bin/python -c \
+      "import diffusers,transformers,peft,infer,pipeline,torch,numpy; assert transformers.__version__ == '4.46.3'; assert diffusers.__version__ == '0.32.2'; assert numpy.__version__ == '1.26.4'; assert torch.__version__ == '2.10.0+cu128'; print('Lotus-2 imports ready')" && \
+    /opt/rpx-envs/lotus2/bin/python -m pip freeze \
+      > /opt/rpx-envs/lotus2/pip-freeze.txt && \
+    /opt/rpx-envs/lotus2/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/lotus2/rpx-environment.json').write_text(json.dumps({'container': True, 'family': 'lotus2', 'models': ['lotus-2'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstream_revision': '${LOTUS2_SHA}'}, indent=2)+'\n')"
+
+WORKDIR /opt/rpx/benchmark
