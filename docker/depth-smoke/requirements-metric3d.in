@@ -2,7 +2,6 @@ numpy==1.26.4
 opencv-python-headless==4.11.0.86
 matplotlib==3.10.0
 timm==1.0.26
-mmengine
 addict==2.4.0
 yapf==0.40.1
 plyfile
