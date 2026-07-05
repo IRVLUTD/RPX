@@ -150,7 +150,7 @@ LABEL org.opencontainers.image.title="RPX isolated depth runtimes" \
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
 
-COPY docker/depth-smoke/requirements-da3.in /tmp/requirements-da3.in
+COPY docker/depth-smoke/requirements-da3.lock /tmp/requirements-da3.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
     git init /opt/rpx-envs/sources/da3 && \
@@ -163,7 +163,7 @@ RUN mkdir -p /opt/rpx-envs/sources && \
 # packages such as NumPy 1.26 to override the four-model environment.
 RUN python -m venv --system-site-packages /opt/rpx-envs/da3 && \
     /opt/rpx-envs/da3/bin/python -m pip install --upgrade pip==25.3 && \
-    /opt/rpx-envs/da3/bin/python -m pip install -r /tmp/requirements-da3.in && \
+    /opt/rpx-envs/da3/bin/python -m pip install -r /tmp/requirements-da3.lock && \
     /opt/rpx-envs/da3/bin/python -m pip install \
       --no-deps -e /opt/rpx-envs/sources/da3
 
