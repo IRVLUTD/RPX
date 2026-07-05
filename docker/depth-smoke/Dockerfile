@@ -323,3 +323,46 @@ RUN python -m pip install \
       "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/geometry-video/rpx-environment.json').write_text(json.dumps({'container': True, 'family': 'geometry-video', 'models': ['vggt-omega','vigeo'], 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'upstreams': {'vggt': '${VGGT_SHA}', 'vigeo': '${VIGEO_SHA}'}}, indent=2)+'\n')"
 
 WORKDIR /opt/rpx/benchmark
+
+FROM depth_all_geometry_video AS depth_all_diffusion_video
+
+ARG CHRONO_SHA=2580e891eb33a5c3a95eab27b745f64ac28b3514
+ARG DEPTHCRAFTER_SHA=fc83d365f2b781ab05aeb94b13f7e97417df7d97
+
+COPY docker/depth-smoke/requirements-chrono.in /tmp/requirements-chrono.in
+COPY docker/depth-smoke/requirements-depthcrafter.in /tmp/requirements-depthcrafter.in
+
+RUN git init /opt/rpx-envs/sources/chrono && \
+    git -C /opt/rpx-envs/sources/chrono remote add origin \
+      https://github.com/jiahao-shao1/ChronoDepth.git && \
+    git -C /opt/rpx-envs/sources/chrono fetch --depth 1 origin "${CHRONO_SHA}" && \
+    git -C /opt/rpx-envs/sources/chrono checkout --detach FETCH_HEAD
+
+RUN git init /opt/rpx-envs/sources/depthcrafter && \
+    git -C /opt/rpx-envs/sources/depthcrafter remote add origin \
+      https://github.com/Tencent/DepthCrafter.git && \
+    git -C /opt/rpx-envs/sources/depthcrafter fetch --depth 1 origin "${DEPTHCRAFTER_SHA}" && \
+    git -C /opt/rpx-envs/sources/depthcrafter checkout --detach FETCH_HEAD
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/chrono && \
+    /opt/rpx-envs/chrono/bin/python -m pip install \
+      --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
+    /opt/rpx-envs/chrono/bin/python -m pip install -r /tmp/requirements-chrono.in && \
+    /opt/rpx-envs/chrono/bin/python -c \
+      "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-chrono.pth').write_text('/opt/rpx-envs/sources/chrono\n')"
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/depthcrafter && \
+    /opt/rpx-envs/depthcrafter/bin/python -m pip install \
+      --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
+    /opt/rpx-envs/depthcrafter/bin/python -m pip install -r /tmp/requirements-depthcrafter.in && \
+    /opt/rpx-envs/depthcrafter/bin/python -c \
+      "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-depthcrafter.pth').write_text('/opt/rpx-envs/sources/depthcrafter\n')"
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/chrono/bin/python -c \
+      "import torch,diffusers,transformers,xformers; from chronodepth import ChronoDepthPipeline; print('ChronoDepth imports ready')" && \
+    /opt/rpx-envs/depthcrafter/bin/python -c \
+      "import torch,diffusers,transformers,xformers; from depthcrafter.depth_crafter_ppl import DepthCrafterPipeline; print('DepthCrafter imports ready')"
+
+WORKDIR /opt/rpx/benchmark
