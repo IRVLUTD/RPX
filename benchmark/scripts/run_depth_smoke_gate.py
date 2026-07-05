@@ -241,6 +241,56 @@ def _run_and_tee(command: list[str], *, cwd: Path, env: dict[str, str], log_path
         raise RuntimeError(f"smoke command exited with status {return_code}\n" + "\n".join(tail))
 
 
+
+_VIDEO_CORE_METRICS = frozenset(
+    {"absrel", "rmse", "delta1", "delta2", "delta3"}
+)
+_VIDEO_OPTIONAL_NONFINITE_METRICS = frozenset(
+    {"tae", "opw", "tgm", "tcc"}
+)
+
+
+def _validate_metric_values(
+    metrics: dict[str, object],
+    *,
+    task: str,
+    context: str,
+) -> list[str]:
+    """Require finite core metrics while permitting documented video placeholders."""
+    if not metrics:
+        raise RuntimeError(f"{context} metrics are missing")
+
+    optional_nonfinite: list[str] = []
+    for key, value in metrics.items():
+        finite = (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+        )
+        if finite:
+            continue
+        if (
+            task == "video"
+            and key in _VIDEO_OPTIONAL_NONFINITE_METRICS
+            and isinstance(value, (int, float))
+            and not isinstance(value, bool)
+        ):
+            optional_nonfinite.append(key)
+            continue
+        raise RuntimeError(
+            f"{context} metric {key!r} is missing or non-finite"
+        )
+
+    if task == "video":
+        missing = sorted(_VIDEO_CORE_METRICS - set(metrics))
+        if missing:
+            raise RuntimeError(
+                f"{context} is missing required video depth metrics: {missing}"
+            )
+
+    return optional_nonfinite
+
+
 def _validate_outputs(
     out_dir: Path,
     *,
@@ -248,6 +298,7 @@ def _validate_outputs(
     expected_cells: int,
     expect_predictions: bool,
     expect_comprehensive: bool,
+    task: str,
 ) -> dict:
     import numpy as np
     import pyarrow.parquet as pq
@@ -262,22 +313,36 @@ def _validate_outputs(
             f"expected {expected_samples} samples, result has {payload.get('num_samples')}"
         )
     aggregated = payload.get("aggregated") or {}
-    if not aggregated or not all(
-        isinstance(value, (int, float)) and math.isfinite(value) for value in aggregated.values()
-    ):
-        raise RuntimeError("aggregated metrics are missing or non-finite")
+    optional_nonfinite_metrics = set(
+        _validate_metric_values(
+            aggregated,
+            task=task,
+            context="aggregated",
+        )
+    )
     cells = pq.read_table(required[1]).to_pylist()
     if len(cells) != expected_cells:
         raise RuntimeError(f"expected {expected_cells} cells, found {len(cells)}")
     for row in cells:
         if not row.get("gpu_name") or not row.get("precision"):
             raise RuntimeError("cell row is missing its GPU or precision SystemCard fields")
-        metric_values = [value for key, value in row.items() if key.startswith("metric:")]
-        if not metric_values or not all(
-            isinstance(value, (int, float)) and math.isfinite(value) for value in metric_values
-        ):
-            raise RuntimeError("cell metrics are missing or non-finite")
+        metric_values = {
+            key.removeprefix("metric:"): value
+            for key, value in row.items()
+            if key.startswith("metric:")
+        }
+        optional_nonfinite_metrics.update(
+            _validate_metric_values(
+                metric_values,
+                task=task,
+                context="cell",
+            )
+        )
     validation = {"num_samples": payload["num_samples"], "num_cells": len(cells)}
+    if optional_nonfinite_metrics:
+        validation["optional_nonfinite_metrics"] = sorted(
+            optional_nonfinite_metrics
+        )
     predictions = sorted((out_dir / "predictions").rglob("*.npz"))
     if expect_predictions and len(predictions) != expected_samples:
         raise RuntimeError(
@@ -454,6 +519,7 @@ def main() -> None:
             expected_cells=expected_cells,
             expect_predictions=args.task == "image",
             expect_comprehensive=args.task == "image" and args.gate == "easy",
+            task=args.task,
         )
         metadata["status"] = "passed"
     except BaseException as exc:

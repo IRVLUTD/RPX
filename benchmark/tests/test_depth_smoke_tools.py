@@ -518,3 +518,41 @@ def test_rolling_depth_uses_path_api_and_official_keyword_names(monkeypatch) -> 
     adapter._pipe = Pipe()
     depth = adapter._predict_clip(sample)
     assert depth.shape == sample.rgb_seq.shape[:3]
+
+
+
+def test_video_gate_allows_only_documented_optional_nan_metrics() -> None:
+    metrics = {
+        "absrel": 0.1,
+        "rmse": 0.2,
+        "delta1": 0.9,
+        "delta2": 0.95,
+        "delta3": 0.99,
+        "tae": float("nan"),
+        "opw": float("nan"),
+        "tgm": float("nan"),
+        "tcc": float("nan"),
+    }
+    assert set(
+        gate._validate_metric_values(
+            metrics,
+            task="video",
+            context="test",
+        )
+    ) == {"tae", "opw", "tgm", "tcc"}
+
+    bad_core = dict(metrics, absrel=float("nan"))
+    with pytest.raises(RuntimeError, match="absrel"):
+        gate._validate_metric_values(
+            bad_core,
+            task="video",
+            context="test",
+        )
+
+    bad_unknown = dict(metrics, unexpected=float("nan"))
+    with pytest.raises(RuntimeError, match="unexpected"):
+        gate._validate_metric_values(
+            bad_unknown,
+            task="video",
+            context="test",
+        )
