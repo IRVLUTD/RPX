@@ -281,8 +281,8 @@ LABEL org.opencontainers.image.title="RPX geometry-video depth runtime" \
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
 
-COPY docker/depth-smoke/requirements-geometry-video.in \
-     /tmp/requirements-geometry-video.in
+COPY docker/depth-smoke/requirements-geometry-video.lock \
+     /tmp/requirements-geometry-video.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
     git init /opt/rpx-envs/sources/vggt && \
@@ -303,7 +303,7 @@ RUN python -m venv \
     /opt/rpx-envs/geometry-video/bin/python -m pip install \
       --upgrade pip==25.3 && \
     /opt/rpx-envs/geometry-video/bin/python -m pip install \
-      -r /tmp/requirements-geometry-video.in && \
+      --no-deps -r /tmp/requirements-geometry-video.lock && \
     /opt/rpx-envs/geometry-video/bin/python -m pip install \
       --no-deps \
       /opt/rpx-envs/sources/vggt \
