@@ -43,8 +43,8 @@ class DA3VideoAdapter(VideoDepthAdapterBase):
     """Wraps ``depth-anything/DA3-LARGE`` in video (multi-view) mode."""
 
     DISPLAY_NAME = "DA3"
-    # DA3 is metric per the paper's headline; runner skips alignment.
-    OUTPUT_KIND = "metric"
+    # DA3-LARGE emits relative any-view depth; align once per clip.
+    OUTPUT_KIND = "relative"
 
     def __init__(self, device: str = "cuda") -> None:
         super().__init__(device=device)
@@ -80,44 +80,41 @@ class DA3VideoAdapter(VideoDepthAdapterBase):
         T, H, W, _ = rgb_seq.shape
         frames = [rgb_seq[t] for t in range(T)]
 
-        # Upstream's documented multi-view API. Different release
-        # versions may name this ``forward``, ``infer``, or
-        # ``predict_multi_view`` — the team should verify.
-        if hasattr(self._model, "predict"):
-            output = self._model.predict(frames)
-        elif hasattr(self._model, "forward"):
-            output = self._model.forward(frames)
-        else:
-            from rpx_benchmark.exceptions import AdapterError
-
-            raise AdapterError(
-                "DA3VideoAdapter: model has neither predict() nor forward(). "
-                "Upstream API may have changed; check the depth_anything_3 release."
-            )
+        # Pinned DA3 exposes inference() for image lists/multi-view clips.
+        output = self._model.inference(frames)
 
         # Normalise output: dict-with-depth, list-of-depth-arrays, or
         # ndarray (T, H, W).
-        depth = None
-        if isinstance(output, dict):
-            depth = output.get("depth") or output.get("depth_map")
-        elif isinstance(output, (list, tuple)):
+        depth = output.depth if hasattr(output, "depth") else None
+        if depth is None and isinstance(output, dict):
+            depth = output.get("depth")
+            if depth is None:
+                depth = output.get("depth_map")
+        elif depth is None and isinstance(output, (list, tuple)):
             depth = np.stack([np.asarray(d, dtype=np.float32) for d in output])
-        elif hasattr(output, "detach"):
+        elif depth is None and hasattr(output, "detach"):
             depth = output.detach().cpu().float().numpy()
-        else:
-            depth = np.asarray(output, dtype=np.float32)
+
         if depth is None:
             from rpx_benchmark.exceptions import AdapterError
 
-            raise AdapterError(
-                "DA3 forward returned unrecognised output. Expected a "
-                "dict with 'depth', a list of (H, W) arrays, or a "
-                "(T, H, W) tensor."
-            )
+            raise AdapterError("DA3 video inference returned no depth field.")
+
         depth = np.asarray(depth, dtype=np.float32)
-        if depth.ndim == 4:
-            depth = depth.squeeze()
-        if depth.shape != (T, H, W):
+        if depth.ndim == 4 and depth.shape[0] == 1:
+            depth = depth[0]
+        if depth.ndim == 4 and depth.shape[1] == 1:
+            depth = depth[:, 0]
+        if depth.ndim == 2 and T == 1:
+            depth = depth[None]
+        if depth.ndim != 3 or depth.shape[0] != T:
+            from rpx_benchmark.exceptions import AdapterError
+
+            raise AdapterError(
+                f"DA3 video returned depth shape {depth.shape}; expected T={T}."
+            )
+
+        if depth.shape[1:] != (H, W):
             from PIL import Image as _Image
 
             resized = np.empty((T, H, W), dtype=np.float32)

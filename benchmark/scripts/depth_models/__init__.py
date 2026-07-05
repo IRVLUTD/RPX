@@ -263,7 +263,7 @@ def _build_metric3d_v2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 def _build_da3_metric(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """DA3 Metric-L — Depth Anything 3 (ByteDance, ICLR'26 Oral).
 
-    HF: depth-anything/DA3-LARGE; loads via custom ``depth_anything_3``
+    HF: depth-anything/DA3METRIC-LARGE; loads via custom ``depth_anything_3``
     package. ``pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3``.
     """
     from .da3_metric import DA3Metric
