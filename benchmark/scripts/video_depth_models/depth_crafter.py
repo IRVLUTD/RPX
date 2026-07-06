@@ -152,45 +152,79 @@ class DepthCrafterAdapter(BenchmarkModel):
     ) -> list[VideoDepthPrediction]:
         if self._pipe is None:
             raise RuntimeError("DepthCrafterAdapter.setup() must be called before predict().")
+
+        from PIL import Image
+
+        def _round_up(value: int, multiple: int = 64) -> int:
+            return ((int(value) + multiple - 1) // multiple) * multiple
+
         out: list[VideoDepthPrediction] = []
         for sample in batch:
             rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)  # (T, H, W, 3)
-            # DepthCrafter expects a list of PIL images or an (T, H, W, 3)
-            # uint8 array in [0, 255]. The official pipeline returns an
-            # (T, H, W) float tensor.
+            orig_h = int(rgb_seq.shape[1])
+            orig_w = int(rgb_seq.shape[2])
+
+            # DepthCrafter/SVD UNet requires dimensions that survive repeated
+            # downsample/upsample blocks cleanly. The smoke video can be 480px high,
+            # which creates odd latent sizes and fails inside torch.cat().
+            pipe_height = _round_up(orig_h, 64)
+            pipe_width = _round_up(orig_w, 64)
+
+            if pipe_height != orig_h or pipe_width != orig_w:
+                resized_frames = []
+                for frame in rgb_seq:
+                    resized = Image.fromarray(frame).resize(
+                        (pipe_width, pipe_height),
+                        resample=Image.BICUBIC,
+                    )
+                    resized_frames.append(np.asarray(resized, dtype=np.uint8))
+                pipe_rgb_seq = np.stack(resized_frames, axis=0)
+            else:
+                pipe_rgb_seq = rgb_seq
+
             result = self._pipe(
-                rgb_seq.astype(np.float32) / 255.0,
+                pipe_rgb_seq.astype(np.float32) / 255.0,
+                height=pipe_height,
+                width=pipe_width,
                 num_inference_steps=self.num_inference_steps,
                 guidance_scale=self.guidance_scale,
                 window_size=self.window_size,
                 overlap=self.overlap,
                 output_type="np",
             )
-            # The pipeline returns a tuple-like object whose ``frames``
-            # attribute holds the depth sequence. Some releases return
-            # (depth_seq,) directly; handle both.
+
             depth_seq = result.frames if hasattr(result, "frames") else result[0]
             depth_seq = np.asarray(depth_seq, dtype=np.float32)
+
             if depth_seq.ndim == 5 and depth_seq.shape[0] == 1:
                 depth_seq = depth_seq[0]
             if depth_seq.ndim == 4 and depth_seq.shape[1] == 1:
                 depth_seq = depth_seq[:, 0]
             elif depth_seq.ndim == 4 and depth_seq.shape[-1] in {1, 3}:
                 depth_seq = depth_seq.mean(axis=-1)
+
+            if depth_seq.shape[1:3] != (orig_h, orig_w):
+                resized_depth = []
+                for depth in depth_seq:
+                    depth_img = Image.fromarray(depth.astype(np.float32), mode="F")
+                    depth_img = depth_img.resize(
+                        (orig_w, orig_h),
+                        resample=Image.BILINEAR,
+                    )
+                    resized_depth.append(np.asarray(depth_img, dtype=np.float32))
+                depth_seq = np.stack(resized_depth, axis=0)
+
             if depth_seq.shape != rgb_seq.shape[:3]:
                 from rpx_benchmark.exceptions import AdapterError
 
                 raise AdapterError(
                     f"DepthCrafter returned depth_seq shape {depth_seq.shape}; "
-                    f"expected (T, H, W) = {rgb_seq.shape[:3]}",
+                    f"expected (T, H, W) = {rgb_seq.shape[:3]}"
                 )
+
             out.append(VideoDepthPrediction(depth_map_seq=depth_seq))
+
         return out
 
-
-def build(device: str = "cuda", **kwargs) -> BenchmarkModel:
-    """Factory the runner discovers via ``--model depth-crafter``."""
-    return DepthCrafterAdapter(device=device, **kwargs)
-
-
-__all__ = ["DepthCrafterAdapter", "build"]
+def build(device: str):
+    return DepthCrafterAdapter(device=device)
