@@ -149,8 +149,8 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         # frame as-is (the helper handles the rest).
         if hasattr(self._model, "infer_video_depth"):
             # VDA upstream DPT head calls out.float(); keep weights/biases in float32.
-        self._model = self._model.float()
-        depth_seq, _meta = self._model.infer_video_depth(
+            self._model = self._model.float()
+            depth_seq, _meta = self._model.infer_video_depth(
                 rgb_seq,
                 target_fps=30,
                 input_size=518,  # upstream default
