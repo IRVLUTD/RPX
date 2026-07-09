@@ -128,7 +128,8 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
             stream.pix_fmt = "rgb24"
             try:
                 for frame in rgb_seq:
-                    for packet in stream.encode(av.VideoFrame.from_ndarray(frame, format="rgb24")):
+                    video_frame = av.VideoFrame.from_ndarray(frame, format="rgb24").reformat(format="yuv444p")
+                    for packet in stream.encode(video_frame):
                         container.mux(packet)
                 for packet in stream.encode(None):
                     container.mux(packet)
