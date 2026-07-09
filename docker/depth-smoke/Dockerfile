@@ -372,8 +372,8 @@ FROM depth_all_diffusion_video AS depth_all_rolling_vda_video
 ARG ROLLINGDEPTH_SHA=c233765fb7adf9682442a9fbef3eb07212bb70fd
 ARG VDA_SHA=4f5ae23172ba60fd7bc11ef671cca678842c7072
 
-COPY docker/depth-smoke/requirements-rollingdepth.in /tmp/requirements-rollingdepth.in
-COPY docker/depth-smoke/requirements-video-depth-anything.in /tmp/requirements-video-depth-anything.in
+COPY docker/depth-smoke/requirements-rollingdepth.lock /tmp/requirements-rollingdepth.lock
+COPY docker/depth-smoke/requirements-video-depth-anything.lock /tmp/requirements-video-depth-anything.lock
 
 RUN git init /opt/rpx-envs/sources/rollingdepth && \
     git -C /opt/rpx-envs/sources/rollingdepth remote add origin \
@@ -390,7 +390,7 @@ RUN git init /opt/rpx-envs/sources/video-depth-anything && \
 RUN python -m venv --system-site-packages /opt/rpx-envs/rollingdepth && \
     /opt/rpx-envs/rollingdepth/bin/python -m pip install \
       --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
-    /opt/rpx-envs/rollingdepth/bin/python -m pip install -r /tmp/requirements-rollingdepth.in && \
+    /opt/rpx-envs/rollingdepth/bin/python -m pip install --no-deps -r /tmp/requirements-rollingdepth.lock && \
     /opt/rpx-envs/rollingdepth/bin/python -m pip install --no-deps -e /opt/rpx-envs/sources/rollingdepth/diffusers && \
     /opt/rpx-envs/rollingdepth/bin/python -c \
       "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-rollingdepth.pth').write_text('/opt/rpx-envs/sources/rollingdepth\\n')"
@@ -398,7 +398,7 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/rollingdepth && \
 RUN python -m venv --system-site-packages /opt/rpx-envs/video-depth-anything && \
     /opt/rpx-envs/video-depth-anything/bin/python -m pip install \
       --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
-    /opt/rpx-envs/video-depth-anything/bin/python -m pip install -r /tmp/requirements-video-depth-anything.in && \
+    /opt/rpx-envs/video-depth-anything/bin/python -m pip install --no-deps -r /tmp/requirements-video-depth-anything.lock && \
     /opt/rpx-envs/video-depth-anything/bin/python -c \
       "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-video-depth-anything.pth').write_text('/opt/rpx-envs/sources/video-depth-anything\\n')"
 
