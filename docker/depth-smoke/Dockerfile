@@ -405,6 +405,37 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/video-depth-anything && 
 RUN ln -sfn /opt/rpx-envs/rollingdepth /opt/rpx-envs/rolling && \
     ln -sfn /opt/rpx-envs/video-depth-anything /opt/rpx-envs/video_da
 
+RUN python - <<'PYMARKER'
+import json
+from pathlib import Path
+
+markers = [
+    (
+        "/opt/rpx-envs/rollingdepth/rpx-environment.json",
+        {
+            "family": "rolling",
+            "models": ["rolling-depth"],
+            "status": "ready",
+            "source": "/opt/rpx-envs/sources/rollingdepth",
+        },
+    ),
+    (
+        "/opt/rpx-envs/video-depth-anything/rpx-environment.json",
+        {
+            "family": "video_da",
+            "models": ["video-da"],
+            "status": "ready",
+            "source": "/opt/rpx-envs/sources/video-depth-anything",
+        },
+    ),
+]
+
+for path, payload in markers:
+    path = Path(path)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    print(f"wrote {path}")
+PYMARKER
+
 COPY benchmark /opt/rpx/benchmark
 
 RUN /opt/rpx-envs/rollingdepth/bin/python -c \
