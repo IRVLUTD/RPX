@@ -112,29 +112,23 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
         import tempfile
 
-        import av
+        import imageio.v2 as imageio
 
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
 
         # RollingDepth's official API accepts a video path, not an in-memory
-        # frame list. Encode a lossless RGB FFV1 stream for this transient
-        # adapter boundary so RPX pixels are not changed by H.264 compression.
+        # frame list. Encode a temporary yuv420p MP4 using imageio/ffmpeg so
+        # codec pixel-format negotiation is stable across PyAV builds.
         with tempfile.NamedTemporaryFile(suffix=".mp4") as tmp:
-            container = av.open(tmp.name, mode="w")
-            stream = container.add_stream("mpeg4", rate=30)
-            stream.width = W
-            stream.height = H
-            stream.pix_fmt = "rgb24"
-            try:
-                for frame in rgb_seq:
-                    video_frame = av.VideoFrame.from_ndarray(frame, format="rgb24").reformat(format="yuv420p")
-                    for packet in stream.encode(video_frame):
-                        container.mux(packet)
-                for packet in stream.encode(None):
-                    container.mux(packet)
-            finally:
-                container.close()
+            imageio.mimsave(
+                tmp.name,
+                [frame.astype("uint8") for frame in rgb_seq],
+                fps=30,
+                codec="libx264",
+                pixelformat="yuv420p",
+                macro_block_size=1,
+            )
 
             result = self._pipe(
                 input_video_path=tmp.name,
