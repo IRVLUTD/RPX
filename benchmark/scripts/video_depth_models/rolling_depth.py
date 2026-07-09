@@ -120,15 +120,15 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
         # RollingDepth's official API accepts a video path, not an in-memory
         # frame list. Encode a lossless RGB FFV1 stream for this transient
         # adapter boundary so RPX pixels are not changed by H.264 compression.
-        with tempfile.NamedTemporaryFile(suffix=".mkv") as tmp:
+        with tempfile.NamedTemporaryFile(suffix=".mp4") as tmp:
             container = av.open(tmp.name, mode="w")
-            stream = container.add_stream("ffv1", rate=30)
+            stream = container.add_stream("mpeg4", rate=30)
             stream.width = W
             stream.height = H
             stream.pix_fmt = "rgb24"
             try:
                 for frame in rgb_seq:
-                    video_frame = av.VideoFrame.from_ndarray(frame, format="rgb24").reformat(format="yuv444p")
+                    video_frame = av.VideoFrame.from_ndarray(frame, format="rgb24").reformat(format="yuv420p")
                     for packet in stream.encode(video_frame):
                         container.mux(packet)
                 for packet in stream.encode(None):
