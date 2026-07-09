@@ -132,7 +132,7 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         self._model = self._model.to(self.device).eval()
         self._model = self._model.float()  # VDA head calls out.float(); keep conv weights/bias float32
         if self.fp16 and self.device.startswith("cuda"):
-            self._model = self._model.half()
+            self._model = self._model.float()
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
@@ -148,7 +148,9 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         # input_size, device, fp32)``. We pass each (H, W, 3) uint8
         # frame as-is (the helper handles the rest).
         if hasattr(self._model, "infer_video_depth"):
-            depth_seq, _meta = self._model.infer_video_depth(
+            # VDA upstream DPT head calls out.float(); keep weights/biases in float32.
+        self._model = self._model.float()
+        depth_seq, _meta = self._model.infer_video_depth(
                 rgb_seq,
                 target_fps=30,
                 input_size=518,  # upstream default
