@@ -99,14 +99,10 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
             torch_dtype=dtype,
         )
         self._pipe.to(self.device)
-        for opt in (
-            "enable_xformers_memory_efficient_attention",
-            "enable_attention_slicing",
-        ):
-            try:
-                getattr(self._pipe, opt)()
-            except Exception:  # noqa: BLE001
-                pass
+        # Do not enable Diffusers attention slicing/xFormers here.
+        # RollingDepth passes cross-frame `num_view` through its modified
+        # attention stack; replacing processors can ignore that argument and
+        # break temporal attention shapes during smoke tests.
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
