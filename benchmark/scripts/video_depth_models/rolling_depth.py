@@ -130,12 +130,16 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
                 macro_block_size=1,
             )
 
+            # Smoke clips are short; RollingDepth's long-video dilation schedule
+            # can make internal snippet gaps negative. Use a conservative
+            # single-dilation schedule that is valid for micro/acceptance clips.
+            snippet_length = max(1, min(self.snippet_length, T))
             result = self._pipe(
                 input_video_path=tmp.name,
                 processing_res=1024,
-                dilations=[1, 25],
-                cap_dilation=True,
-                snippet_lengths=[self.snippet_length],
+                dilations=[1],
+                cap_dilation=False,
+                snippet_lengths=[snippet_length],
                 init_infer_steps=[max(1, self.num_inference_steps)],
                 strides=[1],
                 refine_step=0,
