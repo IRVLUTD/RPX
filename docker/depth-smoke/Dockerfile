@@ -444,3 +444,56 @@ RUN /opt/rpx-envs/rollingdepth/bin/python -c \
       "import torch,cv2,imageio,decord; from video_depth_anything.video_depth import VideoDepthAnything; print('Video Depth Anything imports ready')"
 
 WORKDIR /opt/rpx/benchmark
+
+FROM depth_all_rolling_vda_video AS depth_all_monst3r
+
+ARG MONST3R_REPO=https://github.com/Junyi42/monst3r.git
+ARG MONST3R_SHA=574cc77ad278bad582f470e5382624e01f8769a7
+
+COPY docker/depth-smoke/requirements-monst3r.in /tmp/requirements-monst3r.in
+
+RUN git init /opt/rpx-envs/sources/monst3r && \
+    git -C /opt/rpx-envs/sources/monst3r remote add origin "${MONST3R_REPO}" && \
+    git -C /opt/rpx-envs/sources/monst3r fetch --depth 1 origin "${MONST3R_SHA}" && \
+    git -C /opt/rpx-envs/sources/monst3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-envs/sources/monst3r submodule update --init --recursive || true
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/monst3r && \
+    /opt/rpx-envs/monst3r/bin/python -m pip install \
+      --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
+    /opt/rpx-envs/monst3r/bin/python -m pip install -r /tmp/requirements-monst3r.in && \
+    if [ -f /opt/rpx-envs/sources/monst3r/requirements.txt ]; then \
+      grep -ivE '^(torch|torchvision|torchaudio|xformers|cupy|cuda)' \
+        /opt/rpx-envs/sources/monst3r/requirements.txt | \
+      grep -ivE '(^-e[[:space:]]+third_party/|^third_party/|^\./third_party/|sam2)' \
+        > /tmp/requirements-monst3r-upstream.txt && \
+      cat /tmp/requirements-monst3r-upstream.txt && \
+      /opt/rpx-envs/monst3r/bin/python -m pip install -r /tmp/requirements-monst3r-upstream.txt; \
+    fi && \
+    /opt/rpx-envs/monst3r/bin/python -c \
+      "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-monst3r.pth').write_text('/opt/rpx-envs/sources/monst3r\\n')"
+
+RUN python - <<'PYMARKER'
+import json
+from pathlib import Path
+
+path = Path("/opt/rpx-envs/monst3r/rpx-environment.json")
+path.write_text(json.dumps(
+    {
+        "family": "monst3r",
+        "models": ["monst3r"],
+        "status": "ready",
+        "source": "/opt/rpx-envs/sources/monst3r",
+    },
+    indent=2,
+    sort_keys=True,
+) + "\n")
+print(f"wrote {path}")
+PYMARKER
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/monst3r/bin/python -c \
+      "import torch; import dust3r; print('MonST3R/Dust3R imports ready', torch.__version__)"
+
+WORKDIR /opt/rpx/benchmark
