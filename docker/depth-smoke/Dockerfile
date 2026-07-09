@@ -402,6 +402,9 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/video-depth-anything && 
     /opt/rpx-envs/video-depth-anything/bin/python -c \
       "import pathlib,site; pathlib.Path(site.getsitepackages()[0], 'rpx-video-depth-anything.pth').write_text('/opt/rpx-envs/sources/video-depth-anything\\n')"
 
+RUN ln -sfn /opt/rpx-envs/rollingdepth /opt/rpx-envs/rolling && \
+    ln -sfn /opt/rpx-envs/video-depth-anything /opt/rpx-envs/video_da
+
 COPY benchmark /opt/rpx/benchmark
 
 RUN /opt/rpx-envs/rollingdepth/bin/python -c \
