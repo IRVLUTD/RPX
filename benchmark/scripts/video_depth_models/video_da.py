@@ -130,6 +130,7 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         state = torch.load(ckpt_path, map_location="cpu")
         self._model.load_state_dict(state)
         self._model = self._model.to(self.device).eval()
+        self._model = self._model.float()  # VDA head calls out.float(); keep conv weights/bias float32
         if self.fp16 and self.device.startswith("cuda"):
             self._model = self._model.half()
         self._loaded = True
