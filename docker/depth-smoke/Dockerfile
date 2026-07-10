@@ -447,10 +447,21 @@ WORKDIR /opt/rpx/benchmark
 
 FROM depth_all_rolling_vda_video AS depth_all_monst3r
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      libxcb1 \
+      libglib2.0-0 \
+      libgl1 \
+      libxext6 \
+      libsm6 \
+      libxrender1 && \
+    rm -rf /var/lib/apt/lists/*
+
+
 ARG MONST3R_REPO=https://github.com/Junyi42/monst3r.git
 ARG MONST3R_SHA=574cc77ad278bad582f470e5382624e01f8769a7
 
-COPY docker/depth-smoke/requirements-monst3r.in /tmp/requirements-monst3r.in
+COPY docker/depth-smoke/requirements-monst3r.lock /tmp/requirements-monst3r.lock
 
 RUN git init /opt/rpx-envs/sources/monst3r && \
     git -C /opt/rpx-envs/sources/monst3r remote add origin "${MONST3R_REPO}" && \
@@ -461,9 +472,9 @@ RUN git init /opt/rpx-envs/sources/monst3r && \
 RUN python -m venv --system-site-packages /opt/rpx-envs/monst3r && \
     /opt/rpx-envs/monst3r/bin/python -m pip install \
       --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
-    /opt/rpx-envs/monst3r/bin/python -m pip install -r /tmp/requirements-monst3r.in && \
+    /opt/rpx-envs/monst3r/bin/python -m pip install --no-deps -r /tmp/requirements-monst3r.lock && \
     if [ -f /opt/rpx-envs/sources/monst3r/requirements.txt ]; then \
-      grep -ivE '^(torch|torchvision|torchaudio|xformers|cupy|cuda)' \
+      grep -ivE '^(torch|torchvision|torchaudio|xformers|cupy|cuda|opencv-python($|[<=>]))' \
         /opt/rpx-envs/sources/monst3r/requirements.txt | \
       grep -ivE '(^-e[[:space:]]+third_party/|^third_party/|^\./third_party/|sam2)' \
         > /tmp/requirements-monst3r-upstream.txt && \
