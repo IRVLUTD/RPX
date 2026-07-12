@@ -508,3 +508,95 @@ RUN /opt/rpx-envs/monst3r/bin/python -c \
       "import torch; import dust3r; print('MonST3R/Dust3R imports ready', torch.__version__)"
 
 WORKDIR /opt/rpx/benchmark
+
+# ---------------------------------------------------------------------------
+# HyDen / MetaDepth
+# ---------------------------------------------------------------------------
+FROM depth_all_monst3r AS depth_all_hyden
+
+ARG METADEPTH_REPO=https://github.com/facebookresearch/metadepth.git
+ARG METADEPTH_SHA
+
+RUN test -n "${METADEPTH_SHA}"
+
+COPY docker/depth-smoke/requirements-metadepth.in \
+     /tmp/requirements-metadepth.in
+
+RUN mkdir -p /opt/rpx-envs/sources && \
+    git init /opt/rpx-envs/sources/metadepth && \
+    git -C /opt/rpx-envs/sources/metadepth remote add origin \
+      "${METADEPTH_REPO}" && \
+    git -C /opt/rpx-envs/sources/metadepth fetch \
+      --depth 1 origin "${METADEPTH_SHA}" && \
+    git -C /opt/rpx-envs/sources/metadepth checkout \
+      --detach FETCH_HEAD
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/metadepth && \
+    /opt/rpx-envs/metadepth/bin/python -m pip install \
+      --upgrade \
+      pip==25.3 \
+      setuptools==80.9.0 \
+      wheel==0.45.1 && \
+    /opt/rpx-envs/metadepth/bin/python -m pip install \
+      --no-cache-dir \
+      -r /tmp/requirements-metadepth.in
+
+# The adapter imports metadepth.da2 and metadepth.mogev2.
+# Therefore Python needs the parent directory of the checkout.
+RUN /opt/rpx-envs/metadepth/bin/python - <<'PY'
+import pathlib
+import site
+
+pth = pathlib.Path(
+    site.getsitepackages()[0],
+    "rpx-metadepth.pth",
+)
+pth.write_text("/opt/rpx-envs/sources\n")
+print("Wrote:", pth)
+PY
+
+RUN ln -sfn /opt/rpx-envs/metadepth /opt/rpx-envs/hyden
+
+RUN python - <<'PY'
+import json
+from pathlib import Path
+
+manifest = {
+    "family": "metadepth",
+    "models": [
+        "hyden",
+        "hyden_metric",
+        "hyden_relative",
+    ],
+    "source": "/opt/rpx-envs/sources/metadepth",
+    "status": "ready",
+}
+
+for env_name in ["metadepth", "hyden"]:
+    path = Path(
+        f"/opt/rpx-envs/{env_name}/rpx-environment.json"
+    )
+    path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    )
+    print("Wrote:", path)
+PY
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/metadepth/bin/python - <<'PY'
+import torch
+import torchvision
+
+from metadepth.da2 import HyDenDepthAnything
+from metadepth.mogev2 import MODEL_CONFIGS, HyDenMoGe
+
+print("MetaDepth imports successful")
+print("Torch:", torch.__version__)
+print("Torchvision:", torchvision.__version__)
+print("DA2 class:", HyDenDepthAnything.__name__)
+print("MoGe class:", HyDenMoGe.__name__)
+print("MoGe configs:", sorted(MODEL_CONFIGS))
+PY
+
+WORKDIR /opt/rpx/benchmark
