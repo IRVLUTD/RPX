@@ -43,7 +43,11 @@ class HyDen:
             if model_id == self.METRIC_MODEL_ID:
                 from metadepth.mogev2 import MODEL_CONFIGS, HyDenMoGe
 
-                model = HyDenMoGe(**MODEL_CONFIGS["vitl_dinov2"])
+                from copy import deepcopy
+                model_config = deepcopy(MODEL_CONFIGS["vitl_dinov2"])
+                # Metric-point checkpoint does not contain the surface-normal head.
+                model_config.pop("normal_head", None)
+                model = HyDenMoGe(**model_config)
                 filename = self.METRIC_FILENAME
                 self._metric = True
             else:
@@ -54,6 +58,8 @@ class HyDen:
                 self._metric = False
             checkpoint = hf_hub_download(repo_id=model_id, filename=filename)
             state = torch.load(checkpoint, map_location="cpu", weights_only=True)
+            # Present in the released checkpoint but unused by this inference model.
+            state.pop("encoder.backbone.mask_token", None)
             model.load_state_dict(state, strict=True)
             self._model = model.to(device).eval()
         except Exception as exc:
