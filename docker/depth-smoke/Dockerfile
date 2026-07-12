@@ -519,8 +519,8 @@ ARG METADEPTH_SHA
 
 RUN test -n "${METADEPTH_SHA}"
 
-COPY docker/depth-smoke/requirements-metadepth.in \
-     /tmp/requirements-metadepth.in
+COPY docker/depth-smoke/requirements-metadepth.lock \
+     /tmp/requirements-metadepth.lock
 
 RUN mkdir -p /opt/rpx-envs/sources && \
     git init /opt/rpx-envs/sources/metadepth && \
@@ -539,7 +539,8 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/metadepth && \
       wheel==0.45.1 && \
     /opt/rpx-envs/metadepth/bin/python -m pip install \
       --no-cache-dir \
-      -r /tmp/requirements-metadepth.in
+      --no-deps \
+      -r /tmp/requirements-metadepth.lock
 
 # The adapter imports metadepth.da2 and metadepth.mogev2.
 # Therefore Python needs the parent directory of the checkout.
