@@ -399,6 +399,7 @@ class BenchmarkRunner:
         latency = LatencyProfiler(warmup=1)
         memory = MemoryProfiler().reset()
         first_batch_flops_g: Optional[float] = None
+        per_sample_latency_values: List[float | None] = []
 
         # CUDA kernels are async — ``model.predict`` returns when work
         # is *queued*, not when it *completes*. Without a synchronise
@@ -435,13 +436,34 @@ class BenchmarkRunner:
             _cuda_sync()
             batch_seconds = time.perf_counter() - t0
 
+            # Saving compressed predictions is deliberately outside the
+            # inference timer. Models that do not implement this optional
+            # hook retain the historical behaviour.
+            persist = getattr(self.model, "persist_predictions", None)
+            if callable(persist):
+                persist(batch, predictions)
+
             if len(predictions) != len(batch):
                 raise ModelError(
                     f"Model returned {len(predictions)} predictions for "
                     f"a batch of {len(batch)} samples — must return one "
                     "prediction per sample.",
                 )
-            latency.add_batch_seconds(batch_seconds, len(batch))
+            cache_hits = getattr(self.model, "last_cache_hits", None)
+            if isinstance(cache_hits, list) and len(cache_hits) == len(batch):
+                inferred_count = sum(not bool(hit) for hit in cache_hits)
+                latency.add_batch_seconds(batch_seconds, inferred_count)
+                inferred_ms = (
+                    batch_seconds * 1000.0 / inferred_count if inferred_count else None
+                )
+                per_sample_latency_values.extend(
+                    None if hit else inferred_ms for hit in cache_hits
+                )
+            else:
+                latency.add_batch_seconds(batch_seconds, len(batch))
+                per_sample_latency_values.extend(
+                    [batch_seconds * 1000.0 / len(batch)] * len(batch)
+                )
 
             for sample, pred in zip(batch, predictions, strict=False):
                 validate_prediction(self.model.task, pred, sample)
@@ -486,9 +508,13 @@ class BenchmarkRunner:
         # timings with the metric values. LatencyProfiler.samples_ms()
         # produces one entry per sample (batch timing amortised evenly
         # across the batch's samples).
-        per_sample_latencies = latency.samples_ms()
-        for row, lat_ms in zip(per_sample_metrics, per_sample_latencies, strict=False):
-            row["latency_ms"] = float(lat_ms)
+        for row, lat_ms in zip(
+            per_sample_metrics,
+            per_sample_latency_values,
+            strict=False,
+        ):
+            if lat_ms is not None:
+                row["latency_ms"] = float(lat_ms)
 
         result = self.metric_suite.build_result(per_sample_metrics)
 

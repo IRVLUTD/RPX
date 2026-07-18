@@ -53,6 +53,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # BatchedDepthBenchmarkModel lives in the toolkit so every adapter (here
 # and in any future model zoo) imports from a stable location.
 from rpx_benchmark.adapters.batched_depth import BatchedDepthBenchmarkModel  # noqa: E402
+from rpx_benchmark.metrics.depth_paper import PaperDepthMetricSuite  # noqa: E402
 
 
 def _stage_timing(
@@ -249,6 +250,7 @@ def _build_model(
     batch_size: int = 1,
     *,
     acknowledge_unverified: bool = False,
+    precision: str = "auto",
 ):
     """Build ``(BenchmarkableModel placeholder, raw_adapter)``.
 
@@ -271,6 +273,10 @@ def _build_model(
     # don't have the kwarg and would TypeError if we always passed it.
     factory = MODEL_REGISTRY[registry_key]
     kwargs = {"device": device, "batch_size": batch_size}
+    if registry_key in {"da_v2_metric_indoor", "da_v2_metric_outdoor"} and precision != "auto":
+        import torch
+
+        kwargs["dtype"] = torch.float16 if precision == "fp16" else torch.float32
     if acknowledge_unverified:
         kwargs["acknowledge_unverified"] = True
     try:
@@ -315,6 +321,9 @@ def _run_via_official_pipeline(
     save_predictions: bool = False,
     require_cuda: bool = True,
     skip_flops: bool = False,
+    cache_dir: str | None = None,
+    resume_predictions: bool = False,
+    paper_protocol: bool = False,
 ):
     """Path A: toolkit's `run_monocular_depth`.
 
@@ -336,6 +345,8 @@ def _run_via_official_pipeline(
         name=name,
         save_dir=(pred_dir if save_predictions else None),
         native_alignment=getattr(adapter, "native_alignment", "none"),
+        native_precision=getattr(adapter, "native_precision", None),
+        resume_predictions=resume_predictions,
     )
     cfg = MonocularDepthRunConfig(
         model=benchmark_model,
@@ -349,10 +360,14 @@ def _run_via_official_pipeline(
         max_samples=max_samples,
         require_cuda=require_cuda,
         skip_flops=skip_flops,
+        cache_dir=cache_dir,
+        metric_suite=PaperDepthMetricSuite() if paper_protocol else None,
+        compute_temporal_stability=not paper_protocol,
     )
     result, report, paths = run_monocular_depth(cfg)
     if save_predictions:
         paths["predictions_dir"] = pred_dir
+        paths["prediction_stats"] = dict(benchmark_model.resume_stats)
     return result, report, paths
 
 
@@ -370,6 +385,8 @@ def _run_via_local_manifest(
     revision: str | None,
     require_cuda: bool,
     skip_flops: bool,
+    resume_predictions: bool = False,
+    paper_protocol: bool = False,
 ):
     """Path B: build a manifest locally from the cached frames Parquet, then
     call BenchmarkRunner directly. Mirrors `_pipeline.run_pipeline` minus the
@@ -417,6 +434,8 @@ def _run_via_local_manifest(
         name=name,
         save_dir=(pred_dir if save_predictions else None),
         native_alignment=getattr(adapter, "native_alignment", "none"),
+        native_precision=getattr(adapter, "native_precision", None),
+        resume_predictions=resume_predictions,
     )
     dataset = RPXDataset.from_manifest(res.manifest_path, batch_size=batch_size)
     print(
@@ -460,14 +479,18 @@ def _run_via_local_manifest(
     runner = BenchmarkRunner(
         model=model,
         dataset=dataset,
-        metric_suite=MetricSuite.for_task(TaskType.MONOCULAR_DEPTH),
+        metric_suite=(
+            PaperDepthMetricSuite()
+            if paper_protocol
+            else MetricSuite.for_task(TaskType.MONOCULAR_DEPTH)
+        ),
         call_setup=False,
     )
     bench_result, dr_report = runner.run_with_report(
         primary_metric="absrel",
         model_name=name,
         efficiency=eff,
-        compute_ts=True,
+        compute_ts=not paper_protocol,
         compute_sgc_flag=False,
         skip_flops=skip_flops,
     )
@@ -477,34 +500,6 @@ def _run_via_local_manifest(
     # system card). `write_json` serialises all of it under
     # `result.json["compute_cost"]` (plus `["robustness"]` for the
     # phase-aware scores) — no post-hoc augmentation needed.
-
-    # ---- per-stage timing breakdown (data load / model run / metric calc) ---
-    # The runner's `latency_ms` is end-to-end; this gives us where the time
-    # actually goes so we can compare adapters fairly. Re-runs the dataset
-    # without the deployment-readiness wrapper to keep the numbers clean.
-    timing = _stage_timing(
-        adapter,
-        dataset,
-        alignment=getattr(adapter, "native_alignment", "none"),
-    )
-    print(
-        "[timing] data_load_ms (mean/median/p95): "
-        f"{timing['data_load']['mean']:.1f}/"
-        f"{timing['data_load']['median']:.1f}/"
-        f"{timing['data_load']['p95']:.1f}"
-    )
-    print(
-        "[timing] model_run_ms (mean/median/p95): "
-        f"{timing['model_run']['mean']:.1f}/"
-        f"{timing['model_run']['median']:.1f}/"
-        f"{timing['model_run']['p95']:.1f}"
-    )
-    print(
-        "[timing] metric_calc_ms (mean/median/p95): "
-        f"{timing['metric_calc']['mean']:.1f}/"
-        f"{timing['metric_calc']['median']:.1f}/"
-        f"{timing['metric_calc']['p95']:.1f}"
-    )
 
     json_path = out_dir / "result.json"
     md_path = out_dir / "summary.md"
@@ -529,12 +524,10 @@ def _run_via_local_manifest(
         encoding="utf-8",
     )
 
-    # Per-stage timing isn't part of the dr_report, so it's added here.
-    _augment_result_with_timing(json_path, timing=timing)
-
     artefacts = {"json": json_path, "markdown": md_path, "out_dir": out_dir}
     if save_predictions:
         artefacts["predictions_dir"] = pred_dir
+        artefacts["prediction_stats"] = dict(model.resume_stats)
     return bench_result, dr_report, artefacts
 
 
@@ -552,6 +545,17 @@ def main() -> None:
         help="immutable Hugging Face dataset commit",
     )
     ap.add_argument("--device", default="cuda")
+    ap.add_argument(
+        "--precision",
+        choices=["auto", "fp16", "fp32"],
+        default="auto",
+        help="explicit torch dtype for DA-V2; production paper runs use fp16",
+    )
+    ap.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Hugging Face cache root; defaults to HF_HOME/huggingface_hub defaults",
+    )
     ap.add_argument(
         "--allow-cpu",
         action="store_true",
@@ -612,6 +616,16 @@ def main() -> None:
         "metrics only). Opt in for post-hoc analytics.",
     )
     ap.add_argument(
+        "--resume-predictions",
+        action="store_true",
+        help="reuse only validated saved predictions and infer missing/corrupt frames",
+    )
+    ap.add_argument(
+        "--paper-protocol",
+        action="store_true",
+        help="use the strict six-metric RPX D1-F protocol (640x480 only)",
+    )
+    ap.add_argument(
         "--comprehensive-metrics",
         action="store_true",
         help="after the run, compute the full comprehensive metric basket "
@@ -643,6 +657,8 @@ def main() -> None:
         "RPX-Outputs folder). Override per environment.",
     )
     args = ap.parse_args()
+    if args.resume_predictions and not args.save_predictions and not args.comprehensive_metrics:
+        ap.error("--resume-predictions requires --save-predictions")
     if args.max_samples is not None and args.max_samples < 1:
         ap.error("--max-samples must be >= 1")
 
@@ -664,12 +680,16 @@ def main() -> None:
             "repo":               args.repo,
             "revision":           args.revision,
             "device":             args.device,
+            "precision":          args.precision,
+            "cache-dir":          args.cache_dir or "(HF default)",
             "require-cuda":       not args.allow_cpu,
             "skip-flops":         args.skip_flops,
             "batch-size":         args.batch_size,
             "max-samples":        args.max_samples or "(all)",
             "alignment":          args.alignment,
             "save-predictions":   args.save_predictions,
+            "resume-predictions": args.resume_predictions,
+            "paper-protocol":     args.paper_protocol,
             "comprehensive":      args.comprehensive_metrics,
             "use-official":       args.use_official,
             "upload-to-box":      args.upload_to_box,
@@ -682,7 +702,22 @@ def main() -> None:
             device=args.device,
             batch_size=args.batch_size,
             acknowledge_unverified=args.acknowledge_unverified,
+            precision=args.precision,
         )
+    if args.model == "da-v2-large" and args.precision == "fp16":
+        from rpx_benchmark.exceptions import ConfigError
+
+        expected_checkpoint = "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf"
+        if getattr(adapter, "model_id", None) != expected_checkpoint:
+            raise ConfigError(
+                f"DA-V2 paper run expected {expected_checkpoint}; got "
+                f"{getattr(adapter, 'model_id', None)}."
+            )
+        if getattr(adapter, "actual_torch_dtype", None) != "torch.float16":
+            raise ConfigError(
+                "DA-V2 paper run did not load FP16 parameters; "
+                f"got {getattr(adapter, 'actual_torch_dtype', None)}."
+            )
 
     # Comprehensive metrics need predictions on disk
     if args.comprehensive_metrics:
@@ -704,6 +739,9 @@ def main() -> None:
             save_predictions=args.save_predictions,
             require_cuda=not args.allow_cpu,
             skip_flops=args.skip_flops,
+            cache_dir=args.cache_dir,
+            resume_predictions=args.resume_predictions,
+            paper_protocol=args.paper_protocol,
         )
     else:
         result, dr_report, paths = _run_via_local_manifest(
@@ -719,6 +757,8 @@ def main() -> None:
             revision=args.revision,
             require_cuda=not args.allow_cpu,
             skip_flops=args.skip_flops,
+            resume_predictions=args.resume_predictions,
+            paper_protocol=args.paper_protocol,
         )
 
     if args.comprehensive_metrics:
@@ -795,6 +835,59 @@ def main() -> None:
         cli_ux.kv("uploaded", f"{upl['uploaded']} files ({cli_ux.fmt_bytes(upl['bytes_uploaded'])})")
         cli_ux.kv("skipped",  f"{upl['skipped']} files (already on Box)")
         cli_ux.kv("remote folder id", upl["remote_folder_id"])
+
+    # Direct benchmark runs carry the same minimum provenance contract as
+    # smoke-gate runs. This file is intentionally written after all optional
+    # post-processing so its presence means the command reached completion.
+    import json as _metadata_json
+    import os as _metadata_os
+    import subprocess as _metadata_subprocess
+    from datetime import datetime as _metadata_datetime
+    from datetime import timezone as _metadata_timezone
+
+    from rpx_benchmark.metrics.depth_paper import D1_CALIBRATION, PAPER_METRIC_KEYS
+
+    try:
+        _git_sha = _metadata_subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            text=True,
+            stderr=_metadata_subprocess.DEVNULL,
+        ).strip()
+    except (OSError, _metadata_subprocess.CalledProcessError):
+        _git_sha = _metadata_os.environ.get("RPX_GIT_SHA", "unknown")
+    _torch_module = _find_torch_module(adapter)
+    _first_parameter = next(_torch_module.parameters(), None) if _torch_module is not None else None
+    _metadata = {
+        "schema_version": "rpx-depth-run-v1",
+        "completed_utc": _metadata_datetime.now(_metadata_timezone.utc).isoformat(),
+        "model": args.model,
+        "model_checkpoint": getattr(adapter, "model_id", None),
+        "split": args.split,
+        "num_samples": len(result.per_sample),
+        "dataset_repo": args.repo,
+        "dataset_revision": args.revision,
+        "cache_dir": args.cache_dir,
+        "alignment": "none" if args.model == "da-v2-large" else args.alignment,
+        "requested_precision": args.precision,
+        "actual_torch_dtype": getattr(
+            adapter,
+            "actual_torch_dtype",
+            str(_first_parameter.dtype) if _first_parameter is not None else None,
+        ),
+        "parameter_dtypes": getattr(adapter, "parameter_dtypes", None),
+        "batch_size": args.batch_size,
+        "metrics": (
+            list(PAPER_METRIC_KEYS) if args.paper_protocol else sorted(result.aggregated)
+        ),
+        "calibration": D1_CALIBRATION.to_dict() if args.paper_protocol else None,
+        "paper_protocol": args.paper_protocol,
+        "prediction_resume": paths.get("prediction_stats", {}),
+        "git_sha": _git_sha,
+        "docker_digest": _metadata_os.environ.get("RPX_DOCKER_DIGEST", "unknown"),
+    }
+    _metadata_path = paths["out_dir"] / "run_metadata.json"
+    _metadata_path.write_text(_metadata_json.dumps(_metadata, indent=2, sort_keys=True) + "\n")
+    paths["run_metadata"] = _metadata_path
 
     cli_ux.summary(
         {k: (f"{v:.4f}" if isinstance(v, float) else v)

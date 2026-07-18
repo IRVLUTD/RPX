@@ -43,6 +43,7 @@ dependencies = [
   "numpy>=1.24",
   "Pillow>=9.0",
   "rich>=13",       # CLI UX — colored logs, progress bars, sectioned headers
+  "scipy>=1.10",    # exact cKDTree F-Score@5cm for the D1-F paper protocol
 ]
 
 [project.optional-dependencies]

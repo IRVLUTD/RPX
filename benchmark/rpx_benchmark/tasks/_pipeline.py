@@ -72,6 +72,9 @@ class TaskRunConfig:
     device: str = "cuda"
     output_dir: Optional[str] = None
     progress: Optional[ProgressCallback] = None
+    #: Optional protocol-specific metric suite. The default remains the
+    #: registered public suite for the task.
+    metric_suite: Optional[MetricSuite] = None
 
     #: When True, mirror the per-run output directory to UTD Box at
     #: ``<box_folder_id>/<task>/<model>/<split>/`` after the run finishes.
@@ -214,7 +217,7 @@ def run_pipeline(
     runner = BenchmarkRunner(
         model=model,
         dataset=dataset,
-        metric_suite=MetricSuite.for_task(task),
+        metric_suite=cfg.metric_suite or MetricSuite.for_task(task),
         call_setup=False,
     )
     result, dr_report = runner.run_with_report(
@@ -233,6 +236,18 @@ def run_pipeline(
     json_path = out_dir / "result.json"
     md_path = out_dir / "summary.md"
     cells_path = out_dir / "cells.parquet"
+    per_sample_path = out_dir / "per_sample_metrics.parquet"
+
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        pq.write_table(pa.Table.from_pylist(result.per_sample), per_sample_path)
+    except ImportError as exc:
+        raise ConfigError(
+            "Writing canonical per-sample metrics requires pyarrow.",
+            hint="Install 'rpx-benchmark[hub]' or use the RPX Docker image.",
+        ) from exc
 
     # cells.parquet is the canonical artefact downstream Φ / 𝒥 / paper-
     # table fills read from. Bucket per_sample (one row per frame) into
@@ -283,6 +298,7 @@ def run_pipeline(
         "json": json_path,
         "markdown": md_path,
         "out_dir": out_dir,
+        "per_sample_metrics": per_sample_path,
     }
     if cells:
         paths["cells"] = cells_path

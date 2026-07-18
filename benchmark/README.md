@@ -87,13 +87,17 @@ Full details: [`rpx_benchmark/dataset_hub/README.md`](rpx_benchmark/dataset_hub/
 
 ### 2. Run the depth benchmark
 
-#### First-time, per machine — pre-fetch the task's data
+#### First-time, per machine — data resolution
 
-`run_depth.py` builds its manifest from the cached Parquet on disk; it
-does **not** download anything itself. Run the fetcher once to pull
-every tar shard the task needs and auto-extract them into the flat
-`extracted/scenes/<scene>/<phase>/<modality>/<frame>.png` layout the
-loader reads (the extraction happens in-helper, no manual untar step):
+The default `run_depth.py` path is authoritative and downloads what it needs.
+It fetches the pinned split manifest, derives its scene-phase pairs, selects
+only the task modalities (RGB and depth for monocular depth), and asks the
+Hugging Face content-addressed cache for those shards. Available published tar
+checksums are verified, and extraction repairs only missing or wrong-sized
+files. Finally, it writes a resolved manifest whose `root` points at the local
+snapshot. Re-running reuses both blob cache and extracted files.
+
+An explicit pre-fetch is optional and uses the same path:
 
 ```bash
 PYTHONPATH=. python -c "
