@@ -29,7 +29,7 @@ cell-log column subset, not by deleting calculators here.
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Optional
 
 import numpy as np
 
@@ -46,25 +46,105 @@ log = get_logger(__name__)
 # --------------------------------------------------------------------------- #
 
 
+# D435 paper-declared intrinsics for the 640×480 release. Used by the
+# per-frame F-Score@5cm computation. Frames must be at this resolution
+# for F-Score to be well-defined; a shape mismatch raises.
+# Kept in sync with the Image Depth pipeline's ``depth_paper.py``
+# (Naren's D1-F module on branch jishnu/depth_pipeline_check).
+_D435_FX = _D435_FY = 615.0
+_D435_CX = 320.0
+_D435_CY = 240.0
+_D435_HW = (480, 640)
+
+#: Grasp-tolerance F-Score threshold in metres (paper §5.2).
+_FSCORE_THRESHOLD_M = 0.05
+
+
+def _backproject(depth: np.ndarray, valid: np.ndarray) -> np.ndarray:
+    """Back-project (H, W) depth to (N, 3) camera-frame points at valid pixels."""
+    ys, xs = np.nonzero(valid)
+    z = depth[valid].astype(np.float64, copy=False)
+    return np.column_stack(
+        (
+            (xs.astype(np.float64) - _D435_CX) * z / _D435_FX,
+            (ys.astype(np.float64) - _D435_CY) * z / _D435_FY,
+            z,
+        )
+    )
+
+
+def _fscore_5cm_per_frame(
+    pred: np.ndarray,
+    gt: np.ndarray,
+    valid: np.ndarray,
+) -> Optional[float]:
+    """Bidirectional cKDTree F-Score at 5 cm — one frame.
+
+    Returns ``None`` when the frame has no valid pixels or scipy is
+    unavailable at the frame level; callers should skip ``None`` before
+    averaging. Matches the definition in
+    ``rpx_benchmark.metrics.depth_paper.point_cloud_fscore_5cm``.
+    """
+    if not valid.any():
+        return None
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:  # pragma: no cover — scipy is a standard dep
+        return None
+
+    gt_pts = _backproject(gt, valid)
+    pred_pts = _backproject(pred, valid)
+    if len(gt_pts) == 0 or len(pred_pts) == 0:
+        return None
+
+    def _matched(tree, pts, chunk: int = 65_536) -> float:
+        matched = 0
+        for start in range(0, len(pts), chunk):
+            d, _ = tree.query(pts[start : start + chunk], k=1, workers=1)
+            matched += int(np.count_nonzero(d < _FSCORE_THRESHOLD_M))
+        return matched / len(pts)
+
+    precision = _matched(cKDTree(gt_pts), pred_pts)
+    recall = _matched(cKDTree(pred_pts), gt_pts)
+    denom = precision + recall
+    return 0.0 if denom == 0.0 else float(2.0 * precision * recall / denom)
+
+
 def _per_frame_error_metrics(
     pred_seq: np.ndarray,
     gt_seq: np.ndarray,
     valid_seq: np.ndarray,
+    *,
+    compute_fscore: bool = True,
 ) -> Dict[str, float]:
-    """Per-frame AbsRel/RMSE/δ thresholds → arithmetic mean over the clip.
+    """Per-frame paper-spec metrics → arithmetic mean over the clip.
 
-    Frames whose valid mask is fully zero are skipped from the mean
-    rather than counted as zero — matching ``default_valid_mask`` policy
-    in :mod:`rpx_benchmark.metrics.depth_alignment`.
+    Emits the full K=5 paper spatial vector plus δ₂/δ₃ diagnostics:
+    ``absrel``, ``rmse``, ``silog``, ``delta1``, ``fscore_5cm``,
+    ``delta2``, ``delta3``.
+
+    SILog follows the KITTI display convention (``100 × sqrt(Var(log
+    error))``) — matches ``depth_paper.silog`` in the Image Depth pipeline,
+    so cells.parquet values are comparable across Image Depth and Video Depth.
+
+    F@5cm requires 640×480 frames (paper-declared D435 intrinsics).
+    Set ``compute_fscore=False`` to defer the expensive cKDTree pass;
+    the caller can back-fill from saved predictions. Frames whose
+    valid mask is fully zero are skipped from every metric's mean
+    rather than counted as zero.
     """
     T = pred_seq.shape[0]
     per_frame: Dict[str, list] = {
         "absrel": [],
         "rmse": [],
+        "silog": [],
         "delta1": [],
         "delta2": [],
         "delta3": [],
     }
+    fscore_vals: list = []
+    fscore_enabled = compute_fscore and pred_seq.shape[1:] == _D435_HW
+
     for t in range(T):
         p = pred_seq[t]
         g = gt_seq[t]
@@ -73,34 +153,67 @@ def _per_frame_error_metrics(
             continue
         p_v = p[v]
         g_v = g[v]
-        per_frame["absrel"].append(float(np.mean(np.abs(p_v - g_v) / g_v)))
-        per_frame["rmse"].append(float(np.sqrt(np.mean((p_v - g_v) ** 2))))
+        diff = p_v - g_v
+        # Guard against non-positive predictions in log-domain metric
+        p_pos = np.maximum(p_v, 1e-6)
+        log_err = np.log(p_pos) - np.log(g_v)
+
+        per_frame["absrel"].append(float(np.mean(np.abs(diff) / g_v)))
+        per_frame["rmse"].append(float(np.sqrt(np.mean(diff ** 2))))
+        silog_var = max(
+            float(np.mean(log_err ** 2) - np.mean(log_err) ** 2), 0.0
+        )
+        per_frame["silog"].append(float(100.0 * np.sqrt(silog_var)))
         ratio = np.maximum(p_v / g_v, g_v / p_v)
         per_frame["delta1"].append(float(np.mean(ratio < 1.25)))
-        per_frame["delta2"].append(float(np.mean(ratio < 1.25**2)))
-        per_frame["delta3"].append(float(np.mean(ratio < 1.25**3)))
+        per_frame["delta2"].append(float(np.mean(ratio < 1.25 ** 2)))
+        per_frame["delta3"].append(float(np.mean(ratio < 1.25 ** 3)))
+
+        if fscore_enabled:
+            fs = _fscore_5cm_per_frame(p, g, v)
+            if fs is not None:
+                fscore_vals.append(fs)
 
     if not per_frame["absrel"]:
         # Every frame had empty valid masks — return safe sentinels.
         return {
             "absrel": 0.0,
             "rmse": 0.0,
+            "silog": 0.0,
             "delta1": 1.0,
             "delta2": 1.0,
             "delta3": 1.0,
+            "fscore_5cm": float("nan"),
         }
-    return {k: float(np.mean(v)) for k, v in per_frame.items()}
+    out: Dict[str, float] = {k: float(np.mean(v)) for k, v in per_frame.items()}
+    out["fscore_5cm"] = (
+        float(np.mean(fscore_vals)) if fscore_vals else float("nan")
+    )
+    return out
 
 
 @register_metric(TaskType.VIDEO_DEPTH)
 class VideoDepthErrorMetrics(MetricCalculator):
-    """Per-clip aggregate of Image Depth's per-frame error metrics.
+    """Per-clip aggregate of the paper-spec per-frame depth metrics.
 
-    Emits five scalars (``absrel``, ``rmse``, ``delta1``, ``delta2``,
-    ``delta3``) computed per frame and arithmetically averaged over the
-    clip's valid frames. This is the *per-frame quality* component of
-    Video Depth — it lets Video Depth models be compared against Image Depth models on the
-    same scene state.
+    Emits the full K=5 spatial vector plus δ₂/δ₃ diagnostics:
+
+    * ``absrel``, ``rmse``, ``silog`` — spatial error family
+    * ``delta1`` — headline threshold accuracy
+    * ``fscore_5cm`` — 3D grasp-tolerance accuracy (M5 in the paper's
+      locked K=5). Requires 640×480 frames per D435's paper-declared
+      intrinsics.
+    * ``delta2``, ``delta3`` — cross-paper compatibility diagnostics
+      (saturated on SOTA models; kept for Eigen-split tables)
+
+    Each metric is computed per frame and arithmetically averaged over
+    the clip's valid frames. Frames with fully-empty valid masks are
+    skipped from the mean rather than counted as zero.
+
+    SILog follows the KITTI display convention (``100 × sqrt(Var(log
+    error))``), matching ``depth_paper.silog`` in the Image Depth pipeline
+    so cells.parquet values are directly comparable across Image Depth (per-frame)
+    and Video Depth (per-clip average of per-frame) runs.
     """
 
     name = "video_depth_error_metrics"
