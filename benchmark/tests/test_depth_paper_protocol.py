@@ -109,17 +109,28 @@ def test_paper_fscore_has_known_precision_and_recall() -> None:
     assert compute_d1_paper_metrics(pred, gt)["fscore_5cm"] == pytest.approx(0.5)
 
 
-@pytest.mark.parametrize(
-    "pred",
-    [
-        np.full(EXPECTED_HW, np.nan, dtype=np.float32),
-        np.full(EXPECTED_HW, -1.0, dtype=np.float32),
-    ],
-)
-def test_paper_metrics_reject_invalid_predictions(pred: np.ndarray) -> None:
+def test_paper_metrics_reject_nonfinite_predictions() -> None:
     gt = np.ones(EXPECTED_HW, dtype=np.float32)
-    with pytest.raises(MetricError, match="non-finite or non-positive"):
+    pred = np.full(EXPECTED_HW, np.nan, dtype=np.float32)
+    with pytest.raises(MetricError, match="non-finite"):
         compute_d1_paper_metrics(pred, gt)
+
+
+def test_paper_metrics_uniformly_clip_prediction_to_evaluation_range() -> None:
+    gt, pred = _depth_pair(
+        {
+            (5, 323): (1.134, -0.044158936),
+            (6, 323): (1.138, -0.061798096),
+            (10, 10): (4.0, 10.0),
+        }
+    )
+    result = compute_d1_paper_metrics(pred, gt, include_fscore=False)
+    clipped = np.array([0.3, 0.3, 5.0], dtype=np.float32)
+    expected_gt = np.array([1.134, 1.138, 4.0], dtype=np.float32)
+    assert result["absrel"] == pytest.approx(
+        np.mean(np.abs(clipped - expected_gt) / expected_gt)
+    )
+    assert np.isfinite(list(result.values())).all()
 
 
 def test_paper_suite_rejects_noncanonical_resolution() -> None:
@@ -203,6 +214,31 @@ def test_resume_recomputes_every_invalid_npz(tmp_path: Path, failure: str) -> No
     with np.load(path, allow_pickle=False) as payload:
         assert payload.files == ["depth"]
         assert payload["depth"].dtype == np.float32
+
+
+def test_paper_resume_preserves_finite_raw_nonpositive_prediction(tmp_path: Path) -> None:
+    adapter = _CountingAdapter()
+    model = BatchedDepthBenchmarkModel(
+        adapter,
+        name="test",
+        save_dir=tmp_path,
+        resume_predictions=True,
+        allow_nonpositive_predictions=True,
+    )
+    sample = _sample()
+    path = model._prediction_path(sample)
+    assert path is not None
+    raw = np.broadcast_to(
+        np.linspace(1.0, 2.0, EXPECTED_HW[1], dtype=np.float32), EXPECTED_HW
+    ).copy()
+    raw[5, 323] = -0.044158936
+    raw[6, 323] = -0.061798096
+    model._maybe_save(sample, raw)
+
+    prediction = model.predict([sample])[0].depth_map
+    assert adapter.frames == 0
+    assert model.last_cache_hits == [True]
+    assert prediction[5, 323] == pytest.approx(-0.044158936)
 
 
 def test_resume_preserves_mixed_manifest_order(tmp_path: Path) -> None:

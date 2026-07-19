@@ -15,7 +15,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from rpx_benchmark.cell_log import cells_from_per_sample, write_cells
-from rpx_benchmark.metrics.depth_paper import FAST_PAPER_METRIC_KEYS, PAPER_METRIC_KEYS
+from rpx_benchmark.metrics.depth_paper import (
+    FAST_PAPER_METRIC_KEYS,
+    PAPER_METRIC_KEYS,
+    PREDICTION_EVALUATION_POLICY,
+)
 
 PINNED_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 MODEL_CHECKPOINT = "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf"
@@ -213,6 +217,7 @@ def _complete_split(
             "num_cells": len(cells),
             "metrics": aggregate,
             "fscore_workers": workers,
+            "prediction_evaluation_policy": PREDICTION_EVALUATION_POLICY,
         },
     )
     metadata["metrics"] = list(PAPER_METRIC_KEYS)

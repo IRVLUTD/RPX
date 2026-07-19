@@ -99,6 +99,10 @@ class BatchedDepthBenchmarkModel:
         Declared by the adapter (``"fp32"``, ``"fp16"``, ``"bf16"``).
         Used by the runner to record the OperatingPoint precision
         tag. Falls back to ``"fp32"`` if not declared.
+    allow_nonpositive_predictions
+        Permit finite, non-degenerate raw depth maps containing zero or
+        negative values. This is opt-in for protocols that preserve raw model
+        output and apply a documented evaluation-domain transform later.
     """
 
     task = TaskType.MONOCULAR_DEPTH
@@ -112,6 +116,7 @@ class BatchedDepthBenchmarkModel:
         native_alignment: Optional[str] = None,
         native_precision: Optional[str] = None,
         resume_predictions: bool = False,
+        allow_nonpositive_predictions: bool = False,
     ) -> None:
         self._adapter = adapter
         self.name = name
@@ -121,6 +126,7 @@ class BatchedDepthBenchmarkModel:
 
             raise ConfigError("resume_predictions requires save_dir")
         self.resume_predictions = bool(resume_predictions)
+        self.allow_nonpositive_predictions = bool(allow_nonpositive_predictions)
         self.resume_stats = {
             "cache_hits": 0,
             "inferred_new": 0,
@@ -151,7 +157,11 @@ class BatchedDepthBenchmarkModel:
         for index, sample in enumerate(batch):
             path = self._prediction_path(sample)
             if self.resume_predictions and path is not None and path.exists():
-                depth = self._load_valid_prediction(path, np.asarray(sample.rgb).shape[:2])
+                depth = self._load_valid_prediction(
+                    path,
+                    np.asarray(sample.rgb).shape[:2],
+                    require_positive=not self.allow_nonpositive_predictions,
+                )
                 if depth is not None:
                     cached[index] = depth
                     self.resume_stats["cache_hits"] += 1
@@ -232,24 +242,40 @@ class BatchedDepthBenchmarkModel:
         return self._save_dir / str(scene) / str(phase) / f"{frame}.npz"
 
     @staticmethod
-    def _load_valid_prediction(path: Path, target_hw: tuple[int, int]) -> np.ndarray | None:
+    def _load_valid_prediction(
+        path: Path,
+        target_hw: tuple[int, int],
+        *,
+        require_positive: bool = True,
+    ) -> np.ndarray | None:
         try:
             with np.load(path, allow_pickle=False) as payload:
                 if payload.files != ["depth"]:
                     return None
                 depth = np.asarray(payload["depth"])
-            return BatchedDepthBenchmarkModel._validated_depth(depth, target_hw)
+            return BatchedDepthBenchmarkModel._validated_depth(
+                depth,
+                target_hw,
+                require_positive=require_positive,
+            )
         except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile):
             return None
 
     @staticmethod
-    def _validated_depth(depth: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray | None:
+    def _validated_depth(
+        depth: np.ndarray,
+        target_hw: tuple[int, int],
+        *,
+        require_positive: bool = True,
+    ) -> np.ndarray | None:
         depth = np.asarray(depth)
         if depth.ndim != 2 or depth.shape != target_hw:
             return None
         if depth.dtype != np.dtype(np.float32):
             return None
-        if not np.isfinite(depth).all() or np.any(depth <= 0):
+        if not np.isfinite(depth).all():
+            return None
+        if require_positive and np.any(depth <= 0):
             return None
         if float(np.ptp(depth)) <= 1e-6:
             return None
@@ -261,12 +287,24 @@ class BatchedDepthBenchmarkModel:
             return
         canonical = np.asarray(depth, dtype=np.float32)
         target_hw = np.asarray(sample.rgb).shape[:2]
-        if self._validated_depth(canonical, target_hw) is None:
+        if (
+            self._validated_depth(
+                canonical,
+                target_hw,
+                require_positive=not self.allow_nonpositive_predictions,
+            )
+            is None
+        ):
             from ..exceptions import AdapterError
 
             raise AdapterError(
-                "Refusing to save an invalid depth prediction: expected a finite, positive, "
-                f"non-degenerate float32 map with shape {target_hw}."
+                f"Refusing to save an invalid depth prediction for sample {sample.id!r}: "
+                f"expected a finite, non-degenerate float32 map with shape {target_hw}"
+                + (
+                    " and strictly positive values."
+                    if not self.allow_nonpositive_predictions
+                    else "."
+                )
             )
         out.parent.mkdir(parents=True, exist_ok=True)
         temp_path: Path | None = None

@@ -12,7 +12,11 @@ from pathlib import Path
 # Support direct source-tree execution as well as the installed Docker package.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from rpx_benchmark.metrics.depth_paper import D1_CALIBRATION, PAPER_METRIC_KEYS
+from rpx_benchmark.metrics.depth_paper import (
+    D1_CALIBRATION,
+    PAPER_METRIC_KEYS,
+    PREDICTION_EVALUATION_POLICY,
+)
 from rpx_benchmark.paper_depth_analysis import analyze_depth_cells, write_depth_analysis
 
 PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
@@ -50,12 +54,16 @@ def main() -> None:
             "docker_digest": os.environ.get("RPX_DOCKER_DIGEST", "unknown"),
             "metric_order": list(PAPER_METRIC_KEYS),
             "calibration": D1_CALIBRATION.to_dict(),
+            "prediction_evaluation_policy": PREDICTION_EVALUATION_POLICY,
             "formulas": {
                 "standardization": "direction-normalize, then global population z-score over 300 cells",
                 "manova": "H=SSP_reduced-SSP_full; E=SSP_full",
                 "headline_phi": "wilks_lambda^(1/min(p,df_h))",
                 "transition_phi": "one-df paired Hotelling wilks_lambda",
-                "fscore": "harmonic mean of bidirectional NN fractions with strict distance<0.05m",
+                "prediction_transform": "clip raw prediction to [0.3,5.0] metres",
+                "fscore": (
+                    "harmonic mean of bidirectional NN fractions with strict distance<0.05m"
+                ),
             },
         },
     )

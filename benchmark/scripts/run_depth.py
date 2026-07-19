@@ -351,6 +351,7 @@ def _run_via_official_pipeline(
         native_alignment=getattr(adapter, "native_alignment", "none"),
         native_precision=getattr(adapter, "native_precision", None),
         resume_predictions=resume_predictions,
+        allow_nonpositive_predictions=paper_protocol,
     )
     cfg = MonocularDepthRunConfig(
         model=benchmark_model,
@@ -445,6 +446,7 @@ def _run_via_local_manifest(
         native_alignment=getattr(adapter, "native_alignment", "none"),
         native_precision=getattr(adapter, "native_precision", None),
         resume_predictions=resume_predictions,
+        allow_nonpositive_predictions=paper_protocol,
     )
     dataset = RPXDataset.from_manifest(res.manifest_path, batch_size=batch_size)
     print(
@@ -871,6 +873,7 @@ def main() -> None:
         D1_CALIBRATION,
         FAST_PAPER_METRIC_KEYS,
         PAPER_METRIC_KEYS,
+        PREDICTION_EVALUATION_POLICY,
     )
 
     try:
@@ -908,6 +911,9 @@ def main() -> None:
             else sorted(result.aggregated)
         ),
         "calibration": D1_CALIBRATION.to_dict() if args.paper_protocol else None,
+        "prediction_evaluation_policy": (
+            PREDICTION_EVALUATION_POLICY if args.paper_protocol else None
+        ),
         "paper_protocol": args.paper_protocol,
         "fscore_status": (
             "deferred"

@@ -19,7 +19,11 @@ phase-robustness analysis. Supplementary metrics are intentionally excluded.
   This follows the [RealSense alignment example](https://github.com/realsenseai/librealsense/blob/master/wrappers/python/examples/align-depth2color.py)
   and [projection convention](https://github.com/realsenseai/librealsense/wiki/Projection-in-RealSense-SDK-2.0).
 - Valid GT: finite and strictly `0.3 < depth < 5.0` metres. Predictions must
-  be finite and positive on every evaluated pixel.
+  be finite. A raw prediction is preserved in its NPZ; a separate evaluation
+  copy is uniformly clipped to `[0.3, 5.0]` metres before every D1-F metric.
+  This policy was made explicit after DA-V2 FP16 produced two negative values
+  on paper-valid pixels in `scene026/0/00155`: `(y=5,x=323)=-0.044158936 m`
+  with GT `1.134 m`, and `(y=6,x=323)=-0.061798096 m` with GT `1.138 m`.
 - Metrics: AbsRel, RMSE, SILog, delta1, iRMSE and bidirectional point-cloud
   F-Score at a strict distance threshold of `< 0.05 m`, following the
   [Tanks and Temples definition](https://www.tanksandtemples.org/tutorial/).
