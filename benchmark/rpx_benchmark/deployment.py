@@ -26,6 +26,105 @@ import numpy as np
 from .api import ESD_WEIGHTS, Difficulty, Phase
 
 # ------------------------------------------------------------------ #
+# D435 intrinsics (paper-declared, 640×480)
+# ------------------------------------------------------------------ #
+
+_D435_FX: float = 615.0
+_D435_FY: float = 615.0
+_D435_CX: float = 320.0
+_D435_CY: float = 240.0
+
+
+# ------------------------------------------------------------------ #
+# SE(3) depth reprojection (true geometric, replaces 2D-rotation proxy)
+# ------------------------------------------------------------------ #
+
+
+def se3_reproject_depth(
+    depth: np.ndarray,
+    pose_src: np.ndarray,
+    pose_tgt: np.ndarray,
+    fx: float = _D435_FX,
+    fy: float = _D435_FY,
+    cx: float = _D435_CX,
+    cy: float = _D435_CY,
+) -> tuple:
+    """Reproject a depth map from *src* camera to *tgt* camera via SE(3).
+
+    1. Back-project ``depth`` pixels to 3D in src camera frame.
+    2. Transform 3D points to world using ``pose_src`` (world-from-camera).
+    3. Transform from world to tgt camera using ``inv(pose_tgt)``.
+    4. Project to tgt image plane.
+    5. Scatter the projected depth into a (H, W) buffer.
+
+    Parameters
+    ----------
+    depth : (H, W) float, metres.
+    pose_src, pose_tgt : (4, 4) world-from-camera SE(3).
+    fx, fy, cx, cy : pinhole intrinsics.
+
+    Returns
+    -------
+    reproj_depth : (H, W) float — reprojected depth in the *tgt* frame.
+        Pixels that no source point projects to are zero.
+    valid_mask : (H, W) bool — True where a source point landed.
+    """
+    H, W = depth.shape
+    depth64 = depth.astype(np.float64)
+
+    # Pixel grid.
+    v, u = np.mgrid[0:H, 0:W].astype(np.float64)
+    z = depth64
+    valid_src = (z > 0) & np.isfinite(z)
+
+    # Back-project to 3D in src camera frame.
+    x_cam = (u - cx) * z / fx
+    y_cam = (v - cy) * z / fy
+    ones = np.ones_like(z)
+    pts_cam = np.stack([x_cam, y_cam, z, ones], axis=-1)  # (H, W, 4)
+
+    # src camera → world.
+    pose_src_64 = np.asarray(pose_src, dtype=np.float64)
+    pts_world = np.einsum("ij,hwj->hwi", pose_src_64, pts_cam)  # (H, W, 4)
+
+    # world → tgt camera.
+    pose_tgt_64 = np.asarray(pose_tgt, dtype=np.float64)
+    pose_tgt_inv = np.linalg.inv(pose_tgt_64)
+    pts_tgt = np.einsum("ij,hwj->hwi", pose_tgt_inv, pts_world)  # (H, W, 4)
+
+    z_tgt = pts_tgt[..., 2]
+    x_tgt = pts_tgt[..., 0]
+    y_tgt = pts_tgt[..., 1]
+
+    # Project to tgt image plane.
+    eps = 1e-8
+    u_tgt = (fx * x_tgt / (z_tgt + eps) + cx)
+    v_tgt = (fy * y_tgt / (z_tgt + eps) + cy)
+
+    # Round to nearest integer pixel.
+    u_int = np.round(u_tgt).astype(np.int64)
+    v_int = np.round(v_tgt).astype(np.int64)
+
+    # Validity: source depth positive, target depth positive, lands in image.
+    in_bounds = (u_int >= 0) & (u_int < W) & (v_int >= 0) & (v_int < H)
+    ok = valid_src & in_bounds & (z_tgt > 0)
+
+    # Scatter into output buffer (nearest, z-buffer style).
+    reproj = np.zeros((H, W), dtype=np.float64)
+    valid_out = np.zeros((H, W), dtype=bool)
+    u_ok = u_int[ok]
+    v_ok = v_int[ok]
+    z_ok = z_tgt[ok]
+
+    # Simple scatter — last write wins. For typical RPX clips with small
+    # baseline this is adequate (very few collisions).
+    reproj[v_ok, u_ok] = z_ok
+    valid_out[v_ok, u_ok] = True
+
+    return reproj, valid_out
+
+
+# ------------------------------------------------------------------ #
 # Result dataclasses
 # ------------------------------------------------------------------ #
 

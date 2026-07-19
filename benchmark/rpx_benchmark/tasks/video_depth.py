@@ -21,6 +21,34 @@ from .registry import TaskSpec, register_task
 
 PRIMARY_METRIC = "absrel"
 
+# --------------------------------------------------------------------------- #
+# MANOVA K-vectors (paper §3.2)
+# --------------------------------------------------------------------------- #
+#
+# The K-vector is the set of metrics standardised across all 3N (scene, phase)
+# cells before running the repeated-measures MANOVA that yields Φ. K must stay
+# safely below N (scenes) and metrics inside must not be collinear or the
+# within-phase SSCP E becomes singular. See :func:`rpx_benchmark.phi.compute_phi_oneway`.
+#
+# Locked robotics-first set (matches the paper appendix Table 15):
+#   * Image Depth K = 5: accuracy (absrel, rmse, delta1, silog) + grasp-tolerance (fscore_5cm).
+#   * Video Depth K = 7: Image Depth K + temporal (tae, opw).
+# TGM, TGSE, TMC, δ₂, δ₃, and range-stratified variants stay registered as
+# diagnostics — they are emitted by the calculators but not fed into Φ.
+FRAME_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
+    "absrel", "rmse", "delta1", "silog", "fscore_5cm",
+)
+VIDEO_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
+    "absrel", "rmse", "delta1", "silog", "fscore_5cm", "tae", "opw",
+)
+
+# Paper-facing aliases (D1-F / D1-V naming used in tables and figures).
+D1F_MANOVA_METRICS = FRAME_DEPTH_MANOVA_METRICS
+D1V_MANOVA_METRICS = VIDEO_DEPTH_MANOVA_METRICS
+
+D1F_TASK = "monocular_depth"
+D1V_TASK = VIDEO_DEPTH_TASK = "video_depth"
+
 
 @dataclass
 class VideoDepthRunConfig(VideoTaskRunConfig):
