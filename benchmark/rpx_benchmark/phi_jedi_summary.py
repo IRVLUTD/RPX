@@ -368,7 +368,10 @@ def summarize_phi_jedi(
     else:
         z = standardise(_orient_for_phi(tensor, metric_keys, specs))
         try:
-            phi = compute_phi_oneway(z)
+            # Passing metric_keys lets phi.py's collinearity guard name the
+            # offending pair (e.g. "absrel vs rmse |r|=0.98") in warnings
+            # and error hints, instead of falling back to column indices.
+            phi = compute_phi_oneway(z, metric_names=list(metric_keys))
             summary.phi = phi
             summary.phi_interpretation = phi_interpretation(phi.phi_conservative)
         except MetricError as e:
