@@ -13,7 +13,9 @@ from rpx_benchmark.api import DepthGroundTruth, DepthPrediction, Sample
 from rpx_benchmark.exceptions import MetricError
 from rpx_benchmark.metrics.depth_paper import (
     EXPECTED_HW,
+    FAST_PAPER_METRIC_KEYS,
     PAPER_METRIC_KEYS,
+    FastPaperDepthMetricSuite,
     PaperDepthMetricSuite,
     compute_d1_paper_metrics,
 )
@@ -67,6 +69,19 @@ def test_paper_metrics_perfect_prediction() -> None:
         "irmse": 0.0,
         "fscore_5cm": 1.0,
     }
+
+
+def test_fast_paper_suite_defers_only_fscore() -> None:
+    gt = np.ones(EXPECTED_HW, dtype=np.float32)
+    pred = np.full(EXPECTED_HW, 1.1, dtype=np.float32)
+    result = FastPaperDepthMetricSuite().evaluate(
+        DepthPrediction(pred),
+        DepthGroundTruth(gt),
+    )
+    expected = compute_d1_paper_metrics(pred, gt, include_fscore=False)
+    assert tuple(result) == FAST_PAPER_METRIC_KEYS
+    assert result == expected
+    assert "fscore_5cm" not in result
 
 
 def test_paper_mask_is_strict_and_constant_offset_is_known() -> None:

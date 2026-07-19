@@ -105,6 +105,48 @@ running the exact same Docker command. Once the three cached splits have been
 successfully resolved, add `--offline` and omit `-e HF_TOKEN` to enforce
 `HF_HUB_OFFLINE=1`.
 
+### Deadline-friendly staged run
+
+The exact full-resolution point-cloud F-Score is CPU-heavy. To finish all
+predictions and obtain the other five paper metrics first, add
+`--defer-fscore` to the production command:
+
+```bash
+docker run --rm --name rpx-dav2-paper --gpus '"device=0"' \
+  --ipc=host --shm-size=8g \
+  -e HF_TOKEN \
+  -v "$HF_HOME:/cache/huggingface" \
+  -v "$RPX_OUTPUT:/outputs" \
+  "$IMAGE" python scripts/run_depth_paper.py \
+    --cache-dir /cache/huggingface \
+    --output-root /outputs/da-v2-large \
+    --defer-fscore
+```
+
+This retains the strict paper mask and formulas for AbsRel, RMSE, SILog,
+delta1 and iRMSE, reuses existing validated predictions, and writes
+`fast_phase_metrics.csv` plus `fast_phase_metrics.json` after all 75,000
+frames. It does not publish a six-metric Phi result prematurely.
+
+Complete exact F-Score later without exposing a GPU or loading DA-V2:
+
+```bash
+docker run --rm --name rpx-dav2-fscore --ipc=host --shm-size=16g \
+  -v "$HF_HOME:/cache/huggingface:ro" \
+  -v "$RPX_OUTPUT:/outputs" \
+  "$IMAGE" python scripts/evaluate_depth_paper_predictions.py \
+    --cache-dir /cache/huggingface \
+    --output-root /outputs/da-v2-large \
+    --workers 8
+```
+
+Every exact per-frame F-Score is atomically cached under
+`<split>/fscore_cache/`; restarting the same command resumes it. After all
+three splits, the command regenerates the canonical six-metric parquet files
+and runs the existing paper analysis. Increase `--workers` only after checking
+RAM and storage throughput; every worker performs an exact single-worker
+cKDTree query, so parallelism is across frames and does not alter values.
+
 Validate final counts on the host:
 
 ```bash

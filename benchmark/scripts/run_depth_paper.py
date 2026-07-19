@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from rpx_benchmark.api import TaskType
 from rpx_benchmark.hub import download_split
-from rpx_benchmark.metrics.depth_paper import PAPER_METRIC_KEYS
+from rpx_benchmark.metrics.depth_paper import FAST_PAPER_METRIC_KEYS, PAPER_METRIC_KEYS
 
 PINNED_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 EXPECTED = {
@@ -109,7 +109,12 @@ def _valid_latency_file(path: Path) -> bool:
         return False
 
 
-def _validate_split_outputs(out_dir: Path, expected_samples: int, expected_cells: int) -> None:
+def _validate_split_outputs(
+    out_dir: Path,
+    expected_samples: int,
+    expected_cells: int,
+    metric_keys: tuple[str, ...] = PAPER_METRIC_KEYS,
+) -> None:
     import pyarrow.parquet as pq
 
     per_sample = out_dir / "per_sample_metrics.parquet"
@@ -120,7 +125,7 @@ def _validate_split_outputs(out_dir: Path, expected_samples: int, expected_cells
     if cells.num_rows != expected_cells:
         raise SystemExit(f"Run contract failed for {out_dir.name}: wrong cell row count")
     metric_columns = {name for name in cells.column_names if name.startswith("metric:")}
-    expected_metrics = {f"metric:{key}" for key in PAPER_METRIC_KEYS}
+    expected_metrics = {f"metric:{key}" for key in metric_keys}
     if metric_columns != expected_metrics:
         raise SystemExit(
             f"Run contract failed for {out_dir.name}: metric columns {sorted(metric_columns)}"
@@ -131,12 +136,52 @@ def _validate_split_outputs(out_dir: Path, expected_samples: int, expected_cells
         raise SystemExit(f"Run contract failed for {out_dir.name}: duplicate cells")
 
 
+def _write_fast_phase_summary(cell_paths: list[Path], output_root: Path) -> None:
+    """Merge deferred-F-score cells and report equal-scene phase means."""
+    import csv
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    tables = [pq.read_table(path) for path in cell_paths]
+    combined = pa.concat_tables(tables, promote_options="default")
+    combined_path = output_root / "fast_combined_cells.parquet"
+    pq.write_table(combined, combined_path)
+    rows = combined.to_pylist()
+    summary: list[dict[str, object]] = []
+    for phase in ("clutter", "interaction", "clean"):
+        phase_rows = [row for row in rows if str(row.get("phase")) == phase]
+        if len(phase_rows) != 100:
+            raise SystemExit(
+                f"Fast phase summary expected 100 cells for {phase}; got {len(phase_rows)}"
+            )
+        entry: dict[str, object] = {"phase": phase, "n_scenes": len(phase_rows)}
+        for key in FAST_PAPER_METRIC_KEYS:
+            values = [float(row[f"metric:{key}"]) for row in phase_rows]
+            entry[key] = sum(values) / len(values)
+        summary.append(entry)
+    json_path = output_root / "fast_phase_metrics.json"
+    json_path.write_text(json.dumps(summary, indent=2) + "\n")
+    csv_path = output_root / "fast_phase_metrics.csv"
+    with csv_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(summary[0]))
+        writer.writeheader()
+        writer.writerows(summary)
+    print(f"Deferred F-Score. Five-metric combined cells: {combined_path}")
+    print(f"Phase-wise five-metric summary: {csv_path}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cache-dir", type=Path, default=Path("/cache/huggingface"))
     parser.add_argument("--output-root", type=Path, default=Path("/outputs/da-v2-large"))
     parser.add_argument("--jedi-bounds", type=Path)
     parser.add_argument("--offline", action="store_true")
+    parser.add_argument(
+        "--defer-fscore",
+        action="store_true",
+        help="finish predictions plus five paper metrics now; evaluate exact F-Score later",
+    )
     parser.add_argument("--min-free-gb", type=float, default=120.0)
     args = parser.parse_args()
 
@@ -191,6 +236,8 @@ def main() -> None:
             "--output-dir",
             str(out_dir),
         ]
+        if args.defer_fscore:
+            command.append("--defer-fscore")
         _run_tee(command, out_dir / "run.log", env)
         metadata = json.loads((out_dir / "run_metadata.json").read_text())
         if int(metadata.get("num_samples") or 0) != expected_samples:
@@ -209,8 +256,22 @@ def main() -> None:
                 f"Run contract failed for {split}: {prediction_count} predictions; "
                 f"expected {expected_samples}"
             )
-        _validate_split_outputs(out_dir, expected_samples, expected_cells)
+        expected_metric_keys = FAST_PAPER_METRIC_KEYS if args.defer_fscore else PAPER_METRIC_KEYS
+        _validate_split_outputs(
+            out_dir,
+            expected_samples,
+            expected_cells,
+            expected_metric_keys,
+        )
         cells.append(out_dir / "cells.parquet")
+
+    if args.defer_fscore:
+        _write_fast_phase_summary(cells, args.output_root)
+        print(
+            "Fast production stage complete. Run evaluate_depth_paper_predictions.py "
+            "later to add exact F-Score and paper analysis."
+        )
+        return
 
     latency_path = args.output_root / "latency.json"
     if _valid_latency_file(latency_path):

@@ -53,7 +53,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 # BatchedDepthBenchmarkModel lives in the toolkit so every adapter (here
 # and in any future model zoo) imports from a stable location.
 from rpx_benchmark.adapters.batched_depth import BatchedDepthBenchmarkModel  # noqa: E402
-from rpx_benchmark.metrics.depth_paper import PaperDepthMetricSuite  # noqa: E402
+from rpx_benchmark.metrics.depth_paper import (  # noqa: E402
+    FastPaperDepthMetricSuite,
+    PaperDepthMetricSuite,
+)
 
 
 def _stage_timing(
@@ -324,6 +327,7 @@ def _run_via_official_pipeline(
     cache_dir: str | None = None,
     resume_predictions: bool = False,
     paper_protocol: bool = False,
+    defer_fscore: bool = False,
 ):
     """Path A: toolkit's `run_monocular_depth`.
 
@@ -361,7 +365,11 @@ def _run_via_official_pipeline(
         require_cuda=require_cuda,
         skip_flops=skip_flops,
         cache_dir=cache_dir,
-        metric_suite=PaperDepthMetricSuite() if paper_protocol else None,
+        metric_suite=(
+            FastPaperDepthMetricSuite()
+            if paper_protocol and defer_fscore
+            else PaperDepthMetricSuite() if paper_protocol else None
+        ),
         compute_temporal_stability=not paper_protocol,
     )
     result, report, paths = run_monocular_depth(cfg)
@@ -387,6 +395,7 @@ def _run_via_local_manifest(
     skip_flops: bool,
     resume_predictions: bool = False,
     paper_protocol: bool = False,
+    defer_fscore: bool = False,
 ):
     """Path B: build a manifest locally from the cached frames Parquet, then
     call BenchmarkRunner directly. Mirrors `_pipeline.run_pipeline` minus the
@@ -480,7 +489,9 @@ def _run_via_local_manifest(
         model=model,
         dataset=dataset,
         metric_suite=(
-            PaperDepthMetricSuite()
+            FastPaperDepthMetricSuite()
+            if paper_protocol and defer_fscore
+            else PaperDepthMetricSuite()
             if paper_protocol
             else MetricSuite.for_task(TaskType.MONOCULAR_DEPTH)
         ),
@@ -626,6 +637,12 @@ def main() -> None:
         help="use the strict six-metric RPX D1-F protocol (640x480 only)",
     )
     ap.add_argument(
+        "--defer-fscore",
+        action="store_true",
+        help="with --paper-protocol, compute the five exact image-space metrics now and "
+        "defer F-Score@5cm to evaluate_depth_paper_predictions.py",
+    )
+    ap.add_argument(
         "--comprehensive-metrics",
         action="store_true",
         help="after the run, compute the full comprehensive metric basket "
@@ -659,6 +676,8 @@ def main() -> None:
     args = ap.parse_args()
     if args.resume_predictions and not args.save_predictions and not args.comprehensive_metrics:
         ap.error("--resume-predictions requires --save-predictions")
+    if args.defer_fscore and not args.paper_protocol:
+        ap.error("--defer-fscore requires --paper-protocol")
     if args.max_samples is not None and args.max_samples < 1:
         ap.error("--max-samples must be >= 1")
 
@@ -690,6 +709,7 @@ def main() -> None:
             "save-predictions":   args.save_predictions,
             "resume-predictions": args.resume_predictions,
             "paper-protocol":     args.paper_protocol,
+            "defer-fscore":       args.defer_fscore,
             "comprehensive":      args.comprehensive_metrics,
             "use-official":       args.use_official,
             "upload-to-box":      args.upload_to_box,
@@ -742,6 +762,7 @@ def main() -> None:
             cache_dir=args.cache_dir,
             resume_predictions=args.resume_predictions,
             paper_protocol=args.paper_protocol,
+            defer_fscore=args.defer_fscore,
         )
     else:
         result, dr_report, paths = _run_via_local_manifest(
@@ -759,6 +780,7 @@ def main() -> None:
             skip_flops=args.skip_flops,
             resume_predictions=args.resume_predictions,
             paper_protocol=args.paper_protocol,
+            defer_fscore=args.defer_fscore,
         )
 
     if args.comprehensive_metrics:
@@ -845,7 +867,11 @@ def main() -> None:
     from datetime import datetime as _metadata_datetime
     from datetime import timezone as _metadata_timezone
 
-    from rpx_benchmark.metrics.depth_paper import D1_CALIBRATION, PAPER_METRIC_KEYS
+    from rpx_benchmark.metrics.depth_paper import (
+        D1_CALIBRATION,
+        FAST_PAPER_METRIC_KEYS,
+        PAPER_METRIC_KEYS,
+    )
 
     try:
         _git_sha = _metadata_subprocess.check_output(
@@ -877,10 +903,17 @@ def main() -> None:
         "parameter_dtypes": getattr(adapter, "parameter_dtypes", None),
         "batch_size": args.batch_size,
         "metrics": (
-            list(PAPER_METRIC_KEYS) if args.paper_protocol else sorted(result.aggregated)
+            list(FAST_PAPER_METRIC_KEYS if args.defer_fscore else PAPER_METRIC_KEYS)
+            if args.paper_protocol
+            else sorted(result.aggregated)
         ),
         "calibration": D1_CALIBRATION.to_dict() if args.paper_protocol else None,
         "paper_protocol": args.paper_protocol,
+        "fscore_status": (
+            "deferred"
+            if args.defer_fscore
+            else "complete" if args.paper_protocol else "not_applicable"
+        ),
         "prediction_resume": paths.get("prediction_stats", {}),
         "git_sha": _git_sha,
         "docker_digest": _metadata_os.environ.get("RPX_DOCKER_DIGEST", "unknown"),

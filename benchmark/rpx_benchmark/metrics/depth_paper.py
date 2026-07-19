@@ -61,6 +61,7 @@ PAPER_METRIC_KEYS = (
     "irmse",
     "fscore_5cm",
 )
+FAST_PAPER_METRIC_KEYS = PAPER_METRIC_KEYS[:-1]
 
 
 def valid_depth_mask(gt_m: np.ndarray) -> np.ndarray:
@@ -117,8 +118,20 @@ def point_cloud_fscore_5cm(
     return 0.0 if denom == 0.0 else float(2.0 * precision * recall / denom)
 
 
-def compute_d1_paper_metrics(prediction: np.ndarray, ground_truth: np.ndarray) -> dict[str, float]:
-    """Compute the six D1-F headline metrics for one 640x480 frame."""
+def compute_d1_paper_metrics(
+    prediction: np.ndarray,
+    ground_truth: np.ndarray,
+    *,
+    include_fscore: bool = True,
+) -> dict[str, float]:
+    """Compute the D1-F headline metrics for one 640x480 frame.
+
+    ``include_fscore=False`` retains the exact paper mask and formulas for
+    the five image-space metrics while deferring the expensive point-cloud
+    calculation.  This is used by the staged production workflow; the saved
+    predictions can be evaluated for F-Score later without another model
+    forward.
+    """
     pred = np.asarray(prediction, dtype=np.float32)
     gt = np.asarray(ground_truth, dtype=np.float32)
     if pred.shape != gt.shape:
@@ -154,8 +167,9 @@ def compute_d1_paper_metrics(prediction: np.ndarray, ground_truth: np.ndarray) -
         "silog": float(100.0 * np.sqrt(silog_variance)),
         "delta1": float(np.mean(ratio < 1.25)),
         "irmse": float(np.sqrt(np.mean((1.0 / pred_valid - 1.0 / gt_valid) ** 2))),
-        "fscore_5cm": point_cloud_fscore_5cm(pred, gt, valid),
     }
+    if include_fscore:
+        metrics["fscore_5cm"] = point_cloud_fscore_5cm(pred, gt, valid)
     if not all(np.isfinite(value) for value in metrics.values()):
         raise MetricError("D1-F paper metric computation produced a non-finite value.")
     return metrics
@@ -178,3 +192,24 @@ class PaperDepthMetricSuite(MetricSuite):
                 f"got {type(ground_truth).__name__}."
             )
         return compute_d1_paper_metrics(prediction.depth_map, ground_truth.depth_map)
+
+
+class FastPaperDepthMetricSuite(PaperDepthMetricSuite):
+    """Strict D1-F suite with only F-Score deferred to post-processing."""
+
+    def evaluate(self, prediction: object, ground_truth: object) -> dict[str, float]:
+        if not isinstance(prediction, DepthPrediction):
+            raise MetricError(
+                f"FastPaperDepthMetricSuite expected DepthPrediction, got "
+                f"{type(prediction).__name__}."
+            )
+        if not isinstance(ground_truth, DepthGroundTruth):
+            raise MetricError(
+                "FastPaperDepthMetricSuite expected DepthGroundTruth, "
+                f"got {type(ground_truth).__name__}."
+            )
+        return compute_d1_paper_metrics(
+            prediction.depth_map,
+            ground_truth.depth_map,
+            include_fscore=False,
+        )
