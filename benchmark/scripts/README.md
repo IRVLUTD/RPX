@@ -10,6 +10,7 @@
 |---|---|
 | 👀 *I want to see what a scene looks like* | [`visualize_rerun.py`](visualize_rerun.py) (`make visualize`) |
 | 🎯 *I want to benchmark a depth model on RPX* | [`run_depth.py`](run_depth.py) — covered in detail in [`../README.md`](../README.md#canonical-sweep) |
+| 🎬 *I want to benchmark a video-depth model on RPX* | [`run_video_depth.py`](run_video_depth.py); full walkthrough in the [video-depth runbook](../docs/video_depth_runbook.md). Supports `--budget-sweep 50,100,150,250` for the frame-budget ablation. |
 | 🔥 *I want to smoke-test canonical image/video depth models on CUDA* | [`setup_depth_smoke_env.py`](setup_depth_smoke_env.py) + [`run_depth_smoke_gate.py`](run_depth_smoke_gate.py) + resumable [`run_depth_smoke_matrix.py`](run_depth_smoke_matrix.py); follow the [depth smoke runbook](../docs/depth_smoke_runbook.md) |
 | 📐 *I want to benchmark a relative-pose model* | [`run_relative_pose.py`](run_relative_pose.py) |
 | 📊 *I want to aggregate my sweep into the paper table* | Read each `rpx_results/<model>/<split>/result.json`'s three top-level axes (`aggregated`, `robustness`, `compute_cost`) directly. *(The legacy single-score `run_drs_sweep.py` aggregator was removed alongside the DRS composite — see `SHARED_CONTEXT.md`.)* |
