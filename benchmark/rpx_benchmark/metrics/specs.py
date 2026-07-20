@@ -256,6 +256,19 @@ DEPTH_SPECS = (
                description="delta1 at mid range (1.0-2.5m)"),
     MetricSpec("delta1_far",  "higher", best=1.0, worst=0.0, theoretical=True,
                description="delta1 at far range (2.5-5.0m)"),
+    # C.3 Range-stratified temporal (per depth bin, pose-free / flow-free)
+    MetricSpec("tgm_near", "lower", best=0.0, worst=0.1, theoretical=False,
+               description="TGM at near range (0.3-1.0m, tabletop manipulation)"),
+    MetricSpec("tgm_mid",  "lower", best=0.0, worst=0.1, theoretical=False,
+               description="TGM at mid range (1.0-2.5m, arm's reach)"),
+    MetricSpec("tgm_far",  "lower", best=0.0, worst=0.1, theoretical=False,
+               description="TGM at far range (2.5-5.0m, room-scale)"),
+    MetricSpec("tgse_near", "lower", best=0.0, worst=0.1, theoretical=False,
+               description="TGSE at near range (0.3-1.0m, tabletop manipulation)"),
+    MetricSpec("tgse_mid",  "lower", best=0.0, worst=0.1, theoretical=False,
+               description="TGSE at mid range (1.0-2.5m, arm's reach)"),
+    MetricSpec("tgse_far",  "lower", best=0.0, worst=0.1, theoretical=False,
+               description="TGSE at far range (2.5-5.0m, room-scale)"),
 )
 
 # Detection / Grounding (D2) — K=4

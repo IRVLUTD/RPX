@@ -57,6 +57,7 @@ __all__ = [
     "temporal_consistency_coefficient",
     "compute_temporal_depth_metrics",
     "range_stratified_tae",
+    "range_stratified_tgm_tgse",
     "range_stratified_per_frame_metrics",
     "TEMPORAL_GRADIENT_STATIC_THRESH_M",
     "DEPTH_RANGE_BINS",
@@ -579,6 +580,72 @@ def range_stratified_tae(
     }
 
 
+def range_stratified_tgm_tgse(
+    pred_seq: np.ndarray,
+    gt_seq: np.ndarray,
+    *,
+    static_thresh_m: float = TEMPORAL_GRADIENT_STATIC_THRESH_M,
+) -> Dict[str, float]:
+    """TGM and TGSE stratified by GT depth range, clip-averaged.
+
+    For each consecutive frame pair and each range bin, computes:
+      * TGM = mean L1(|Δd_pred| − |Δd_gt|) over static-region pixels
+        (|Δd_gt| < ``static_thresh_m``) whose GT depth at frame ``t``
+        falls in the bin;
+      * TGSE = mean squared error of signed depth-change (Δd_pred − Δd_gt)
+        over all valid pixels whose GT depth at frame ``t`` falls in the
+        bin (no static mask; TGSE is defined for all changes, not just
+        static regions).
+
+    Returns ``{tgm_near, tgm_mid, tgm_far, tgse_near, tgse_mid, tgse_far}``.
+    Bins with fewer than ``_MIN_BIN_PIXELS`` in any pair are ``nan``.
+    """
+    pred_seq = _as_seq("pred_seq", pred_seq, 3)
+    gt_seq = _as_seq("gt_seq", gt_seq, 3)
+    if pred_seq.shape != gt_seq.shape:
+        raise MetricError(
+            f"pred_seq {pred_seq.shape} and gt_seq {gt_seq.shape} must match.",
+        )
+
+    tgm_bins: Dict[str, list] = {f"tgm_{b}": [] for b in DEPTH_RANGE_BINS}
+    tgse_bins: Dict[str, list] = {f"tgse_{b}": [] for b in DEPTH_RANGE_BINS}
+
+    for t in range(pred_seq.shape[0] - 1):
+        v0 = default_valid_mask(pred_seq[t], gt_seq[t])
+        v1 = default_valid_mask(pred_seq[t + 1], gt_seq[t + 1])
+        valid = v0 & v1
+        if not valid.any():
+            continue
+
+        g0 = gt_seq[t]
+        d_gt_abs = np.abs(gt_seq[t + 1] - gt_seq[t])
+        d_pred_abs = np.abs(pred_seq[t + 1] - pred_seq[t])
+        delta_gt = gt_seq[t + 1] - gt_seq[t]
+        delta_pred = pred_seq[t + 1] - pred_seq[t]
+        static_mask = valid & (d_gt_abs < static_thresh_m)
+
+        for bin_name, (lo, hi) in DEPTH_RANGE_BINS.items():
+            bin_source = (g0 >= lo) & (g0 < hi)
+
+            tgm_pix = static_mask & bin_source
+            if tgm_pix.sum() >= _MIN_BIN_PIXELS:
+                tgm_bins[f"tgm_{bin_name}"].append(
+                    float(np.mean(np.abs(d_pred_abs[tgm_pix] - d_gt_abs[tgm_pix])))
+                )
+
+            tgse_pix = valid & bin_source
+            if tgse_pix.sum() >= _MIN_BIN_PIXELS:
+                tgse_bins[f"tgse_{bin_name}"].append(
+                    float(np.mean((delta_pred[tgse_pix] - delta_gt[tgse_pix]) ** 2))
+                )
+
+    out: Dict[str, float] = {}
+    for d in (tgm_bins, tgse_bins):
+        for k, v in d.items():
+            out[k] = float(np.mean(v)) if v else float("nan")
+    return out
+
+
 def range_stratified_per_frame_metrics(
     pred_seq: np.ndarray,
     gt_seq: np.ndarray,
@@ -669,7 +736,7 @@ def compute_temporal_depth_metrics(
     # Range-stratified keys initialized to nan.
     for b in DEPTH_RANGE_BINS:
         out[f"tae_{b}"] = float("nan")
-    for m in ("absrel", "rmse", "delta1"):
+    for m in ("absrel", "rmse", "delta1", "tgm", "tgse"):
         for b in DEPTH_RANGE_BINS:
             out[f"{m}_{b}"] = float("nan")
 
@@ -693,6 +760,8 @@ def compute_temporal_depth_metrics(
         out["tmc"] = temporal_motion_consistency(pred_seq, gt_seq)
         strat_pf = range_stratified_per_frame_metrics(pred_seq, gt_seq)
         out.update(strat_pf)
+        strat_tg = range_stratified_tgm_tgse(pred_seq, gt_seq)
+        out.update(strat_tg)
     else:
         log.debug("temporal: gt_seq absent — tgm/tcc/tgse/tmc/stratified skipped (nan)")
 

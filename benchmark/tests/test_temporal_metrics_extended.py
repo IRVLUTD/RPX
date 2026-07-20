@@ -14,6 +14,7 @@ from rpx_benchmark.metrics.depth_temporal import (
     compute_temporal_depth_metrics,
     range_stratified_per_frame_metrics,
     range_stratified_tae,
+    range_stratified_tgm_tgse,
     temporal_gradient_squared_error,
     temporal_motion_consistency,
 )
@@ -154,6 +155,67 @@ class TestRangeStratifiedTAE:
         for k, v in result.items():
             if np.isfinite(v):
                 assert v == pytest.approx(0.0, abs=0.01)
+
+
+# --------------------------------------------------------------------------- #
+# Range-stratified TGM and TGSE (pose-free / flow-free)
+# --------------------------------------------------------------------------- #
+
+
+class TestRangeStratifiedTGMTGSE:
+    def test_perfect_match_zero_across_bins(self):
+        """Identical pred and GT → tgm and tgse are 0 in every populated bin."""
+        T, H, W = 4, 40, 40
+        # Static clip at 1.5m (mid bin), all identical → both metrics 0.
+        d = _constant_clip(T, H, W, 1.5)
+        result = range_stratified_tgm_tgse(d, d)
+        assert result["tgm_mid"] == pytest.approx(0.0, abs=1e-6)
+        assert result["tgse_mid"] == pytest.approx(0.0, abs=1e-6)
+        # Empty bins are nan.
+        assert np.isnan(result["tgm_near"])
+        assert np.isnan(result["tgse_far"])
+
+    def test_bin_selection_by_source_depth(self):
+        """Pred error only at far range → only *_far bins show finite non-zero."""
+        T, H, W = 3, 200, 1
+        gt = np.zeros((T, H, W), dtype=np.float32)
+        pred = np.zeros((T, H, W), dtype=np.float32)
+        # Near pixels: constant at 0.5m, pred matches exactly.
+        gt[:, :100, :] = 0.5
+        pred[:, :100, :] = 0.5
+        # Far pixels: constant GT at 3.0m; pred flickers between 3.0 and 3.2.
+        gt[:, 100:, :] = 3.0
+        pred[0, 100:, :] = 3.0
+        pred[1, 100:, :] = 3.2
+        pred[2, 100:, :] = 3.0
+
+        result = range_stratified_tgm_tgse(pred, gt)
+        # Near bin: no change in either → tgm_near and tgse_near = 0.
+        assert result["tgm_near"] == pytest.approx(0.0, abs=1e-6)
+        assert result["tgse_near"] == pytest.approx(0.0, abs=1e-6)
+        # Far bin: predicted flicker at bin-source, GT static → tgm_far > 0, tgse_far > 0.
+        assert np.isfinite(result["tgm_far"]) and result["tgm_far"] > 0.0
+        assert np.isfinite(result["tgse_far"]) and result["tgse_far"] > 0.0
+        # Mid bin empty (no pixels there) → nan.
+        assert np.isnan(result["tgm_mid"])
+        assert np.isnan(result["tgse_mid"])
+
+    def test_all_six_keys_present(self):
+        T, H, W = 3, 20, 20
+        rng = np.random.default_rng(0)
+        pred = rng.uniform(0.5, 3.0, (T, H, W)).astype(np.float32)
+        gt = rng.uniform(0.5, 3.0, (T, H, W)).astype(np.float32)
+        result = range_stratified_tgm_tgse(pred, gt)
+        assert set(result) == {
+            "tgm_near", "tgm_mid", "tgm_far",
+            "tgse_near", "tgse_mid", "tgse_far",
+        }
+
+    def test_shape_mismatch_raises(self):
+        pred = np.zeros((3, 10, 10), dtype=np.float32)
+        gt = np.zeros((3, 8, 8), dtype=np.float32)
+        with pytest.raises(Exception, match="must match"):
+            range_stratified_tgm_tgse(pred, gt)
 
 
 # --------------------------------------------------------------------------- #
