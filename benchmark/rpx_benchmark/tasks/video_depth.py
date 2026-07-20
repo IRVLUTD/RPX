@@ -32,24 +32,21 @@ PRIMARY_METRIC = "absrel"
 #
 # Locked robotics-first set (matches the paper appendix Table 15):
 #   * Image Depth K = 5: accuracy (absrel, rmse, delta1, silog) + grasp-tolerance (fscore_5cm).
-#   * Video Depth K = 7: Image Depth K + temporal (opw, tgm).
+#   * Video Depth K = 7: Image Depth K + temporal (tae, opw).
 #
-# RPX ships as RGB-D only (no per-frame camera poses), so TAE — which
-# requires SE(3) reprojection between adjacent frames — cannot be computed
-# on this data. OPW (RGB optical-flow warp, RAFT-backed) and TGM
-# (GT-referenced depth-gradient agreement, pose-free) both work on
-# RGB-D and cover two orthogonal temporal categories: appearance-based
-# self-consistency and GT-referenced difference agreement.
+# Model *inputs* for depth estimation tasks are restricted to RGB-D
+# (models don't consume RPX's other modalities — poses, fisheye stereo,
+# etc. — as input). Evaluation-time GT can still use any RPX modality:
+# TAE uses GT camera poses to SE(3)-reproject adjacent frames and score
+# temporal consistency; that's a metric-side use of GT, not a model input.
 #
-# TGSE, TMC, TAE, TCC, δ₂, δ₃, and range-stratified variants stay
-# registered as diagnostics — they are emitted by the calculators where
-# feasible but not fed into Φ. TAE/tae_near/tae_mid/tae_far will emit
-# nan on RPX because poses are absent.
+# TGM, TGSE, TMC, δ₂, δ₃, and range-stratified variants stay registered
+# as diagnostics — they are emitted by the calculators but not fed into Φ.
 FRAME_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
     "absrel", "rmse", "delta1", "silog", "fscore_5cm",
 )
 VIDEO_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
-    "absrel", "rmse", "delta1", "silog", "fscore_5cm", "opw", "tgm",
+    "absrel", "rmse", "delta1", "silog", "fscore_5cm", "tae", "opw",
 )
 
 # Paper-facing aliases (D1-F / D1-V naming used in tables and figures).

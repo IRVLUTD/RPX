@@ -221,7 +221,7 @@ DEPTH_SPECS = (
     MetricSpec("opw",  "lower",  best=0.0, worst=0.1, theoretical=False,
                description="Optical-flow warping consistency, RAFT flow (provisional v0)"),
     MetricSpec("tae",  "lower",  best=0.0, worst=0.1, theoretical=False,
-               description="Temporal alignment error via SE(3) reprojection — REQUIRES per-frame camera poses; emits nan on RPX (RGB-D only). Diagnostic, not in K-vector (provisional v0)"),
+               description="Temporal alignment error via true SE(3) reprojection (provisional v0)"),
     MetricSpec("tgm",  "lower",  best=0.0, worst=0.1, theoretical=False,
                description="Temporal gradient matching vs GT depth (provisional v0)"),
     MetricSpec("tcc",  "higher", best=1.0, worst=0.0, theoretical=True,
@@ -232,11 +232,11 @@ DEPTH_SPECS = (
                description="Temporal motion consistency (SSIM on depth-flow maps; Zhang ICCV 2019)"),
     # C.1 Range-stratified temporal (per depth bin)
     MetricSpec("tae_near", "lower", best=0.0, worst=0.1, theoretical=False,
-               description="TAE at near range (0.3-1.0m). REQUIRES poses; nan on RPX RGB-D"),
+               description="TAE at near range (0.3-1.0m, tabletop manipulation)"),
     MetricSpec("tae_mid",  "lower", best=0.0, worst=0.1, theoretical=False,
-               description="TAE at mid range (1.0-2.5m). REQUIRES poses; nan on RPX RGB-D"),
+               description="TAE at mid range (1.0-2.5m, arm's reach)"),
     MetricSpec("tae_far",  "lower", best=0.0, worst=0.1, theoretical=False,
-               description="TAE at far range (2.5-5.0m). REQUIRES poses; nan on RPX RGB-D"),
+               description="TAE at far range (2.5-5.0m, room-scale)"),
     # C.2 Range-stratified spatial accuracy (per depth bin, clip-averaged)
     MetricSpec("absrel_near", "lower",  best=0.0, worst=1.0, theoretical=False,
                description="AbsRel at near range (0.3-1.0m)"),
