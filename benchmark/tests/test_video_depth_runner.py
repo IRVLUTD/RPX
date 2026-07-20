@@ -224,6 +224,46 @@ def test_video_pipeline_frame_budget(fake_dataset_root, tmp_path):
     assert (cells_df["frame_budget"] == 2).all()
 
 
+def test_video_pipeline_budget_sweep_writes_per_budget_cells(
+    fake_dataset_root, tmp_path,
+):
+    """Sweep pattern: same model instance, different frame_budgets per run,
+    each into its own subdir. Mirrors the --budget-sweep CLI wiring in
+    scripts/run_video_depth.py — model is loaded once and reused across
+    budgets, and each budget's cells.parquet lives in its own directory
+    so downstream degradation analysis can read them independently.
+    """
+    import pyarrow.parquet as pq
+
+    model = _FakeVideoDepthModel(output_kind="metric")
+    base = tmp_path / "sweep"
+    budgets = (2, 3)  # 4-frame fake clip → 2 and 3 frames after stride
+
+    for budget in budgets:
+        cfg = VideoTaskRunConfig(
+            model=model,
+            split="easy",
+            device="cpu",
+            output_dir=str(base / f"budget_{budget}"),
+            frame_budget=budget,
+            sampling="stride",
+        )
+        _result, _dr, paths = run_video_pipeline(
+            task=TaskType.VIDEO_DEPTH,
+            primary_metric="absrel",
+            cfg=cfg,
+        )
+        cells_df = pq.read_table(paths["cells"]).to_pandas()
+        assert (cells_df["frame_budget"] == budget).all(), (
+            f"budget={budget} sweep wrote wrong frame_budget column: "
+            f"{cells_df['frame_budget'].unique()}"
+        )
+
+    # Both budgets ended up in independent subdirs.
+    assert (base / "budget_2" / "cells.parquet").exists()
+    assert (base / "budget_3" / "cells.parquet").exists()
+
+
 def test_video_pipeline_max_samples_means_clips(fake_dataset_root, tmp_path):
     cfg = VideoTaskRunConfig(
         model=_FakeVideoDepthModel(output_kind="metric"),
