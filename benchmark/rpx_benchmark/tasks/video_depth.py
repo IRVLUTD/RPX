@@ -30,23 +30,32 @@ PRIMARY_METRIC = "absrel"
 # safely below N (scenes) and metrics inside must not be collinear or the
 # within-phase SSCP E becomes singular. See :func:`rpx_benchmark.phi.compute_phi_oneway`.
 #
-# Locked robotics-first set (matches the paper appendix Table 15):
-#   * Image Depth K = 5: accuracy (absrel, rmse, delta1, silog) + grasp-tolerance (fscore_5cm).
-#   * Video Depth K = 7: Image Depth K + temporal (tae, opw).
+# Locked K-vectors — RGB-D-only constraint (see SESSION_HANDOFF.md):
 #
-# Model *inputs* for depth estimation tasks are restricted to RGB-D
-# (models don't consume RPX's other modalities — poses, fisheye stereo,
-# etc. — as input). Evaluation-time GT can still use any RPX modality:
-# TAE uses GT camera poses to SE(3)-reproject adjacent frames and score
-# temporal consistency; that's a metric-side use of GT, not a model input.
+# Depth-estimation tasks in RPX use RGB-D only. Even though the dataset
+# captures T265 poses, fisheye stereo, and other modalities, the depth
+# tasks intentionally exclude them — both from model input and from
+# metric inputs. This rules out any metric that needs poses (TAE, ATE)
+# or external models (OPW/RAFT flow, MFC/Sintel flow).
 #
-# TGM, TGSE, TMC, δ₂, δ₃, and range-stratified variants stay registered
-# as diagnostics — they are emitted by the calculators but not fed into Φ.
+#   * Image Depth K = 5: (absrel, rmse, delta1, silog, fscore_5cm).
+#       Grasp F@5cm needs only GT depth + D435 intrinsics, so it stays.
+#
+#   * Video Depth K = 6: (absrel, rmse, delta1, silog, tgm, tgse).
+#       Two temporal metrics — TGM (L1 of |Δd_pred|−|Δd_gt| in static
+#       regions) and TGSE (L2 signed variant) — both pose-free and
+#       flow-free, needing only pred + GT depth. fscore_5cm drops from
+#       the video K-vector into diagnostics because the temporal-slot
+#       tradeoff prioritises the differentiating axis for video models.
+#
+# TAE, OPW, fscore_5cm (for D1-V), TCC, TMC, δ₂/δ₃, and range-stratified
+# variants remain registered as diagnostics — the calculators still emit
+# them where possible, they just don't enter Φ.
 FRAME_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
     "absrel", "rmse", "delta1", "silog", "fscore_5cm",
 )
 VIDEO_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
-    "absrel", "rmse", "delta1", "silog", "fscore_5cm", "tae", "opw",
+    "absrel", "rmse", "delta1", "silog", "tgm", "tgse",
 )
 
 # Paper-facing aliases (D1-F / D1-V naming used in tables and figures).

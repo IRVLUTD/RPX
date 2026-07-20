@@ -219,9 +219,9 @@ DEPTH_SPECS = (
                description="Scale-invariant occluding-contour F1 from depth ratios — relative-only on holey GT"),
     # C. Temporal (Video Depth only; per phase clip)
     MetricSpec("opw",  "lower",  best=0.0, worst=0.1, theoretical=False,
-               description="Optical-flow warping consistency, RAFT flow (provisional v0)"),
+               description="Optical-flow warping consistency, RAFT flow. Not in RPX K-vector (external flow model dependency; RGB-D-only policy). Diagnostic only (provisional v0)"),
     MetricSpec("tae",  "lower",  best=0.0, worst=0.1, theoretical=False,
-               description="Temporal alignment error via true SE(3) reprojection (provisional v0)"),
+               description="Temporal alignment error via SE(3) reprojection. Not in RPX K-vector (needs T265 poses; RGB-D-only policy). Diagnostic only (provisional v0)"),
     MetricSpec("tgm",  "lower",  best=0.0, worst=0.1, theoretical=False,
                description="Temporal gradient matching vs GT depth (provisional v0)"),
     MetricSpec("tcc",  "higher", best=1.0, worst=0.0, theoretical=True,

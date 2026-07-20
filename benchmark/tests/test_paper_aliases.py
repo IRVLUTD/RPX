@@ -24,16 +24,18 @@ def test_video_depth_aliases_are_identity():
 
 
 def test_metric_tuple_K_values():
-    # Locked robotics-first set (paper appendix Table 15):
+    # Locked K-vectors per SESSION_HANDOFF.md (RGB-D-only constraint):
     #   Image Depth K=5 = (absrel, rmse, delta1, silog, fscore_5cm).
-    #   Video Depth K=7 = Image Depth K + (tae, opw).
-    # TGM/TGSE/TMC and range-stratified variants stay registered as diagnostics.
-    # Model inputs are RGB-D; TAE uses GT poses only at evaluation time.
+    #   Video Depth K=6 = (absrel, rmse, delta1, silog, tgm, tgse).
+    # TAE and OPW dropped (need poses / external RAFT). fscore_5cm stays
+    # in D1-F but not in D1-V (temporal slots take priority for video).
     assert vd.FRAME_DEPTH_MANOVA_METRICS == (
         "absrel", "rmse", "delta1", "silog", "fscore_5cm",
     )
     assert vd.VIDEO_DEPTH_MANOVA_METRICS == (
-        "absrel", "rmse", "delta1", "silog", "fscore_5cm", "tae", "opw",
+        "absrel", "rmse", "delta1", "silog", "tgm", "tgse",
     )
-    # Video Depth K-vector extends Image Depth's with exactly two temporal keys.
-    assert set(vd.VIDEO_DEPTH_MANOVA_METRICS) - set(vd.FRAME_DEPTH_MANOVA_METRICS) == {"tae", "opw"}
+    # D1-V K-vector is NOT a superset of D1-F: video replaces fscore_5cm
+    # with two pose-free temporal metrics (tgm, tgse).
+    assert set(vd.VIDEO_DEPTH_MANOVA_METRICS) - set(vd.FRAME_DEPTH_MANOVA_METRICS) == {"tgm", "tgse"}
+    assert set(vd.FRAME_DEPTH_MANOVA_METRICS) - set(vd.VIDEO_DEPTH_MANOVA_METRICS) == {"fscore_5cm"}
