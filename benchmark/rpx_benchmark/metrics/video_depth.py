@@ -282,7 +282,8 @@ class VideoDepthTemporalMetrics(MetricCalculator):
                 "PR to populate these.",
             )
             return {"tae": float("nan"), "opw": float("nan"),
-                    "tgm": float("nan"), "tcc": float("nan")}
+                    "tgm": float("nan"), "tgse": float("nan"),
+                    "tcc": float("nan"), "tmc": float("nan")}
 
         _validate_shapes(prediction, ground_truth)
         pred_seq = prediction.depth_map_seq.astype(np.float32)
