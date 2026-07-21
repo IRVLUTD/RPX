@@ -2,6 +2,10 @@
 # 262d4c9d4c37752c984304f57ca7d7066f34ad5d. Torch/torchvision and
 # flash-attn are installed separately in the Dockerfile from CUDA wheels.
 einops==0.8.1
+# FE2E imports LigerRMSNormFunction directly from modules/layers.py. 0.7.0
+# was the current stable release when the official FE2E inference/checkpoint
+# release was published in March 2026.
+liger-kernel==0.7.0
 transformers==4.49.0
 qwen_vl_utils==0.0.10
 safetensors==0.4.5

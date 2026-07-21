@@ -141,6 +141,7 @@ def test_fe2e_docker_overlay_pins_official_runtime():
     assert "torchvision==0.21.0" in dockerfile
     assert "flash_attn-2.7.2.post1" in dockerfile
     assert "transformers==4.49.0" in requirements
+    assert "liger-kernel==0.7.0" in requirements
     assert "numpy==1.25.0" in requirements
     assert FE2EAdapter.DIT_SHA256.startswith("f378db31")
     assert FE2EAdapter.VAE_SHA256.startswith("afc8e282")
