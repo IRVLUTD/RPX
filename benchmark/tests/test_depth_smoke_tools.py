@@ -19,6 +19,7 @@ import run_depth_smoke_gate as gate
 import run_depth_smoke_matrix as matrix
 import setup_depth_smoke_env as setup_env
 from depth_models.hyden import HyDen
+from depth_models.moge import MoGe
 from video_depth_models.chrono_depth import ChronoDepthAdapter
 from video_depth_models.depth_crafter import DepthCrafterAdapter
 from video_depth_models.monst3r import MonST3RAdapter
@@ -418,6 +419,28 @@ def test_hyden_metric_uses_point_z_and_metric_scale() -> None:
     depth = adapter(sample.rgb_seq[0])
     assert depth.shape == sample.rgb_seq.shape[1:3]
     assert np.allclose(depth, 6.0)
+
+
+def test_moge_requests_dense_unmasked_depth() -> None:
+    torch = pytest.importorskip("torch")
+    rgb = _sample(t=1).rgb_seq[0]
+
+    class Model:
+        def infer(self, images, *, apply_mask):
+            assert images.shape == (1, 3, 16, 24)
+            assert apply_mask is False
+            return {"depth": torch.ones((1, 16, 24), dtype=torch.float32)}
+
+    adapter = MoGe.__new__(MoGe)
+    adapter._torch = torch
+    adapter._model = Model()
+    adapter.device = "cpu"
+
+    depth = adapter(rgb)
+
+    assert depth.shape == rgb.shape[:2]
+    assert depth.dtype == np.float32
+    assert np.isfinite(depth).all()
 
 
 def test_vggt_uses_release_preprocessor_and_depth_key(monkeypatch) -> None:
