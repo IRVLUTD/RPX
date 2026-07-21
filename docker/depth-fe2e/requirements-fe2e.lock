@@ -9,7 +9,10 @@ liger-kernel==0.7.0
 transformers==4.49.0
 qwen_vl_utils==0.0.10
 safetensors==0.4.5
-diffusers==0.32.2
+diffusers[torch]==0.32.2
+# Required by the official diffusers[torch] extra. Pin the stable release
+# available with FE2E's March 2026 inference release.
+accelerate==1.13.0
 pillow==11.1.0
 numpy==1.25.0
 opencv-python==4.8.1.78
