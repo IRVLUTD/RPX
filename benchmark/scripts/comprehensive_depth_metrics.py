@@ -552,7 +552,9 @@ def _cli():
     ap.add_argument("--predictions-dir", type=Path, required=True)
     ap.add_argument("--manifest", type=Path, required=True)
     ap.add_argument(
-        "--alignment", default="none", choices=["none", "median", "ls_affine", "ls_disparity"]
+        "--alignment",
+        default="none",
+        choices=["none", "median", "ls_affine", "ls_disparity", "ls_log"],
     )
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()

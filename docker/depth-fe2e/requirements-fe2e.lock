@@ -1,0 +1,23 @@
+# Official AMAP-ML/FE2E inference requirements at upstream revision
+# 262d4c9d4c37752c984304f57ca7d7066f34ad5d. Torch/torchvision and
+# flash-attn are installed separately in the Dockerfile from CUDA wheels.
+einops==0.8.1
+transformers==4.49.0
+qwen_vl_utils==0.0.10
+safetensors==0.4.5
+diffusers==0.32.2
+pillow==11.1.0
+numpy==1.25.0
+opencv-python==4.8.1.78
+omegaconf==2.3.0
+matplotlib==3.10.1
+tabulate==0.9.0
+tqdm==4.67.1
+rich==13.9.4
+
+# RPX production/evaluation dependencies, pinned without changing FE2E's
+# official NumPy version.
+huggingface-hub[hf_xet]==0.36.0
+scipy==1.14.1
+pyarrow==19.0.1
+psutil==7.0.0

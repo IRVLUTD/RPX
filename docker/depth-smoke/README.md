@@ -82,7 +82,7 @@ weights have not been verified, and DepthLM still needs a Docker environment.
 | `da3-metric-l` | image | `da3` | Baked and matrix-ready |
 | `depth-pro` | image | `transformers-image` | Baked, matrix-ready, acceptance passed |
 | `depthlm` | image | `depthlm` | Runnable in the host setup workflow; not yet baked into this image |
-| `fe2e` | image | — | Blocked: official weights unverified |
+| `fe2e` | image | `docker/depth-fe2e` | Official release; use its dedicated PyTorch 2.6 overlay rather than this cumulative smoke image |
 | `hyden` | image | `metadepth` (`hyden` alias) | Baked and matrix-ready; checkpoint access may require approval |
 | `lotus-2` | image | `lotus2` | Baked and matrix-ready |
 | `metric3d-v2` | image | `metric3d` | Baked and matrix-ready |
@@ -408,7 +408,8 @@ not inherit old passes.
 - Access, checkpoint-download, and CUDA OOM failures have a one-attempt ceiling.
 - A CUDA OOM is a hardware classification; rerun the unchanged command on a
   higher-memory GPU rather than changing model semantics.
-- The launcher never bypasses the FE2E, D4RT, or GemDepth weight safety rails.
+- The generic launcher leaves FE2E to its dedicated `docker/depth-fe2e`
+  environment and never bypasses the D4RT or GemDepth weight safety rails.
 
 ## 7. Inspect and preserve results
 

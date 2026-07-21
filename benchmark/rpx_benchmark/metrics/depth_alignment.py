@@ -40,7 +40,7 @@ DEPTH_MIN_M: float = 0.3
 DEPTH_MAX_M: float = 5.0
 
 #: Supported alignment mode names.
-ALIGNMENT_MODES = frozenset({"none", "median", "ls_affine", "ls_disparity"})
+ALIGNMENT_MODES = frozenset({"none", "median", "ls_affine", "ls_disparity", "ls_log"})
 
 
 def default_valid_mask(pred: np.ndarray, gt_m: np.ndarray) -> np.ndarray:
@@ -91,6 +91,9 @@ def align_pred_to_gt(
         * ``"ls_disparity"`` — least-squares fit in disparity (1/d)
           space. Useful when the model's native output is disparity
           (some MiDaS variants).
+        * ``"ls_log"``       — least-squares fit ``a*pred + b`` to
+          ``log(GT)``, then exponentiate. This is FE2E's published
+          ``norm_type=ln`` output convention.
     valid
         Optional pre-computed validity mask. If not provided, uses
         :func:`default_valid_mask`.
@@ -139,6 +142,13 @@ def align_pred_to_gt(
         a, b = float(coef[0]), float(coef[1])
         inv_pred = 1.0 / np.maximum(pred.astype(np.float64), eps)
         return (1.0 / np.maximum(a * inv_pred + b, eps)).astype(np.float32)
+
+    if mode == "ls_log":
+        A = np.column_stack([p, np.ones_like(p)])
+        coef, *_ = np.linalg.lstsq(A, np.log(g), rcond=None)
+        a, b = float(coef[0]), float(coef[1])
+        log_depth = np.minimum(a * pred.astype(np.float64) + b, 5.0)
+        return np.exp(log_depth).astype(np.float32)
 
     # Unreachable thanks to the ALIGNMENT_MODES gate above; raises
     # defensively in case the gate is loosened later.
@@ -260,6 +270,13 @@ def align_pred_to_gt_pooled(
         a, b = float(coef[0]), float(coef[1])
         inv_pred = 1.0 / np.maximum(pred_seq.astype(np.float64), eps)
         return (1.0 / np.maximum(a * inv_pred + b, eps)).astype(pred_seq.dtype)
+
+    if mode == "ls_log":
+        A = np.column_stack([p, np.ones_like(p)])
+        coef, *_ = np.linalg.lstsq(A, np.log(g), rcond=None)
+        a, b = float(coef[0]), float(coef[1])
+        log_depth = np.minimum(a * pred_seq.astype(np.float64) + b, 5.0)
+        return np.exp(log_depth).astype(pred_seq.dtype)
 
     raise ConfigError(  # pragma: no cover — guarded by ALIGNMENT_MODES gate
         f"unknown alignment mode {mode!r}",

@@ -47,6 +47,27 @@ def test_pooled_ls_affine_recovers_known_transform():
     assert err < 1e-4, f"alignment error {err} too large"
 
 
+def test_pooled_ls_log_recovers_known_log_depth_transform():
+    """FE2E's raw signal is affine to log depth, pooled by RPX cell."""
+    rng = np.random.default_rng(7)
+    gt = rng.uniform(0.5, 4.0, size=(5, 9, 11)).astype(np.float32)
+    scale, shift = 1.7, -0.25
+    pred = ((np.log(gt) - shift) / scale).astype(np.float32)
+    valid = np.ones_like(gt, dtype=bool)
+
+    aligned = align_pred_to_gt_pooled(pred, gt, mode="ls_log", valid_seq=valid)
+    np.testing.assert_allclose(aligned, gt, rtol=2e-5, atol=2e-5)
+
+
+def test_per_frame_ls_log_recovers_known_log_depth_transform():
+    gt = np.linspace(0.4, 4.5, 80, dtype=np.float32).reshape(8, 10)
+    pred = ((np.log(gt) + 0.6) / 2.2).astype(np.float32)
+    valid = np.ones_like(gt, dtype=bool)
+
+    aligned = align_pred_to_gt(pred, gt, mode="ls_log", valid=valid)
+    np.testing.assert_allclose(aligned, gt, rtol=2e-5, atol=2e-5)
+
+
 def test_pooled_alignment_matches_solving_on_flattened_concatenation():
     """Pooled solve over (T, H, W) must equal solving over flat 1-D arrays."""
     rng = np.random.default_rng(0)

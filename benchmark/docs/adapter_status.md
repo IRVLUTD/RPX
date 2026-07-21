@@ -20,10 +20,11 @@ adapters need their isolated upstream environment and smoke run.
 
 | | Code wired | Acceptance passed | Unverified-weight block |
 | --- | --- | --- | --- |
-| Single-image depth | 10 / 10 | 4 / 10 | 1 (FE2E) |
+| Single-image depth | 10 / 10 | 4 / 10 | 0 |
 | Video depth | 10 / 10 | 0 / 10 | 2 (D4RT, GemDepth) |
 
-**The "Blocked" 3 are waiting on someone to find the official model release** — the HF repos we found for them look like community uploads, not the paper authors' actual weights.
+**The two remaining weight-lineage blocks are D4RT and GemDepth.** FE2E now has
+an official release; its one-frame Docker/GPU acceptance is still pending.
 
 ---
 
@@ -37,7 +38,7 @@ The team CLI: `python scripts/run_depth.py --model <name> --split easy`
 | **da3-metric-l** | — | ⏳ Needs smoke | `pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3` then smoke |
 | **depth-pro** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.5981, AbsRel 0.1390, delta1 0.9092 |
 | **depthlm** | — | ⏳ Needs smoke | `pip install transformers torch accelerate` — needs ≥24 GB VRAM |
-| **fe2e** | — | 🚫 Blocked | Find the official upstream release (community HF repo looks unofficial) |
+| **fe2e** | — | 🐳 Docker GPU validation pending | Official `AMAP-ML/FE2E` release and author-linked `exander/FE2E` checkpoint are pinned in `docker/depth-fe2e`; run the one-frame CUDA acceptance before production |
 | **hyden** | — | 🔐 Access blocked (2026-07-02, pop-os) | Environment/import/CUDA checks pass, but the official `facebook/hyden-mogev2-metric-point` checkpoint returns HTTP 403 for the current HF account. Request official access, then rerun on the server; do not substitute weights. |
 | **lotus-2** | — | ⚠️ Server retest | Setup exposed a Diffusers/Transformers 5 incompatibility. The recipe now pins compatible Transformers 4.46.3, but the two-attempt local ceiling was reached before inference. Recreate/resume the corrected environment on the server. |
 | **metric3d-v2** | — | ⏳ Needs smoke | (existing torch.hub) |
@@ -93,13 +94,13 @@ If the error is something else (CUDA OOM, missing package, weights download fail
 
 ## The 3 blocked models — what to do
 
-For **FE2E**, **D4RT**, and **GemDepth** the HF repos we found look unofficial (empty READMEs, author personal handles, no clear link to the paper authors). Running them right now would risk publishing benchmark numbers under those model names that aren't actually the paper's model.
+For **D4RT** and **GemDepth**, the candidate HF repositories still lack verified paper-author lineage. FE2E is no longer in this category: its official AMAP-ML repository now links the `exander/FE2E` checkpoint directly.
 
 To unblock any of them:
 
 1. Find the paper's official GitHub repo (check the paper PDF's "code" link or arxiv "code" tab)
 2. Confirm whether the weights match what's on the candidate HF repo (or use the official repo's instructions instead)
-3. Update the adapter file (`scripts/depth_models/fe2e.py` for FE2E, or `scripts/video_depth_models/d4rt.py` / `gem_depth.py` for the other two) — drop the safety-rail check and wire up the real load path
+3. Update the relevant video adapter (`scripts/video_depth_models/d4rt.py` or `gem_depth.py`) — drop the safety-rail check and wire up the real load path
 4. Smoke it, then update this table
 
 ---

@@ -277,12 +277,7 @@ def _build_depthlm(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 
 
 def _build_fe2e(*, device: str = "cuda", batch_size: int = 1, **kwargs):
-    """FE2E — paper roster entry; unverified upstream weights.
-
-    Behind a safety rail: raises UnverifiedAdapterError unless
-    ``acknowledge_unverified=True`` is passed. See ``fe2e.py`` for the
-    "verify and wire" instructions.
-    """
+    """FE2E — official AMAP-ML release, affine-invariant depth."""
     from .fe2e import FE2EAdapter
 
     return FE2EAdapter(device=device, batch_size=batch_size, **kwargs)
@@ -338,7 +333,7 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "metric3d_v2": "Metric3D-V2-ViT-Giant",
     "da3_metric_large": "DA3-Metric-L",
     "depthlm": "DepthLM-12B",
-    "fe2e": "FE2E (unverified)",
+    "fe2e": "FE2E",
     # Relative
     "da_v2_relative": "DA-V2-Relative-L",
     "da_v1": "DA-V1-Large",
@@ -374,9 +369,7 @@ def list_models() -> list[str]:
 # RPX scenes are indoor — pass ``--head outdoor`` to override
 # (handled at the CLI layer for the few adapters that support it).
 #
-# Three canonical entries have no registry adapter today
-# (DA3 Metric-L, FE2E, DepthLM): they map to ``None`` so a clean
-# resolution error is raised in lieu of a confusing KeyError.
+# Every canonical image-depth entry resolves to its registry adapter.
 CANONICAL_TO_LEGACY: Dict[str, str | None] = {
     # Working (verified against HF model cards)
     "da-v2-large":   "da_v2_metric_indoor",   # depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf
@@ -388,7 +381,7 @@ CANONICAL_TO_LEGACY: Dict[str, str | None] = {
     "lotus-2":       "lotus_2",
     "da3-metric-l":  "da3_metric_large",       # depth-anything/DA3-LARGE (ByteDance)
     "depthlm":       "depthlm",                # facebook/DepthLM
-    "fe2e":          "fe2e",                   # UNVERIFIED — safety rail; see fe2e.py
+    "fe2e":          "fe2e",                   # AMAP-ML/FE2E official release
 }
 
 

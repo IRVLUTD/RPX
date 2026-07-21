@@ -158,14 +158,9 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         name="FE2E",
         task=TaskType.MONOCULAR_DEPTH,
         depth_output_kind="relative",
-        # A community repo `exander/FE2E` exists on HF but has an
-        # empty README and no verified-official lineage. Team to
-        # locate the official release (likely on GitHub) before use.
         install_hint=(
-            "no verified official release as of 2026-06-25; community "
-            "repo at huggingface.co/exander/FE2E exists but is "
-            "undocumented. Team must locate the official upstream "
-            "before wiring this adapter."
+            "official AMAP-ML/FE2E source plus its linked exander/FE2E "
+            "checkpoint; use the pinned docker/depth-fe2e environment"
         ),
         paper_ref="fe2e",
     ),

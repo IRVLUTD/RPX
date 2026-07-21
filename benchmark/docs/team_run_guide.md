@@ -44,7 +44,7 @@ Outputs land in `./rpx_results/<model>/<split>/`:
 
 | Task | Models implemented | Runner | Status |
 | --- | --- | --- | --- |
-| **Image Depth** (frame depth) | All 10 canonical names resolve to real adapters. Nine have official weights wired; FE2E remains behind the unverified-weights safety rail. The larger legacy registry contains additional historical variants and baselines. | `scripts/run_depth.py` | 4 acceptance passed; 3 server-only pending; HyDen access-blocked; Lotus-2 server retest; FE2E blocked |
+| **Image Depth** (frame depth) | All 10 canonical names resolve to real adapters with verified releases. FE2E uses a dedicated official PyTorch 2.6 Docker overlay and pooled log-depth alignment. | `scripts/run_depth.py` | FE2E one-frame server acceptance remains pending; see `docker/depth-fe2e` |
 | **Video Depth** (video depth) | All 10 canonical names resolve. Eight official adapters await GPU smoke; D4RT and GemDepth remain behind safety rails. DA-V2 frame-as-video is an extra control, not a canonical roster row. | `scripts/run_video_depth.py` | 8 pending; 2 blocked |
 
 The full canonical roster has 20 rows (10 Image Depth + 10 Video Depth;

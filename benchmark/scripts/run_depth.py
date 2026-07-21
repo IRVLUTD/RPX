@@ -606,11 +606,8 @@ def main() -> None:
     ap.add_argument(
         "--acknowledge-unverified",
         action="store_true",
-        help="Run an adapter whose upstream weights are NOT verified "
-        "against the paper authors' release (FE2E today; others may be "
-        "added if their official release is delayed). Use only after "
-        "confirming the candidate weights match the paper's model; "
-        "otherwise published numbers may not reflect the named model.",
+        help="Deprecated compatibility flag. FE2E now uses the verified "
+        "AMAP-ML release and does not require acknowledgement.",
     )
     ap.add_argument(
         "--manifest-path",
@@ -655,7 +652,7 @@ def main() -> None:
     ap.add_argument(
         "--alignment",
         default="auto",
-        choices=["auto", "none", "median", "ls_affine", "ls_disparity"],
+        choices=["auto", "none", "median", "ls_affine", "ls_disparity", "ls_log"],
         help="alignment mode for comprehensive metrics. 'auto' (default) "
         "reads the adapter's `native_alignment` (metric models → "
         "'none'; diffusion / up-to-scale → 'ls_affine'). Override "
@@ -896,7 +893,15 @@ def main() -> None:
         "dataset_repo": args.repo,
         "dataset_revision": args.revision,
         "cache_dir": args.cache_dir,
-        "alignment": "none" if args.model == "da-v2-large" else args.alignment,
+        "alignment": (
+            "none"
+            if args.model == "da-v2-large"
+            else (
+                getattr(adapter, "native_alignment", "none")
+                if args.alignment == "auto"
+                else args.alignment
+            )
+        ),
         "requested_precision": args.precision,
         "actual_torch_dtype": getattr(
             adapter,
