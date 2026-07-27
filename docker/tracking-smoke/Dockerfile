@@ -47,11 +47,12 @@ RUN python -m venv \
       setuptools \
       wheel
 
-COPY docker/tracking-smoke/requirements-yoloe.in \
-     /tmp/requirements-yoloe.in
+COPY docker/tracking-smoke/requirements-yoloe.lock \
+     /tmp/requirements-yoloe.lock
 
 RUN /opt/rpx-envs/yoloe/bin/python -m pip install \
-      -r /tmp/requirements-yoloe.in
+      --no-deps \
+      -r /tmp/requirements-yoloe.lock
 
 COPY benchmark/scripts/run_yoloe_tracking_smoke.py \
      /opt/rpx/benchmark/scripts/run_yoloe_tracking_smoke.py
