@@ -1,0 +1,13 @@
+**
+
+!docker/
+!docker/tracking-smoke/
+!docker/tracking-smoke/Dockerfile
+!docker/tracking-smoke/requirements-yoloe.in
+!docker/tracking-smoke/requirements-yoloe.lock
+
+!benchmark/
+!benchmark/scripts/
+!benchmark/scripts/run_yoloe_tracking_smoke.py
+
+!.dockerignore
