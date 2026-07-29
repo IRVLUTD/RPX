@@ -268,6 +268,14 @@ def main() -> None:
     if args.manifest_path:
         manifest_path = Path(args.manifest_path)
     else:
+        # The canonical smoke gate is one partial clip. Restricting the
+        # manifest before snapshot selection avoids downloading all 99 Easy
+        # cells merely to validate eight frames. Production leaves this unset.
+        download_max_samples = (
+            args.max_frames
+            if args.max_clips == 1 and args.max_frames is not None
+            else None
+        )
         manifest_path = download_split(
             task=TaskType.OBJECT_TRACKING,
             split=args.split,
@@ -275,6 +283,7 @@ def main() -> None:
             cache_dir=args.cache_dir,
             revision=args.revision,
             max_workers=args.dataset_workers,
+            max_samples=download_max_samples,
         )
     clips = _load_clips(manifest_path, args.split)
     if args.max_clips is None and args.max_frames is None:
