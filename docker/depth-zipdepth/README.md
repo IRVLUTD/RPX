@@ -6,12 +6,11 @@ released GPU/server checkpoint:
 - source revision: `94da7527f7030a0e79d54f33b113bdce4065d735`
 - checkpoint: `checkpoints/zipdepth_base.pth`
 
-RPX uses one native PyTorch forward per requested batch rather than repeatedly
-calling ZipDepth's single-image convenience method. Frames retain the official
-aspect-ratio-preserving resize, BGR-to-RGB conversion, normalization and
-bilinear restoration. Compressed prediction writes are parallelized within
-each batch. Start production at batch size 8 and increase only after checking
-available GPU memory on the target system.
+RPX preserves ZipDepth's official single-image inference path because the
+fused checkpoint is not numerically batch-invariant. A benchmark batch groups
+frames for parallel compressed prediction writes but does not change model
+outputs. Multiple split workers may safely share a high-memory GPU because
+their prediction and metric directories are disjoint.
 - SHA-256: `a55910bb0b99c8c5e641cb9206e810b269690ad94e8a2ef08c827c4679391a65`
 
 ZipDepth emits affine-invariant inverse depth. The RPX adapter preserves that

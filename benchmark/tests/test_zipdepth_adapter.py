@@ -80,29 +80,19 @@ def test_zipdepth_preserves_zero_inverse_depth_but_rejects_negative(
         adapter(np.zeros((4, 5, 3), dtype=np.uint8))
 
 
-def test_zipdepth_dispatches_multiple_images_as_one_batch(tmp_path, monkeypatch):
+def test_zipdepth_batch_preserves_official_single_image_path(tmp_path, monkeypatch):
     _install_fake_zipdepth(monkeypatch)
     checkpoint = tmp_path / "zipdepth_base.pth"
     checkpoint.write_bytes(b"fixture")
     adapter = ZipDepthAdapter(checkpoint_path=str(checkpoint), batch_size=8)
-    seen = []
-
-    def fake_batch(images):
-        seen.append(len(images))
-        return [
-            np.linspace(0.1, 1.0, 20, dtype=np.float32).reshape(4, 5)
-            for _ in images
-        ]
-
-    monkeypatch.setattr(adapter, "_infer_batch", fake_batch)
-    outputs = adapter(
-        [
-            np.zeros((4, 5, 3), dtype=np.uint8),
-            np.ones((4, 5, 3), dtype=np.uint8),
-        ]
-    )
-    assert seen == [2]
+    first = np.zeros((4, 5, 3), dtype=np.uint8)
+    second = np.ones((4, 5, 3), dtype=np.uint8)
+    expected_first = adapter(first)
+    expected_second = adapter(second)
+    outputs = adapter([first, second])
     assert len(outputs) == 2
+    np.testing.assert_array_equal(outputs[0], expected_first)
+    np.testing.assert_array_equal(outputs[1], expected_second)
     assert adapter.batch_size == 8
 
 

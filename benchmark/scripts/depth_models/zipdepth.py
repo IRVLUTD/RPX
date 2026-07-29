@@ -105,83 +105,13 @@ class ZipDepthAdapter:
         return outputs if is_batch else outputs[0]
 
     def _infer_batch(self, rgbs: Sequence[np.ndarray]) -> list[np.ndarray]:
-        """Run one real GPU forward for an RPX image batch.
+        """Preserve the official single-image numerical path.
 
-        The released predictor exposes a single-image convenience method, but
-        its underlying fused PyTorch model is batch-safe. RPX frames all share
-        one resolution, so preprocessing is identical to ``image2tensor``:
-        aspect-ratio-preserving OpenCV resize, BGR→RGB, [0,1] normalization,
-        channels-last CUDA input, model forward, then bilinear restoration.
+        The fused checkpoint was empirically not batch-invariant on the RPX
+        equivalence gate. Keep inference one image at a time; the surrounding
+        benchmark batch still enables parallel atomic prediction compression.
         """
-        import cv2
-        import torch
-        import torch.nn.functional as F
-
-        images = [self._validated_rgb(rgb) for rgb in rgbs]
-        original_shapes = [image.shape[:2] for image in images]
-        if len(set(original_shapes)) != 1:
-            raise AdapterError(
-                "ZipDepth batched inference requires equal input resolutions."
-            )
-
-        target_shapes = [
-            self._predictor._compute_target_size(*shape)  # noqa: SLF001
-            for shape in original_shapes
-        ]
-        if len(set(target_shapes)) != 1:
-            raise AdapterError(
-                "ZipDepth batched inference produced unequal model resolutions."
-            )
-        new_h, new_w = target_shapes[0]
-        bgr_batch = np.stack(
-            [
-                cv2.resize(
-                    np.ascontiguousarray(image[..., ::-1]),
-                    (new_w, new_h),
-                    interpolation=cv2.INTER_LINEAR,
-                )
-                for image in images
-            ],
-            axis=0,
-        )
-
-        tensor = torch.from_numpy(bgr_batch).permute(0, 3, 1, 2)
-        tensor = tensor[:, [2, 1, 0], :, :].contiguous()
-        is_cuda = str(self.device).startswith("cuda")
-        if is_cuda:
-            tensor = tensor.pin_memory()
-        tensor = tensor.to(
-            device=self.device,
-            dtype=self._predictor.dtype,
-            non_blocking=is_cuda,
-        )
-        tensor.div_(255.0)
-        if is_cuda:
-            tensor = tensor.contiguous(memory_format=torch.channels_last)
-
-        with torch.inference_mode():
-            inverse_depth = self._predictor.model(tensor)
-            if inverse_depth.ndim == 2:
-                inverse_depth = inverse_depth.unsqueeze(0).unsqueeze(0)
-            elif inverse_depth.ndim == 3:
-                inverse_depth = inverse_depth.unsqueeze(1)
-            if inverse_depth.ndim != 4 or inverse_depth.shape[0] != len(images):
-                raise AdapterError(
-                    "ZipDepth returned an invalid batched output shape: "
-                    f"{tuple(inverse_depth.shape)}."
-                )
-            inverse_depth = F.interpolate(
-                inverse_depth,
-                original_shapes[0],
-                mode="bilinear",
-                align_corners=True,
-            )
-            output_batch = inverse_depth[:, 0].float().cpu().numpy()
-
-        return [
-            self._validated_inverse_depth(depth, shape)
-            for depth, shape in zip(output_batch, original_shapes, strict=True)
-        ]
+        return [self._infer_one(rgb) for rgb in rgbs]
 
     def _infer_one(self, rgb: np.ndarray) -> np.ndarray:
         image = self._validated_rgb(rgb)
