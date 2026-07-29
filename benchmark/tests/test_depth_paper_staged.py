@@ -114,9 +114,9 @@ def test_exact_worker_and_pooled_parameters_support_zipdepth_disparity(
     scale, shift = 1.6, 0.15
     for frame, offset in enumerate((0.0, 0.25)):
         gt = np.linspace(0.5 + offset, 4.0, 12, dtype=np.float32).reshape(3, 4)
-        # Stored prediction follows the adapter's depth-domain contract.
+        # Stored prediction preserves ZipDepth's native inverse depth.
         raw_inverse_depth = ((1.0 / gt) - shift) / scale
-        stored_depth = (1.0 / raw_inverse_depth).astype(np.float32)
+        stored_depth = raw_inverse_depth.astype(np.float32)
         depth = f"scenes/scene001/0/depth/{frame:05d}.png"
         prediction_path = predictions / "scene001" / "0" / f"{frame:05d}.npz"
         gt_path = dataset_root / depth
@@ -151,7 +151,7 @@ def test_exact_worker_and_pooled_parameters_support_zipdepth_disparity(
         dtype=np.float32,
     ).reshape(480, 640)
     worker_inverse = ((1.0 / worker_gt) - fitted_shift) / fitted_scale
-    worker_prediction = (1.0 / worker_inverse).astype(np.float32)
+    worker_prediction = worker_inverse.astype(np.float32)
     worker_prediction_path = tmp_path / "worker_prediction.npz"
     worker_gt_path = tmp_path / "worker_gt.png"
     np.savez_compressed(worker_prediction_path, depth=worker_prediction)

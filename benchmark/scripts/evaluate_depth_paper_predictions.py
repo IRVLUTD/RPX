@@ -75,15 +75,11 @@ def _evaluate_one(work: tuple) -> tuple[str, float]:
     if alignment == "ls_affine":
         prediction = (float(scale) * prediction + float(shift)).astype(np.float32)
     elif alignment == "ls_disparity":
-        inverse_prediction = 1.0 / np.maximum(
-            prediction.astype(np.float64),
-            1e-6,
-        )
         aligned_disparity = (
-            float(scale) * inverse_prediction + float(shift)
+            float(scale) * prediction.astype(np.float64) + float(shift)
         )
         prediction = (
-            1.0 / np.maximum(aligned_disparity, 1e-6)
+            1.0 / np.maximum(aligned_disparity, 1e-3)
         ).astype(np.float32)
     elif alignment == "ls_log":
         log_depth = np.minimum(
@@ -153,8 +149,7 @@ def _alignment_parameters(
         x = prediction[valid].astype(np.float64)
         y = ground_truth[valid].astype(np.float64)
         if alignment == "ls_disparity":
-            x = 1.0 / np.maximum(x, 1e-6)
-            y = 1.0 / np.maximum(y, 1e-6)
+            y = 1.0 / np.maximum(y, 1e-3)
         elif alignment == "ls_log":
             y = np.log(y)
         row = stats.setdefault(_cell_key(sample), [0.0] * 5)

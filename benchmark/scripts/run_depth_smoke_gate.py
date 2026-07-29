@@ -453,6 +453,10 @@ def main() -> None:
             "--save-predictions",
             "--skip-flops",
         ]
+        if args.model == "zipdepth":
+            # The official ReLU inverse-depth head may emit legitimate zeros.
+            # Paper mode preserves them for the pooled disparity fit.
+            command += ["--paper-protocol", "--defer-fscore"]
         if args.gate == "micro":
             command += ["--max-samples", "1"]
         elif args.gate == "acceptance":

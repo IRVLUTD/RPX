@@ -56,33 +56,56 @@ def test_zipdepth_uses_official_gpu_checkpoint_and_disparity_contract(
     assert adapter._predictor.kwargs["input_size"] == 384
     assert np.all(adapter._predictor.last_bgr[..., 0] == 30)
     expected_inverse = np.linspace(0.25, 2.0, 20, dtype=np.float32).reshape(4, 5)
-    np.testing.assert_allclose(depth, 1.0 / expected_inverse)
+    np.testing.assert_allclose(depth, expected_inverse)
 
 
-def test_zipdepth_rejects_nonpositive_inverse_depth(tmp_path, monkeypatch):
+def test_zipdepth_preserves_zero_inverse_depth_but_rejects_negative(
+    tmp_path, monkeypatch
+):
     _install_fake_zipdepth(monkeypatch)
     checkpoint = tmp_path / "zipdepth_base.pth"
     checkpoint.write_bytes(b"fixture")
     adapter = ZipDepthAdapter(checkpoint_path=str(checkpoint))
-    adapter._predictor.infer_image = lambda _bgr: np.zeros((4, 5), dtype=np.float32)
+    zero_fixture = np.linspace(0.0, 1.0, 20, dtype=np.float32).reshape(4, 5)
+    adapter._predictor.infer_image = lambda _bgr: zero_fixture
+    depth = adapter(np.zeros((4, 5, 3), dtype=np.uint8))
+    assert depth[0, 0] == 0.0
 
-    with pytest.raises(AdapterError, match="non-positive inverse depth"):
+    adapter._predictor.infer_image = lambda _bgr: np.full(
+        (4, 5),
+        -0.1,
+        dtype=np.float32,
+    )
+    with pytest.raises(AdapterError, match="negative inverse depth"):
         adapter(np.zeros((4, 5, 3), dtype=np.uint8))
 
 
-def test_zipdepth_reciprocal_plus_ls_disparity_matches_official_fit_domain():
+def test_zipdepth_native_inverse_plus_ls_disparity_matches_official_fit_domain():
     inverse_prediction = np.array([[[0.4, 0.8], [1.2, 1.6]]], dtype=np.float32)
-    depth_domain = 1.0 / inverse_prediction
     gt_disparity = 2.0 * inverse_prediction + 0.25
     gt_depth = 1.0 / gt_disparity
 
     aligned = align_pred_to_gt_pooled(
-        depth_domain,
+        inverse_prediction,
         gt_depth,
         "ls_disparity",
         np.ones_like(gt_depth, dtype=bool),
     )
     np.testing.assert_allclose(aligned, gt_depth, rtol=1e-5, atol=1e-6)
+
+
+def test_zipdepth_disparity_fit_excludes_native_zero_pixels():
+    inverse_prediction = np.array([[[0.0, 0.5], [1.0, 1.5]]], dtype=np.float32)
+    gt_depth = np.array([[[1.0, 0.8], [0.5, 0.36363636]]], dtype=np.float32)
+    aligned = align_pred_to_gt_pooled(
+        inverse_prediction,
+        gt_depth,
+        "ls_disparity",
+    )
+    # Positive pixels follow gt disparity = 2*prediction + 0.25 exactly.
+    positive = inverse_prediction > 0
+    np.testing.assert_allclose(aligned[positive], gt_depth[positive], rtol=1e-5)
+    assert np.isfinite(aligned).all()
 
 
 def test_zipdepth_docker_overlay_pins_source_and_checkpoint():

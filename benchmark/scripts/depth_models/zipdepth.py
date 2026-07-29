@@ -1,11 +1,10 @@
 """Official ZipDepth monocular inverse-depth adapter.
 
-ZipDepth predicts affine-invariant inverse depth.  The RPX runner's depth
-adapter contract stores depth-domain maps, so this adapter returns the
-reciprocal of the official prediction and declares ``ls_disparity``.  The
-runner therefore performs one pooled scale-and-shift fit in disparity space
-per ``(scene, phase)`` cell, matching ZipDepth's released evaluator without
-using per-frame ground-truth alignment.
+ZipDepth predicts affine-invariant inverse depth. This adapter preserves that
+official output and declares ``ls_disparity``. The runner performs one pooled
+scale-and-shift fit to GT disparity per ``(scene, phase)`` cell and converts
+the aligned disparity to metric depth, matching ZipDepth's released evaluator
+without using per-frame ground-truth alignment.
 """
 
 from __future__ import annotations
@@ -123,16 +122,12 @@ class ZipDepthAdapter:
             )
         if not np.isfinite(inverse_depth).all():
             raise AdapterError("ZipDepth returned non-finite inverse depth.")
-        if np.any(inverse_depth <= 0):
-            raise AdapterError(
-                "ZipDepth returned non-positive inverse depth; refusing to invent "
-                "a reciprocal/clipping policy."
-            )
+        if np.any(inverse_depth < 0):
+            raise AdapterError("ZipDepth returned negative inverse depth.")
         if float(np.ptp(inverse_depth)) <= 1e-6:
             raise AdapterError("ZipDepth returned a degenerate inverse-depth map.")
 
-        # Convert the official inverse-depth output to the benchmark's stored
-        # depth-domain contract.  Pooled ls_disparity inverts it back for the
-        # official scale-and-shift solve.
-        depth_domain = np.reciprocal(inverse_depth, dtype=np.float32)
-        return np.asarray(depth_domain, dtype=np.float32)
+        # Preserve the native inverse-depth map, including legitimate zeros
+        # from the official ReLU head. The pooled ls_disparity fit excludes
+        # zero predictions exactly as the released ZipDepth evaluator does.
+        return np.asarray(inverse_depth, dtype=np.float32)

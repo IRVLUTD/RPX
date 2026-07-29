@@ -88,9 +88,9 @@ def align_pred_to_gt(
           in depth space. Two dof; standard alignment for relative
           and up-to-scale models (DA-V2 relative, MiDaS, Marigold,
           Lotus).
-        * ``"ls_disparity"`` — least-squares fit in disparity (1/d)
-          space. Useful when the model's native output is disparity
-          (some MiDaS variants).
+        * ``"ls_disparity"`` — least-squares fit of a model's native
+          inverse-depth/disparity output to GT disparity, followed by
+          conversion to metric depth.
         * ``"ls_log"``       — least-squares fit ``a*pred + b`` to
           ``log(GT)``, then exponentiate. This is FE2E's published
           ``norm_type=ln`` output convention.
@@ -134,14 +134,13 @@ def align_pred_to_gt(
         return (a * pred + b).astype(np.float32)
 
     if mode == "ls_disparity":
-        eps = 1e-6
-        inv_p = 1.0 / np.maximum(p, eps)
+        eps = 1e-3
         inv_g = 1.0 / np.maximum(g, eps)
-        A = np.column_stack([inv_p, np.ones_like(inv_p)])
+        A = np.column_stack([p, np.ones_like(p)])
         coef, *_ = np.linalg.lstsq(A, inv_g, rcond=None)
         a, b = float(coef[0]), float(coef[1])
-        inv_pred = 1.0 / np.maximum(pred.astype(np.float64), eps)
-        return (1.0 / np.maximum(a * inv_pred + b, eps)).astype(np.float32)
+        aligned_disparity = a * pred.astype(np.float64) + b
+        return (1.0 / np.maximum(aligned_disparity, eps)).astype(np.float32)
 
     if mode == "ls_log":
         A = np.column_stack([p, np.ones_like(p)])
@@ -262,14 +261,13 @@ def align_pred_to_gt_pooled(
         return (a * pred_seq + b).astype(pred_seq.dtype)
 
     if mode == "ls_disparity":
-        eps = 1e-6
-        inv_p = 1.0 / np.maximum(p, eps)
+        eps = 1e-3
         inv_g = 1.0 / np.maximum(g, eps)
-        A = np.column_stack([inv_p, np.ones_like(inv_p)])
+        A = np.column_stack([p, np.ones_like(p)])
         coef, *_ = np.linalg.lstsq(A, inv_g, rcond=None)
         a, b = float(coef[0]), float(coef[1])
-        inv_pred = 1.0 / np.maximum(pred_seq.astype(np.float64), eps)
-        return (1.0 / np.maximum(a * inv_pred + b, eps)).astype(pred_seq.dtype)
+        aligned_disparity = a * pred_seq.astype(np.float64) + b
+        return (1.0 / np.maximum(aligned_disparity, eps)).astype(pred_seq.dtype)
 
     if mode == "ls_log":
         A = np.column_stack([p, np.ones_like(p)])
