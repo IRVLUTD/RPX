@@ -365,6 +365,13 @@ def test_video_pipeline_recomputes_corrupt_prediction(
     }
 
 
+def test_analysis_selects_locked_video_metric_vector():
+    from scripts.analyze_experiment import _paper_metric_keys
+    from rpx_benchmark.tasks.video_depth import D1V_MANOVA_METRICS
+
+    assert _paper_metric_keys("video_depth") == D1V_MANOVA_METRICS
+
+
 def test_video_pipeline_synchronizes_around_each_prediction(
     fake_dataset_root,
     tmp_path,

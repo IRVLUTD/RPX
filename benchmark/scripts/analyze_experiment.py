@@ -94,6 +94,19 @@ def _safe_filename(s: str) -> str:
     return "".join(ch if ch.isalnum() or ch in "-_." else "_" for ch in s)
 
 
+def _paper_metric_keys(task: str) -> Optional[Sequence[str]]:
+    """Return a locked paper K-vector instead of auto-selecting diagnostics."""
+    if task == "video_depth":
+        from rpx_benchmark.tasks.video_depth import D1V_MANOVA_METRICS
+
+        return D1V_MANOVA_METRICS
+    if task == "monocular_depth":
+        from rpx_benchmark.tasks.video_depth import D1F_MANOVA_METRICS
+
+        return D1F_MANOVA_METRICS
+    return None
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
@@ -169,6 +182,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         rows = [_cell_to_runner_row(c) for c in group_cells]
         summary = summarize_phi_jedi(
             rows,
+            metric_keys=_paper_metric_keys(str(task)),
             jedi_epsilon=args.epsilon,
             apply_holm=not args.no_holm,
         )
