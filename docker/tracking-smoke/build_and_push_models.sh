@@ -7,6 +7,7 @@ registry="${RPX_TRACKING_IMAGE:-vndhiran123/rpx-tracking-smoke}"
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short_revision="${revision:0:12}"
 push=false
+host_python="${RPX_HOST_PYTHON:-}"
 
 case "${1:-}" in
   "")
@@ -25,8 +26,19 @@ if [[ -n "$(git -C "${repo_root}" status --porcelain)" ]]; then
   exit 1
 fi
 
+if [[ -z "${host_python}" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    host_python="$(command -v python3)"
+  elif command -v python >/dev/null 2>&1; then
+    host_python="$(command -v python)"
+  else
+    echo "Python 3 is required on the Docker host to read model-matrix.json." >&2
+    exit 1
+  fi
+fi
+
 mapfile -t rows < <(
-  python - "${script_dir}/model-matrix.json" <<'PY'
+  "${host_python}" - "${script_dir}/model-matrix.json" <<'PY'
 import json
 import sys
 
@@ -34,6 +46,11 @@ for model in json.load(open(sys.argv[1]))["models"]:
     print(model["id"], model["target"])
 PY
 )
+
+if [[ "${#rows[@]}" -ne 10 ]]; then
+  echo "Expected 10 tracking model rows, found ${#rows[@]}." >&2
+  exit 1
+fi
 
 for row in "${rows[@]}"; do
   read -r model target <<<"${row}"
