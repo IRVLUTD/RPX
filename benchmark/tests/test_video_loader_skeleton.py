@@ -151,6 +151,56 @@ def test_d1v_dataset_iteration_yields_video_sample(tmp_path):
     np.testing.assert_allclose(sample.ground_truth.depth_map_seq[0, 0, 0], 1.234, atol=1e-3)
 
 
+def test_d1v_dataset_uses_strict_paper_depth_mask(tmp_path):
+    from PIL import Image
+
+    (tmp_path / "rgb").mkdir()
+    (tmp_path / "depth").mkdir()
+    Image.fromarray(np.zeros((1, 4, 3), np.uint8)).save(tmp_path / "rgb" / "00000.png")
+    Image.fromarray(
+        np.asarray([[300, 301, 4999, 5000]], dtype=np.uint16),
+        mode="I;16",
+    ).save(tmp_path / "depth" / "00000.png")
+    group = {
+        "scene_id": "scene_mask",
+        "phase": 0,
+        "frame_filenames": ["rgb/00000.png"],
+        "depth_filenames": ["depth/00000.png"],
+    }
+    sample = next(iter(VideoDepthDataset(
+        samples=[group],
+        task=TaskType.VIDEO_DEPTH,
+        root=tmp_path,
+    )))[0]
+    assert sample.ground_truth.valid_mask_seq.tolist() == [
+        [[False, True, True, False]]
+    ]
+
+
+def test_missing_optional_poses_do_not_break_rgbd_clip(tmp_path):
+    from PIL import Image
+
+    (tmp_path / "rgb").mkdir()
+    (tmp_path / "depth").mkdir()
+    Image.fromarray(np.zeros((2, 2, 3), np.uint8)).save(tmp_path / "rgb" / "00000.png")
+    Image.fromarray(np.full((2, 2), 1000, np.uint16), mode="I;16").save(
+        tmp_path / "depth" / "00000.png"
+    )
+    group = {
+        "scene_id": "scene_rgbd",
+        "phase": 0,
+        "frame_filenames": ["rgb/00000.png"],
+        "depth_filenames": ["depth/00000.png"],
+        "pose_filenames": ["cam_pose/00000.npz"],
+    }
+    sample = next(iter(VideoDepthDataset(
+        samples=[group],
+        task=TaskType.VIDEO_DEPTH,
+        root=tmp_path,
+    )))[0]
+    assert sample.camera_pose_seq is None
+
+
 def test_d1v_dataset_frame_budget_with_stride(tmp_path):
     """frame_budget + sampling='stride' selects evenly spaced indices."""
     from PIL import Image

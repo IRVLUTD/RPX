@@ -16,6 +16,12 @@ the pipeline **does**, not what it should be.
 Every run writes one `cells.parquet` per `(model, task, scene, phase[, frame_budget])`
 key. Every row has every metric column below (nan where uncomputable).
 
+All headline and diagnostic depth metrics use the same paper-valid GT
+population: finite pixels satisfying `0.3 < depth < 5.0 m`. Raw predictions
+must be finite and non-degenerate. Matching D1-F, raw cached predictions are
+preserved while one evaluation copy is uniformly clipped to `[0.3, 5.0]`
+before every spatial and temporal metric.
+
 ### K=6 primary vector (Φ MANOVA + JEDI inputs)
 
 RGB-D-only — no external flow model, no per-frame poses required.
@@ -66,7 +72,8 @@ Image Depth `DA-V2 Large` adapter you already validated in D1-F.
 
 ```bash
 PYTHONPATH=. python scripts/run_video_depth.py \
-    --model da-v2-video --split easy --max-samples 2
+    --model da-v2-video --split easy --max-samples 2 \
+    --save-predictions --resume-predictions
 ```
 
 Success means `rpx_results/da-v2-video/easy/cells.parquet` exists with
@@ -131,11 +138,24 @@ computed inside the sweep so the raw cells stay authoritative.
 ### F@5cm CPU cost
 
 `fscore_5cm` computed inline for 250-frame clips × 100 scenes × 3 phases
-is heavy (bidirectional cKDTree per frame). For D1-V, do what the D1-F
-pass does: **run inline with F@5cm disabled, then augment `cells.parquet`
-offline** with per-frame F@5cm from saved predictions. The runner emits
-nan for F@5cm when it can't compute at reasonable cost; downstream
-readers just fill the column.
+is heavy (bidirectional cKDTree per frame). It is therefore **disabled by
+default** for D1-V and emitted as `nan`; it is not part of the headline
+K=6 vector. Pass `--compute-fscore` only for an explicit diagnostic run.
+
+### Prediction persistence and resume
+
+Use `--save-predictions --resume-predictions` for production. Each completed
+scene-phase clip is atomically written to:
+
+```
+<output-dir>/predictions/<scene>/<phase>/depth.npz
+```
+
+The NPZ contains aligned raw float32 depth, the exact frame indices, and original
+inference latency. Resume loads with pickle disabled, verifies the NPZ CRC,
+keys, dtype, shape, frame identity, finiteness and non-degeneracy. Missing or invalid clips are inferred and atomically
+replaced; valid clips perform no model forward. Counts are recorded in
+`run_metadata.json`.
 
 ### Complete-case dropping in Φ
 

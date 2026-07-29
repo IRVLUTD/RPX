@@ -36,6 +36,7 @@ import numpy as np
 from ..api import TaskType, VideoDepthGroundTruth, VideoDepthPrediction
 from ..exceptions import MetricError
 from ..logging_utils import get_logger
+from .depth_alignment import DEPTH_MAX_M, DEPTH_MIN_M
 from .registry import MetricCalculator, register_metric
 
 log = get_logger(__name__)
@@ -148,15 +149,28 @@ def _per_frame_error_metrics(
     for t in range(T):
         p = pred_seq[t]
         g = gt_seq[t]
-        v = valid_seq[t]
+        v = (
+            valid_seq[t]
+            & np.isfinite(g)
+            & (g > DEPTH_MIN_M)
+            & (g < DEPTH_MAX_M)
+        )
         if not v.any():
             continue
-        p_v = p[v]
+        if not np.isfinite(p).all():
+            raise MetricError(
+                "Video Depth prediction contains non-finite values",
+                hint=(
+                    "Fix the adapter output. Finite raw predictions are preserved "
+                    "in the cache and uniformly clipped to [0.3, 5.0] only in "
+                    "the evaluation copy."
+                ),
+            )
+        p_eval = np.clip(p, DEPTH_MIN_M, DEPTH_MAX_M)
+        p_v = p_eval[v]
         g_v = g[v]
         diff = p_v - g_v
-        # Guard against non-positive predictions in log-domain metric
-        p_pos = np.maximum(p_v, 1e-6)
-        log_err = np.log(p_pos) - np.log(g_v)
+        log_err = np.log(p_v) - np.log(g_v)
 
         per_frame["absrel"].append(float(np.mean(np.abs(diff) / g_v)))
         per_frame["rmse"].append(float(np.sqrt(np.mean(diff ** 2))))
@@ -170,21 +184,15 @@ def _per_frame_error_metrics(
         per_frame["delta3"].append(float(np.mean(ratio < 1.25 ** 3)))
 
         if fscore_enabled:
-            fs = _fscore_5cm_per_frame(p, g, v)
+            fs = _fscore_5cm_per_frame(p_eval, g, v)
             if fs is not None:
                 fscore_vals.append(fs)
 
     if not per_frame["absrel"]:
-        # Every frame had empty valid masks — return safe sentinels.
-        return {
-            "absrel": 0.0,
-            "rmse": 0.0,
-            "silog": 0.0,
-            "delta1": 1.0,
-            "delta2": 1.0,
-            "delta3": 1.0,
-            "fscore_5cm": float("nan"),
-        }
+        raise MetricError(
+            "Video Depth clip contains no GT pixels in the paper-valid "
+            "0.3 < depth < 5.0 m interval",
+        )
     out: Dict[str, float] = {k: float(np.mean(v)) for k, v in per_frame.items()}
     out["fscore_5cm"] = (
         float(np.mean(fscore_vals)) if fscore_vals else float("nan")
@@ -228,6 +236,7 @@ class VideoDepthErrorMetrics(MetricCalculator):
             prediction.depth_map_seq.astype(np.float32),
             ground_truth.depth_map_seq.astype(np.float32),
             ground_truth.valid_mask_seq.astype(bool),
+            compute_fscore=bool(ground_truth.compute_fscore),
         )
 
 

@@ -91,11 +91,14 @@ class _FakeVideoDepthModel(BenchmarkModel):
 
     def __init__(self, output_kind: str = "metric") -> None:
         self.depth_output_kind = output_kind
+        self.setup_calls = 0
+        self.predict_calls = 0
 
     def setup(self) -> None:
-        return None
+        self.setup_calls += 1
 
     def predict(self, batch):
+        self.predict_calls += 1
         out = []
         for sample in batch:
             gt = sample.ground_truth.depth_map_seq.astype(np.float32)
@@ -282,6 +285,84 @@ def test_video_pipeline_max_samples_means_clips(fake_dataset_root, tmp_path):
 
     assert result.num_samples == 2
     assert len(pq.read_table(paths["cells"])) == 2
+
+
+def test_video_pipeline_prediction_resume_skips_all_model_forwards(
+    fake_dataset_root,
+    tmp_path,
+):
+    out_dir = tmp_path / "out_resume"
+    first = _FakeVideoDepthModel(output_kind="metric")
+    cfg = VideoTaskRunConfig(
+        model=first,
+        split="easy",
+        device="cpu",
+        output_dir=str(out_dir),
+        max_samples=2,
+        save_predictions=True,
+        resume_predictions=True,
+    )
+    _result, _dr, first_paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert first.predict_calls == 2
+    assert first_paths["prediction_stats"]["inferred_new"] == 2
+
+    second = _FakeVideoDepthModel(output_kind="metric")
+    cfg.model = second
+    _result, _dr, second_paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert second.setup_calls == 0
+    assert second.predict_calls == 0
+    assert second_paths["prediction_stats"] == {
+        "cache_hits": 2,
+        "inferred_new": 0,
+        "invalid_recomputed": 0,
+    }
+    assert second_paths["run_metadata"].exists()
+
+
+def test_video_pipeline_recomputes_corrupt_prediction(
+    fake_dataset_root,
+    tmp_path,
+):
+    out_dir = tmp_path / "out_corrupt_resume"
+    first = _FakeVideoDepthModel(output_kind="metric")
+    cfg = VideoTaskRunConfig(
+        model=first,
+        split="easy",
+        device="cpu",
+        output_dir=str(out_dir),
+        max_samples=2,
+        save_predictions=True,
+        resume_predictions=True,
+    )
+    run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    corrupt = out_dir / "predictions" / "scene_a" / "0" / "depth.npz"
+    corrupt.write_bytes(b"not an npz")
+
+    second = _FakeVideoDepthModel(output_kind="metric")
+    cfg.model = second
+    _result, _dr, paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert second.predict_calls == 1
+    assert paths["prediction_stats"] == {
+        "cache_hits": 1,
+        "inferred_new": 0,
+        "invalid_recomputed": 1,
+    }
 
 
 def test_video_pipeline_synchronizes_around_each_prediction(

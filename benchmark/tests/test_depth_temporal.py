@@ -136,9 +136,9 @@ def test_orchestrator_without_poses_or_flow():
     pred = np.stack([_const(2.0), _const(2.1)])
     gt = np.stack([_const(2.0), _const(2.0)])
     out = compute_temporal_depth_metrics(pred, gt_seq=gt)
-    assert set(out) == {"tae", "opw", "tgm", "tcc"}
+    assert {"tae", "opw", "tgm", "tcc", "tgse", "tmc"} <= set(out)
     assert np.isnan(out["tae"]) and np.isnan(out["opw"])
-    assert np.isfinite(out["tgm"]) and np.isfinite(out["tcc"])
+    assert all(np.isfinite(out[key]) for key in ("tgm", "tcc", "tgse", "tmc"))
 
 
 def test_orchestrator_with_poses_computes_tae():

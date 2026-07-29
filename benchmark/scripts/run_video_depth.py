@@ -171,6 +171,23 @@ def main() -> None:
         help="After the run, ship results to UTD Box. Requires BOX_DEVELOPER_TOKEN.",
     )
     ap.add_argument(
+        "--save-predictions",
+        action="store_true",
+        help="Atomically save one validated float32 NPZ per scene-phase clip.",
+    )
+    ap.add_argument(
+        "--resume-predictions",
+        action="store_true",
+        help="Reuse validated saved clip predictions and infer only missing or "
+        "corrupt clips. Requires --save-predictions.",
+    )
+    ap.add_argument(
+        "--compute-fscore",
+        action="store_true",
+        help="Compute diagnostic F@5cm inline. Disabled by default because it "
+        "is not in the D1-V K=6 vector and is CPU-expensive.",
+    )
+    ap.add_argument(
         "--acknowledge-unverified",
         action="store_true",
         help="Run an adapter whose upstream weights are NOT verified "
@@ -183,6 +200,8 @@ def main() -> None:
         ap.error("--max-samples must be >= 1")
     if args.budget_sweep is not None and args.frame_budget is not None:
         ap.error("--budget-sweep and --frame-budget are mutually exclusive")
+    if args.resume_predictions and not args.save_predictions:
+        ap.error("--resume-predictions requires --save-predictions")
 
     budgets = None
     if args.budget_sweep is not None:
@@ -220,12 +239,19 @@ def main() -> None:
             sampling=args.sampling,
             max_samples=args.max_samples,
             upload_to_box=args.upload_to_box,
+            save_predictions=args.save_predictions,
+            resume_predictions=args.resume_predictions,
+            compute_fscore=args.compute_fscore,
         )
         _result, _dr, paths = run_video_depth(cfg)
         print("Video Depth run complete.")
         print(f"  result.json : {paths['json']}")
         print(f"  cells       : {paths['cells']}")
         print(f"  summary.md  : {paths['markdown']}")
+        print(f"  metadata    : {paths['run_metadata']}")
+        if "predictions_dir" in paths:
+            print(f"  predictions : {paths['predictions_dir']}")
+            print(f"  resume      : {paths['prediction_stats']}")
         if "box_remote" in paths:
             print(f"  box         : {paths['box_remote']}")
         return
@@ -254,6 +280,9 @@ def main() -> None:
             sampling=sampling,
             max_samples=args.max_samples,
             upload_to_box=args.upload_to_box,
+            save_predictions=args.save_predictions,
+            resume_predictions=args.resume_predictions,
+            compute_fscore=args.compute_fscore,
         )
         _result, _dr, paths = run_video_depth(cfg)
         per_budget_paths[budget] = paths

@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from rpx_benchmark.api import VideoDepthGroundTruth, VideoDepthPrediction
+from rpx_benchmark.exceptions import MetricError
 from rpx_benchmark.metrics.video_depth import (
     VideoDepthErrorMetrics,
     _fscore_5cm_per_frame,
@@ -149,6 +150,7 @@ def test_calculator_emits_full_k5_plus_diagnostics():
         depth_map_seq=gt,
         valid_mask_seq=valid,
         frame_indices=np.arange(3, dtype=np.int32),
+        compute_fscore=True,
     )
     calc = VideoDepthErrorMetrics()
     out = calc.compute(prediction, ground_truth)
@@ -158,16 +160,28 @@ def test_calculator_emits_full_k5_plus_diagnostics():
         assert k in out, f"VideoDepthErrorMetrics missing key: {k}"
 
 
-def test_calculator_empty_valid_returns_sentinels():
-    """A clip where every frame has zero valid pixels must not crash the
-    downstream metric-suite. Returns safe sentinels (matches Image Depth
-    calculator policy).
-    """
+def test_calculator_empty_valid_fails_explicitly():
+    """An unevaluable clip must not be recorded as a perfect result."""
     H, W = 480, 640
     pred = np.zeros((2, H, W), dtype=np.float32)
     gt = np.zeros_like(pred)
     valid = np.zeros_like(pred, dtype=bool)
-    out = _per_frame_error_metrics(pred, gt, valid)
-    assert out["absrel"] == 0.0
-    assert out["delta1"] == 1.0
-    assert np.isnan(out["fscore_5cm"])
+    with pytest.raises(MetricError, match="no GT pixels"):
+        _per_frame_error_metrics(pred, gt, valid)
+
+
+def test_nonpositive_prediction_is_clipped_for_evaluation():
+    pred, gt, valid = _clip_at_paper_resolution(T=1)
+    pred[0, 0, 0] = 0.0
+    out = _per_frame_error_metrics(pred, gt, valid, compute_fscore=False)
+    expected = ((2.0 - 0.3) / 2.0) / (480 * 640)
+    assert out["absrel"] == pytest.approx(expected)
+
+
+def test_spatial_metrics_apply_strict_paper_gt_range():
+    pred = np.asarray([[[4.0, 1.0, 1.0, 4.0]]], dtype=np.float32)
+    gt = np.asarray([[[0.3, 1.0, 1.0, 5.0]]], dtype=np.float32)
+    valid = np.ones_like(gt, dtype=bool)
+    out = _per_frame_error_metrics(pred, gt, valid, compute_fscore=False)
+    assert out["absrel"] == pytest.approx(0.0)
+    assert out["rmse"] == pytest.approx(0.0)

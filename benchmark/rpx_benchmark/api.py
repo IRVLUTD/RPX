@@ -164,14 +164,16 @@ class VideoDepthGroundTruth:
     Shapes
     ------
     depth_map_seq   : (T, H, W) float32, metres
-    valid_mask_seq  : (T, H, W) bool
+    valid_mask_seq  : (T, H, W) bool, finite GT with 0.3 < depth < 5.0 m
     frame_indices   : (T,) int32, original phase-relative frame indices
                       so models that want temporal context can use them
+    compute_fscore  : bool, opt-in diagnostic switch; false for headline D1-V
     """
 
     depth_map_seq: np.ndarray
     valid_mask_seq: np.ndarray
     frame_indices: np.ndarray
+    compute_fscore: bool = False
 
 
 @dataclass
