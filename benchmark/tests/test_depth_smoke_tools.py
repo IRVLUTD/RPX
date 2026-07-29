@@ -526,12 +526,15 @@ def test_video_gate_allows_only_documented_optional_nan_metrics() -> None:
         "absrel": 0.1,
         "rmse": 0.2,
         "delta1": 0.9,
+        "silog": 10.0,
+        "tgm": 0.02,
+        "tgse": 0.01,
         "delta2": 0.95,
         "delta3": 0.99,
         "tae": float("nan"),
         "opw": float("nan"),
-        "tgm": float("nan"),
         "tcc": float("nan"),
+        "fscore_5cm": float("nan"),
     }
     assert set(
         gate._validate_metric_values(
@@ -539,7 +542,7 @@ def test_video_gate_allows_only_documented_optional_nan_metrics() -> None:
             task="video",
             context="test",
         )
-    ) == {"tae", "opw", "tgm", "tcc"}
+    ) == {"tae", "opw", "tcc", "fscore_5cm"}
 
     bad_core = dict(metrics, absrel=float("nan"))
     with pytest.raises(RuntimeError, match="absrel"):

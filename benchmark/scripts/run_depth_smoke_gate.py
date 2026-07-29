@@ -243,10 +243,15 @@ def _run_and_tee(command: list[str], *, cwd: Path, env: dict[str, str], log_path
 
 
 _VIDEO_CORE_METRICS = frozenset(
-    {"absrel", "rmse", "delta1", "delta2", "delta3"}
+    {"absrel", "rmse", "delta1", "silog", "tgm", "tgse"}
 )
 _VIDEO_OPTIONAL_NONFINITE_METRICS = frozenset(
-    {"tae", "opw", "tgm", "tcc"}
+    {"delta2", "delta3", "fscore_5cm", "tae", "opw", "tcc", "tmc"}
+    | {
+        f"{metric}_{depth_range}"
+        for metric in ("absrel", "rmse", "delta1", "tae", "tgm", "tgse")
+        for depth_range in ("near", "mid", "far")
+    }
 )
 
 
