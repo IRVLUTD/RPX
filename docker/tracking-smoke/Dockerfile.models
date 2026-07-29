@@ -1,0 +1,267 @@
+# syntax=docker/dockerfile:1.7
+
+# The digest is the linux/amd64 manifest behind the named PyTorch image.
+# A devel base is intentional: MOTIP and GroundingDINO contain official CUDA
+# extensions. Checkpoints are never copied into an image.
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-devel@sha256:3d614dfd422b7e43647491cbf07d6acc516c032fc49c594a94afdebd52552fb9 AS tracking_models_base
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX paper tracking model environments" \
+      org.opencontainers.image.description="Cumulative, source-pinned environments for the RPX D3 tracker roster" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/cache/huggingface \
+    TORCH_HOME=/cache/torch \
+    XDG_CACHE_HOME=/cache/xdg \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9+PTX" \
+    MAX_JOBS=8 \
+    RPX_GIT_SHA=${RPX_GIT_SHA}
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential \
+      ca-certificates \
+      ffmpeg \
+      git \
+      libgl1 \
+      libglib2.0-0 \
+      libgomp1 \
+      ninja-build \
+      procps && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/rpx-envs /opt/rpx-models /opt/rpx/benchmark \
+      /cache/huggingface /cache/torch /cache/xdg
+
+COPY docker/tracking-smoke/requirements-models.lock /tmp/requirements-models.lock
+COPY --chmod=0755 docker/tracking-smoke/clone_pinned.sh /usr/local/bin/rpx-clone-pinned
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY docker/tracking-smoke/model-matrix.json /opt/rpx/model-matrix.json
+COPY benchmark /opt/rpx/benchmark
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip==25.3 setuptools==80.9.0 wheel==0.45.1 && \
+    python -m pip install -r /tmp/requirements-models.lock && \
+    python -m pip install --no-deps --no-build-isolation /opt/rpx/benchmark && \
+    python -m pip check
+
+ARG TRACKEVAL_GIT_SHA=12c8791b303e0a0b50f753af204249e622d0281a
+RUN rpx-clone-pinned https://github.com/JonathonLuiten/TrackEval.git \
+      "${TRACKEVAL_GIT_SHA}" /opt/rpx-models/trackeval && \
+    python -m pip install --no-deps --no-build-isolation /opt/rpx-models/trackeval && \
+    python -c "from trackeval.metrics import CLEAR, HOTA, Identity; print(CLEAR, HOTA, Identity)"
+
+WORKDIR /opt/rpx/benchmark
+
+
+# 1. SAM 3.1 — official Meta repository and checkpoint revision.
+FROM tracking_models_base AS tracking_all_sam3_1
+ARG SAM3_GIT_SHA=6dbb02bd38288df755dfa1378000a861e65b84f6
+RUN rpx-clone-pinned https://github.com/facebookresearch/sam3.git \
+      "${SAM3_GIT_SHA}" /opt/rpx-models/sam3_1 && \
+    python -m venv --system-site-packages /opt/rpx-envs/sam3_1 && \
+    /opt/rpx-envs/sam3_1/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/sam3_1 && \
+    /opt/rpx-envs/sam3_1/bin/python /usr/local/bin/rpx-register-model-env \
+      --model sam3.1 \
+      --prompt mask \
+      --source-dir /opt/rpx-models/sam3_1 \
+      --source-revision "${SAM3_GIT_SHA}" \
+      --checkpoint-repo facebook/sam3.1 \
+      --checkpoint-revision daa63191845a41281374e725f4c9e51c7a824460 \
+      --import sam3
+
+
+# 2. SAM 2 — official Meta SAM 2.1 large checkpoint.
+FROM tracking_all_sam3_1 AS tracking_all_sam2
+ARG SAM2_GIT_SHA=2b90b9f5ceec907a1c18123530e92e794ad901a4
+RUN rpx-clone-pinned https://github.com/facebookresearch/sam2.git \
+      "${SAM2_GIT_SHA}" /opt/rpx-models/sam2 && \
+    python -m venv --system-site-packages /opt/rpx-envs/sam2 && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/sam2/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/sam2 && \
+    /opt/rpx-envs/sam2/bin/python /usr/local/bin/rpx-register-model-env \
+      --model sam2 \
+      --prompt mask \
+      --source-dir /opt/rpx-models/sam2 \
+      --source-revision "${SAM2_GIT_SHA}" \
+      --checkpoint-repo facebook/sam2-hiera-large \
+      --checkpoint-revision e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251 \
+      --import sam2 \
+      --import sam2.sam2_video_predictor
+
+
+# 3. SAM 2++ — official Tracking Anything at Any Granularity implementation.
+FROM tracking_all_sam2 AS tracking_all_sam2_plus
+ARG SAM2_PLUS_GIT_SHA=09c9ec4686d7170396ed98abcc0150f35e82c6b9
+RUN rpx-clone-pinned https://github.com/MCG-NJU/SAM2-Plus.git \
+      "${SAM2_PLUS_GIT_SHA}" /opt/rpx-models/sam2_plus && \
+    python -m venv --system-site-packages /opt/rpx-envs/sam2_plus && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/sam2_plus/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/sam2_plus && \
+    /opt/rpx-envs/sam2_plus/bin/python /usr/local/bin/rpx-register-model-env \
+      --model sam2-plus \
+      --prompt mask \
+      --source-dir /opt/rpx-models/sam2_plus \
+      --source-revision "${SAM2_PLUS_GIT_SHA}" \
+      --checkpoint-repo MCG-NJU/SAM2-Plus \
+      --checkpoint-revision c3c534e30469d8788123287a484488567c5115d4 \
+      --import sam2_plus
+
+
+# 4. SAMURAI — repository vendors its motion-aware SAM 2 implementation.
+FROM tracking_all_sam2_plus AS tracking_all_samurai
+ARG SAMURAI_GIT_SHA=76ba195984892b0d1e3db5d9c9f90bb62175680a
+RUN rpx-clone-pinned https://github.com/yangchris11/samurai.git \
+      "${SAMURAI_GIT_SHA}" /opt/rpx-models/samurai && \
+    python -m venv --system-site-packages /opt/rpx-envs/samurai && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/samurai/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/samurai/sam2 && \
+    /opt/rpx-envs/samurai/bin/python /usr/local/bin/rpx-register-model-env \
+      --model samurai \
+      --prompt mask \
+      --source-dir /opt/rpx-models/samurai \
+      --source-revision "${SAMURAI_GIT_SHA}" \
+      --checkpoint-repo facebook/sam2.1-hiera-large \
+      --checkpoint-revision 665f8e2ad61cf5f53d65644ff27c8ee525124610 \
+      --python-path sam2 \
+      --import sam2 \
+      --import sam2.sam2_video_predictor
+
+
+# 5. EdgeTAM — official Meta on-device tracker.
+FROM tracking_all_samurai AS tracking_all_edgetam
+ARG EDGETAM_GIT_SHA=7711e012a30a2402c4eaab637bdb00a521302c91
+RUN rpx-clone-pinned https://github.com/facebookresearch/EdgeTAM.git \
+      "${EDGETAM_GIT_SHA}" /opt/rpx-models/edgetam && \
+    python -m venv --system-site-packages /opt/rpx-envs/edgetam && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/edgetam/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/edgetam && \
+    /opt/rpx-envs/edgetam/bin/python /usr/local/bin/rpx-register-model-env \
+      --model edgetam \
+      --prompt mask \
+      --source-dir /opt/rpx-models/edgetam \
+      --source-revision "${EDGETAM_GIT_SHA}" \
+      --checkpoint-repo facebook/EdgeTAM \
+      --checkpoint-revision 14d7ecc48c656b94e5184519f698cd5386c5a2bf \
+      --import sam2 \
+      --import sam2.sam2_video_predictor
+
+
+# 6. DeAOT — the official repository requires the correlation extension.
+FROM tracking_all_edgetam AS tracking_all_deaot
+ARG DEAOT_GIT_SHA=601c138435a1764eb01404f3495b914e6e2e8eca
+ARG CORRELATION_GIT_SHA=4aa4431bf2f6057c9d40d4990227e3e655699ed3
+RUN rpx-clone-pinned https://github.com/yoxu515/aot-benchmark.git \
+      "${DEAOT_GIT_SHA}" /opt/rpx-models/deaot && \
+    rpx-clone-pinned https://github.com/ClementPinard/Pytorch-Correlation-extension.git \
+      "${CORRELATION_GIT_SHA}" /opt/rpx-models/deaot-correlation && \
+    python -m venv --system-site-packages /opt/rpx-envs/deaot && \
+    /opt/rpx-envs/deaot/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/deaot-correlation && \
+    /opt/rpx-envs/deaot/bin/python /usr/local/bin/rpx-register-model-env \
+      --model deaot \
+      --prompt mask \
+      --source-dir /opt/rpx-models/deaot \
+      --source-revision "${DEAOT_GIT_SHA}" \
+      --import networks.models
+
+
+# 7. Cutie — install the official minimal inference package, excluding GUI extras.
+FROM tracking_all_deaot AS tracking_all_cutie
+ARG CUTIE_GIT_SHA=ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a
+ARG THINPLATE_GIT_SHA=f6995795397118b7d0ac01aecd3f39ffbfad9dee
+RUN rpx-clone-pinned https://github.com/hkchengrex/Cutie.git \
+      "${CUTIE_GIT_SHA}" /opt/rpx-models/cutie && \
+    rpx-clone-pinned https://github.com/cheind/py-thin-plate-spline.git \
+      "${THINPLATE_GIT_SHA}" /opt/rpx-models/thinplate && \
+    python -m venv --system-site-packages /opt/rpx-envs/cutie && \
+    /opt/rpx-envs/cutie/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/thinplate && \
+    /opt/rpx-envs/cutie/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/cutie && \
+    /opt/rpx-envs/cutie/bin/python /usr/local/bin/rpx-register-model-env \
+      --model cutie \
+      --prompt mask \
+      --source-dir /opt/rpx-models/cutie \
+      --source-revision "${CUTIE_GIT_SHA}" \
+      --import cutie
+
+
+# 8. MOTIP — compile its official multi-scale deformable-attention operation.
+FROM tracking_all_cutie AS tracking_all_motip
+ARG MOTIP_GIT_SHA=14a4f2e4b96d7913899966ce7e70771f0ee7fc75
+RUN rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
+      "${MOTIP_GIT_SHA}" /opt/rpx-models/motip && \
+    python -m venv --system-site-packages /opt/rpx-envs/motip && \
+    cd /opt/rpx-models/motip/models/ops && \
+    /opt/rpx-envs/motip/bin/python setup.py build_ext --inplace && \
+    /opt/rpx-envs/motip/bin/python /usr/local/bin/rpx-register-model-env \
+      --model motip \
+      --prompt detector \
+      --source-dir /opt/rpx-models/motip \
+      --source-revision "${MOTIP_GIT_SHA}" \
+      --import models
+
+
+# 9. MASA — preserve the authors' Torch 2.1/CUDA 11.8 OpenMMLab ABI in its
+# own venv. This is intentionally the one large non-shared dependency layer.
+FROM tracking_all_motip AS tracking_all_masa
+ARG MASA_GIT_SHA=c5472b9c7615f35abdf1188cb1a0c5408fe50d66
+ARG MMDET_GIT_SHA=44ebd17b145c2372c4b700bfb9cb20dbd28ab64a
+RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
+      "${MASA_GIT_SHA}" /opt/rpx-models/masa && \
+    rpx-clone-pinned https://github.com/open-mmlab/mmdetection.git \
+      "${MMDET_GIT_SHA}" /opt/rpx-models/mmdetection && \
+    python -m venv --system-site-packages /opt/rpx-envs/masa && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --index-url https://download.pytorch.org/whl/cu118 \
+      torch==2.1.2+cu118 torchvision==0.16.2+cu118 && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      mmengine==0.10.7 \
+      mmcv==2.1.0 \
+      --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.1/index.html && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/mmdetection && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/masa && \
+    /opt/rpx-envs/masa/bin/python /usr/local/bin/rpx-register-model-env \
+      --model masa \
+      --prompt detector \
+      --source-dir /opt/rpx-models/masa \
+      --source-revision "${MASA_GIT_SHA}" \
+      --import masa
+
+
+# 10. Grounded-SAM2 — source-pinned text grounding + SAM 2 tracking stack.
+FROM tracking_all_masa AS tracking_all_grounded_sam2
+ARG GROUNDED_SAM2_GIT_SHA=b7a9c29f196edff0eb54dbe14588d7ae5e3dde28
+RUN rpx-clone-pinned https://github.com/IDEA-Research/Grounded-SAM-2.git \
+      "${GROUNDED_SAM2_GIT_SHA}" /opt/rpx-models/grounded_sam2 && \
+    python -m venv --system-site-packages /opt/rpx-envs/grounded_sam2 && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/grounded_sam2/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/grounded_sam2 && \
+    /opt/rpx-envs/grounded_sam2/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/grounded_sam2/grounding_dino && \
+    /opt/rpx-envs/grounded_sam2/bin/python /usr/local/bin/rpx-register-model-env \
+      --model grounded-sam2 \
+      --prompt text \
+      --source-dir /opt/rpx-models/grounded_sam2 \
+      --source-revision "${GROUNDED_SAM2_GIT_SHA}" \
+      --python-path grounding_dino \
+      --import groundingdino \
+      --import sam2
+
+ENV RPX_TRACKING_PYTHON=/opt/rpx-envs/grounded_sam2/bin/python
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/cache/torch", "/outputs"]
+ENTRYPOINT []
