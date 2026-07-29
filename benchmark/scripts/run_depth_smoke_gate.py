@@ -1,7 +1,7 @@
 """Run one reproducible Depth smoke gate on an idle CUDA host.
 
 Run this script from the model family's isolated Python environment. It
-pins the RPX dataset revision, refuses the three unverified adapters,
+pins the RPX dataset revision, refuses the two unverified adapters,
 checks GPU occupancy, records the environment, invokes the task CLI, and
 validates the required result artefacts. It never uploads to Box.
 """
@@ -26,7 +26,10 @@ from pathlib import Path
 
 DATASET_REPO = "IRVLUTD/RPX"
 DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
-BLOCKED_MODELS = {"fe2e", "d4rt", "gem-depth"}
+BLOCKED_MODELS = {"d4rt", "gem-depth"}
+# Verified models whose dependency stack is supplied only by a dedicated
+# reproducible Docker overlay, not setup_depth_smoke_env.py.
+DEDICATED_RUNTIME_MODELS = {"fe2e"}
 IMAGE_MODELS = {
     "da-v2-large",
     "da3-metric-l",

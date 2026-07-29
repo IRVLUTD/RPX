@@ -35,7 +35,11 @@ def _sample(t: int = 3, h: int = 16, w: int = 24) -> SimpleNamespace:
 
 
 def test_setup_covers_every_runnable_canonical_model() -> None:
-    runnable = (gate.IMAGE_MODELS | gate.VIDEO_MODELS) - gate.BLOCKED_MODELS
+    runnable = (
+        (gate.IMAGE_MODELS | gate.VIDEO_MODELS)
+        - gate.BLOCKED_MODELS
+        - gate.DEDICATED_RUNTIME_MODELS
+    )
     assert set(setup_env.MODEL_FAMILY) == runnable
     assert setup_env.VIDEO_MODELS == gate.VIDEO_MODELS - gate.BLOCKED_MODELS
     assert set(setup_env.FAMILY_IMPORTS) == set(setup_env.FAMILY_PACKAGES)
@@ -50,7 +54,8 @@ def test_matrix_roster_covers_all_twenty_models() -> None:
     roster = matrix._canonical_models("all")
     assert len(roster) == 20
     assert {name for name, _task in roster} == gate.IMAGE_MODELS | gate.VIDEO_MODELS
-    assert gate.BLOCKED_MODELS == {"fe2e", "d4rt", "gem-depth"}
+    assert gate.BLOCKED_MODELS == {"d4rt", "gem-depth"}
+    assert gate.DEDICATED_RUNTIME_MODELS == {"fe2e"}
 
 
 def test_matrix_gate_parser_enforces_safe_order() -> None:
