@@ -24,7 +24,7 @@ RUN apt-get update && \
 
 RUN mkdir -p \
       /opt/rpx-envs \
-      /opt/rpx/benchmark/scripts \
+      /opt/rpx/benchmark \
       /cache/ultralytics/models \
       /cache/ultralytics/config \
       /cache/huggingface \
@@ -32,6 +32,8 @@ RUN mkdir -p \
       /cache/xdg
 
 WORKDIR /opt/rpx/benchmark
+
+COPY benchmark /opt/rpx/benchmark
 
 
 FROM tracking_base AS tracking_all_yoloe
@@ -53,9 +55,6 @@ COPY docker/tracking-smoke/requirements-yoloe.lock \
 RUN /opt/rpx-envs/yoloe/bin/python -m pip install \
       --no-deps \
       -r /tmp/requirements-yoloe.lock
-
-COPY benchmark/scripts/run_yoloe_tracking_smoke.py \
-     /opt/rpx/benchmark/scripts/run_yoloe_tracking_smoke.py
 
 RUN RPX_MANIFEST_GIT_SHA="${RPX_GIT_SHA}" \
     /opt/rpx-envs/yoloe/bin/python - <<'PY'
@@ -99,3 +98,78 @@ print("Wrote:", path)
 PY
 
 WORKDIR /opt/rpx/benchmark
+
+
+# Cumulative target: this image retains the YOLOE engineering environment
+# while adding an isolated, paper-valid SAM 2 D3 environment. Docker shares
+# all preceding layers, so tagging both targets does not duplicate their
+# bytes on disk.
+FROM tracking_all_yoloe AS tracking_all_sam2
+
+ARG RPX_GIT_SHA=unknown
+ARG SAM2_GIT_SHA=2b90b9f5ceec907a1c18123530e92e794ad901a4
+ARG TRACKEVAL_GIT_SHA=12c8791b303e0a0b50f753af204249e622d0281a
+
+RUN python -m venv \
+      --system-site-packages \
+      /opt/rpx-envs/sam2 && \
+    /opt/rpx-envs/sam2/bin/python -m pip install \
+      --upgrade \
+      pip \
+      setuptools \
+      wheel
+
+COPY docker/tracking-smoke/requirements-sam2.lock \
+     /tmp/requirements-sam2.lock
+
+RUN /opt/rpx-envs/sam2/bin/python -m pip install \
+      -r /tmp/requirements-sam2.lock && \
+    SAM2_BUILD_CUDA=0 \
+    /opt/rpx-envs/sam2/bin/python -m pip install \
+      --no-deps \
+      "git+https://github.com/facebookresearch/sam2.git@${SAM2_GIT_SHA}" && \
+    /opt/rpx-envs/sam2/bin/python -m pip install \
+      --no-deps \
+      "git+https://github.com/JonathonLuiten/TrackEval.git@${TRACKEVAL_GIT_SHA}" && \
+    /opt/rpx-envs/sam2/bin/python -m pip install \
+      --no-deps \
+      --force-reinstall \
+      /opt/rpx/benchmark
+
+RUN RPX_MANIFEST_GIT_SHA="${RPX_GIT_SHA}" \
+    RPX_SAM2_GIT_SHA="${SAM2_GIT_SHA}" \
+    RPX_TRACKEVAL_GIT_SHA="${TRACKEVAL_GIT_SHA}" \
+    /opt/rpx-envs/sam2/bin/python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+import pyarrow
+import torch
+import trackeval
+from sam2.sam2_video_predictor import SAM2VideoPredictor
+
+manifest = {
+    "container": True,
+    "family": "tracking",
+    "models": ["yoloe-engineering-smoke", "sam2"],
+    "paper_valid_d3_models": ["sam2"],
+    "python": "/opt/rpx-envs/sam2/bin/python",
+    "rpx_git_sha": os.environ["RPX_MANIFEST_GIT_SHA"],
+    "sam2_git_sha": os.environ["RPX_SAM2_GIT_SHA"],
+    "trackeval_git_sha": os.environ["RPX_TRACKEVAL_GIT_SHA"],
+    "torch": torch.__version__,
+    "cuda_build": torch.version.cuda,
+    "pyarrow": pyarrow.__version__,
+}
+path = Path("/opt/rpx-envs/sam2/rpx-environment.json")
+path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+print("SAM2 predictor:", SAM2VideoPredictor.__name__)
+print("TrackEval:", Path(trackeval.__file__).resolve())
+print(json.dumps(manifest, indent=2))
+PY
+
+ENV RPX_TRACKING_PYTHON=/opt/rpx-envs/sam2/bin/python
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

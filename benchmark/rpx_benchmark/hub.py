@@ -180,6 +180,7 @@ REPO_TYPE = "dataset"
 RGB = "rgb/*"
 DEPTH = "depth/*"
 MASK = "mask/*"
+SAM2_META = "sam2_meta/*"
 POSE = "pose/*"
 FISHEYE_L = "fisheye_left/*"
 FISHEYE_R = "fisheye_right/*"
@@ -200,7 +201,11 @@ TASK_MODALITIES: Dict[TaskType, List[str]] = {
     TaskType.OBJECT_SEGMENTATION: [RGB, MASK],
     TaskType.OBJECT_DETECTION: [RGB, MASK, TRACKLETS],
     TaskType.OPEN_VOCAB_DETECTION: [RGB, MASK, TRACKLETS, QUESTIONNAIRES],
-    TaskType.OBJECT_TRACKING: [RGB, MASK, TRACKLETS],
+    # Tracking GT is the temporally consistent instance-mask sequence.
+    # ``sam2_meta`` carries mask_to_object.json for auditable ID/name
+    # provenance.  The pinned RPX release contains no loose tracklets.json;
+    # the historical TRACKLETS entry therefore could never be downloaded.
+    TaskType.OBJECT_TRACKING: [RGB, MASK, SAM2_META],
     TaskType.RELATIVE_CAMERA_POSE: [RGB, POSE],
     TaskType.NOVEL_VIEW_SYNTHESIS: [RGB, DEPTH, POSE],
     TaskType.VISUAL_GROUNDING: [RGB, QUESTIONNAIRES, SPATIAL_QA],
@@ -360,6 +365,7 @@ def _build_allow_patterns(
         RGB: "rgb.tar",
         DEPTH: "depth.tar",
         MASK: "labels/masks/v1.tar",
+        SAM2_META: "labels/sam2_meta/v1.tar",
         POSE: "labels/cam_pose/v1.tar",
         FISHEYE_L: "fisheye.tar",
         FISHEYE_R: "fisheye.tar",

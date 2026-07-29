@@ -5,9 +5,10 @@
 !docker/tracking-smoke/Dockerfile
 !docker/tracking-smoke/requirements-yoloe.in
 !docker/tracking-smoke/requirements-yoloe.lock
+!docker/tracking-smoke/requirements-sam2.lock
+!docker/tracking-smoke/README.md
 
 !benchmark/
-!benchmark/scripts/
-!benchmark/scripts/run_yoloe_tracking_smoke.py
+!benchmark/**
 
 !.dockerignore

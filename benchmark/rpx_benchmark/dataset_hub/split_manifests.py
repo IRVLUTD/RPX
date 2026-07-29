@@ -25,7 +25,7 @@ stereo_depth        monocular_depth      fisheye_left, fisheye_right, depth
 relative_pose       relative_camera_pose rgb, rgb_b, pose_a, pose_b           [paired]
 rgbd_relative_pose  relative_camera_pose rgb, depth, rgb_b, depth_b,
                                           pose_a, pose_b                       [paired]
-object_tracking     object_tracking      rgb, mask, tracks                    [per-phase]
+object_tracking     object_tracking      rgb, mask                            [per-frame]
 vqa                 visual_grounding     rgb, text                            [needs labels]
 ==================  ===================  ============================================
 
@@ -391,15 +391,13 @@ class _RGBDRelativePoseSpec(_RelativePoseSpec):
 
 
 class _ObjectTrackingSpec(_TaskSpec):
-    """``object_tracking``: rgb + mask + tracks.
+    """``object_tracking``: RGB plus temporally consistent instance masks.
 
-    The loader's ``_load_tracklets`` reads ``entry["tracks"]`` as a JSON
-    file containing aggregated tracklets for one (scene, phase). That
-    JSON is currently produced by external tooling (SAM2 video output);
-    we reference its expected location and let the publisher script
-    generate it. If the tracklets JSON isn't on disk, this manifest's
-    samples will fail to load — but that's a publishing-side gap, not
-    a manifest-shape bug.
+    A mask value greater than zero is the persistent instance ID within one
+    ``(scene, phase)`` clip.  The production tracking runner groups these
+    frame entries into clips and uses the first mask as model initialisation.
+    No separate tracklet JSON is needed (and the pinned RPX release does not
+    publish one).
     """
 
     task_type_value = "object_tracking"
@@ -414,9 +412,6 @@ class _ObjectTrackingSpec(_TaskSpec):
             stem = _frame_stem(row)
             e["rgb"] = _modality_path(scene, phase, "rgb", stem)
             e["mask"] = _modality_path(scene, phase, "masks", stem)
-            # Per-(scene, phase) aggregated tracklets JSON. Convention:
-            # ``extracted/scenes/<scene>/<phase>/tracklets/v1.json``.
-            e["tracks"] = f"extracted/scenes/{scene}/{phase}/tracklets/v1.json"
             rows.append(e)
         return rows
 

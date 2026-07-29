@@ -30,7 +30,7 @@ TASK_SPEC = TaskSpec(
     display_name="Object Tracking",
     description="Per-frame multi-object tracking with persistent IDs.",
     primary_metric=PRIMARY_METRIC,
-    required_modalities=["rgb", "mask", "tracklets"],
+    required_modalities=["rgb", "mask"],
     higher_is_better=True,
     run=run_object_tracking,
 )
