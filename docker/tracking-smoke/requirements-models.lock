@@ -3,7 +3,7 @@
 # Dockerfile.models. PyTorch/torchvision are supplied by the digest-pinned base.
 accelerate==0.27.2
 addict==2.4.0
-av==14.4.0
+av==15.0.0
 cython==3.1.2
 easydict==1.13
 einops==0.8.1
