@@ -85,6 +85,7 @@ def test_resolve_canonical_returns_legacy_key():
     assert resolve_model_key("depth-pro") == "depth_pro"
     assert resolve_model_key("lotus-2") == "lotus_2"
     assert resolve_model_key("moge-2-vit-l") == "moge_2"
+    assert resolve_model_key("zipdepth") == "zipdepth"
 
 
 def test_resolve_legacy_key_passes_through():

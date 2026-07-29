@@ -74,6 +74,17 @@ def _evaluate_one(work: tuple) -> tuple[str, float]:
     ground_truth = np.asarray(Image.open(gt_path), dtype=np.float32) / 1000.0
     if alignment == "ls_affine":
         prediction = (float(scale) * prediction + float(shift)).astype(np.float32)
+    elif alignment == "ls_disparity":
+        inverse_prediction = 1.0 / np.maximum(
+            prediction.astype(np.float64),
+            1e-6,
+        )
+        aligned_disparity = (
+            float(scale) * inverse_prediction + float(shift)
+        )
+        prediction = (
+            1.0 / np.maximum(aligned_disparity, 1e-6)
+        ).astype(np.float32)
     elif alignment == "ls_log":
         log_depth = np.minimum(
             float(scale) * prediction.astype(np.float64) + float(shift),
@@ -114,9 +125,10 @@ def _alignment_parameters(
     """Compute one RPX pooled alignment transform per scene-phase cell."""
     if alignment == "none":
         return {}
-    if alignment not in {"ls_affine", "ls_log"}:
+    if alignment not in {"ls_affine", "ls_disparity", "ls_log"}:
         raise SystemExit(
-            f"Deferred exact F-score supports none, ls_affine and ls_log; got {alignment!r}"
+            "Deferred exact F-score supports none, ls_affine, "
+            f"ls_disparity and ls_log; got {alignment!r}"
         )
 
     import numpy as np
@@ -140,7 +152,10 @@ def _alignment_parameters(
             continue
         x = prediction[valid].astype(np.float64)
         y = ground_truth[valid].astype(np.float64)
-        if alignment == "ls_log":
+        if alignment == "ls_disparity":
+            x = 1.0 / np.maximum(x, 1e-6)
+            y = 1.0 / np.maximum(y, 1e-6)
+        elif alignment == "ls_log":
             y = np.log(y)
         row = stats.setdefault(_cell_key(sample), [0.0] * 5)
         row[0] += float(x.size)

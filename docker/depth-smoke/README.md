@@ -81,13 +81,13 @@ weights have not been verified, and DepthLM still needs a Docker environment.
 | `da-v2-large` | image | `transformers-image` | Baked, matrix-ready, acceptance passed |
 | `da3-metric-l` | image | `da3` | Baked and matrix-ready |
 | `depth-pro` | image | `transformers-image` | Baked, matrix-ready, acceptance passed |
-| `depthlm` | image | `depthlm` | Runnable in the host setup workflow; not yet baked into this image |
 | `fe2e` | image | `docker/depth-fe2e` | Official release; use its dedicated PyTorch 2.6 overlay rather than this cumulative smoke image |
 | `hyden` | image | `metadepth` (`hyden` alias) | Baked and matrix-ready; checkpoint access may require approval |
 | `lotus-2` | image | `lotus2` | Baked and matrix-ready |
 | `metric3d-v2` | image | `metric3d` | Baked and matrix-ready |
 | `moge-2-vit-l` | image | `moge2` | Baked, matrix-ready, acceptance passed |
 | `unidepth-v2` | image | `unidepth2` | Baked, matrix-ready, acceptance passed |
+| `zipdepth` | image | `docker/depth-zipdepth` | Official release; replacement tenth image model uses its dedicated thin overlay |
 | `chrono-depth` | video | `chrono` | Baked and import-checked; matrix readiness marker still needs to be added |
 | `d4rt` | video | — | Blocked: official weights unverified |
 | `da3-video` | video | `da3` | Baked and matrix-ready |
@@ -116,6 +116,7 @@ The cumulative stages are:
 | `depth_all_rolling_vda_video` | `rolling-depth`, `video-da` |
 | `depth_all_monst3r` | `monst3r` |
 | `depth_all_hyden` | `hyden` |
+| Dedicated ZipDepth overlay | `zipdepth` |
 
 Confirm the code-level roster at any time with:
 

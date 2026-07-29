@@ -38,6 +38,10 @@ UPSTREAMS = {
         "https://github.com/facebookresearch/metadepth.git",
         "810b77c3e56712813a0de42a130cfbe6f5b19b90",
     ),
+    "zipdepth": (
+        "https://github.com/fabiotosi92/ZipDepth.git",
+        "94da7527f7030a0e79d54f33b113bdce4065d735",
+    ),
     "chrono": (
         "https://github.com/jiahao-shao1/ChronoDepth.git",
         "2580e891eb33a5c3a95eab27b745f64ac28b3514",
@@ -75,7 +79,7 @@ MODEL_FAMILY = {
     "depth-pro": "transformers-image",
     "hyden": "metadepth",
     "da3-metric-l": "da3",
-    "depthlm": "depthlm",
+    "zipdepth": "zipdepth",
     "lotus-2": "lotus2",
     "metric3d-v2": "metric3d",
     "moge-2-vit-l": "moge2",
@@ -224,6 +228,12 @@ FAMILY_PACKAGES = {
         "xformers",
     ],
     "vigeo": ["einops>=0.7"],
+    "zipdepth": [
+        "numpy>=2.0.0",
+        "opencv-python-headless>=4.10.0",
+        "Pillow>=10.0.0",
+        "tqdm>=4.66.0",
+    ],
 }
 
 FAMILY_IMPORTS = {
@@ -244,6 +254,7 @@ FAMILY_IMPORTS = {
     "vggt": ["vggt"],
     "video_da": ["video_depth_anything.video_depth"],
     "vigeo": ["vigeo"],
+    "zipdepth": ["zipdepth.inference.predictor"],
 }
 
 
@@ -505,7 +516,7 @@ def main() -> None:
     upstream_path = None
     if family in UPSTREAMS:
         upstream_path = _clone_pinned(family, source_root, dry_run=args.dry_run)
-        if family in {"da3", "unidepth2"}:
+        if family in {"da3", "unidepth2", "zipdepth"}:
             _run(
                 [python, "-m", "pip", "install", "--no-deps", "-e", str(upstream_path)],
                 dry_run=args.dry_run,

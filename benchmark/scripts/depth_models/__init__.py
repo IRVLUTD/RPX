@@ -283,6 +283,13 @@ def _build_fe2e(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return FE2EAdapter(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_zipdepth(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """ZipDepth — official compact affine-invariant inverse-depth release."""
+    from .zipdepth import ZipDepthAdapter
+
+    return ZipDepthAdapter(device=device, batch_size=batch_size, **kwargs)
+
+
 #: Public name → builder. ``--model X`` resolves through this table.
 #: Each entry is the canonical short id (snake_case) the team uses in
 #: result.json paths and the Box upload tree, so the same key shows up
@@ -301,6 +308,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "da3_metric_large": _build_da3_metric,
     "depthlm": _build_depthlm,
     "fe2e": _build_fe2e,
+    "zipdepth": _build_zipdepth,
     # ── Relative / aligned (native_alignment="ls_affine") ────────────────
     "da_v2_relative": _build_da_v2_relative,
     "da_v1": _build_da_v1,
@@ -345,6 +353,7 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "geowizard": "GeoWizard",
     "moge_v1": "MoGe-v1-ViTL",
     "hyden_relative": "HyDen-DA2-Relative",
+    "zipdepth": "ZipDepth",
 }
 
 
@@ -380,8 +389,8 @@ CANONICAL_TO_LEGACY: Dict[str, str | None] = {
     "hyden":         "hyden_metric",
     "lotus-2":       "lotus_2",
     "da3-metric-l":  "da3_metric_large",       # depth-anything/DA3-LARGE (ByteDance)
-    "depthlm":       "depthlm",                # facebook/DepthLM
     "fe2e":          "fe2e",                   # AMAP-ML/FE2E official release
+    "zipdepth":      "zipdepth",               # fabiotosi92/ZipDepth official release
 }
 
 

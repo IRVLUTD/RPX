@@ -31,13 +31,13 @@ IMAGE_MODELS = {
     "da-v2-large",
     "da3-metric-l",
     "depth-pro",
-    "depthlm",
     "fe2e",
     "hyden",
     "lotus-2",
     "metric3d-v2",
     "moge-2-vit-l",
     "unidepth-v2",
+    "zipdepth",
 }
 VIDEO_MODELS = {
     "chrono-depth",

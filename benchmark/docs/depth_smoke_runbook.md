@@ -51,7 +51,7 @@ driver-compatible `--torch-version`, `--torchvision-version` and
 | `da3` | `da3-metric-l`, `da3-video` |
 | `transformers-image` | `da-v2-large`, `depth-pro` |
 | `metadepth` | `hyden` |
-| `depthlm` | `depthlm` |
+| `zipdepth` | `zipdepth` |
 | `lotus2` | `lotus-2` |
 | `metric3d` | `metric3d-v2` |
 | `moge2` | `moge-2-vit-l` |

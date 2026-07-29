@@ -164,18 +164,15 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         ),
         paper_ref="fe2e",
     ),
-    "depthlm": DepthModelCard(
-        name="DepthLM",
+    "zipdepth": DepthModelCard(
+        name="ZipDepth",
         task=TaskType.MONOCULAR_DEPTH,
-        # DepthLM emits metric depth per the upstream HF model card
-        # (Pixtral-finetuned VLM); runner skips alignment.
-        depth_output_kind="metric",
+        depth_output_kind="relative",
         install_hint=(
-            "pip install transformers torch accelerate; "
-            "weights at facebook/DepthLM (~24 GB; needs 40 GB+ VRAM or "
-            "bitsandbytes 4-bit)"
+            "official fabiotosi92/ZipDepth source and zipdepth_base.pth; "
+            "use the pinned docker/depth-zipdepth environment"
         ),
-        paper_ref="depthlm",
+        paper_ref="zipdepth",
     ),
     # -------------------------------------------------------------- Video Depth
     "da3-video": DepthModelCard(

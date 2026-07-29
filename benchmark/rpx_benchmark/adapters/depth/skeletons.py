@@ -83,10 +83,10 @@ class FE2EAdapter(DepthAdapterSkeleton):
     MODEL_KEY = "fe2e"
 
 
-class DepthLMAdapter(DepthAdapterSkeleton):
-    """DepthLM (relative)."""
+class ZipDepthAdapter(DepthAdapterSkeleton):
+    """ZipDepth compact affine-invariant inverse-depth model."""
 
-    MODEL_KEY = "depthlm"
+    MODEL_KEY = "zipdepth"
 
 
 __all__ = [
@@ -99,5 +99,5 @@ __all__ = [
     "HyDenAdapter",
     "Lotus2Adapter",
     "FE2EAdapter",
-    "DepthLMAdapter",
+    "ZipDepthAdapter",
 ]

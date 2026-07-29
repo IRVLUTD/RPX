@@ -104,6 +104,73 @@ def test_pooled_log_alignment_parameters_match_known_transform(tmp_path: Path) -
     assert len(signature) == 64
 
 
+def test_exact_worker_and_pooled_parameters_support_zipdepth_disparity(
+    tmp_path: Path,
+) -> None:
+    module = _script_module()
+    dataset_root = tmp_path / "dataset"
+    predictions = tmp_path / "predictions"
+    samples = []
+    scale, shift = 1.6, 0.15
+    for frame, offset in enumerate((0.0, 0.25)):
+        gt = np.linspace(0.5 + offset, 4.0, 12, dtype=np.float32).reshape(3, 4)
+        # Stored prediction follows the adapter's depth-domain contract.
+        raw_inverse_depth = ((1.0 / gt) - shift) / scale
+        stored_depth = (1.0 / raw_inverse_depth).astype(np.float32)
+        depth = f"scenes/scene001/0/depth/{frame:05d}.png"
+        prediction_path = predictions / "scene001" / "0" / f"{frame:05d}.npz"
+        gt_path = dataset_root / depth
+        prediction_path.parent.mkdir(parents=True, exist_ok=True)
+        gt_path.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(prediction_path, depth=stored_depth)
+        Image.fromarray(np.round(gt * 1000).astype(np.uint16)).save(gt_path)
+        samples.append(
+            {
+                "id": f"scene001__0__{frame:05d}",
+                "scene_id": "scene001",
+                "phase": 0,
+                "rgb": f"scenes/scene001/0/rgb/{frame:05d}.webp",
+                "depth": depth,
+            }
+        )
+    parameters = module._alignment_parameters(
+        samples,
+        dataset_root,
+        predictions,
+        "ls_disparity",
+    )
+    fitted_scale, fitted_shift, signature = parameters[("scene001", "0")]
+    assert fitted_scale == pytest.approx(scale, abs=2e-3)
+    assert fitted_shift == pytest.approx(shift, abs=2e-3)
+    assert len(signature) == 64
+
+    worker_gt = np.linspace(
+        0.5,
+        4.0,
+        480 * 640,
+        dtype=np.float32,
+    ).reshape(480, 640)
+    worker_inverse = ((1.0 / worker_gt) - fitted_shift) / fitted_scale
+    worker_prediction = (1.0 / worker_inverse).astype(np.float32)
+    worker_prediction_path = tmp_path / "worker_prediction.npz"
+    worker_gt_path = tmp_path / "worker_gt.png"
+    np.savez_compressed(worker_prediction_path, depth=worker_prediction)
+    Image.fromarray(np.round(worker_gt * 1000).astype(np.uint16)).save(worker_gt_path)
+
+    sample_id, value = module._evaluate_one(
+        (
+            "sample",
+            str(worker_prediction_path),
+            str(worker_gt_path),
+            "ls_disparity",
+            fitted_scale,
+            fitted_shift,
+        )
+    )
+    assert sample_id == "sample"
+    assert value > 0.999
+
+
 def test_fscore_cache_is_bound_to_alignment_signature(tmp_path: Path) -> None:
     module = _script_module()
     cache_path = tmp_path / "score.json"
