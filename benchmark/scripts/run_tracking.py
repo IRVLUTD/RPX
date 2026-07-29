@@ -332,7 +332,12 @@ def main() -> None:
         gt_masks = [
             _load_mask_file(_resolve(str(sample["mask"]), clip.root)) for sample in samples
         ]
-        metrics = paper_tracking_metrics(pred_masks=predictions, gt_masks=gt_masks)
+        # Frame 0 is supplied to the tracker as ground-truth initialization;
+        # scoring it would add a free perfect detection/identity match.
+        metrics = paper_tracking_metrics(
+            pred_masks=predictions[1:],
+            gt_masks=gt_masks[1:],
+        )
         measured_latencies = [value for value in latencies[1:] if value > 0]
         row: dict[str, Any] = {
             "model": args.model,
@@ -341,6 +346,7 @@ def main() -> None:
             "scene": clip.scene,
             "phase": clip.phase,
             "n_frames": len(samples),
+            "n_scored_frames": len(samples) - 1,
             "latency_ms": (
                 float(np.median(measured_latencies)) if measured_latencies else np.nan
             ),
@@ -364,6 +370,7 @@ def main() -> None:
         "split": args.split,
         "protocol": {
             "initialization": "ground_truth_first_frame_instance_masks",
+            "scored_frames": "1_to_end (initialization frame excluded)",
             "association_representation": "tight_boxes_derived_from_instance_masks",
             "association_iou_threshold": 0.5,
             "metric_implementation": "TrackEval",

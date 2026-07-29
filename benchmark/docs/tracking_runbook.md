@@ -4,7 +4,9 @@
 
 - The evaluation unit is a complete `(scene, phase)` clip (250 frames).
 - Trackers are initialized with the released ground-truth instance masks on
-  frame 0. Text prompts are not used for mask-initialized D3 models.
+  frame 0. Text prompts are not used for mask-initialized D3 models. Frame 0
+  is preserved in the outputs but excluded from metrics because it is supplied
+  to the model rather than predicted.
 - Positive mask values are persistent instance IDs within the clip.
 - Predictions are evaluated as tight boxes derived from the predicted and GT
   masks using the official TrackEval implementation:
