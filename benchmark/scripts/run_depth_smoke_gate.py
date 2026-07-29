@@ -456,9 +456,10 @@ def main() -> None:
             "--save-predictions",
             "--skip-flops",
         ]
-        if args.model == "zipdepth":
-            # The official ReLU inverse-depth head may emit legitimate zeros.
-            # Paper mode preserves them for the pooled disparity fit.
+        if args.model in {"zipdepth", "fe2e"}:
+            # ZipDepth's official inverse-depth head may emit legitimate zeros;
+            # FE2E emits a signed normalized log-depth representation. Paper
+            # mode preserves both raw domains for their pooled alignment fits.
             command += ["--paper-protocol", "--defer-fscore"]
         if args.gate == "micro":
             command += ["--max-samples", "1"]
