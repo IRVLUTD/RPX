@@ -39,8 +39,8 @@ class ZipDepthAdapter:
         checkpoint_path: str | None = None,
         input_size: int = 384,
     ) -> None:
-        if int(batch_size) != 1:
-            raise AdapterError("ZipDepth RPX evaluation requires batch size 1.")
+        if int(batch_size) < 1:
+            raise AdapterError("ZipDepth batch size must be positive.")
         if device == "cpu":
             raise AdapterError("ZipDepth production inference requires CUDA.")
 
@@ -80,7 +80,7 @@ class ZipDepthAdapter:
             raise AdapterError(f"Official ZipDepth load failed: {exc}") from exc
 
         self.device = device
-        self.batch_size = 1
+        self.batch_size = int(batch_size)
         self.input_size = int(input_size)
         self.model_id = (
             "https://github.com/fabiotosi92/ZipDepth"
@@ -97,10 +97,104 @@ class ZipDepthAdapter:
     ) -> Union[np.ndarray, list[np.ndarray]]:
         is_batch = isinstance(rgb, (list, tuple))
         images = list(rgb) if is_batch else [rgb]
-        outputs = [self._infer_one(image) for image in images]
+        outputs = (
+            self._infer_batch(images)
+            if len(images) > 1
+            else [self._infer_one(images[0])]
+        )
         return outputs if is_batch else outputs[0]
 
+    def _infer_batch(self, rgbs: Sequence[np.ndarray]) -> list[np.ndarray]:
+        """Run one real GPU forward for an RPX image batch.
+
+        The released predictor exposes a single-image convenience method, but
+        its underlying fused PyTorch model is batch-safe. RPX frames all share
+        one resolution, so preprocessing is identical to ``image2tensor``:
+        aspect-ratio-preserving OpenCV resize, BGR→RGB, [0,1] normalization,
+        channels-last CUDA input, model forward, then bilinear restoration.
+        """
+        import cv2
+        import torch
+        import torch.nn.functional as F
+
+        images = [self._validated_rgb(rgb) for rgb in rgbs]
+        original_shapes = [image.shape[:2] for image in images]
+        if len(set(original_shapes)) != 1:
+            raise AdapterError(
+                "ZipDepth batched inference requires equal input resolutions."
+            )
+
+        target_shapes = [
+            self._predictor._compute_target_size(*shape)  # noqa: SLF001
+            for shape in original_shapes
+        ]
+        if len(set(target_shapes)) != 1:
+            raise AdapterError(
+                "ZipDepth batched inference produced unequal model resolutions."
+            )
+        new_h, new_w = target_shapes[0]
+        bgr_batch = np.stack(
+            [
+                cv2.resize(
+                    np.ascontiguousarray(image[..., ::-1]),
+                    (new_w, new_h),
+                    interpolation=cv2.INTER_LINEAR,
+                )
+                for image in images
+            ],
+            axis=0,
+        )
+
+        tensor = torch.from_numpy(bgr_batch).permute(0, 3, 1, 2)
+        tensor = tensor[:, [2, 1, 0], :, :].contiguous()
+        is_cuda = str(self.device).startswith("cuda")
+        if is_cuda:
+            tensor = tensor.pin_memory()
+        tensor = tensor.to(
+            device=self.device,
+            dtype=self._predictor.dtype,
+            non_blocking=is_cuda,
+        )
+        tensor.div_(255.0)
+        if is_cuda:
+            tensor = tensor.contiguous(memory_format=torch.channels_last)
+
+        with torch.inference_mode():
+            inverse_depth = self._predictor.model(tensor)
+            if inverse_depth.ndim == 2:
+                inverse_depth = inverse_depth.unsqueeze(0).unsqueeze(0)
+            elif inverse_depth.ndim == 3:
+                inverse_depth = inverse_depth.unsqueeze(1)
+            if inverse_depth.ndim != 4 or inverse_depth.shape[0] != len(images):
+                raise AdapterError(
+                    "ZipDepth returned an invalid batched output shape: "
+                    f"{tuple(inverse_depth.shape)}."
+                )
+            inverse_depth = F.interpolate(
+                inverse_depth,
+                original_shapes[0],
+                mode="bilinear",
+                align_corners=True,
+            )
+            output_batch = inverse_depth[:, 0].float().cpu().numpy()
+
+        return [
+            self._validated_inverse_depth(depth, shape)
+            for depth, shape in zip(output_batch, original_shapes, strict=True)
+        ]
+
     def _infer_one(self, rgb: np.ndarray) -> np.ndarray:
+        image = self._validated_rgb(rgb)
+        # The official predictor accepts OpenCV-order BGR uint8.
+        bgr = np.ascontiguousarray(image[..., ::-1])
+        inverse_depth = np.asarray(
+            self._predictor.infer_image(bgr),
+            dtype=np.float32,
+        )
+        return self._validated_inverse_depth(inverse_depth, image.shape[:2])
+
+    @staticmethod
+    def _validated_rgb(rgb: np.ndarray) -> np.ndarray:
         image = np.asarray(rgb)
         if image.ndim != 3 or image.shape[2] != 3:
             raise AdapterError(f"ZipDepth expected HxWx3 RGB, got {image.shape}.")
@@ -108,17 +202,18 @@ class ZipDepthAdapter:
             if not np.issubdtype(image.dtype, np.number) or not np.isfinite(image).all():
                 raise AdapterError("ZipDepth RGB input must be finite numeric data.")
             image = np.clip(image, 0, 255).astype(np.uint8)
+        return image
 
-        # The official predictor accepts OpenCV-order BGR uint8.
-        bgr = np.ascontiguousarray(image[..., ::-1])
-        inverse_depth = np.asarray(
-            self._predictor.infer_image(bgr),
-            dtype=np.float32,
-        )
-        if inverse_depth.shape != image.shape[:2]:
+    @staticmethod
+    def _validated_inverse_depth(
+        inverse_depth: np.ndarray,
+        expected_shape: tuple[int, int],
+    ) -> np.ndarray:
+        inverse_depth = np.asarray(inverse_depth, dtype=np.float32)
+        if inverse_depth.shape != expected_shape:
             raise AdapterError(
                 "ZipDepth did not restore the original image resolution: "
-                f"expected {image.shape[:2]}, got {inverse_depth.shape}."
+                f"expected {expected_shape}, got {inverse_depth.shape}."
             )
         if not np.isfinite(inverse_depth).all():
             raise AdapterError("ZipDepth returned non-finite inverse depth.")

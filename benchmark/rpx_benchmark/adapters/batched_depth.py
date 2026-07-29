@@ -55,6 +55,7 @@ from __future__ import annotations
 import os
 import tempfile
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, List, Optional, Sequence
 
@@ -215,14 +216,32 @@ class BatchedDepthBenchmarkModel:
         predictions: Sequence[DepthPrediction],
     ) -> None:
         """Persist newly inferred predictions after the runner stops timing."""
-        for sample, prediction, required in zip(
-            batch,
-            predictions,
-            self._last_save_required,
-            strict=True,
-        ):
-            if required:
-                self._maybe_save(sample, prediction.depth_map)
+        pending = [
+            (sample, prediction.depth_map)
+            for sample, prediction, required in zip(
+                batch,
+                predictions,
+                self._last_save_required,
+                strict=True,
+            )
+            if required
+        ]
+        if len(pending) <= 1:
+            for sample, depth in pending:
+                self._maybe_save(sample, depth)
+            return
+
+        # Compression is CPU-bound and each frame has a distinct atomic target.
+        # Parallelize it within the batch so a fast GPU is not followed by a
+        # serial chain of np.savez_compressed calls.
+        workers = min(len(pending), 8)
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = [
+                executor.submit(self._maybe_save, sample, depth)
+                for sample, depth in pending
+            ]
+            for future in futures:
+                future.result()
 
     def _prediction_path(self, sample: Sample) -> Path | None:
         if self._save_dir is None:
