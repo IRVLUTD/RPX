@@ -4,6 +4,10 @@ This image layers the official `AMAP-ML/FE2E` inference release over the
 current RPX paper image. Model weights are downloaded at runtime into the
 mounted Hugging Face cache; they are not baked into the image.
 
+The runtime retains `gcc` because Triton compiles its CUDA driver helper on
+the first actual GPU inference. A successful Python import alone does not
+exercise this compilation path.
+
 Pinned provenance:
 
 - source: `AMAP-ML/FE2E@262d4c9d4c37752c984304f57ca7d7066f34ad5d`

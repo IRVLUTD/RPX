@@ -16,11 +16,19 @@ LABEL org.opencontainers.image.title="RPX official FE2E depth runtime" \
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
     RPX_FE2E_SOURCE=/opt/rpx-envs/sources/fe2e \
     HF_HOME=/cache/huggingface \
+    CC=/usr/bin/gcc \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 COPY benchmark /opt/rpx/benchmark
 COPY docker/depth-fe2e/requirements-fe2e.lock /tmp/requirements-fe2e.lock
+
+# Triton compiles its CUDA driver helper on the first real GPU forward. Keep a
+# C toolchain in the runtime image; import-only validation does not trigger it.
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends build-essential && \
+    rm -rf /var/lib/apt/lists/* && \
+    test -x "${CC}"
 
 # Pin the paper-authors' official release, including the checked-in empty-prompt
 # latent used by their one-step inference path.

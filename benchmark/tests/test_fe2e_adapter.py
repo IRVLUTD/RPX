@@ -137,6 +137,8 @@ def test_fe2e_docker_overlay_pins_official_runtime():
     ).read_text()
 
     assert FE2EAdapter.UPSTREAM_REVISION in dockerfile
+    assert "build-essential" in dockerfile
+    assert "CC=/usr/bin/gcc" in dockerfile
     assert "torch==2.6.0" in dockerfile
     assert "torchvision==0.21.0" in dockerfile
     assert "flash_attn-2.7.2.post1" in dockerfile
