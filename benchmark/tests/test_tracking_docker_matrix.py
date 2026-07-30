@@ -104,6 +104,18 @@ def test_builder_supports_one_model_overlay_mode():
     assert "--base-image IMAGE" in builder
 
 
+def test_every_incremental_overlay_refreshes_registration_helper():
+    dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    copy_line = (
+        "COPY --chmod=0755 docker/tracking-smoke/register_model_env.py "
+        "/usr/local/bin/rpx-register-model-env"
+    )
+
+    # One copy in the base plus one in each of the nine externally overridable
+    # stages prevents an old published base from retaining stale build tooling.
+    assert dockerfile.count(copy_line) == 10
+
+
 def test_base_image_is_digest_pinned_and_weights_are_not_copied():
     payload = json.loads((DOCKER_DIR / "model-matrix.json").read_text())
     dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()

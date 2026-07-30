@@ -95,6 +95,7 @@ RUN rpx-clone-pinned https://github.com/facebookresearch/sam3.git \
 FROM ${SAM2_BASE_IMAGE} AS tracking_all_sam2
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG SAM2_GIT_SHA=2b90b9f5ceec907a1c18123530e92e794ad901a4
 RUN rpx-clone-pinned https://github.com/facebookresearch/sam2.git \
       "${SAM2_GIT_SHA}" /opt/rpx-models/sam2 && \
@@ -116,6 +117,7 @@ RUN rpx-clone-pinned https://github.com/facebookresearch/sam2.git \
 FROM ${SAM2_PLUS_BASE_IMAGE} AS tracking_all_sam2_plus
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG SAM2_PLUS_GIT_SHA=09c9ec4686d7170396ed98abcc0150f35e82c6b9
 RUN rpx-clone-pinned https://github.com/MCG-NJU/SAM2-Plus.git \
       "${SAM2_PLUS_GIT_SHA}" /opt/rpx-models/sam2_plus && \
@@ -136,6 +138,7 @@ RUN rpx-clone-pinned https://github.com/MCG-NJU/SAM2-Plus.git \
 FROM ${SAMURAI_BASE_IMAGE} AS tracking_all_samurai
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG SAMURAI_GIT_SHA=76ba195984892b0d1e3db5d9c9f90bb62175680a
 RUN rpx-clone-pinned https://github.com/yangchris11/samurai.git \
       "${SAMURAI_GIT_SHA}" /opt/rpx-models/samurai && \
@@ -160,6 +163,7 @@ RUN rpx-clone-pinned https://github.com/yangchris11/samurai.git \
 FROM ${EDGETAM_BASE_IMAGE} AS tracking_all_edgetam
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG EDGETAM_GIT_SHA=7711e012a30a2402c4eaab637bdb00a521302c91
 RUN rpx-clone-pinned https://github.com/facebookresearch/EdgeTAM.git \
       "${EDGETAM_GIT_SHA}" /opt/rpx-models/edgetam && \
@@ -181,6 +185,7 @@ RUN rpx-clone-pinned https://github.com/facebookresearch/EdgeTAM.git \
 FROM ${DEAOT_BASE_IMAGE} AS tracking_all_deaot
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG DEAOT_GIT_SHA=601c138435a1764eb01404f3495b914e6e2e8eca
 ARG CORRELATION_GIT_SHA=4aa4431bf2f6057c9d40d4990227e3e655699ed3
 COPY docker/tracking-smoke/patches/pytorch-correlation-torch27-openmp.patch \
@@ -208,6 +213,7 @@ RUN rpx-clone-pinned https://github.com/yoxu515/aot-benchmark.git \
 FROM ${CUTIE_BASE_IMAGE} AS tracking_all_cutie
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG CUTIE_GIT_SHA=ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a
 ARG THINPLATE_GIT_SHA=f6995795397118b7d0ac01aecd3f39ffbfad9dee
 RUN rpx-clone-pinned https://github.com/hkchengrex/Cutie.git \
@@ -231,6 +237,7 @@ RUN rpx-clone-pinned https://github.com/hkchengrex/Cutie.git \
 FROM ${MOTIP_BASE_IMAGE} AS tracking_all_motip
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG MOTIP_GIT_SHA=14a4f2e4b96d7913899966ce7e70771f0ee7fc75
 RUN rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
       "${MOTIP_GIT_SHA}" /opt/rpx-models/motip && \
@@ -250,6 +257,7 @@ RUN rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
 FROM ${MASA_BASE_IMAGE} AS tracking_all_masa
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG MASA_GIT_SHA=c5472b9c7615f35abdf1188cb1a0c5408fe50d66
 ARG MMDET_GIT_SHA=44ebd17b145c2372c4b700bfb9cb20dbd28ab64a
 RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
@@ -280,6 +288,7 @@ RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
 FROM ${GROUNDED_SAM2_BASE_IMAGE} AS tracking_all_grounded_sam2
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
 ARG GROUNDED_SAM2_GIT_SHA=b7a9c29f196edff0eb54dbe14588d7ae5e3dde28
 RUN rpx-clone-pinned https://github.com/IDEA-Research/Grounded-SAM-2.git \
       "${GROUNDED_SAM2_GIT_SHA}" /opt/rpx-models/grounded_sam2 && \
