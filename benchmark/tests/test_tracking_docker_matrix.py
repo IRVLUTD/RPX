@@ -46,9 +46,25 @@ def test_every_model_has_a_pinned_source_and_cumulative_target():
     for model in payload["models"]:
         assert re.fullmatch(r"[0-9a-f]{40}", model["source_revision"])
         assert model["source_revision"] in dockerfile
-        declaration = f"FROM {previous} AS {model['target']}"
+        if model["order"] == 1:
+            declaration = f"FROM {previous} AS {model['target']}"
+        else:
+            base_arg = model["base_arg"]
+            assert f"ARG {base_arg}={previous}" in dockerfile
+            declaration = f"FROM ${{{base_arg}}} AS {model['target']}"
         assert declaration in dockerfile
         previous = model["target"]
+
+
+def test_samurai_runtime_declares_its_missing_logger_dependency():
+    dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    assert "loguru==0.7.3" in dockerfile
+
+
+def test_builder_supports_one_model_overlay_mode():
+    builder = (DOCKER_DIR / "build_and_push_models.sh").read_text()
+    assert "--model MODEL" in builder
+    assert "--base-image IMAGE" in builder
 
 
 def test_base_image_is_digest_pinned_and_weights_are_not_copied():

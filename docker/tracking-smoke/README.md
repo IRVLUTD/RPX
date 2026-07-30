@@ -34,6 +34,19 @@ The script builds in paper order:
 9. MASA
 10. Grounded-SAM2
 
+To build and push one model at a time on top of the preceding published image:
+
+```bash
+docker/tracking-smoke/build_and_push_models.sh \
+  --model samurai \
+  --base-image vndhiran123/rpx-tracking-smoke:sam2-plus-sha-<previous-sha> \
+  --push
+```
+
+Use the newly emitted immutable tag as `--base-image` for the next row. This
+mode is the preferred recovery path after a late-stage failure: it neither
+rebuilds nor repushes the already-successful prefix.
+
 Every target inherits the preceding target, so Docker Hub stores common layers
 once. Each model still has its own Python environment under `/opt/rpx-envs` to
 prevent packages with conflicting `sam2` module names from shadowing each other.
