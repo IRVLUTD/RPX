@@ -10,6 +10,24 @@ import sys
 from pathlib import Path
 
 
+def _module_location(module_name: str) -> str:
+    module = importlib.import_module(module_name)
+    module_file = getattr(module, "__file__", None)
+    if module_file is not None:
+        return str(Path(module_file).resolve())
+
+    namespace_paths = sorted(
+        str(Path(value).resolve())
+        for value in getattr(module, "__path__", ())
+    )
+    if namespace_paths:
+        return os.pathsep.join(namespace_paths)
+
+    raise RuntimeError(
+        f"imported module {module_name!r} has neither __file__ nor __path__"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -40,7 +58,7 @@ def main() -> None:
 
     imported = {}
     for module in args.imports:
-        imported[module] = str(Path(importlib.import_module(module).__file__).resolve())
+        imported[module] = _module_location(module)
 
     freeze_path = Path(sys.prefix) / "rpx-pip-freeze.txt"
     freeze_path.write_text(

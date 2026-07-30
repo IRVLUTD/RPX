@@ -1,5 +1,7 @@
 import json
+import importlib.util
 import re
+import sys
 from pathlib import Path
 
 
@@ -63,6 +65,26 @@ def test_every_model_has_a_pinned_source_and_cumulative_target():
 def test_samurai_runtime_declares_its_missing_logger_dependency():
     dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
     assert "loguru==0.7.3" in dockerfile
+
+
+def test_environment_registration_supports_namespace_packages(tmp_path):
+    script_path = DOCKER_DIR / "register_model_env.py"
+    spec = importlib.util.spec_from_file_location("register_model_env", script_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    package_root = tmp_path / "namespace_root"
+    namespace = package_root / "rpx_test_namespace"
+    namespace.mkdir(parents=True)
+    sys.path.insert(0, str(package_root))
+    try:
+        assert module._module_location("rpx_test_namespace") == str(
+            namespace.resolve()
+        )
+    finally:
+        sys.path.remove(str(package_root))
+        sys.modules.pop("rpx_test_namespace", None)
 
 
 def test_deaot_correlation_has_versioned_torch27_compatibility_patch():
