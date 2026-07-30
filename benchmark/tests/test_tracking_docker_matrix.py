@@ -53,6 +53,10 @@ def test_every_model_has_a_pinned_source_and_cumulative_target():
             assert f"ARG {base_arg}={previous}" in dockerfile
             declaration = f"FROM ${{{base_arg}}} AS {model['target']}"
         assert declaration in dockerfile
+        if model["order"] > 1:
+            stage = dockerfile.split(declaration, 1)[1].split("\nFROM ", 1)[0]
+            assert "ARG RPX_GIT_SHA" in stage
+            assert "ENV RPX_GIT_SHA=${RPX_GIT_SHA}" in stage
         previous = model["target"]
 
 
