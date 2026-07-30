@@ -183,10 +183,16 @@ ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
 ARG DEAOT_GIT_SHA=601c138435a1764eb01404f3495b914e6e2e8eca
 ARG CORRELATION_GIT_SHA=4aa4431bf2f6057c9d40d4990227e3e655699ed3
+COPY docker/tracking-smoke/patches/pytorch-correlation-torch27-openmp.patch \
+     /tmp/pytorch-correlation-torch27-openmp.patch
 RUN rpx-clone-pinned https://github.com/yoxu515/aot-benchmark.git \
       "${DEAOT_GIT_SHA}" /opt/rpx-models/deaot && \
     rpx-clone-pinned https://github.com/ClementPinard/Pytorch-Correlation-extension.git \
       "${CORRELATION_GIT_SHA}" /opt/rpx-models/deaot-correlation && \
+    git -C /opt/rpx-models/deaot-correlation apply --check \
+      /tmp/pytorch-correlation-torch27-openmp.patch && \
+    git -C /opt/rpx-models/deaot-correlation apply \
+      /tmp/pytorch-correlation-torch27-openmp.patch && \
     python -m venv --system-site-packages /opt/rpx-envs/deaot && \
     /opt/rpx-envs/deaot/bin/python -m pip install \
       --no-deps --no-build-isolation /opt/rpx-models/deaot-correlation && \

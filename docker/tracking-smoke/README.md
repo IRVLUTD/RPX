@@ -47,6 +47,12 @@ Use the newly emitted immutable tag as `--base-image` for the next row. This
 mode is the preferred recovery path after a late-stage failure: it neither
 rebuilds nor repushes the already-successful prefix.
 
+The DeAOT overlay applies the repository-versioned
+`patches/pytorch-correlation-torch27-openmp.patch` to its pinned correlation
+extension. It removes two CPU-only OpenMP pragmas that do not compile inside
+PyTorch 2.7's dispatch macro. The CUDA correlation implementation used for GPU
+benchmarking is unchanged.
+
 Every target inherits the preceding target, so Docker Hub stores common layers
 once. Each model still has its own Python environment under `/opt/rpx-envs` to
 prevent packages with conflicting `sam2` module names from shadowing each other.

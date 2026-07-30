@@ -65,6 +65,17 @@ def test_samurai_runtime_declares_its_missing_logger_dependency():
     assert "loguru==0.7.3" in dockerfile
 
 
+def test_deaot_correlation_has_versioned_torch27_compatibility_patch():
+    dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    patch_name = "pytorch-correlation-torch27-openmp.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert f"COPY docker/tracking-smoke/patches/{patch_name}" in dockerfile
+    assert "git -C /opt/rpx-models/deaot-correlation apply --check" in dockerfile
+    assert patch.count("-  #pragma omp parallel for") == 2
+    assert "correlation.cpp" in patch
+
+
 def test_builder_supports_one_model_overlay_mode():
     builder = (DOCKER_DIR / "build_and_push_models.sh").read_text()
     assert "--model MODEL" in builder
