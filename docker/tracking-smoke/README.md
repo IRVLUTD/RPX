@@ -57,6 +57,7 @@ The MOTIP overlay similarly carries
 `patches/motip-cuda-toolkit-build.patch`. The upstream setup script requires a
 live GPU during extension compilation; Docker builds normally expose the CUDA
 toolkit but no GPU device. The patch gates compilation on `CUDA_HOME` instead.
+It also updates the two deprecated tensor-type dispatch calls for PyTorch 2.7.
 It still builds the official CUDA sources and does not introduce a CPU fallback.
 
 Every target inherits the preceding target, so Docker Hub stores common layers

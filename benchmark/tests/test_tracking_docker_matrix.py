@@ -107,6 +107,12 @@ def test_motip_uses_toolkit_presence_for_image_build():
     assert "git -C /opt/rpx-models/motip apply --check" in dockerfile
     assert "-    if torch.cuda.is_available() and CUDA_HOME is not None:" in patch
     assert "+    if CUDA_HOME is not None:" in patch
+    assert patch.count(
+        "-        AT_DISPATCH_FLOATING_TYPES(value.type(),"
+    ) == 2
+    assert patch.count(
+        "+        AT_DISPATCH_FLOATING_TYPES(value.scalar_type(),"
+    ) == 2
 
 
 def test_builder_supports_one_model_overlay_mode():
