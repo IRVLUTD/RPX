@@ -1,0 +1,16 @@
+diff --git a/models/ops/setup.py b/models/ops/setup.py
+index 14fbcd5..79b744f 100644
+--- a/models/ops/setup.py
++++ b/models/ops/setup.py
+@@ -32,10 +32,10 @@ def get_extensions():
+     extension = CppExtension
+     extra_compile_args = {"cxx": []}
+     define_macros = []
+ 
+ 
+ 
+-    if torch.cuda.is_available() and CUDA_HOME is not None:
++    if CUDA_HOME is not None:
+         extension = CUDAExtension
+         sources += source_cuda
+         define_macros += [("WITH_CUDA", None)]

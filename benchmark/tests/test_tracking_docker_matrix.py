@@ -98,6 +98,17 @@ def test_deaot_correlation_has_versioned_torch27_compatibility_patch():
     assert "correlation.cpp" in patch
 
 
+def test_motip_uses_toolkit_presence_for_image_build():
+    dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    patch_name = "motip-cuda-toolkit-build.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert f"COPY docker/tracking-smoke/patches/{patch_name}" in dockerfile
+    assert "git -C /opt/rpx-models/motip apply --check" in dockerfile
+    assert "-    if torch.cuda.is_available() and CUDA_HOME is not None:" in patch
+    assert "+    if CUDA_HOME is not None:" in patch
+
+
 def test_builder_supports_one_model_overlay_mode():
     builder = (DOCKER_DIR / "build_and_push_models.sh").read_text()
     assert "--model MODEL" in builder

@@ -238,9 +238,15 @@ FROM ${MOTIP_BASE_IMAGE} AS tracking_all_motip
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
 COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY docker/tracking-smoke/patches/motip-cuda-toolkit-build.patch \
+     /tmp/motip-cuda-toolkit-build.patch
 ARG MOTIP_GIT_SHA=14a4f2e4b96d7913899966ce7e70771f0ee7fc75
 RUN rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
       "${MOTIP_GIT_SHA}" /opt/rpx-models/motip && \
+    git -C /opt/rpx-models/motip apply --check \
+      /tmp/motip-cuda-toolkit-build.patch && \
+    git -C /opt/rpx-models/motip apply \
+      /tmp/motip-cuda-toolkit-build.patch && \
     python -m venv --system-site-packages /opt/rpx-envs/motip && \
     cd /opt/rpx-models/motip/models/ops && \
     /opt/rpx-envs/motip/bin/python setup.py build_ext --inplace && \

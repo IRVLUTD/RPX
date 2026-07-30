@@ -53,6 +53,12 @@ extension. It removes two CPU-only OpenMP pragmas that do not compile inside
 PyTorch 2.7's dispatch macro. The CUDA correlation implementation used for GPU
 benchmarking is unchanged.
 
+The MOTIP overlay similarly carries
+`patches/motip-cuda-toolkit-build.patch`. The upstream setup script requires a
+live GPU during extension compilation; Docker builds normally expose the CUDA
+toolkit but no GPU device. The patch gates compilation on `CUDA_HOME` instead.
+It still builds the official CUDA sources and does not introduce a CPU fallback.
+
 Every target inherits the preceding target, so Docker Hub stores common layers
 once. Each model still has its own Python environment under `/opt/rpx-envs` to
 prevent packages with conflicting `sam2` module names from shadowing each other.
