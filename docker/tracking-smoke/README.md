@@ -64,8 +64,9 @@ MASA's isolated OpenMMLab environment installs
 `requirements-masa-runtime.lock`. These are the pinned MMDetection runtime
 packages absent from the shared environment; source packages remain installed
 with `--no-deps` so the resolver cannot silently replace the locked Torch/MMCV
-ABI. MASA's required `scalabel-evalAPI` source branch is also commit-pinned,
-installed without dependency resolution, and import-checked during the build.
+ABI. MASA's required `scalabel-evalAPI` source branch and the TETA package that
+it imports are also commit-pinned, installed without dependency resolution,
+and import-checked during the build.
 
 Every target inherits the preceding target, so Docker Hub stores common layers
 once. Each model still has its own Python environment under `/opt/rpx-envs` to

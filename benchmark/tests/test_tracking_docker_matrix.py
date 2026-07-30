@@ -131,6 +131,10 @@ def test_masa_installs_pinned_mmdetection_runtime_requirements():
     assert "rpx-clone-pinned https://github.com/scalabel/scalabel.git" in dockerfile
     assert "78b26be9800596a3c0c2a999f9e04deb8e3fc29a" in dockerfile
     assert "--no-deps --no-build-isolation /opt/rpx-models/scalabel" in dockerfile
+    assert "rpx-clone-pinned https://github.com/SysCV/tet.git" in dockerfile
+    assert "a62a9c0affec3a97f2cd0263141c53bcfb9c79f7" in dockerfile
+    assert "--no-deps --no-build-isolation /opt/rpx-models/tet/teta" in dockerfile
+    assert "--import teta" in dockerfile
     assert "--import scalabel" in dockerfile
 
 
