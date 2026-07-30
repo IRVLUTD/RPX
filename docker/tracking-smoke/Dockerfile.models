@@ -264,6 +264,8 @@ FROM ${MASA_BASE_IMAGE} AS tracking_all_masa
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
 COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY docker/tracking-smoke/requirements-masa-runtime.lock \
+     /tmp/requirements-masa-runtime.lock
 ARG MASA_GIT_SHA=c5472b9c7615f35abdf1188cb1a0c5408fe50d66
 ARG MMDET_GIT_SHA=44ebd17b145c2372c4b700bfb9cb20dbd28ab64a
 RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
@@ -278,6 +280,8 @@ RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
       mmengine==0.10.7 \
       mmcv==2.1.0 \
       --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.1/index.html && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      -r /tmp/requirements-masa-runtime.lock && \
     /opt/rpx-envs/masa/bin/python -m pip install \
       --no-deps --no-build-isolation /opt/rpx-models/mmdetection && \
     /opt/rpx-envs/masa/bin/python -m pip install \

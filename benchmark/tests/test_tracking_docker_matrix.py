@@ -115,6 +115,17 @@ def test_motip_uses_toolkit_presence_for_image_build():
     ) == 2
 
 
+def test_masa_installs_pinned_mmdetection_runtime_requirements():
+    dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    lock = (DOCKER_DIR / "requirements-masa-runtime.lock").read_text()
+
+    assert "COPY docker/tracking-smoke/requirements-masa-runtime.lock" in dockerfile
+    assert "-r /tmp/requirements-masa-runtime.lock" in dockerfile
+    assert "shapely==" in lock
+    assert "six==" in lock
+    assert "terminaltables==" in lock
+
+
 def test_builder_supports_one_model_overlay_mode():
     builder = (DOCKER_DIR / "build_and_push_models.sh").read_text()
     assert "--model MODEL" in builder

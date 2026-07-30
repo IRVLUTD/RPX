@@ -60,6 +60,12 @@ toolkit but no GPU device. The patch gates compilation on `CUDA_HOME` instead.
 It also updates the two deprecated tensor-type dispatch calls for PyTorch 2.7.
 It still builds the official CUDA sources and does not introduce a CPU fallback.
 
+MASA's isolated OpenMMLab environment installs
+`requirements-masa-runtime.lock`. These are the pinned MMDetection runtime
+packages absent from the shared environment; source packages remain installed
+with `--no-deps` so the resolver cannot silently replace the locked Torch/MMCV
+ABI.
+
 Every target inherits the preceding target, so Docker Hub stores common layers
 once. Each model still has its own Python environment under `/opt/rpx-envs` to
 prevent packages with conflicting `sam2` module names from shadowing each other.
