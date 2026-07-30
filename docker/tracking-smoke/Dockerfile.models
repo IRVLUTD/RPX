@@ -268,10 +268,13 @@ COPY docker/tracking-smoke/requirements-masa-runtime.lock \
      /tmp/requirements-masa-runtime.lock
 ARG MASA_GIT_SHA=c5472b9c7615f35abdf1188cb1a0c5408fe50d66
 ARG MMDET_GIT_SHA=44ebd17b145c2372c4b700bfb9cb20dbd28ab64a
+ARG SCALABEL_GIT_SHA=78b26be9800596a3c0c2a999f9e04deb8e3fc29a
 RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
       "${MASA_GIT_SHA}" /opt/rpx-models/masa && \
     rpx-clone-pinned https://github.com/open-mmlab/mmdetection.git \
       "${MMDET_GIT_SHA}" /opt/rpx-models/mmdetection && \
+    rpx-clone-pinned https://github.com/scalabel/scalabel.git \
+      "${SCALABEL_GIT_SHA}" /opt/rpx-models/scalabel && \
     python -m venv --system-site-packages /opt/rpx-envs/masa && \
     /opt/rpx-envs/masa/bin/python -m pip install \
       --index-url https://download.pytorch.org/whl/cu118 \
@@ -285,12 +288,15 @@ RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
     /opt/rpx-envs/masa/bin/python -m pip install \
       --no-deps --no-build-isolation /opt/rpx-models/mmdetection && \
     /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/scalabel && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
       --no-deps --no-build-isolation /opt/rpx-models/masa && \
     /opt/rpx-envs/masa/bin/python /usr/local/bin/rpx-register-model-env \
       --model masa \
       --prompt detector \
       --source-dir /opt/rpx-models/masa \
       --source-revision "${MASA_GIT_SHA}" \
+      --import scalabel \
       --import masa
 
 

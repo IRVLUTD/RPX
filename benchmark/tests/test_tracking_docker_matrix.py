@@ -124,6 +124,14 @@ def test_masa_installs_pinned_mmdetection_runtime_requirements():
     assert "shapely==" in lock
     assert "six==" in lock
     assert "terminaltables==" in lock
+    assert "pydantic==2.7.0" in lock
+    assert "motmetrics==" in lock
+    assert "nanoid==" in lock
+    assert "plyfile==" in lock
+    assert "rpx-clone-pinned https://github.com/scalabel/scalabel.git" in dockerfile
+    assert "78b26be9800596a3c0c2a999f9e04deb8e3fc29a" in dockerfile
+    assert "--no-deps --no-build-isolation /opt/rpx-models/scalabel" in dockerfile
+    assert "--import scalabel" in dockerfile
 
 
 def test_builder_supports_one_model_overlay_mode():
