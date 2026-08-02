@@ -22,7 +22,8 @@ RUN test -n "${RPX_GIT_SHA}" && \
       https://github.com/EnVision-Research/DVD.git && \
     git -C /opt/rpx-envs/sources/dvd fetch \
       --depth 1 origin "${DVD_SHA}" && \
-    git -C /opt/rpx-envs/sources/dvd checkout --detach FETCH_HEAD
+    git -C /opt/rpx-envs/sources/dvd checkout --detach FETCH_HEAD && \
+    git config --system --add safe.directory /opt/rpx-envs/sources/dvd
 
 COPY docker/depth-dvd/requirements-dvd.lock /tmp/requirements-dvd.lock
 
