@@ -85,6 +85,10 @@ class DVDAdapter(VideoDepthAdapterBase):
             from examples.wanvideo.model_training.WanTrainingModule import (
                 WanTrainingModule,
             )
+            from diffsynth.pipelines.wan_video_new_determine import (
+                ModelConfig,
+                WanVideoPipeline,
+            )
             from test_script.test_single_video import generate_depth_sliced
         except ImportError as exc:
             raise AdapterError(
@@ -128,16 +132,39 @@ class DVDAdapter(VideoDepthAdapterBase):
                 "lora_rank": 512,
             }
         )
-        model = WanTrainingModule(
-            accelerator=Accelerator(),
-            model_paths=json.dumps(wan_paths),
-            model_id_with_origin_paths=None,
-            trainable_models=None,
-            use_gradient_checkpointing=False,
-            lora_rank=args.lora_rank,
-            lora_base_model=args.lora_base_model,
-            args=args,
+        # DVD's fork disables the Wan text encoder and always supplies zero
+        # prompt embeddings, but the upstream ``from_pretrained`` default
+        # still downloads an unused ``google/*`` tokenizer into ``./models``.
+        # Supply an already-pinned local path as the inert tokenizer config:
+        # this removes an unversioned network side effect and lets the
+        # container run safely as the invoking server UID.
+        original_from_pretrained = WanVideoPipeline.from_pretrained
+
+        def _from_pretrained_without_unused_tokenizer(*call_args, **call_kwargs):
+            call_kwargs.setdefault(
+                "tokenizer_config",
+                ModelConfig(path=wan_paths[0]),
+            )
+            return original_from_pretrained(*call_args, **call_kwargs)
+
+        WanVideoPipeline.from_pretrained = staticmethod(
+            _from_pretrained_without_unused_tokenizer
         )
+        try:
+            model = WanTrainingModule(
+                accelerator=Accelerator(),
+                model_paths=json.dumps(wan_paths),
+                model_id_with_origin_paths=None,
+                trainable_models=None,
+                use_gradient_checkpointing=False,
+                lora_rank=args.lora_rank,
+                lora_base_model=args.lora_base_model,
+                args=args,
+            )
+        finally:
+            WanVideoPipeline.from_pretrained = staticmethod(
+                original_from_pretrained
+            )
         state = load_file(dvd_path, device="cpu")
         dit_state = {
             key.removeprefix("pipe.dit."): value
