@@ -21,6 +21,7 @@ import setup_depth_smoke_env as setup_env
 from depth_models.hyden import HyDen
 from video_depth_models.chrono_depth import ChronoDepthAdapter
 from video_depth_models.depth_crafter import DepthCrafterAdapter
+from video_depth_models.dvd import DVDAdapter
 from video_depth_models.monst3r import MonST3RAdapter
 from video_depth_models.rolling_depth import RollingDepthAdapter
 from video_depth_models.vggt_omega import VGGTOmegaAdapter
@@ -57,7 +58,7 @@ def test_matrix_roster_covers_all_twenty_models() -> None:
     roster = matrix._canonical_models("all")
     assert len(roster) == 20
     assert {name for name, _task in roster} == gate.IMAGE_MODELS | gate.VIDEO_MODELS
-    assert gate.BLOCKED_MODELS == {"fe2e", "d4rt"}
+    assert gate.BLOCKED_MODELS == {"fe2e"}
 
 
 def test_matrix_gate_parser_enforces_safe_order() -> None:
@@ -386,6 +387,34 @@ def test_video_da_passes_numpy_sequence_to_official_helper() -> None:
     adapter._model = Model()
     depth = adapter._predict_clip(sample)
     assert depth.shape == sample.rgb_seq.shape[:3]
+
+
+def test_dvd_uses_official_long_video_helper_and_inverse_depth_contract() -> None:
+    pytest.importorskip("torch")
+    sample = _sample(h=16, w=32)
+    seen = {}
+
+    def generate(model, video, *, window_size, overlap):
+        seen["model"] = model
+        seen["shape"] = tuple(video.shape)
+        seen["window_size"] = window_size
+        seen["overlap"] = overlap
+        t, h, w = sample.rgb_seq.shape[:3]
+        values = np.linspace(0.1, 1.0, t * h * w, dtype=np.float32)
+        return values.reshape(1, t, h, w, 1)
+
+    adapter = DVDAdapter(device="cpu")
+    adapter._model = object()
+    adapter._generate_depth_sliced = generate
+    inverse_depth = adapter._predict_clip(sample)
+
+    assert inverse_depth.shape == sample.rgb_seq.shape[:3]
+    assert inverse_depth.dtype == np.float32
+    assert seen["model"] is adapter._model
+    assert seen["shape"] == (1, 3, 3, 16, 32)
+    assert seen["window_size"] == 3
+    assert seen["overlap"] == 2
+    assert adapter.native_alignment == "ls_disparity"
 
 
 def test_vigeo_uses_tensor_input_and_depth_pred_key() -> None:

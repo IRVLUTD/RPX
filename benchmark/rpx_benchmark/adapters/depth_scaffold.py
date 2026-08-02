@@ -221,18 +221,15 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         install_hint="pip install rollingdepth (TBD — clone upstream repo)",
         paper_ref="rollingdepth",
     ),
-    "d4rt": DepthModelCard(
-        name="D4RT",
+    "dvd": DepthModelCard(
+        name="DVD v1.1",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
-        # Author HF repo found at AlysonIrene/D4RT_checkpoint —
-        # confirm against the paper authors before relying on it.
+        depth_output_kind="relative",
         install_hint=(
-            "no verified official release as of 2026-06-25; "
-            "candidate weights at huggingface.co/AlysonIrene/D4RT_checkpoint. "
-            "Team to verify upstream lineage."
+            "clone github.com/EnVision-Research/DVD at the pinned revision; "
+            "official v1.1 weights: huggingface.co/FayeHongfeiZhang/DVD"
         ),
-        paper_ref="d4rt",
+        paper_ref="dvd",
     ),
     "gem-depth": DepthModelCard(
         name="GemDepth",

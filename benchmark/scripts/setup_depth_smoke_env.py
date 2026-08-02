@@ -64,6 +64,10 @@ UPSTREAMS = {
         "https://github.com/DepthAnything/Video-Depth-Anything.git",
         "4f5ae23172ba60fd7bc11ef671cca678842c7072",
     ),
+    "dvd": (
+        "https://github.com/EnVision-Research/DVD.git",
+        "62f52d16faa2cac10e31eb7815ece6e61d5449ec",
+    ),
     "vigeo": (
         "https://github.com/aigc3d/ViGeo.git",
         "c2cf70302be459ca7be758185fa71b89949ee4b5",
@@ -88,6 +92,7 @@ MODEL_FAMILY = {
     "vggt-omega": "vggt",
     "video-da": "video_da",
     "vigeo": "vigeo",
+    "dvd": "dvd",
 }
 
 VIDEO_MODELS = {
@@ -99,6 +104,7 @@ VIDEO_MODELS = {
     "vggt-omega",
     "video-da",
     "vigeo",
+    "dvd",
 }
 
 FAMILY_PACKAGES = {
@@ -224,6 +230,25 @@ FAMILY_PACKAGES = {
         "xformers",
     ],
     "vigeo": ["einops>=0.7"],
+    "dvd": [
+        "numpy==1.26.4",
+        "accelerate==1.9.0",
+        "diffusers==0.36.0",
+        "einops==0.8.1",
+        "ftfy==6.3.1",
+        "huggingface_hub==0.36.2",
+        "imageio==2.37.0",
+        "imageio-ffmpeg==0.6.0",
+        "modelscope==1.33.0",
+        "omegaconf==2.3.0",
+        "opencv-python-headless==4.11.0.86",
+        "peft==0.18.1",
+        "protobuf==6.33.5",
+        "safetensors==0.7.0",
+        "sentencepiece==0.2.1",
+        "tabulate==0.9.0",
+        "transformers==4.57.6",
+    ],
 }
 
 FAMILY_IMPORTS = {
@@ -244,6 +269,10 @@ FAMILY_IMPORTS = {
     "vggt": ["vggt"],
     "video_da": ["video_depth_anything.video_depth"],
     "vigeo": ["vigeo"],
+    "dvd": [
+        "examples.wanvideo.model_training.WanTrainingModule",
+        "test_script.test_single_video",
+    ],
 }
 
 
@@ -543,7 +572,7 @@ def main() -> None:
             )
             if not args.dry_run:
                 _add_source_path(python, upstream_path)
-        elif family in {"lotus2", "chrono", "depthcrafter", "video_da"}:
+        elif family in {"lotus2", "chrono", "depthcrafter", "video_da", "dvd"}:
             if not args.dry_run:
                 _add_source_path(python, upstream_path)
         elif family == "metadepth" and not args.dry_run:

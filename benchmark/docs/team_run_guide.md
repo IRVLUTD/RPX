@@ -45,7 +45,7 @@ Outputs land in `./rpx_results/<model>/<split>/`:
 | Task | Models implemented | Runner | Status |
 | --- | --- | --- | --- |
 | **Image Depth** (frame depth) | All 10 canonical names resolve to real adapters. Nine have official weights wired; FE2E remains behind the unverified-weights safety rail. The larger legacy registry contains additional historical variants and baselines. | `scripts/run_depth.py` | 4 acceptance passed; 3 server-only pending; HyDen access-blocked; Lotus-2 server retest; FE2E blocked |
-| **Video Depth** (video depth) | All 10 canonical names resolve. GemDepth now uses the authors' official source and checkpoint with disparity-space alignment; D4RT remains behind its safety rail. DA-V2 frame-as-video is an extra control, not a canonical roster row. | `scripts/run_video_depth.py` | 9 runnable; 1 blocked |
+| **Video Depth** (video depth) | All 10 canonical names resolve. GemDepth and DVD use the authors' official sources and checkpoints with disparity-space alignment. DA-V2 frame-as-video is an extra control, not a canonical roster row. | `scripts/run_video_depth.py` | 10 runnable |
 
 The full canonical roster has 20 rows (10 Image Depth + 10 Video Depth;
 19 model families because DA3 supplies both an image and video row) and is in

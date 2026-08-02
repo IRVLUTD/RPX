@@ -83,7 +83,7 @@ SKELETON_KEYS = [
         "vggt-omega",        # facebook/VGGT-1B
         "da3-video",         # depth-anything/DA3-LARGE
         "vigeo",             # pkqbajng/ViGeo (verified)
-        "d4rt",              # unverified, behind safety rail
+        "dvd",               # EnVision-Research/DVD official v1.1
         "gem-depth",         # official Yuecheng919/GemDepth release
     }
 ]
@@ -124,15 +124,11 @@ REAL_VIDEO_ADAPTERS = [
     ("da3-video",      "DA3",                  "metric"),
     ("vigeo",          "ViGeo",                "relative"),
     ("gem-depth",      "GemDepth",             "relative"),
+    ("dvd",            "DVD v1.1",             "relative"),
 ]
 
 
-UNVERIFIED_VIDEO_ADAPTERS = [
-    # Adapters behind the unverified-weights safety rail. build()
-    # returns an instance with the right task/name; setup() raises
-    # UnverifiedAdapterError unless acknowledge_unverified=True.
-    ("d4rt",      "D4RT",     "metric"),
-]
+UNVERIFIED_VIDEO_ADAPTERS = []
 
 
 @pytest.mark.parametrize("key,expected_name,expected_kind", REAL_VIDEO_ADAPTERS)

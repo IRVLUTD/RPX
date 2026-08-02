@@ -8,7 +8,7 @@ factory that the team-facing CLI
 Two kinds of adapter live here:
 
 * **True video models** — DepthCrafter, RollingDepth, ChronoDepth,
-  MonST3R, VGGT, D4RT, ViGeo, GemDepth, Video DA. These consume a
+  MonST3R, VGGT, DVD, ViGeo, GemDepth, Video DA. These consume a
   whole clip in one forward call and emit a temporally-consistent
   depth sequence.
 

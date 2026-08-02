@@ -207,7 +207,8 @@ them**.
 | `da3-video` | DA3 Metric-L applied per clip | Yes |
 | `chrono-depth` | ChronoDepth | Yes (needs its package) |
 | `vigeo` | ViGeo | Yes |
-| `d4rt`, `gem-depth` | Behind unverified-weights safety rail | Yes with `--acknowledge-unverified`; **do not publish numbers** until smoke-passed |
+| `dvd` | Official DVD v1.1 + Wan2.1, pinned Docker overlay | Relative inverse depth; per-clip `ls_disparity` alignment |
+| `gem-depth` | Official source and checkpoint, pinned Docker overlay | Relative inverse depth; per-clip `ls_disparity` alignment |
 
 Adapter contracts (module resolution, `build(device)` signature, verified
 `depth_output_kind`) are exercised by

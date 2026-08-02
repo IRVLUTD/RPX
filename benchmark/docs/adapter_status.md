@@ -21,9 +21,10 @@ adapters need their isolated upstream environment and smoke run.
 | | Code wired | Acceptance passed | Unverified-weight block |
 | --- | --- | --- | --- |
 | Single-image depth | 10 / 10 | 4 / 10 | 1 (FE2E) |
-| Video depth | 10 / 10 | 0 / 10 | 2 (D4RT, GemDepth) |
+| Video depth | 10 / 10 | See recorded smoke metadata | 0 |
 
-**The "Blocked" 3 are waiting on someone to find the official model release** — the HF repos we found for them look like community uploads, not the paper authors' actual weights.
+**FE2E remains blocked pending an approved official release.** GemDepth and
+DVD now use repositories and checkpoints published by their authors.
 
 ---
 
@@ -53,10 +54,10 @@ The team CLI: `python scripts/run_video_depth.py --model <name> --split easy`
 | Model | Owner | Status | What's needed |
 | --- | --- | --- | --- |
 | **chrono-depth** | — | ⏳ Needs smoke | Setup helper pins `github.com/jiahao-shao1/ChronoDepth` and its custom SVD pipeline |
-| **d4rt** | — | 🚫 Blocked | Find the official upstream release |
+| **dvd** | — | ⏳ Needs smoke | Build the pinned `docker/depth-dvd` overlay; official DVD v1.1 + Wan2.1 |
 | **da3-video** | — | ⏳ Needs smoke | Same install as `da3-metric-l` (shared weights) |
 | **depth-crafter** | — | ⏳ Needs smoke | Setup helper pins the Python-3.11-compatible official v1.0.1 source |
-| **gem-depth** | — | 🚫 Blocked | Find the official upstream release |
+| **gem-depth** | — | ⏳ Needs smoke | Official source/checkpoint pinned in its Docker overlay |
 | **monst3r** | — | ⏳ Needs smoke | `pip install git+https://github.com/Junyi42/monst3r` |
 | **rolling-depth** | — | ⏳ Needs smoke | `git clone github.com/prs-eth/rollingdepth && pip install -e .` |
 | **vggt-omega** | — | ⏳ Needs smoke | `git clone github.com/facebookresearch/vggt && pip install -e .` |
@@ -91,15 +92,17 @@ If the error is something else (CUDA OOM, missing package, weights download fail
 
 ---
 
-## The 3 blocked models — what to do
+## The blocked model — what to do
 
-For **FE2E**, **D4RT**, and **GemDepth** the HF repos we found look unofficial (empty READMEs, author personal handles, no clear link to the paper authors). Running them right now would risk publishing benchmark numbers under those model names that aren't actually the paper's model.
+For **FE2E**, the candidate release still requires explicit approval before
+publication. Running it without that verification could publish benchmark
+numbers under a model name whose weights do not match the paper.
 
 To unblock any of them:
 
 1. Find the paper's official GitHub repo (check the paper PDF's "code" link or arxiv "code" tab)
 2. Confirm whether the weights match what's on the candidate HF repo (or use the official repo's instructions instead)
-3. Update the adapter file (`scripts/depth_models/fe2e.py` for FE2E, or `scripts/video_depth_models/d4rt.py` / `gem_depth.py` for the other two) — drop the safety-rail check and wire up the real load path
+3. Update `scripts/depth_models/fe2e.py`, drop the safety rail, and wire up the verified load path
 4. Smoke it, then update this table
 
 ---

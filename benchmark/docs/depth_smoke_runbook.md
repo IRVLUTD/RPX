@@ -3,7 +3,7 @@
 This is the from-scratch operational companion to `adapter_status.md`. Every
 command is GPU-only and pins dataset revision
 `2e2a387f7f93e98c177b2e039c141eacda94e5fc`. The launcher refuses CPU fallback,
-an occupied selected GPU, and the unverified FE2E and D4RT adapters.
+an occupied selected GPU and the unverified FE2E adapter.
 It never uploads results.
 
 ## 1. Host and storage setup
@@ -74,9 +74,10 @@ python3.11 benchmark/scripts/setup_depth_smoke_env.py \
   --model video-da --env-root "$RPX_WORK_ROOT/rpx-envs"
 ```
 
-FE2E and D4RT are deliberately absent from the setup choices. GemDepth uses
-the dedicated official-runtime overlay under ``docker/depth-gemdepth``. The
-smoke launcher refuses the two unverified models and never supplies
+FE2E is deliberately absent from the setup choices. GemDepth uses its
+official-runtime overlay under ``docker/depth-gemdepth``; production DVD runs
+use ``docker/depth-dvd`` (the setup helper also supports a host diagnostic).
+The smoke launcher refuses the unverified FE2E model and never supplies
 `--acknowledge-unverified`.
 
 The setup helper refuses to start below 30 GiB free space and warns below

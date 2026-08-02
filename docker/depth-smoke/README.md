@@ -89,7 +89,7 @@ weights have not been verified, and DepthLM still needs a Docker environment.
 | `moge-2-vit-l` | image | `moge2` | Baked, matrix-ready, acceptance passed |
 | `unidepth-v2` | image | `unidepth2` | Baked, matrix-ready, acceptance passed |
 | `chrono-depth` | video | `chrono` | Baked and import-checked; matrix readiness marker still needs to be added |
-| `d4rt` | video | — | Blocked: official weights unverified |
+| `dvd` | video | `docker/depth-dvd/Dockerfile` | Official DVD v1.1 + Wan2.1; relative inverse depth |
 | `da3-video` | video | `da3` | Baked and matrix-ready |
 | `depth-crafter` | video | `depthcrafter` | Baked and import-checked; matrix readiness marker still needs to be added |
 | `gem-depth` | video | — | Blocked: official weights unverified |
@@ -408,7 +408,7 @@ not inherit old passes.
 - Access, checkpoint-download, and CUDA OOM failures have a one-attempt ceiling.
 - A CUDA OOM is a hardware classification; rerun the unchanged command on a
   higher-memory GPU rather than changing model semantics.
-- The launcher never bypasses the FE2E, D4RT, or GemDepth weight safety rails.
+- The launcher never bypasses the FE2E weight safety rail.
 
 ## 7. Inspect and preserve results
 
