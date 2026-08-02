@@ -83,7 +83,7 @@ def _load_model(name: str, device: str, *, acknowledge_unverified: bool = False)
                 f"{module_name} found but exposes no `build(device)` function. "
                 "Add `def build(device: str) -> BenchmarkModel:` to the module."
             )
-        # Only adapters with the safety rail (D4RT, GemDepth) accept
+        # Only adapters with a safety rail (currently D4RT) accept
         # acknowledge_unverified — try with it, fall back without.
         kwargs = {"device": device}
         if acknowledge_unverified:
@@ -191,7 +191,7 @@ def main() -> None:
         "--acknowledge-unverified",
         action="store_true",
         help="Run an adapter whose upstream weights are NOT verified "
-        "against the paper authors' release (D4RT, GemDepth today). "
+        "against the paper authors' release (D4RT today). "
         "Use only after confirming the candidate weights match the paper; "
         "otherwise published numbers may not reflect the named model.",
     )

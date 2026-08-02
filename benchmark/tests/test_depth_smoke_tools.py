@@ -34,9 +34,17 @@ def _sample(t: int = 3, h: int = 16, w: int = 24) -> SimpleNamespace:
 
 
 def test_setup_covers_every_runnable_canonical_model() -> None:
-    runnable = (gate.IMAGE_MODELS | gate.VIDEO_MODELS) - gate.BLOCKED_MODELS
+    # GemDepth intentionally uses the official torch 2.3.1/cu121 Docker
+    # overlay rather than the shared torch 2.10 host-env installer.
+    runnable = (
+        (gate.IMAGE_MODELS | gate.VIDEO_MODELS)
+        - gate.BLOCKED_MODELS
+        - {"gem-depth"}
+    )
     assert set(setup_env.MODEL_FAMILY) == runnable
-    assert setup_env.VIDEO_MODELS == gate.VIDEO_MODELS - gate.BLOCKED_MODELS
+    assert setup_env.VIDEO_MODELS == (
+        gate.VIDEO_MODELS - gate.BLOCKED_MODELS - {"gem-depth"}
+    )
     assert set(setup_env.FAMILY_IMPORTS) == set(setup_env.FAMILY_PACKAGES)
     assert all(len(revision) == 40 for _, revision in setup_env.UPSTREAMS.values())
     assert setup_env.FAMILY_IMPORTS["unidepth2"] == ["unidepth.models"]
@@ -49,7 +57,7 @@ def test_matrix_roster_covers_all_twenty_models() -> None:
     roster = matrix._canonical_models("all")
     assert len(roster) == 20
     assert {name for name, _task in roster} == gate.IMAGE_MODELS | gate.VIDEO_MODELS
-    assert gate.BLOCKED_MODELS == {"fe2e", "d4rt", "gem-depth"}
+    assert gate.BLOCKED_MODELS == {"fe2e", "d4rt"}
 
 
 def test_matrix_gate_parser_enforces_safe_order() -> None:

@@ -17,8 +17,8 @@ The contract for a video model is exactly what
 loads weights, ``predict(batch[VideoSample]) -> list[VideoDepthPrediction]``
 runs one inference per clip. The model declares
 ``depth_output_kind = "metric"`` (default) or ``"relative"`` on the
-class; the pipeline applies per-clip ``(s, t)`` alignment to the
-prediction *before* metrics are computed when the model is relative.
+class; the pipeline applies the adapter's declared per-clip alignment
+to the prediction *before* metrics are computed when the model is relative.
 This matches the community convention for evaluating affine-invariant
 video-depth models (DepthCrafter, RollingDepth, MoGe-2 video runs).
 """
@@ -84,12 +84,15 @@ class VideoTaskRunConfig(TaskRunConfig):
 def _apply_clip_alignment(
     pred: VideoDepthPrediction,
     sample: VideoSample,
+    *,
+    mode: str = "ls_affine",
 ) -> VideoDepthPrediction:
     """Solve one ``(s, t)`` over the whole clip and apply it.
 
     Relative-depth video models produce ``pred.depth_map_seq`` up to an
-    affine transform per clip. Per the community convention
-    (DepthCrafter, RollingDepth, Video DA), we fit a single ``(s, t)``
+    affine transform per clip. Per the model's official convention
+    (depth-space for most models, disparity-space for GemDepth), we fit
+    a single ``(s, t)``
     over every valid pixel in the clip and apply it uniformly across
     all ``T`` frames. Per-frame fitting would let the model cheat
     temporal-inconsistency punishments; per-scene fitting (pooling all
@@ -103,12 +106,34 @@ def _apply_clip_alignment(
         & (gt.depth_map_seq > DEPTH_MIN_M)
         & (gt.depth_map_seq < DEPTH_MAX_M)
     )
-    aligned_seq = align_pred_to_gt_pooled(
-        pred_seq=pred.depth_map_seq.astype(np.float32),
-        gt_seq=gt.depth_map_seq.astype(np.float32),
-        mode="ls_affine",
-        valid_seq=fit_mask,
-    )
+    raw = pred.depth_map_seq.astype(np.float32)
+    target = gt.depth_map_seq.astype(np.float32)
+    if mode == "ls_disparity":
+        # GemDepth's official evaluator clips raw inverse depth, fits it
+        # to GT inverse depth over the entire clip, and only then takes
+        # the reciprocal.
+        raw = np.clip(raw, 1e-3, None)
+        target_inverse = np.zeros_like(target)
+        np.reciprocal(target, out=target_inverse, where=fit_mask)
+        target = target_inverse
+        aligned_inverse = align_pred_to_gt_pooled(
+            pred_seq=raw,
+            gt_seq=target,
+            mode="ls_affine",
+            valid_seq=fit_mask,
+        )
+        aligned_seq = np.reciprocal(np.clip(aligned_inverse, 1e-3, None))
+    elif mode == "ls_affine":
+        aligned_seq = align_pred_to_gt_pooled(
+            pred_seq=raw,
+            gt_seq=target,
+            mode="ls_affine",
+            valid_seq=fit_mask,
+        )
+    else:
+        raise ConfigError(
+            f"unsupported video-depth native alignment mode: {mode!r}"
+        )
     return VideoDepthPrediction(depth_map_seq=aligned_seq)
 
 
@@ -322,8 +347,13 @@ def run_video_pipeline(
     name = getattr(model, "name", "model")
     is_relative = getattr(model, "depth_output_kind", "metric") == "relative"
 
+    alignment_mode = getattr(model, "native_alignment", "ls_affine")
     if is_relative:
-        log.info("model %s is relative-depth → per-clip (s,t) alignment will be applied", name)
+        log.info(
+            "model %s is relative-depth → per-clip %s alignment will be applied",
+            name,
+            alignment_mode,
+        )
 
     safe_name = name.replace("/", "__")
     out_dir = Path(cfg.output_dir or f"./rpx_results/{safe_name}/{split_name}")
@@ -388,7 +418,11 @@ def run_video_pipeline(
             for index, pred in zip(missing_indices, inferred, strict=True):
                 sample = batch[index]
                 if is_relative:
-                    pred = _apply_clip_alignment(pred, sample)
+                    pred = _apply_clip_alignment(
+                        pred,
+                        sample,
+                        mode=alignment_mode,
+                    )
                 canonical = np.asarray(pred.depth_map_seq, dtype=np.float32)
                 _validate_prediction(canonical, sample, raise_on_error=True)
                 pred = VideoDepthPrediction(depth_map_seq=canonical)

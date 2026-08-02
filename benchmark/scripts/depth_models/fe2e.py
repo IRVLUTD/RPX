@@ -6,7 +6,7 @@ the candidate found on HF is ``exander/FE2E`` (community handle,
 empty README, no documented lineage to the FE2E paper authors).
 
 This adapter ships with the same safety-rail pattern as the Video
-Depth side's D4RT / GemDepth wrappers: building succeeds, but
+Depth side's D4RT wrapper: building succeeds, but
 ``__init__`` raises :class:`UnverifiedAdapterError` unless the caller
 passes ``acknowledge_unverified=True``.
 

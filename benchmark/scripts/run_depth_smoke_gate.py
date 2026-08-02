@@ -26,7 +26,7 @@ from pathlib import Path
 
 DATASET_REPO = "IRVLUTD/RPX"
 DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
-BLOCKED_MODELS = {"fe2e", "d4rt", "gem-depth"}
+BLOCKED_MODELS = {"fe2e", "d4rt"}
 IMAGE_MODELS = {
     "da-v2-large",
     "da3-metric-l",
@@ -465,6 +465,10 @@ def main() -> None:
         else:
             command += ["--comprehensive-metrics"]
     else:
+        command += [
+            "--save-predictions",
+            "--resume-predictions",
+        ]
         if args.gate == "micro":
             command += ["--max-samples", "1", "--frame-budget", "8", "--sampling", "stride"]
         elif args.gate == "acceptance":
@@ -522,7 +526,7 @@ def main() -> None:
             out_dir,
             expected_samples=expected,
             expected_cells=expected_cells,
-            expect_predictions=args.task == "image",
+            expect_predictions=True,
             expect_comprehensive=args.task == "image" and args.gate == "easy",
             task=args.task,
         )

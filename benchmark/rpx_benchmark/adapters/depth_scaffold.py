@@ -237,12 +237,10 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
     "gem-depth": DepthModelCard(
         name="GemDepth",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
-        # Author HF repo found at YuechengLiu/GemDepth — confirm
-        # upstream lineage and load incantation before wiring.
+        depth_output_kind="relative",
         install_hint=(
-            "no verified official release as of 2026-06-25; "
-            "candidate weights at huggingface.co/YuechengLiu/GemDepth."
+            "clone github.com/Yuecheng919/GemDepth; "
+            "official weights: huggingface.co/YuechengLiu/GemDepth"
         ),
         paper_ref="gemdepth",
     ),

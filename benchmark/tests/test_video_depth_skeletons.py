@@ -84,7 +84,7 @@ SKELETON_KEYS = [
         "da3-video",         # depth-anything/DA3-LARGE
         "vigeo",             # pkqbajng/ViGeo (verified)
         "d4rt",              # unverified, behind safety rail
-        "gem-depth",         # unverified, behind safety rail
+        "gem-depth",         # official Yuecheng919/GemDepth release
     }
 ]
 
@@ -123,6 +123,7 @@ REAL_VIDEO_ADAPTERS = [
     ("vggt-omega",     "VGGT-Ω",               "relative"),
     ("da3-video",      "DA3",                  "metric"),
     ("vigeo",          "ViGeo",                "relative"),
+    ("gem-depth",      "GemDepth",             "relative"),
 ]
 
 
@@ -131,7 +132,6 @@ UNVERIFIED_VIDEO_ADAPTERS = [
     # returns an instance with the right task/name; setup() raises
     # UnverifiedAdapterError unless acknowledge_unverified=True.
     ("d4rt",      "D4RT",     "metric"),
-    ("gem-depth", "GemDepth", "metric"),
 ]
 
 

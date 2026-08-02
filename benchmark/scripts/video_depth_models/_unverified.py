@@ -1,6 +1,6 @@
 """Safety-rail mixin for adapters whose upstream weights aren't verified-official.
 
-Some canonical-roster models (D4RT, GemDepth on the Video Depth side;
+Some canonical-roster models (D4RT on the Video Depth side;
 FE2E on Image Depth) ship only as candidate community HF uploads with
 empty READMEs and no clear lineage to the paper authors. We want the
 runner to:
