@@ -67,6 +67,23 @@ def test_samurai_runtime_declares_its_missing_logger_dependency():
     assert "loguru==0.7.3" in dockerfile
 
 
+def test_edgetam_rpx_overlay_patches_noncontiguous_expand_view():
+    dockerfile = (DOCKER_DIR / "Dockerfile.edgetam-rpx").read_text()
+    patch_name = "edgetam-pytorch-noncontiguous.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert f"patches/{patch_name}" in dockerfile
+    assert "git -C /opt/rpx-models/edgetam apply --check" in dockerfile
+    assert (
+        "-        latents_2d = self.latents_2d.unsqueeze(0)"
+        ".expand(B, -1, -1).view(-1, 1, C)"
+    ) in patch
+    assert (
+        "+        latents_2d = self.latents_2d.unsqueeze(0)"
+        ".expand(B, -1, -1).reshape(-1, 1, C)"
+    ) in patch
+
+
 def test_environment_registration_supports_namespace_packages(tmp_path):
     script_path = DOCKER_DIR / "register_model_env.py"
     spec = importlib.util.spec_from_file_location("register_model_env", script_path)

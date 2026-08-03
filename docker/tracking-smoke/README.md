@@ -15,6 +15,12 @@ checkpoint and GPU smoke gate is a separate, later acceptance step.
 RPX adapter is implemented. It updates the benchmark package without rebuilding
 or duplicating the cumulative upstream environments and does not add weights.
 
+EdgeTAM uses `Dockerfile.edgetam-rpx`, which additionally applies the
+versioned non-contiguous-tensor compatibility patch required by current
+PyTorch. The patch replaces an invalid `expand(...).view(...)` with the
+equivalent materializing `reshape(...)`; model weights and mathematics are
+otherwise unchanged.
+
 ## Build and publish the paper model matrix
 
 From a clean repository checkout:

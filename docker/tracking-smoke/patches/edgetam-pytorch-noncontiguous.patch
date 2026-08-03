@@ -1,0 +1,14 @@
+diff --git a/sam2/modeling/perceiver.py b/sam2/modeling/perceiver.py
+--- a/sam2/modeling/perceiver.py
++++ b/sam2/modeling/perceiver.py
+@@ -295,7 +295,9 @@ class SpatialPerceiver(nn.Module):
+     def forward_2d(self, x):
+         B, C, H, W = x.shape
+ 
+-        latents_2d = self.latents_2d.unsqueeze(0).expand(B, -1, -1).view(-1, 1, C)
++        # ``expand`` returns a zero-stride, non-contiguous view. Materialize
++        # the requested layout through reshape for current PyTorch releases.
++        latents_2d = self.latents_2d.unsqueeze(0).expand(B, -1, -1).reshape(-1, 1, C)
+ 
+         num_window = int(math.sqrt(self.num_latents_2d))
+         window_size = H // num_window

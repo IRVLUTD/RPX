@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.description="RPX D3 EdgeTAM adapter and PyTorch compatibility overlay"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1
+
+COPY docker/tracking-smoke/patches/edgetam-pytorch-noncontiguous.patch \
+     /tmp/edgetam-pytorch-noncontiguous.patch
+
+RUN git -C /opt/rpx-models/edgetam apply --check \
+      /tmp/edgetam-pytorch-noncontiguous.patch && \
+    git -C /opt/rpx-models/edgetam apply \
+      /tmp/edgetam-pytorch-noncontiguous.patch && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/edgetam/bin/python -m pip install \
+      --no-deps \
+      --no-build-isolation \
+      --force-reinstall \
+      /opt/rpx-models/edgetam
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN python -m pip install \
+      --no-deps \
+      --force-reinstall \
+      /opt/rpx/benchmark
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

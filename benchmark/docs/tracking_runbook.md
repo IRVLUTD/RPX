@@ -100,7 +100,7 @@ export EDGETAM_IMAGE="${RPX_TRACKING_IMAGE}:edgetam-rpx-${RPX_SHA}"
 
 docker pull "${RPX_TRACKING_IMAGE}:edgetam-latest"
 docker build \
-  --file docker/tracking-smoke/Dockerfile.rpx-adapter \
+  --file docker/tracking-smoke/Dockerfile.edgetam-rpx \
   --build-arg BASE_IMAGE="${RPX_TRACKING_IMAGE}:edgetam-latest" \
   --build-arg RPX_GIT_SHA="$(git rev-parse HEAD)" \
   --tag "$EDGETAM_IMAGE" \
