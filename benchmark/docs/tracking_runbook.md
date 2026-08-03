@@ -84,9 +84,9 @@ The production adapters currently exposed by `run_tracking.py` are:
 
 EdgeTAM uses the official SAM-style video predictor API and its own isolated
 `/opt/rpx-envs/edgetam` environment. It does not import or execute the SAM 2
-checkpoint. Its installed Hydra config is addressed as `edgetam.yaml`; the
-identical source-tree path `configs/edgetam.yaml` is not packaged in the
-installed environment.
+checkpoint. EdgeTAM's wheel omits its nested Hydra YAML, so the adapter loads
+`sam2/configs/edgetam.yaml` from the commit-pinned source checkout retained at
+`/opt/rpx-models/edgetam`. It fails closed if that source config is absent.
 
 ## EdgeTAM real-RPX smoke gates
 
