@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Validate one RPX D3 tracking smoke output without loading a model."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+
+EXPECTED_SHAPE = (480, 640)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--expected-clips", type=int, required=True)
+    parser.add_argument("--expected-frames", type=int, required=True)
+    parser.add_argument("--require-resume-hit", action="store_true")
+    args = parser.parse_args()
+
+    output = Path(args.output_dir)
+    result_path = output / "result.json"
+    metadata_path = output / "run_metadata.json"
+    cells_path = output / "cells.parquet"
+    required = (result_path, metadata_path, cells_path, output / "cells.csv")
+    missing = [str(path) for path in required if not path.is_file()]
+    if missing:
+        raise SystemExit(f"Missing smoke artefacts: {missing}")
+
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if result.get("model") != args.model:
+        raise SystemExit(
+            f"result model is {result.get('model')!r}; expected {args.model!r}"
+        )
+    if result.get("clips") != args.expected_clips:
+        raise SystemExit(
+            f"result has {result.get('clips')} clips; expected {args.expected_clips}"
+        )
+    if result.get("frames") != args.expected_frames:
+        raise SystemExit(
+            f"result has {result.get('frames')} frames; expected {args.expected_frames}"
+        )
+
+    prediction_files = sorted((output / "predictions").glob("*/*/*.npz"))
+    markers = sorted((output / "predictions").glob("*/*/_complete.json"))
+    bad: list[str] = []
+    for path in prediction_files:
+        try:
+            with np.load(path, allow_pickle=False) as archive:
+                if archive.files != ["mask"]:
+                    bad.append(f"{path}: keys={archive.files}")
+                    continue
+                mask = archive["mask"]
+            if mask.shape != EXPECTED_SHAPE:
+                bad.append(f"{path}: shape={mask.shape}")
+            elif not np.issubdtype(mask.dtype, np.integer):
+                bad.append(f"{path}: dtype={mask.dtype}")
+            elif np.any(mask < 0):
+                bad.append(f"{path}: negative instance IDs")
+        except Exception as exc:  # corruption must fail closed
+            bad.append(f"{path}: {exc!r}")
+
+    for path in markers:
+        marker = json.loads(path.read_text(encoding="utf-8"))
+        if marker.get("model") != args.model:
+            bad.append(f"{path}: marker model={marker.get('model')!r}")
+        if marker.get("frames") != args.expected_frames:
+            bad.append(f"{path}: marker frames={marker.get('frames')!r}")
+
+    if len(prediction_files) != args.expected_frames:
+        bad.append(
+            f"prediction files={len(prediction_files)}; expected={args.expected_frames}"
+        )
+    if len(markers) != args.expected_clips:
+        bad.append(f"complete markers={len(markers)}; expected={args.expected_clips}")
+
+    stats = metadata.get("prediction_stats") or {}
+    if args.require_resume_hit:
+        if stats.get("complete_clip_cache_hits") != args.expected_clips:
+            bad.append(
+                "resume cache hits="
+                f"{stats.get('complete_clip_cache_hits')}; expected={args.expected_clips}"
+            )
+        if stats.get("model_propagation_frames") != 0:
+            bad.append(
+                "resume model forwards="
+                f"{stats.get('model_propagation_frames')}; expected=0"
+            )
+
+    print(f"Model: {args.model}")
+    print(f"Prediction files: {len(prediction_files)}")
+    print(f"Complete clips: {len(markers)}")
+    print(f"Invalid entries: {len(bad)}")
+    print(f"Prediction stats: {stats}")
+    for item in bad[:20]:
+        print("BAD:", item)
+    if bad:
+        raise SystemExit(1)
+    print("RPX tracking smoke validation: PASS")
+
+
+if __name__ == "__main__":
+    main()

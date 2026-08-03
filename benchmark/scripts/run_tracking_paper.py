@@ -9,12 +9,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from tracking_models import TRACKER_CLASSES  # noqa: E402
+
 PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", choices=["sam2"], default="sam2")
+    parser.add_argument("--model", choices=sorted(TRACKER_CLASSES), default="sam2")
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-root", required=True)
     parser.add_argument("--repo", default="IRVLUTD/RPX")

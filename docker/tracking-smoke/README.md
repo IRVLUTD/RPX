@@ -11,6 +11,10 @@ The paper matrix is source-pinned and dependency-locked. It does **not** claim
 that an environment has passed RPX inference merely because it builds: the
 checkpoint and GPU smoke gate is a separate, later acceptance step.
 
+`Dockerfile.rpx-adapter` is the thin code overlay used after a model-specific
+RPX adapter is implemented. It updates the benchmark package without rebuilding
+or duplicating the cumulative upstream environments and does not add weights.
+
 ## Build and publish the paper model matrix
 
 From a clean repository checkout:

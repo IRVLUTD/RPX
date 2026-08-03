@@ -29,7 +29,7 @@ EXPECTED_SHAPE = (480, 640)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from tracking_models import SAM2Tracker  # noqa: E402
+from tracking_models import TRACKER_CLASSES  # noqa: E402
 
 from rpx_benchmark import TaskType, download_split  # noqa: E402
 from rpx_benchmark.exceptions import ConfigError, DatasetError  # noqa: E402
@@ -59,7 +59,7 @@ def _parse_args() -> argparse.Namespace:
             "evaluate complete scene-phase clips with official TrackEval."
         )
     )
-    parser.add_argument("--model", choices=["sam2"], default="sam2")
+    parser.add_argument("--model", choices=sorted(TRACKER_CLASSES), default="sam2")
     parser.add_argument("--split", choices=sorted(EXPECTED_SPLITS), required=True)
     parser.add_argument("--repo", default=DEFAULT_DATASET_REPO)
     parser.add_argument("--revision", default=PINNED_DATASET_REVISION)
@@ -200,6 +200,7 @@ def _clip_predictions(
     clip: Clip,
     samples: tuple[dict[str, Any], ...],
     output_dir: Path,
+    model_name: str,
 ) -> list[np.ndarray] | None:
     marker_path = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     if not marker_path.is_file():
@@ -208,7 +209,7 @@ def _clip_predictions(
         marker = json.loads(marker_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if marker.get("model") != "sam2" or marker.get("frames") != len(samples):
+    if marker.get("model") != model_name or marker.get("frames") != len(samples):
         return None
     predictions: list[np.ndarray] = []
     for sample in samples:
@@ -223,14 +224,16 @@ def _write_complete_marker(
     clip: Clip,
     sample_count: int,
     output_dir: Path,
+    model_name: str,
+    tracker_class: type,
 ) -> None:
     marker = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     _atomic_json(
         marker,
         {
-            "model": "sam2",
-            "model_id": SAM2Tracker.model_id,
-            "model_revision": SAM2Tracker.model_revision,
+            "model": model_name,
+            "model_id": tracker_class.model_id,
+            "model_revision": tracker_class.model_revision,
             "frames": sample_count,
         },
     )
@@ -265,6 +268,7 @@ def main() -> None:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    tracker_class = TRACKER_CLASSES[args.model]
     if args.manifest_path:
         manifest_path = Path(args.manifest_path)
     else:
@@ -292,7 +296,7 @@ def main() -> None:
         clips = clips[: args.max_clips]
 
     rows: list[dict[str, Any]] = []
-    tracker: SAM2Tracker | None = None
+    tracker: Any | None = None
     cache_hits = 0
     inferred_clips = 0
     forwards = 0
@@ -302,7 +306,9 @@ def main() -> None:
     for clip_index, clip in enumerate(clips, start=1):
         samples = clip.samples[: args.max_frames] if args.max_frames else clip.samples
         predictions = (
-            _clip_predictions(clip, samples, output_dir) if args.resume_predictions else None
+            _clip_predictions(clip, samples, output_dir, args.model)
+            if args.resume_predictions
+            else None
         )
         if predictions is not None:
             cache_hits += 1
@@ -310,7 +316,7 @@ def main() -> None:
             print(f"[{clip_index}/{len(clips)}] resume {clip.key}: {len(samples)} frames")
         else:
             if tracker is None:
-                tracker = SAM2Tracker(device=args.device)
+                tracker = tracker_class(device=args.device)
             first_mask = _load_mask_file(_resolve(str(samples[0]["mask"]), clip.root))
             video_dir = _stage_video(clip, samples, scratch_root / clip.key)
             try:
@@ -326,7 +332,13 @@ def main() -> None:
             if args.save_predictions:
                 for sample, prediction in zip(samples, predictions, strict=True):
                     _atomic_mask(_prediction_path(output_dir, clip, sample), prediction)
-                _write_complete_marker(clip, len(samples), output_dir)
+                _write_complete_marker(
+                    clip,
+                    len(samples),
+                    output_dir,
+                    args.model,
+                    tracker_class,
+                )
             print(f"[{clip_index}/{len(clips)}] inferred {clip.key}: {len(samples)} frames")
 
         gt_masks = [
@@ -382,8 +394,9 @@ def main() -> None:
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         },
         "model_checkpoint": {
-            "repo": SAM2Tracker.model_id,
-            "revision": SAM2Tracker.model_revision,
+            "repo": tracker_class.model_id,
+            "revision": tracker_class.model_revision,
+            "filename": tracker_class.checkpoint_filename,
         },
         "clips": len(rows),
         "frames": int(sum(row["n_frames"] for row in rows)),

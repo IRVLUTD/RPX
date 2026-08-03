@@ -21,32 +21,40 @@ SAM2_CONFIG = "configs/sam2/sam2_hiera_l.yaml"
 class SAM2Tracker:
     """Run official SAM 2 from ground-truth masks on the first frame."""
 
+    model_name = "sam2"
     model_id = SAM2_MODEL_ID
     model_revision = SAM2_MODEL_REVISION
+    checkpoint_filename = SAM2_CHECKPOINT
+    config_name = SAM2_CONFIG
+    adapter_label = "SAM 2"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda":
-            raise RuntimeError("The production SAM 2 adapter requires device='cuda'.")
+            raise RuntimeError(
+                f"The production {self.adapter_label} adapter requires device='cuda'."
+            )
         if not torch.cuda.is_available():
-            raise RuntimeError("CUDA is unavailable to the SAM 2 adapter.")
+            raise RuntimeError(f"CUDA is unavailable to the {self.adapter_label} adapter.")
 
         from sam2.build_sam import build_sam2_video_predictor
 
         checkpoint = hf_hub_download(
             repo_id=self.model_id,
-            filename=SAM2_CHECKPOINT,
+            filename=self.checkpoint_filename,
             revision=self.model_revision,
             cache_dir=os.environ.get("HF_HOME"),
         )
         self.predictor = build_sam2_video_predictor(
-            SAM2_CONFIG,
+            self.config_name,
             checkpoint,
             device=device,
             apply_postprocessing=True,
         )
         self.predictor.non_overlap_masks = True
         self.device = device
-        self.parameter_count = int(sum(parameter.numel() for parameter in self.predictor.parameters()))
+        self.parameter_count = int(
+            sum(parameter.numel() for parameter in self.predictor.parameters())
+        )
 
     @staticmethod
     def _autocast_context():
@@ -135,5 +143,7 @@ class SAM2Tracker:
 
         missing = [index for index, mask in enumerate(predictions) if mask is None]
         if missing:
-            raise RuntimeError(f"SAM 2 did not return predictions for frames: {missing[:10]}")
+            raise RuntimeError(
+                f"{self.adapter_label} did not return predictions for frames: {missing[:10]}"
+            )
         return [mask for mask in predictions if mask is not None], latencies_ms

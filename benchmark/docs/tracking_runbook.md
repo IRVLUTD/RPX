@@ -64,6 +64,101 @@ The SAM 2 target retains preceding environments, while Docker shares their
 immutable layers. Do not run `docker system prune -a` while benchmark
 containers or required images exist.
 
+## Model acceptance status
+
+An environment image proving that an upstream package imports is not an RPX
+benchmark result. A model enters the production roster only after it has:
+
+1. an official, source-pinned adapter;
+2. a micro run on one real Easy RPX clip truncated to 8 frames;
+3. an acceptance run on one real Easy RPX clip truncated to 25 frames;
+4. validated atomic predictions and a second identical run with zero model
+   propagation frames.
+
+The production adapters currently exposed by `run_tracking.py` are:
+
+| Model | Prompt supplied by RPX | Pinned checkpoint |
+|---|---|---|
+| SAM 2 | released GT instance mask on frame 0 | `facebook/sam2-hiera-large` |
+| EdgeTAM | released GT instance mask on frame 0 | `facebook/EdgeTAM/edgetam.pt` |
+
+EdgeTAM uses the official SAM-style video predictor API and its own isolated
+`/opt/rpx-envs/edgetam` environment. It does not import or execute the SAM 2
+checkpoint.
+
+## EdgeTAM real-RPX smoke gates
+
+Build a thin adapter overlay over the already-published pinned EdgeTAM
+environment:
+
+```bash
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+export RPX_SHA="$(git rev-parse --short=12 HEAD)"
+export EDGETAM_IMAGE="${RPX_TRACKING_IMAGE}:edgetam-rpx-${RPX_SHA}"
+
+docker pull "${RPX_TRACKING_IMAGE}:edgetam-latest"
+docker build \
+  --file docker/tracking-smoke/Dockerfile.rpx-adapter \
+  --build-arg BASE_IMAGE="${RPX_TRACKING_IMAGE}:edgetam-latest" \
+  --build-arg RPX_GIT_SHA="$(git rev-parse HEAD)" \
+  --tag "$EDGETAM_IMAGE" \
+  .
+```
+
+Use the same persistent Hugging Face cache for both gates:
+
+```bash
+export HF_HOME="/data/narendhiran_rpx/hf-cache"
+export TRACK_OUTPUT="/data/narendhiran_rpx/docker-smoke/tracking-paper-outputs"
+export DATASET_REVISION="2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+```
+
+Micro gate:
+
+```bash
+docker run --rm \
+  --name rpx-edgetam-micro \
+  --gpus '"device=0"' \
+  --ipc=host \
+  --shm-size=16g \
+  -e HF_TOKEN \
+  -e HF_HOME=/cache/huggingface \
+  -e PYTHONUNBUFFERED=1 \
+  -v "$HF_HOME:/cache/huggingface" \
+  -v "$TRACK_OUTPUT:/outputs" \
+  "$EDGETAM_IMAGE" \
+  /opt/rpx-envs/edgetam/bin/python scripts/run_tracking.py \
+    --model edgetam \
+    --split easy \
+    --revision "$DATASET_REVISION" \
+    --device cuda \
+    --cache-dir /cache/huggingface \
+    --output-dir /outputs/edgetam-smoke/micro \
+    --save-predictions \
+    --resume-predictions \
+    --max-clips 1 \
+    --max-frames 8
+```
+
+Acceptance gate is the same command with container name
+`rpx-edgetam-acceptance`, output `edgetam-smoke/acceptance`, and
+`--max-frames 25`.
+
+Run each command a second time unchanged, then validate the saved output and
+the zero-forward resume contract:
+
+```bash
+docker run --rm \
+  -v "$TRACK_OUTPUT:/outputs:ro" \
+  "$EDGETAM_IMAGE" \
+  /opt/rpx-envs/edgetam/bin/python scripts/validate_tracking_smoke.py \
+    --output-dir /outputs/edgetam-smoke/acceptance \
+    --model edgetam \
+    --expected-clips 1 \
+    --expected-frames 25 \
+    --require-resume-hit
+```
+
 ## Outputs
 
 Each split writes `cells.csv`, `cells.parquet`, `result.json`,
