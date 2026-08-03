@@ -7,7 +7,11 @@ from .sam2_tracker import SAM2Tracker
 EDGETAM_MODEL_ID = "facebook/EdgeTAM"
 EDGETAM_MODEL_REVISION = "14d7ecc48c656b94e5184519f698cd5386c5a2bf"
 EDGETAM_CHECKPOINT = "edgetam.pt"
-EDGETAM_CONFIG = "configs/edgetam.yaml"
+# The installed EdgeTAM wheel exposes its Hydra primary config at
+# ``pkg://sam2/edgetam.yaml``. The source tree also contains an identical
+# ``sam2/configs/edgetam.yaml``, but that nested copy is not present in the
+# published/installable package used by the Docker environment.
+EDGETAM_CONFIG = "edgetam.yaml"
 
 
 class EdgeTAMTracker(SAM2Tracker):

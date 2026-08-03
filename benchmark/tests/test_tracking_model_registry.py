@@ -21,7 +21,7 @@ def test_edgetam_uses_pinned_official_checkpoint_and_config() -> None:
     assert EdgeTAMTracker.model_id == "facebook/EdgeTAM"
     assert EdgeTAMTracker.model_revision == "14d7ecc48c656b94e5184519f698cd5386c5a2bf"
     assert EdgeTAMTracker.checkpoint_filename == "edgetam.pt"
-    assert EdgeTAMTracker.config_name == "configs/edgetam.yaml"
+    assert EdgeTAMTracker.config_name == "edgetam.yaml"
 
 
 def test_sam2_metadata_is_unchanged() -> None:
