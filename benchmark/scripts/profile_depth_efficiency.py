@@ -44,6 +44,36 @@ def _sum_flops(node: Any) -> int:
         return 0
 
 
+def _torch_profiler_flops(
+    forward: Forward, torch: Any
+) -> int:
+    """Count supported ATen operations without retaining an autograd graph.
+
+    ``FlopCounterMode`` is preferred because it gives the most direct
+    operator-level accounting.  VGGT's full 250-frame forward, however,
+    requires substantially more memory when its autograd graph is retained
+    for that mode.  The PyTorch profiler can count the same supported ATen
+    operations during inference mode, which keeps the measurement feasible
+    on a 48 GiB GPU.  This is intentionally used only as a documented
+    fallback and its method is recorded in the output provenance.
+    """
+    activities = [torch.profiler.ProfilerActivity.CPU]
+    if torch.cuda.is_available():
+        activities.append(torch.profiler.ProfilerActivity.CUDA)
+
+    with torch.inference_mode(), torch.profiler.profile(
+        activities=activities,
+        record_shapes=False,
+        profile_memory=False,
+        with_flops=True,
+    ) as profiler:
+        output = forward()
+        _sync(torch)
+        del output
+
+    return sum(int(event.flops or 0) for event in profiler.key_averages())
+
+
 def _candidate_modules(root: Any, torch: Any) -> Iterable[Any]:
     module_type = torch.nn.Module
     seen_objects: set[int] = set()
@@ -337,6 +367,7 @@ def main() -> None:
 
     flops: int | None = None
     flop_status = "skipped" if args.skip_flops else "unavailable"
+    flop_method: str | None = None
     if not args.skip_flops:
         print("[profile] FLOPs: one canonical instrumented forward", flush=True)
         try:
@@ -382,10 +413,45 @@ def main() -> None:
             if counted > 0:
                 flops = counted
                 flop_status = "measured"
+                flop_method = "torch.utils.flop_counter.FlopCounterMode"
             else:
                 flop_status = "unsupported_or_zero"
         except Exception as exc:  # noqa: BLE001
-            flop_status = f"failed:{type(exc).__name__}:{exc}"
+            # A full VGGT clip fits normally on the 48 GiB evaluation GPU,
+            # but retaining its autograd graph solely for FlopCounterMode
+            # does not.  Fall back to the PyTorch profiler, which performs
+            # the same inference-mode forward and reports its supported
+            # ATen-op FLOP estimates without keeping that graph alive.
+            if args.model == "vggt-omega":
+                primary_error = f"{type(exc).__name__}:{exc}"
+                print(
+                    "[profile] VGGT FlopCounterMode failed; "
+                    "retrying with inference-mode torch.profiler",
+                    flush=True,
+                )
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                try:
+                    counted = _torch_profiler_flops(canonical_forward, torch)
+                    if counted > 0:
+                        flops = counted
+                        flop_status = "measured:torch_profiler_fallback"
+                        flop_method = (
+                            "torch.profiler.key_averages(with_flops=True)"
+                        )
+                    else:
+                        flop_status = "unsupported_or_zero:torch_profiler"
+                        flop_method = (
+                            "torch.profiler.key_averages(with_flops=True)"
+                        )
+                except Exception as fallback_exc:  # noqa: BLE001
+                    flop_status = (
+                        f"failed:{primary_error};"
+                        f"fallback:{type(fallback_exc).__name__}:{fallback_exc}"
+                    )
+            else:
+                flop_status = f"failed:{type(exc).__name__}:{exc}"
 
     p50_ms = _percentile(elapsed_ms, 50)
     p95_ms = _percentile(elapsed_ms, 95)
@@ -429,6 +495,7 @@ def main() -> None:
         "macs_per_sample": flops / 2 if flops else None,
         "macs_per_sample_g": flops / 2e9 if flops else None,
         "flop_status": flop_status,
+        "flop_method": flop_method,
         "latency_p50_ms_per_sample": p50_ms,
         "latency_p95_ms_per_sample": p95_ms,
         "latency_p99_ms_per_sample": p99_ms,
