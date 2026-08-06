@@ -25,6 +25,8 @@ Install
 
 from __future__ import annotations
 
+import os
+
 import numpy as np
 
 from rpx_benchmark.api import VideoSample
@@ -132,7 +134,17 @@ class VGGTOmegaAdapter(VideoDepthAdapterBase):
             autocast = torch.amp.autocast("cuda", dtype=dtype)
         else:
             autocast = nullcontext()
-        with torch.inference_mode(), autocast:
+        # The hardware profiler enables this only for its one instrumented
+        # FLOP pass.  VGGT's official implementation contains operations
+        # whose FlopCounterMode handler inspects autograd edges; those edges
+        # do not exist under inference_mode.  Ordinary benchmark inference
+        # remains in inference_mode.
+        execution_context = (
+            torch.enable_grad()
+            if os.environ.get("RPX_FLOP_PROFILE") == "1"
+            else torch.inference_mode()
+        )
+        with execution_context, autocast:
             out = self._model(x)
 
         # Extract the depth field. Try the most common key names.
