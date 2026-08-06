@@ -368,7 +368,28 @@ def main() -> None:
     flops: int | None = None
     flop_status = "skipped" if args.skip_flops else "unavailable"
     flop_method: str | None = None
-    if not args.skip_flops:
+    # A full VGGT clip fits for normal inference, but not when
+    # FlopCounterMode retains the complete autograd graph.  Do not attempt
+    # that counter first: after an OOM its failed graph remains allocated
+    # until this process exits, leaving no memory for a fallback.  Profile
+    # VGGT directly in inference mode instead.
+    if not args.skip_flops and args.model == "vggt-omega":
+        print(
+            "[profile] VGGT FLOPs: inference-mode torch.profiler",
+            flush=True,
+        )
+        try:
+            counted = _torch_profiler_flops(canonical_forward, torch)
+            if counted > 0:
+                flops = counted
+                flop_status = "measured:torch_profiler"
+                flop_method = "torch.profiler.key_averages(with_flops=True)"
+            else:
+                flop_status = "unsupported_or_zero:torch_profiler"
+                flop_method = "torch.profiler.key_averages(with_flops=True)"
+        except Exception as exc:  # noqa: BLE001
+            flop_status = f"failed:{type(exc).__name__}:{exc}"
+    elif not args.skip_flops:
         print("[profile] FLOPs: one canonical instrumented forward", flush=True)
         try:
             from torch.utils.flop_counter import FlopCounterMode
