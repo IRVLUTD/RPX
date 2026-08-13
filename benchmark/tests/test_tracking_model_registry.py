@@ -14,6 +14,7 @@ from tracking_models import (  # noqa: E402
     CutieTracker,
     EdgeTAMTracker,
     SAM2LongTracker,
+    SAM2PlusTracker,
     SAM2Tracker,
 )
 
@@ -23,6 +24,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
         "cutie": CutieTracker,
         "edgetam": EdgeTAMTracker,
         "sam2": SAM2Tracker,
+        "sam2-plus": SAM2PlusTracker,
         "sam2long": SAM2LongTracker,
     }
 
@@ -65,4 +67,28 @@ def test_sam2long_consolidates_independent_object_pathways() -> None:
         ]
     )
     result = SAM2LongTracker._combine_masks([7, 19], logits, (2, 2))
+    np.testing.assert_array_equal(result, np.asarray([[7, 19], [19, 0]]))
+
+
+def test_sam2_plus_uses_official_unified_checkpoint_and_source_config() -> None:
+    assert SAM2PlusTracker.model_name == "sam2-plus"
+    assert SAM2PlusTracker.model_id == "MCG-NJU/SAM2-Plus"
+    assert SAM2PlusTracker.model_revision == "c3c534e30469d8788123287a484488567c5115d4"
+    assert SAM2PlusTracker.checkpoint_filename == "checkpoint_phase123.pt"
+    assert SAM2PlusTracker.config_name == (
+        "sam2.1_hiera_b+_predmasks_decoupled_MAME.yaml"
+    )
+    assert SAM2PlusTracker.config_directory == (
+        "/opt/rpx-models/sam2_plus/sam2_plus/configs/sam2.1"
+    )
+
+
+def test_sam2_plus_consolidates_unified_decoder_masks() -> None:
+    logits = torch.tensor(
+        [
+            [[[2.0, -1.0], [0.1, -2.0]]],
+            [[[-1.0, 3.0], [0.2, -3.0]]],
+        ]
+    )
+    result = SAM2PlusTracker._combine_masks([7, 19], logits, (2, 2))
     np.testing.assert_array_equal(result, np.asarray([[7, 19], [19, 0]]))

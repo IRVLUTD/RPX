@@ -150,6 +150,19 @@ The isolated environment pins the official SAM2Long source and SAM 2.1 Hiera
 Large checkpoint revision. The checkpoint stays in the mounted Hugging Face
 cache. RPX uses the paper implementation's three-pathway defaults.
 
+SAM 2++ is the fifth cumulative milestone and inherits the accepted SAM2Long
+image, retaining SAM2Long, Cutie, EdgeTAM and SAM2:
+
+```bash
+docker/tracking-smoke/build_sam2_plus_rpx.sh --push
+```
+
+The isolated environment pins the official SAM2-Plus source, unified
+mask-prompt predictor and `checkpoint_phase123.pt` revision. Its Hydra config
+is loaded directly from the pinned source tree because the upstream wheel does
+not package the `sam2_plus/configs` directory. Weights remain in the mounted
+Hugging Face cache rather than an image layer.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:

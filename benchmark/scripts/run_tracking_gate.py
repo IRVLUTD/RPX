@@ -18,6 +18,10 @@ from tracking_models.edgetam_tracker import (
     EDGETAM_MODEL_ID,
     EDGETAM_MODEL_REVISION,
 )
+from tracking_models.sam2_plus_tracker import (
+    SAM2_PLUS_MODEL_ID,
+    SAM2_PLUS_MODEL_REVISION,
+)
 from tracking_models.sam2_tracker import SAM2_MODEL_ID, SAM2_MODEL_REVISION
 from tracking_models.sam2long_tracker import (
     SAM2LONG_MODEL_ID,
@@ -45,6 +49,11 @@ MODEL_PROVENANCE = {
         "source_revision": "7193b77fa0c8827e0520ab281acd2cf394ab898e",
         "checkpoint_repo": SAM2LONG_MODEL_ID,
         "checkpoint_revision": SAM2LONG_MODEL_REVISION,
+    },
+    "sam2-plus": {
+        "source_revision": "09c9ec4686d7170396ed98abcc0150f35e82c6b9",
+        "checkpoint_repo": SAM2_PLUS_MODEL_ID,
+        "checkpoint_revision": SAM2_PLUS_MODEL_REVISION,
     },
 }
 
