@@ -233,6 +233,7 @@ RUN rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
       --checkpoint-repo MCG-NJU/MOTIP \
       --checkpoint-revision v0.1 \
       --prepend-source \
+      --python-path models/ops \
       --import models
 
 

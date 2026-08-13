@@ -46,6 +46,7 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
       --checkpoint-repo MCG-NJU/MOTIP \
       --checkpoint-revision v0.1 \
       --prepend-source \
+      --python-path models/ops \
       --import models \
       --import models.motip \
       --import models.runtime_tracker \

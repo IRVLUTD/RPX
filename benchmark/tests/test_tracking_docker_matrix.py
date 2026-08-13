@@ -123,11 +123,14 @@ def test_deaot_correlation_has_versioned_torch27_compatibility_patch():
 
 def test_motip_uses_toolkit_presence_for_image_build():
     dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    cumulative = (DOCKER_DIR / "Dockerfile.motip-cumulative").read_text()
     patch_name = "motip-cuda-toolkit-build.patch"
     patch = (DOCKER_DIR / "patches" / patch_name).read_text()
 
     assert f"COPY docker/tracking-smoke/patches/{patch_name}" in dockerfile
     assert "git -C /opt/rpx-models/motip apply --check" in dockerfile
+    assert "--python-path models/ops" in dockerfile
+    assert "--python-path models/ops" in cumulative
     assert "-    if torch.cuda.is_available() and CUDA_HOME is not None:" in patch
     assert "+    if CUDA_HOME is not None:" in patch
     assert patch.count(
