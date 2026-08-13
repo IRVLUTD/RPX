@@ -27,6 +27,13 @@ EXPECTED_SPLITS = {
 }
 EXPECTED_SHAPE = (480, 640)
 
+
+def _rpx_git_sha() -> str:
+    """Return the adapter identity embedded by the image build."""
+
+    return os.environ.get("RPX_GIT_SHA", "unknown")
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracking_models import TRACKER_CLASSES  # noqa: E402
@@ -201,6 +208,7 @@ def _clip_predictions(
     samples: tuple[dict[str, Any], ...],
     output_dir: Path,
     model_name: str,
+    rpx_git_sha: str,
 ) -> list[np.ndarray] | None:
     marker_path = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     if not marker_path.is_file():
@@ -209,7 +217,11 @@ def _clip_predictions(
         marker = json.loads(marker_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if marker.get("model") != model_name or marker.get("frames") != len(samples):
+    if (
+        marker.get("model") != model_name
+        or marker.get("frames") != len(samples)
+        or marker.get("rpx_git_sha") != rpx_git_sha
+    ):
         return None
     predictions: list[np.ndarray] = []
     for sample in samples:
@@ -226,6 +238,7 @@ def _write_complete_marker(
     output_dir: Path,
     model_name: str,
     tracker_class: type,
+    rpx_git_sha: str,
 ) -> None:
     marker = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     _atomic_json(
@@ -234,6 +247,7 @@ def _write_complete_marker(
             "model": model_name,
             "model_id": tracker_class.model_id,
             "model_revision": tracker_class.model_revision,
+            "rpx_git_sha": rpx_git_sha,
             "frames": sample_count,
         },
     )
@@ -268,6 +282,14 @@ def main() -> None:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    rpx_git_sha = _rpx_git_sha()
+    previous_metadata: dict[str, Any] = {}
+    previous_metadata_path = output_dir / "run_metadata.json"
+    if previous_metadata_path.is_file():
+        try:
+            previous_metadata = json.loads(previous_metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            previous_metadata = {}
     tracker_class = TRACKER_CLASSES[args.model]
     if args.manifest_path:
         manifest_path = Path(args.manifest_path)
@@ -306,7 +328,7 @@ def main() -> None:
     for clip_index, clip in enumerate(clips, start=1):
         samples = clip.samples[: args.max_frames] if args.max_frames else clip.samples
         predictions = (
-            _clip_predictions(clip, samples, output_dir, args.model)
+            _clip_predictions(clip, samples, output_dir, args.model, rpx_git_sha)
             if args.resume_predictions
             else None
         )
@@ -338,6 +360,7 @@ def main() -> None:
                     output_dir,
                     args.model,
                     tracker_class,
+                    rpx_git_sha,
                 )
             print(f"[{clip_index}/{len(clips)}] inferred {clip.key}: {len(samples)} frames")
 
@@ -378,6 +401,7 @@ def main() -> None:
         }
     result = {
         "model": args.model,
+        "rpx_git_sha": rpx_git_sha,
         "task": "object_tracking",
         "split": args.split,
         "protocol": {
@@ -397,6 +421,11 @@ def main() -> None:
             "repo": tracker_class.model_id,
             "revision": tracker_class.model_revision,
             "filename": tracker_class.checkpoint_filename,
+            "sha256": (
+                getattr(tracker, "checkpoint_sha256", None)
+                if tracker is not None
+                else (previous_metadata.get("model_checkpoint") or {}).get("sha256")
+            ),
         },
         "clips": len(rows),
         "frames": int(sum(row["n_frames"] for row in rows)),
@@ -414,7 +443,11 @@ def main() -> None:
             **result,
             "started_unix": run_started,
             "finished_unix": time.time(),
-            "parameter_count": tracker.parameter_count if tracker is not None else None,
+            "parameter_count": (
+                tracker.parameter_count
+                if tracker is not None
+                else previous_metadata.get("parameter_count")
+            ),
             "pid": os.getpid(),
         },
     )

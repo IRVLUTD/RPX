@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +20,7 @@ def main() -> None:
     parser.add_argument("--expected-clips", type=int, required=True)
     parser.add_argument("--expected-frames", type=int, required=True)
     parser.add_argument("--require-resume-hit", action="store_true")
+    parser.add_argument("--expected-rpx-revision")
     args = parser.parse_args()
 
     output = Path(args.output_dir)
@@ -44,6 +46,20 @@ def main() -> None:
         raise SystemExit(
             f"result has {result.get('frames')} frames; expected {args.expected_frames}"
         )
+    if args.expected_rpx_revision:
+        for name, payload in (("result", result), ("metadata", metadata)):
+            if payload.get("rpx_git_sha") != args.expected_rpx_revision:
+                raise SystemExit(
+                    f"{name} RPX revision is {payload.get('rpx_git_sha')!r}; "
+                    f"expected {args.expected_rpx_revision!r}"
+                )
+
+    if args.expected_rpx_revision:
+        checkpoint_sha = (result.get("model_checkpoint") or {}).get("sha256")
+        if not isinstance(checkpoint_sha, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", checkpoint_sha
+        ):
+            raise SystemExit(f"Invalid checkpoint SHA-256: {checkpoint_sha!r}")
 
     prediction_files = sorted((output / "predictions").glob("*/*/*.npz"))
     markers = sorted((output / "predictions").glob("*/*/_complete.json"))
@@ -70,6 +86,13 @@ def main() -> None:
             bad.append(f"{path}: marker model={marker.get('model')!r}")
         if marker.get("frames") != args.expected_frames:
             bad.append(f"{path}: marker frames={marker.get('frames')!r}")
+        if (
+            args.expected_rpx_revision
+            and marker.get("rpx_git_sha") != args.expected_rpx_revision
+        ):
+            bad.append(
+                f"{path}: marker RPX revision={marker.get('rpx_git_sha')!r}"
+            )
 
     if len(prediction_files) != args.expected_frames:
         bad.append(

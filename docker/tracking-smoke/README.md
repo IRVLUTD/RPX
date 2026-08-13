@@ -98,7 +98,25 @@ vndhiran123/rpx-tracking-smoke:all-latest
 record. Each built environment also contains `rpx-environment.json` and
 `rpx-pip-freeze.txt`.
 
-## Existing SAM 2 RPX smoke image
+## SAM2 RPX adapter overlay (current first-model milestone)
+
+Build the tested adapter on the immutable published cumulative SAM2 base. The
+helper refuses dirty checkouts and mutable base references, regenerates the
+SAM2 environment manifest and pip freeze, and emits both commit-specific and
+moving tags:
+
+```bash
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+docker/tracking-smoke/build_sam2_rpx.sh --push
+```
+
+The default base is
+`sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa`.
+Override it only with `--base-image` and another digest-pinned cumulative SAM2
+image. See `benchmark/docs/tracking_runbook.md` for the sequential smoke,
+micro, and acceptance commands.
+
+## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:
 

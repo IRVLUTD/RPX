@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import os
 import time
 from pathlib import Path
@@ -44,6 +45,12 @@ class SAM2Tracker:
             revision=self.model_revision,
             cache_dir=os.environ.get("HF_HOME"),
         )
+        self.checkpoint_path = str(Path(checkpoint).resolve())
+        digest = hashlib.sha256()
+        with Path(checkpoint).open("rb") as handle:
+            for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
+                digest.update(chunk)
+        self.checkpoint_sha256 = digest.hexdigest()
         self.predictor = build_sam2_video_predictor(
             self.config_name,
             checkpoint,

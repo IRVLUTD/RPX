@@ -47,7 +47,9 @@ Predictions are written atomically to:
 
 Each file contains one non-negative integer `mask` of shape `480×640`. A
 scene-phase `_complete.json` marker is written only after all 250 predictions
-are valid. A completed clip is skipped on rerun with zero model propagation.
+are valid. The marker includes the full RPX adapter commit; outputs from a
+different commit are never resumed. A completed clip is skipped on rerun with
+zero model propagation.
 If interruption occurs inside a clip, that clip is recomputed from frame 0:
 SAM 2's temporal memory state cannot be reconstructed from isolated output
 masks, so pretending to resume at an arbitrary frame would be invalid.
@@ -81,6 +83,47 @@ The production adapters currently exposed by `run_tracking.py` are:
 |---|---|---|
 | SAM 2 | released GT instance mask on frame 0 | `facebook/sam2-hiera-large` |
 | EdgeTAM | released GT instance mask on frame 0 | `facebook/EdgeTAM/edgetam.pt` |
+
+## SAM2 cumulative image and real-RPX gates
+
+SAM2 is the first model brought through the complete gate sequence. Its thin
+RPX overlay inherits the immutable published cumulative SAM2 image by digest;
+it does not rebuild the earlier environment or bake model weights into a
+layer. Build from a clean, committed checkout:
+
+```bash
+docker login
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+docker/tracking-smoke/build_sam2_rpx.sh --push
+```
+
+The script emits an immutable `sam2-rpx-sha-<12-char-RPX-SHA>` tag and the
+moving `sam2-rpx-latest` convenience tag. Use the immutable tag for every
+recorded test and production run.
+
+The gate runner uses one real Easy scene-phase clip and always performs a
+fresh inference pass followed by an identical resume pass. The budgets are:
+
+| Gate | Real RPX frames | Purpose |
+|---|---:|---|
+| smoke | 2 | checkpoint load and one propagation |
+| micro | 8 | bounded integration run |
+| acceptance | 25 | acceptance plus persisted-output validation |
+
+Run each gate with the SAM2 virtual environment and persistent cache/output
+mounts:
+
+```bash
+/opt/rpx-envs/sam2/bin/python scripts/run_tracking_gate.py \
+  --model sam2 \
+  --gate acceptance \
+  --cache-dir /cache/huggingface \
+  --output-root /outputs
+```
+
+The runner validates CUDA availability, embedded source/checkpoint provenance,
+the RPX adapter commit, the checkpoint SHA-256, mask artefacts, and the
+zero-forward resume contract.
 
 EdgeTAM uses the official SAM-style video predictor API and its own isolated
 `/opt/rpx-envs/edgetam` environment. It does not import or execute the SAM 2

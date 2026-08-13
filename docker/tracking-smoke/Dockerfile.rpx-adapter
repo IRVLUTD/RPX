@@ -14,7 +14,7 @@ ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
 
 COPY benchmark /opt/rpx/benchmark
 
-RUN python -m pip install \
+RUN "${RPX_TRACKING_PYTHON:-python}" -m pip install \
       --no-deps \
       --force-reinstall \
       /opt/rpx/benchmark
