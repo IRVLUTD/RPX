@@ -131,6 +131,7 @@ RUN rpx-clone-pinned https://github.com/MCG-NJU/SAM2-Plus.git \
       --source-revision "${SAM2_PLUS_GIT_SHA}" \
       --checkpoint-repo MCG-NJU/SAM2-Plus \
       --checkpoint-revision c3c534e30469d8788123287a484488567c5115d4 \
+      --prepend-source \
       --import sam2_plus
 
 

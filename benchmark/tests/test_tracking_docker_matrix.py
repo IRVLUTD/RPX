@@ -103,6 +103,20 @@ def test_environment_registration_supports_namespace_packages(tmp_path):
         sys.modules.pop("rpx_test_namespace", None)
 
 
+def test_environment_registration_can_prepend_partial_source_packages():
+    script_path = DOCKER_DIR / "register_model_env.py"
+    spec = importlib.util.spec_from_file_location("register_model_env", script_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    contents = module._pth_contents(["/opt/rpx-models/sam2_plus"], prepend=True)
+
+    assert contents == (
+        "import sys; sys.path[:0] = ['/opt/rpx-models/sam2_plus']\n"
+    )
+
+
 def test_deaot_correlation_has_versioned_torch27_compatibility_patch():
     dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
     patch_name = "pytorch-correlation-torch27-openmp.patch"

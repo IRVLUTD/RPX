@@ -37,6 +37,7 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
       --source-revision "${SAM2_PLUS_GIT_SHA}" \
       --checkpoint-repo MCG-NJU/SAM2-Plus \
       --checkpoint-revision c3c534e30469d8788123287a484488567c5115d4 \
+      --prepend-source \
       --import sam2 \
       --import sam2_plus \
       --import sam2_plus.sam2_video_predictor
@@ -53,6 +54,8 @@ RUN test -f "${SAM2_PLUS_CONFIG_DIR}/sam2.1_hiera_b+_predmasks_decoupled_MAME.ya
       --checkpoint-revision c3c534e30469d8788123287a484488567c5115d4 && \
     /opt/rpx-envs/sam2_plus/bin/python -m compileall -q \
       /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/sam2_plus/bin/python -c \
+      "from pathlib import Path; import training.dataset_plus.box.utils as box_utils; import sam2_plus.sam2_video_predictor as predictor; assert Path(box_utils.__file__).is_relative_to('/opt/rpx-models/sam2_plus'); assert Path(predictor.__file__).is_relative_to('/opt/rpx-models/sam2_plus')" && \
     /opt/rpx-envs/sam2_plus/bin/python -c \
       "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'sam2', 'sam2-plus', 'sam2long']; assert TRACKER_CLASSES['sam2-plus'].model_revision == 'c3c534e30469d8788123287a484488567c5115d4'"
 

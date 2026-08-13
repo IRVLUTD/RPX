@@ -164,8 +164,10 @@ box-granularity task with those boxes, and evaluates the masks predicted by the
 model—including its first-frame prediction. The segmentation annotation itself
 is never passed to SAM 2++. Its Hydra config is loaded directly from the pinned
 source tree because the upstream wheel does not package the
-`sam2_plus/configs` directory. Weights remain in the mounted Hugging Face cache
-rather than an image layer.
+`sam2_plus/configs` directory or all of the bundled `training.dataset_plus`
+modules. The image prepends the pinned source tree and verifies the box utility
+import during the build. Weights remain in the mounted Hugging Face cache rather
+than an image layer.
 
 ## Legacy full SAM2 rebuild
 

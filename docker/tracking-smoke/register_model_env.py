@@ -28,6 +28,15 @@ def _module_location(module_name: str) -> str:
     )
 
 
+def _pth_contents(paths: list[str], prepend: bool) -> str:
+    if prepend:
+        # A plain .pth path is appended after site-packages. That is insufficient
+        # when an installed wheel contains only part of a source package, because
+        # the partial regular package shadows source-only subpackages.
+        return f"import sys; sys.path[:0] = {paths!r}\n"
+    return "\n".join(paths) + "\n"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -38,6 +47,7 @@ def main() -> None:
     parser.add_argument("--checkpoint-revision", default="")
     parser.add_argument("--import", dest="imports", action="append", default=[])
     parser.add_argument("--python-path", action="append", default=[])
+    parser.add_argument("--prepend-source", action="store_true")
     args = parser.parse_args()
 
     source = Path(args.source_dir).resolve()
@@ -52,7 +62,7 @@ def main() -> None:
     )
     pth = site_packages / f"rpx_{args.model.replace('-', '_').replace('.', '_')}.pth"
     paths = [str(source), *(str((source / p).resolve()) for p in args.python_path)]
-    pth.write_text("\n".join(paths) + "\n")
+    pth.write_text(_pth_contents(paths, args.prepend_source))
     for value in reversed(paths):
         sys.path.insert(0, value)
 
