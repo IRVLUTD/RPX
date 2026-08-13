@@ -18,6 +18,7 @@ from tracking_models.edgetam_tracker import (
     EDGETAM_MODEL_ID,
     EDGETAM_MODEL_REVISION,
 )
+from tracking_models.masa_tracker import MASA_MODEL_ID, MASA_MODEL_REVISION
 from tracking_models.motip_tracker import MOTIP_MODEL_ID, MOTIP_MODEL_REVISION
 from tracking_models.sam2_plus_tracker import (
     SAM2_PLUS_MODEL_ID,
@@ -60,6 +61,11 @@ MODEL_PROVENANCE = {
         "source_revision": "14a4f2e4b96d7913899966ce7e70771f0ee7fc75",
         "checkpoint_repo": MOTIP_MODEL_ID,
         "checkpoint_revision": MOTIP_MODEL_REVISION,
+    },
+    "masa": {
+        "source_revision": "c5472b9c7615f35abdf1188cb1a0c5408fe50d66",
+        "checkpoint_repo": MASA_MODEL_ID,
+        "checkpoint_revision": MASA_MODEL_REVISION,
     },
 }
 

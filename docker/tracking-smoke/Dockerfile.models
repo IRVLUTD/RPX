@@ -280,9 +280,13 @@ RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
       --prompt detector \
       --source-dir /opt/rpx-models/masa \
       --source-revision "${MASA_GIT_SHA}" \
+      --checkpoint-repo dereksiyuanli/masa \
+      --checkpoint-revision 25ed372c47f2c46cf36fd446d1b657b656bc7ea9 \
+      --prepend-source \
       --import teta \
       --import scalabel \
-      --import masa
+      --import masa \
+      --import projects.Detic_new.detic
 
 
 # 9. Grounded-SAM2 — source-pinned text grounding + SAM 2 tracking stack.

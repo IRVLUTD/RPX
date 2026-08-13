@@ -183,6 +183,19 @@ downloaded into the runtime cache, never baked into the image. Because that
 checkpoint detects people, poor or empty detections on RPX household objects are
 a valid domain-transfer result rather than a reason to use ground-truth prompts.
 
+MASA is the seventh milestone and inherits the accepted MOTIP image directly:
+
+```bash
+docker/tracking-smoke/build_masa_rpx.sh --push
+```
+
+The adapter runs the official unified MASA-Detic model with the Detic-SwinB
+open-vocabulary detector and fixed LVIS vocabulary. It receives no RPX mask,
+box, object-name or text prompt. MASA's official video post-processing is
+applied before score-filtered XYXY tracks are rasterized for the shared metric
+pipeline. Unlike prompt-initialized trackers, detector-driven MOTIP and MASA
+are scored on frame 0 because they predict it without annotation input.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:

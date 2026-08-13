@@ -3,10 +3,10 @@
 ## Protocol fixed by the paper
 
 - The evaluation unit is a complete `(scene, phase)` clip (250 frames).
-- Trackers are initialized with the released ground-truth instance masks on
-  frame 0. Text prompts are not used for mask-initialized D3 models. Frame 0
-  is preserved in the outputs but excluded from metrics because it is supplied
-  to the model rather than predicted.
+- Promptable trackers are initialized from the released frame-0 annotation
+  using their declared mask or box prompt. Their frame 0 is preserved but
+  excluded from metrics. Detector-driven trackers receive no RPX prompt,
+  predict frame 0 themselves, and are scored on every frame.
 - Positive mask values are persistent instance IDs within the clip.
 - Predictions are evaluated as tight boxes derived from the predicted and GT
   masks using the official TrackEval implementation:
@@ -83,6 +83,11 @@ The production adapters currently exposed by `run_tracking.py` are:
 |---|---|---|
 | SAM 2 | released GT instance mask on frame 0 | `facebook/sam2-hiera-large` |
 | EdgeTAM | released GT instance mask on frame 0 | `facebook/EdgeTAM/edgetam.pt` |
+| Cutie | released GT instance mask on frame 0 | `hkchengrex/Cutie/cutie-base-mega.pth` |
+| SAM2Long | released GT instance mask on frame 0 | `facebook/sam2.1-hiera-large` |
+| SAM 2++ | tight boxes derived from released frame-0 instances | `MCG-NJU/SAM2-Plus/checkpoint_phase123.pt` |
+| MOTIP | none; native detector | `MCG-NJU/MOTIP/r50_deformable_detr_motip_dancetrack.pth` |
+| MASA-Detic | none; unified open-vocabulary Detic detector | `dereksiyuanli/masa/detic_masa.pth` |
 
 ## SAM2 cumulative image and real-RPX gates
 
@@ -193,6 +198,25 @@ EdgeTAM uses the official SAM-style video predictor API and its own isolated
 checkpoint. EdgeTAM's wheel omits its nested Hydra YAML, so the adapter loads
 `sam2/configs/edgetam.yaml` from the commit-pinned source checkout retained at
 `/opt/rpx-models/edgetam`. It fails closed if that source config is absent.
+
+## MASA-Detic cumulative image and real-RPX gates
+
+MASA is the seventh cumulative milestone and inherits the accepted MOTIP
+image. It uses the authors' unified MASA-Detic checkpoint and the pinned
+open-vocabulary Detic-SwinB configuration:
+
+```bash
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+docker/tracking-smoke/build_masa_rpx.sh --push
+```
+
+MASA receives no RPX first-frame boxes, masks, object names, or text prompts.
+Its detector discovers instances independently on every frame; MASA associates
+those detections into persistent tracks. The official demo post-processing is
+applied, detections above the fixed 0.2 score threshold are rasterized as
+instance-ID rectangles, and all frames—including frame 0—are evaluated. The
+unified checkpoint is downloaded once into the mounted cache and validated by
+its pinned byte count and SHA-256; it is not baked into the image.
 
 ## EdgeTAM real-RPX smoke gates
 

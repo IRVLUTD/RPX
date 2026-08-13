@@ -143,7 +143,10 @@ def test_motip_uses_toolkit_presence_for_image_build():
 
 def test_masa_installs_pinned_mmdetection_runtime_requirements():
     dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
+    cumulative = (DOCKER_DIR / "Dockerfile.masa-cumulative").read_text()
     lock = (DOCKER_DIR / "requirements-masa-runtime.lock").read_text()
+    matrix = json.loads((DOCKER_DIR / "model-matrix.json").read_text())
+    masa = next(model for model in matrix["models"] if model["id"] == "masa")
 
     assert "COPY docker/tracking-smoke/requirements-masa-runtime.lock" in dockerfile
     assert "-r /tmp/requirements-masa-runtime.lock" in dockerfile
@@ -162,6 +165,16 @@ def test_masa_installs_pinned_mmdetection_runtime_requirements():
     assert "--no-deps --no-build-isolation /opt/rpx-models/tet/teta" in dockerfile
     assert "--import teta" in dockerfile
     assert "--import scalabel" in dockerfile
+    assert "--prepend-source" in dockerfile
+    assert "--import projects.Detic_new.detic" in dockerfile
+    assert "dereksiyuanli/masa" in cumulative
+    assert masa["checkpoint_repo"] == "dereksiyuanli/masa"
+    assert masa["checkpoint_revision"] == (
+        "25ed372c47f2c46cf36fd446d1b657b656bc7ea9"
+    )
+    assert "Dockerfile.masa-cumulative" in (
+        DOCKER_DIR / "build_masa_rpx.sh"
+    ).read_text()
 
 
 def test_builder_supports_one_model_overlay_mode():

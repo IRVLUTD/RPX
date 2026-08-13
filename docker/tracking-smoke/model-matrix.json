@@ -102,8 +102,8 @@
       "prompt": "detector",
       "source": "https://github.com/siyuanliii/masa.git",
       "source_revision": "c5472b9c7615f35abdf1188cb1a0c5408fe50d66",
-      "checkpoint_repo": null,
-      "checkpoint_revision": null
+      "checkpoint_repo": "dereksiyuanli/masa",
+      "checkpoint_revision": "25ed372c47f2c46cf36fd446d1b657b656bc7ea9"
     },
     {
       "order": 9,

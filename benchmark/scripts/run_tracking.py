@@ -291,6 +291,8 @@ def main() -> None:
         except (OSError, json.JSONDecodeError):
             previous_metadata = {}
     tracker_class = TRACKER_CLASSES[args.model]
+    detector_initialized = tracker_class.prompt_type == "detector"
+    score_start = 0 if detector_initialized else 1
     if args.manifest_path:
         manifest_path = Path(args.manifest_path)
     else:
@@ -350,7 +352,7 @@ def main() -> None:
             finally:
                 shutil.rmtree(video_dir, ignore_errors=True)
             inferred_clips += 1
-            forwards += max(0, len(samples) - 1)
+            forwards += max(0, len(samples) - score_start)
             if args.save_predictions:
                 for sample, prediction in zip(samples, predictions, strict=True):
                     _atomic_mask(_prediction_path(output_dir, clip, sample), prediction)
@@ -367,13 +369,16 @@ def main() -> None:
         gt_masks = [
             _load_mask_file(_resolve(str(sample["mask"]), clip.root)) for sample in samples
         ]
-        # Frame 0 is supplied to the tracker as ground-truth initialization;
-        # scoring it would add a free perfect detection/identity match.
+        # Prompt-initialized trackers receive GT information on frame 0, so it
+        # is excluded. Detector-driven trackers receive no RPX prompt and are
+        # therefore evaluated on every frame, including frame 0.
         metrics = paper_tracking_metrics(
-            pred_masks=predictions[1:],
-            gt_masks=gt_masks[1:],
+            pred_masks=predictions[score_start:],
+            gt_masks=gt_masks[score_start:],
         )
-        measured_latencies = [value for value in latencies[1:] if value > 0]
+        measured_latencies = [
+            value for value in latencies[score_start:] if value > 0
+        ]
         row: dict[str, Any] = {
             "model": args.model,
             "task": "object_tracking",
@@ -381,7 +386,7 @@ def main() -> None:
             "scene": clip.scene,
             "phase": clip.phase,
             "n_frames": len(samples),
-            "n_scored_frames": len(samples) - 1,
+            "n_scored_frames": len(samples) - score_start,
             "latency_ms": (
                 float(np.median(measured_latencies)) if measured_latencies else np.nan
             ),
@@ -405,8 +410,16 @@ def main() -> None:
         "task": "object_tracking",
         "split": args.split,
         "protocol": {
-            "initialization": "ground_truth_first_frame_instance_masks",
-            "scored_frames": "1_to_end (initialization frame excluded)",
+            "initialization": (
+                "detector_every_frame_no_rpx_prompt"
+                if detector_initialized
+                else f"ground_truth_first_frame_{tracker_class.prompt_type}"
+            ),
+            "scored_frames": (
+                "0_to_end (all frames)"
+                if detector_initialized
+                else "1_to_end (initialization frame excluded)"
+            ),
             "association_representation": "tight_boxes_derived_from_instance_masks",
             "association_iou_threshold": 0.5,
             "metric_implementation": "TrackEval",

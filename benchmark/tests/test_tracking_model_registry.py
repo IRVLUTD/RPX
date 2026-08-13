@@ -13,6 +13,7 @@ from tracking_models import (  # noqa: E402
     TRACKER_CLASSES,
     CutieTracker,
     EdgeTAMTracker,
+    MASATracker,
     MOTIPTracker,
     SAM2LongTracker,
     SAM2PlusTracker,
@@ -24,6 +25,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
     assert TRACKER_CLASSES == {
         "cutie": CutieTracker,
         "edgetam": EdgeTAMTracker,
+        "masa": MASATracker,
         "motip": MOTIPTracker,
         "sam2": SAM2Tracker,
         "sam2-plus": SAM2PlusTracker,
@@ -128,5 +130,29 @@ def test_motip_rasterizes_higher_confidence_boxes_last() -> None:
         (5, 5),
     )
     assert result[0, 0] == 5
+    assert result[2, 2] == 10
+    assert result[4, 4] == 10
+
+
+def test_masa_uses_pinned_unified_detic_checkpoint() -> None:
+    assert MASATracker.model_name == "masa"
+    assert MASATracker.model_id == "dereksiyuanli/masa"
+    assert MASATracker.model_revision == (
+        "25ed372c47f2c46cf36fd446d1b657b656bc7ea9"
+    )
+    assert MASATracker.checkpoint_filename == "detic_masa.pth"
+    assert MASATracker.prompt_type == "detector"
+    assert MASATracker.tracking_mode == "detector-association-mot"
+
+
+def test_masa_rasterizes_xyxy_boxes_and_applies_score_threshold() -> None:
+    boxes = np.asarray([[0.0, 0.0, 3.0, 3.0], [2.0, 2.0, 5.0, 5.0]])
+    result = MASATracker._rasterize_boxes(
+        boxes,
+        np.asarray([4, 9]),
+        np.asarray([0.1, 0.9]),
+        (5, 5),
+    )
+    assert result[0, 0] == 0
     assert result[2, 2] == 10
     assert result[4, 4] == 10
