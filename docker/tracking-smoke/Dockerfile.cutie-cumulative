@@ -20,9 +20,10 @@ COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-
 
 ARG CUTIE_GIT_SHA=ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a
 ARG THINPLATE_GIT_SHA=f6995795397118b7d0ac01aecd3f39ffbfad9dee
-RUN case "${RPX_GIT_SHA}" in \
-      [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;; \
-      *) echo "RPX_GIT_SHA must be a full lowercase 40-character commit" >&2; exit 1 ;; \
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
     esac && \
     rpx-clone-pinned https://github.com/hkchengrex/Cutie.git \
       "${CUTIE_GIT_SHA}" /opt/rpx-models/cutie && \
