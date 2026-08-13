@@ -169,6 +169,25 @@ SHA-256 is included in result metadata. Run smoke, micro and acceptance with
 same portable `prediction_frames` layout and is packaged with the shared
 `package_acceptance_frames.sh --model cutie` command.
 
+## SAM2Long cumulative image and real-RPX gates
+
+SAM2Long is the fourth accepted environment. It inherits Cutie, EdgeTAM and
+SAM2, then installs the official source at commit
+`7193b77fa0c8827e0520ab281acd2cf394ab898e` in an isolated
+`/opt/rpx-envs/sam2long` environment:
+
+```bash
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+docker/tracking-smoke/build_sam2long_rpx.sh --push
+```
+
+The adapter uses the official training-free memory tree with three pathways,
+IoU threshold 0.1 and uncertainty threshold 2. It uses the pinned official
+SAM 2.1 Hiera Large checkpoint, preserves RPX IDs from the first-frame mask,
+and records the downloaded checkpoint SHA-256. Run the standard smoke, micro
+and acceptance gates using `/opt/rpx-envs/sam2long/bin/python` and
+`--model sam2long`; acceptance rendering and packaging remain unchanged.
+
 EdgeTAM uses the official SAM-style video predictor API and its own isolated
 `/opt/rpx-envs/edgetam` environment. It does not import or execute the SAM 2
 checkpoint. EdgeTAM's wheel omits its nested Hydra YAML, so the adapter loads

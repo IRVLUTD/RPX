@@ -19,6 +19,10 @@ from tracking_models.edgetam_tracker import (
     EDGETAM_MODEL_REVISION,
 )
 from tracking_models.sam2_tracker import SAM2_MODEL_ID, SAM2_MODEL_REVISION
+from tracking_models.sam2long_tracker import (
+    SAM2LONG_MODEL_ID,
+    SAM2LONG_MODEL_REVISION,
+)
 
 GATE_FRAMES = {"smoke": 2, "micro": 8, "acceptance": 25}
 MODEL_PROVENANCE = {
@@ -36,6 +40,11 @@ MODEL_PROVENANCE = {
         "source_revision": "ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a",
         "checkpoint_repo": CUTIE_MODEL_ID,
         "checkpoint_revision": CUTIE_MODEL_REVISION,
+    },
+    "sam2long": {
+        "source_revision": "7193b77fa0c8827e0520ab281acd2cf394ab898e",
+        "checkpoint_repo": SAM2LONG_MODEL_ID,
+        "checkpoint_revision": SAM2LONG_MODEL_REVISION,
     },
 }
 

@@ -3,6 +3,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
+import torch
+
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
@@ -10,6 +13,7 @@ from tracking_models import (  # noqa: E402
     TRACKER_CLASSES,
     CutieTracker,
     EdgeTAMTracker,
+    SAM2LongTracker,
     SAM2Tracker,
 )
 
@@ -19,6 +23,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
         "cutie": CutieTracker,
         "edgetam": EdgeTAMTracker,
         "sam2": SAM2Tracker,
+        "sam2long": SAM2LongTracker,
     }
 
 
@@ -41,3 +46,22 @@ def test_cutie_uses_official_base_mega_release() -> None:
     assert CutieTracker.model_revision == "v1.0"
     assert CutieTracker.checkpoint_filename == "cutie-base-mega.pth"
     assert CutieTracker.config_directory == "/opt/rpx-models/cutie/cutie/config"
+
+
+def test_sam2long_uses_official_source_and_sam21_large_checkpoint() -> None:
+    assert SAM2LongTracker.model_name == "sam2long"
+    assert SAM2LongTracker.model_id == "facebook/sam2.1-hiera-large"
+    assert SAM2LongTracker.model_revision == "665f8e2ad61cf5f53d65644ff27c8ee525124610"
+    assert SAM2LongTracker.checkpoint_filename == "sam2.1_hiera_large.pt"
+    assert SAM2LongTracker.config_name == "configs/sam2.1/sam2.1_hiera_l.yaml"
+
+
+def test_sam2long_consolidates_independent_object_pathways() -> None:
+    logits = torch.tensor(
+        [
+            [[2.0, -1.0], [0.1, -2.0]],
+            [[-1.0, 3.0], [0.2, -3.0]],
+        ]
+    )
+    result = SAM2LongTracker._combine_masks([7, 19], logits, (2, 2))
+    np.testing.assert_array_equal(result, np.asarray([[7, 19], [19, 0]]))

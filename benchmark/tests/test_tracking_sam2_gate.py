@@ -21,7 +21,12 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "micro": 8,
         "acceptance": 25,
     }
-    assert set(run_tracking_gate.MODEL_PROVENANCE) == {"sam2", "edgetam", "cutie"}
+    assert set(run_tracking_gate.MODEL_PROVENANCE) == {
+        "sam2",
+        "edgetam",
+        "cutie",
+        "sam2long",
+    }
 
 
 def test_prediction_resume_is_invalidated_by_adapter_revision(tmp_path: Path) -> None:
@@ -114,3 +119,18 @@ def test_cutie_cumulative_overlay_inherits_edgetam_digest() -> None:
     assert "edgetam-rpx-sha-73e9f1309b05" in builder
     assert "RepoDigests" in builder
     assert "cutie-rpx-sha-${short_revision}" in builder
+
+
+def test_sam2long_cumulative_overlay_inherits_cutie_digest() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.sam2long-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_sam2long_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "7193b77fa0c8827e0520ab281acd2cf394ab898e" in dockerfile
+    assert "665f8e2ad61cf5f53d65644ff27c8ee525124610" in dockerfile
+    assert "/opt/rpx-envs/sam2long/bin/python" in dockerfile
+    assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
+    assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
+    assert "cutie-rpx-sha-ccd827ee74ce" in builder
+    assert "RepoDigests" in builder
+    assert "sam2long-rpx-sha-${short_revision}" in builder

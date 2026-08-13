@@ -139,6 +139,17 @@ official `cutie-base-mega.pth` v1.0 release is downloaded into the mounted
 runtime cache, verified against the publisher's MD5, and recorded with its
 SHA-256 in RPX result metadata.
 
+SAM2Long is the fourth cumulative milestone and inherits the accepted Cutie
+image, retaining Cutie, EdgeTAM and SAM2:
+
+```bash
+docker/tracking-smoke/build_sam2long_rpx.sh --push
+```
+
+The isolated environment pins the official SAM2Long source and SAM 2.1 Hiera
+Large checkpoint revision. The checkpoint stays in the mounted Hugging Face
+cache. RPX uses the paper implementation's three-pathway defaults.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:

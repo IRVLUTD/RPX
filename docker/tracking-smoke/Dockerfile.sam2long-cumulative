@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 SAM2, EdgeTAM, Cutie and SAM2Long image"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/sam2long/bin/python \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+
+ARG SAM2LONG_GIT_SHA=7193b77fa0c8827e0520ab281acd2cf394ab898e
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    rpx-clone-pinned https://github.com/Mark12Ding/SAM2Long.git \
+      "${SAM2LONG_GIT_SHA}" /opt/rpx-models/sam2long && \
+    python -m venv --system-site-packages /opt/rpx-envs/sam2long && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/sam2long/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/sam2long && \
+    /opt/rpx-envs/sam2long/bin/python /usr/local/bin/rpx-register-model-env \
+      --model sam2long \
+      --prompt mask \
+      --source-dir /opt/rpx-models/sam2long \
+      --source-revision "${SAM2LONG_GIT_SHA}" \
+      --checkpoint-repo facebook/sam2.1-hiera-large \
+      --checkpoint-revision 665f8e2ad61cf5f53d65644ff27c8ee525124610 \
+      --import sam2 \
+      --import sam2.sam2_video_predictor
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/sam2long/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/sam2long/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model sam2long \
+      --source-revision 7193b77fa0c8827e0520ab281acd2cf394ab898e \
+      --checkpoint-repo facebook/sam2.1-hiera-large \
+      --checkpoint-revision 665f8e2ad61cf5f53d65644ff27c8ee525124610 && \
+    /opt/rpx-envs/sam2long/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/sam2long/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'sam2', 'sam2long']; assert TRACKER_CLASSES['sam2long'].model_revision == '665f8e2ad61cf5f53d65644ff27c8ee525124610'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []
