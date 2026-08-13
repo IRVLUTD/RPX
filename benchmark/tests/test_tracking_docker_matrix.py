@@ -1,9 +1,8 @@
-import json
 import importlib.util
+import json
 import re
 import sys
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCKER_DIR = ROOT / "docker" / "tracking-smoke"
@@ -29,7 +28,7 @@ def test_paper_tracking_matrix_is_complete_and_ordered():
     assert [model["prompt"] for model in models] == [
         "mask",
         "mask",
-        "mask",
+        "box",
         "mask",
         "mask",
         "mask",

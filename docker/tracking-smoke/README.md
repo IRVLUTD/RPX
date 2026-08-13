@@ -157,11 +157,15 @@ image, retaining SAM2Long, Cutie, EdgeTAM and SAM2:
 docker/tracking-smoke/build_sam2_plus_rpx.sh --push
 ```
 
-The isolated environment pins the official SAM2-Plus source, unified
-mask-prompt predictor and `checkpoint_phase123.pt` revision. Its Hydra config
-is loaded directly from the pinned source tree because the upstream wheel does
-not package the `sam2_plus/configs` directory. Weights remain in the mounted
-Hugging Face cache rather than an image layer.
+The isolated environment pins the official SAM2-Plus source, unified predictor
+and `checkpoint_phase123.pt` revision. RPX derives a tight XYXY bounding box for
+each object in the first-frame instance annotation, initializes the official
+box-granularity task with those boxes, and evaluates the masks predicted by the
+model—including its first-frame prediction. The segmentation annotation itself
+is never passed to SAM 2++. Its Hydra config is loaded directly from the pinned
+source tree because the upstream wheel does not package the
+`sam2_plus/configs` directory. Weights remain in the mounted Hugging Face cache
+rather than an image layer.
 
 ## Legacy full SAM2 rebuild
 

@@ -146,6 +146,7 @@ def test_sam2_plus_cumulative_overlay_inherits_sam2long_digest() -> None:
     assert "09c9ec4686d7170396ed98abcc0150f35e82c6b9" in dockerfile
     assert "c3c534e30469d8788123287a484488567c5115d4" in dockerfile
     assert "/opt/rpx-envs/sam2_plus/bin/python" in dockerfile
+    assert "--prompt box" in dockerfile
     assert (
         "SAM2_PLUS_CONFIG_DIR=/opt/rpx-models/sam2_plus/sam2_plus/configs/sam2.1"
         in dockerfile

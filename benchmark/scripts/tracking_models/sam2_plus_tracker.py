@@ -29,7 +29,7 @@ def _sha256(path: Path) -> str:
 
 
 class SAM2PlusTracker:
-    """Run official SAM 2++ with first-frame RPX instance-mask prompts."""
+    """Run official SAM 2++ from boxes derived from first-frame RPX instances."""
 
     model_name = "sam2-plus"
     model_id = SAM2_PLUS_MODEL_ID
@@ -38,6 +38,7 @@ class SAM2PlusTracker:
     config_name = SAM2_PLUS_CONFIG
     config_directory = SAM2_PLUS_CONFIG_DIR
     adapter_label = "SAM 2++"
+    prompt_type = "box"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda":
@@ -73,7 +74,7 @@ class SAM2PlusTracker:
             str(checkpoint),
             device=device,
             apply_postprocessing=True,
-            task="mask",
+            task=self.prompt_type,
         )
         self.predictor.non_overlap_masks = True
         self.device = device
@@ -103,6 +104,21 @@ class SAM2PlusTracker:
         output[foreground] = ids[best_index[foreground]]
         return output
 
+    @staticmethod
+    def _object_boxes(
+        instance_mask: np.ndarray, object_ids: Sequence[int]
+    ) -> dict[int, np.ndarray]:
+        """Return the official SAM 2++ XYXY box convention for each instance."""
+        boxes = {}
+        for object_id in object_ids:
+            ys, xs = np.where(instance_mask == object_id)
+            if not xs.size:
+                raise ValueError(f"object {object_id} has no pixels in first_frame_mask.")
+            boxes[int(object_id)] = np.asarray(
+                [xs.min(), ys.min(), xs.max(), ys.max()], dtype=np.float32
+            )
+        return boxes
+
     def track(
         self,
         video_dir: Path,
@@ -115,6 +131,7 @@ class SAM2PlusTracker:
         object_ids = [int(value) for value in np.unique(initial) if value > 0]
         if not object_ids:
             raise ValueError("first_frame_mask contains no positive object IDs.")
+        object_boxes = self._object_boxes(initial, object_ids)
 
         state = None
         predictions: list[np.ndarray | None] = [None] * frame_count
@@ -127,15 +144,23 @@ class SAM2PlusTracker:
                     offload_state_to_cpu=False,
                     async_loading_frames=False,
                 )
+                initial_output_ids = None
+                initial_mask_logits = None
                 for object_id in object_ids:
-                    self.predictor.add_new_mask(
-                        inference_state=state,
-                        frame_idx=0,
-                        obj_id=object_id,
-                        mask=initial == object_id,
+                    _, initial_output_ids, initial_mask_logits, _ = (
+                        self.predictor.add_new_points_or_box(
+                            inference_state=state,
+                            frame_idx=0,
+                            obj_id=object_id,
+                            box=object_boxes[object_id],
+                        )
                     )
 
-                predictions[0] = initial.astype(np.int32, copy=True)
+                if initial_output_ids is None or initial_mask_logits is None:
+                    raise RuntimeError("SAM 2++ did not return a first-frame box prediction.")
+                predictions[0] = self._combine_masks(
+                    initial_output_ids, initial_mask_logits, initial.shape
+                )
                 torch.cuda.synchronize()
                 iterator = self.predictor.propagate_in_video(state)
                 while True:

@@ -75,6 +75,7 @@ def test_sam2_plus_uses_official_unified_checkpoint_and_source_config() -> None:
     assert SAM2PlusTracker.model_id == "MCG-NJU/SAM2-Plus"
     assert SAM2PlusTracker.model_revision == "c3c534e30469d8788123287a484488567c5115d4"
     assert SAM2PlusTracker.checkpoint_filename == "checkpoint_phase123.pt"
+    assert SAM2PlusTracker.prompt_type == "box"
     assert SAM2PlusTracker.config_name == (
         "sam2.1_hiera_b+_predmasks_decoupled_MAME.yaml"
     )
@@ -92,3 +93,14 @@ def test_sam2_plus_consolidates_unified_decoder_masks() -> None:
     )
     result = SAM2PlusTracker._combine_masks([7, 19], logits, (2, 2))
     np.testing.assert_array_equal(result, np.asarray([[7, 19], [19, 0]]))
+
+
+def test_sam2_plus_derives_tight_xyxy_boxes_from_first_frame_instances() -> None:
+    mask = np.zeros((7, 9), dtype=np.int32)
+    mask[1:5, 2:7] = 7
+    mask[4:7, 0:2] = 19
+
+    boxes = SAM2PlusTracker._object_boxes(mask, [7, 19])
+
+    np.testing.assert_array_equal(boxes[7], np.asarray([2, 1, 6, 4], np.float32))
+    np.testing.assert_array_equal(boxes[19], np.asarray([0, 4, 1, 6], np.float32))

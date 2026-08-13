@@ -39,7 +39,7 @@
       "target": "tracking_all_sam2_plus",
       "base_arg": "SAM2_PLUS_BASE_IMAGE",
       "env": "sam2_plus",
-      "prompt": "mask",
+      "prompt": "box",
       "source": "https://github.com/MCG-NJU/SAM2-Plus.git",
       "source_revision": "09c9ec4686d7170396ed98abcc0150f35e82c6b9",
       "checkpoint_repo": "MCG-NJU/SAM2-Plus",

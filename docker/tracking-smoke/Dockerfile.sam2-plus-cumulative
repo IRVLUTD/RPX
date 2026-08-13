@@ -32,7 +32,7 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
       --no-deps --no-build-isolation /opt/rpx-models/sam2_plus && \
     /opt/rpx-envs/sam2_plus/bin/python /usr/local/bin/rpx-register-model-env \
       --model sam2-plus \
-      --prompt mask \
+      --prompt box \
       --source-dir /opt/rpx-models/sam2_plus \
       --source-revision "${SAM2_PLUS_GIT_SHA}" \
       --checkpoint-repo MCG-NJU/SAM2-Plus \
