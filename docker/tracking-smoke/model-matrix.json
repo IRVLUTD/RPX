@@ -47,18 +47,6 @@
     },
     {
       "order": 4,
-      "id": "samurai",
-      "target": "tracking_all_samurai",
-      "base_arg": "SAMURAI_BASE_IMAGE",
-      "env": "samurai",
-      "prompt": "mask",
-      "source": "https://github.com/yangchris11/samurai.git",
-      "source_revision": "76ba195984892b0d1e3db5d9c9f90bb62175680a",
-      "checkpoint_repo": "facebook/sam2.1-hiera-large",
-      "checkpoint_revision": "665f8e2ad61cf5f53d65644ff27c8ee525124610"
-    },
-    {
-      "order": 5,
       "id": "edgetam",
       "target": "tracking_all_edgetam",
       "base_arg": "EDGETAM_BASE_IMAGE",
@@ -70,7 +58,7 @@
       "checkpoint_revision": "14d7ecc48c656b94e5184519f698cd5386c5a2bf"
     },
     {
-      "order": 6,
+      "order": 5,
       "id": "deaot",
       "target": "tracking_all_deaot",
       "base_arg": "DEAOT_BASE_IMAGE",
@@ -82,7 +70,7 @@
       "checkpoint_revision": null
     },
     {
-      "order": 7,
+      "order": 6,
       "id": "cutie",
       "target": "tracking_all_cutie",
       "base_arg": "CUTIE_BASE_IMAGE",
@@ -94,7 +82,7 @@
       "checkpoint_revision": null
     },
     {
-      "order": 8,
+      "order": 7,
       "id": "motip",
       "target": "tracking_all_motip",
       "base_arg": "MOTIP_BASE_IMAGE",
@@ -102,11 +90,11 @@
       "prompt": "detector",
       "source": "https://github.com/MCG-NJU/MOTIP.git",
       "source_revision": "14a4f2e4b96d7913899966ce7e70771f0ee7fc75",
-      "checkpoint_repo": null,
-      "checkpoint_revision": null
+      "checkpoint_repo": "MCG-NJU/MOTIP",
+      "checkpoint_revision": "v0.1"
     },
     {
-      "order": 9,
+      "order": 8,
       "id": "masa",
       "target": "tracking_all_masa",
       "base_arg": "MASA_BASE_IMAGE",
@@ -118,7 +106,7 @@
       "checkpoint_revision": null
     },
     {
-      "order": 10,
+      "order": 9,
       "id": "grounded-sam2",
       "target": "tracking_all_grounded_sam2",
       "base_arg": "GROUNDED_SAM2_BASE_IMAGE",

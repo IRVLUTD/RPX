@@ -4,8 +4,8 @@ There are two deliberately separate Docker paths:
 
 - `Dockerfile` is the already-tested YOLOE engineering smoke plus the RPX SAM 2
   adapter image.
-- `Dockerfile.models` is the weight-free, cumulative environment matrix for all
-  ten paper D3 tracking models.
+- `Dockerfile.models` is the weight-free, cumulative environment matrix for the
+  nine multi-object D3 tracking models; single-object SAMURAI is excluded.
 
 The paper matrix is source-pinned and dependency-locked. It does **not** claim
 that an environment has passed RPX inference merely because it builds: the
@@ -36,19 +36,18 @@ The script builds in paper order:
 1. SAM 3.1
 2. SAM 2
 3. SAM 2++
-4. SAMURAI
-5. EdgeTAM
-6. DeAOT
-7. Cutie
-8. MOTIP
-9. MASA
-10. Grounded-SAM2
+4. EdgeTAM
+5. DeAOT
+6. Cutie
+7. MOTIP
+8. MASA
+9. Grounded-SAM2
 
 To build and push one model at a time on top of the preceding published image:
 
 ```bash
 docker/tracking-smoke/build_and_push_models.sh \
-  --model samurai \
+  --model motip \
   --base-image vndhiran123/rpx-tracking-smoke:sam2-plus-sha-<previous-sha> \
   --push
 ```
@@ -168,6 +167,21 @@ source tree because the upstream wheel does not package the
 modules. The image prepends the pinned source tree and verifies the box utility
 import during the build. Weights remain in the mounted Hugging Face cache rather
 than an image layer.
+
+SAMURAI is intentionally excluded from the RPX cumulative chain because its
+official benchmark implementation is single-object tracking. MOTIP is the sixth
+milestone and inherits the accepted SAM 2++ image directly:
+
+```bash
+docker/tracking-smoke/build_motip_rpx.sh --push
+```
+
+MOTIP runs its official detector and joint ID-prediction tracker with no RPX
+first-frame prompt. Its tracked XYWH boxes are rasterized into instance-ID masks
+for the common D3 metric pipeline. The pinned v0.1 DanceTrack checkpoint is
+downloaded into the runtime cache, never baked into the image. Because that
+checkpoint detects people, poor or empty detections on RPX household objects are
+a valid domain-transfer result rather than a reason to use ground-truth prompts.
 
 ## Legacy full SAM2 rebuild
 

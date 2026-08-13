@@ -12,12 +12,11 @@ def test_paper_tracking_matrix_is_complete_and_ordered():
     payload = json.loads((DOCKER_DIR / "model-matrix.json").read_text())
     models = payload["models"]
 
-    assert [model["order"] for model in models] == list(range(1, 11))
+    assert [model["order"] for model in models] == list(range(1, 10))
     assert [model["id"] for model in models] == [
         "sam3.1",
         "sam2",
         "sam2-plus",
-        "samurai",
         "edgetam",
         "deaot",
         "cutie",
@@ -29,7 +28,6 @@ def test_paper_tracking_matrix_is_complete_and_ordered():
         "mask",
         "mask",
         "box",
-        "mask",
         "mask",
         "mask",
         "mask",
@@ -59,11 +57,6 @@ def test_every_model_has_a_pinned_source_and_cumulative_target():
             assert "ARG RPX_GIT_SHA" in stage
             assert "ENV RPX_GIT_SHA=${RPX_GIT_SHA}" in stage
         previous = model["target"]
-
-
-def test_samurai_runtime_declares_its_missing_logger_dependency():
-    dockerfile = (DOCKER_DIR / "Dockerfile.models").read_text()
-    assert "loguru==0.7.3" in dockerfile
 
 
 def test_edgetam_rpx_overlay_patches_noncontiguous_expand_view():
@@ -181,9 +174,9 @@ def test_every_incremental_overlay_refreshes_registration_helper():
         "/usr/local/bin/rpx-register-model-env"
     )
 
-    # One copy in the base plus one in each of the nine externally overridable
+    # One copy in the base plus one in each of the eight externally overridable
     # stages prevents an old published base from retaining stale build tooling.
-    assert dockerfile.count(copy_line) == 10
+    assert dockerfile.count(copy_line) == 9
 
 
 def test_base_image_is_digest_pinned_and_weights_are_not_copied():

@@ -18,7 +18,7 @@ usage:
   $0 --model MODEL [--base-image IMAGE] [--push]
   $0 --list
 
-Without --model, build all ten cumulative targets in paper order.
+Without --model, build all nine cumulative targets in paper order.
 With --model, build only that target. --base-image makes that target inherit
 an already-built/published preceding model image instead of rebuilding it.
 EOF
@@ -83,8 +83,8 @@ for model in json.load(open(sys.argv[1]))["models"]:
 PY
 )
 
-if [[ "${#rows[@]}" -ne 10 ]]; then
-  echo "Expected 10 tracking model rows, found ${#rows[@]}." >&2
+if [[ "${#rows[@]}" -ne 9 ]]; then
+  echo "Expected 9 tracking model rows, found ${#rows[@]}." >&2
   exit 1
 fi
 

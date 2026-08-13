@@ -25,6 +25,7 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "sam2",
         "sam2-plus",
         "edgetam",
+        "motip",
         "cutie",
         "sam2long",
     }
@@ -158,3 +159,18 @@ def test_sam2_plus_cumulative_overlay_inherits_sam2long_digest() -> None:
     assert "sam2long-rpx-sha-bc16071faba7" in builder
     assert "RepoDigests" in builder
     assert "sam2-plus-rpx-sha-${short_revision}" in builder
+
+
+def test_motip_cumulative_overlay_skips_samurai_and_inherits_sam2_plus() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.motip-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_motip_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "14a4f2e4b96d7913899966ce7e70771f0ee7fc75" in dockerfile
+    assert "--prompt detector" in dockerfile
+    assert "--prepend-source" in dockerfile
+    assert "models.ops.modules" in dockerfile
+    assert "samurai" not in dockerfile.lower()
+    assert "sam2-plus-rpx-sha-711b53f7b7e2" in builder
+    assert "RepoDigests" in builder
+    assert "motip-rpx-sha-${short_revision}" in builder

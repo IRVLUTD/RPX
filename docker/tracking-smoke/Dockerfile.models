@@ -2,8 +2,7 @@
 
 ARG SAM2_BASE_IMAGE=tracking_all_sam3_1
 ARG SAM2_PLUS_BASE_IMAGE=tracking_all_sam2
-ARG SAMURAI_BASE_IMAGE=tracking_all_sam2_plus
-ARG EDGETAM_BASE_IMAGE=tracking_all_samurai
+ARG EDGETAM_BASE_IMAGE=tracking_all_sam2_plus
 ARG DEAOT_BASE_IMAGE=tracking_all_edgetam
 ARG CUTIE_BASE_IMAGE=tracking_all_deaot
 ARG MOTIP_BASE_IMAGE=tracking_all_cutie
@@ -135,32 +134,7 @@ RUN rpx-clone-pinned https://github.com/MCG-NJU/SAM2-Plus.git \
       --import sam2_plus
 
 
-# 4. SAMURAI — repository vendors its motion-aware SAM 2 implementation.
-FROM ${SAMURAI_BASE_IMAGE} AS tracking_all_samurai
-ARG RPX_GIT_SHA
-ENV RPX_GIT_SHA=${RPX_GIT_SHA}
-COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
-ARG SAMURAI_GIT_SHA=76ba195984892b0d1e3db5d9c9f90bb62175680a
-RUN rpx-clone-pinned https://github.com/yangchris11/samurai.git \
-      "${SAMURAI_GIT_SHA}" /opt/rpx-models/samurai && \
-    python -m venv --system-site-packages /opt/rpx-envs/samurai && \
-    /opt/rpx-envs/samurai/bin/python -m pip install \
-      --no-deps loguru==0.7.3 && \
-    SAM2_BUILD_CUDA=0 /opt/rpx-envs/samurai/bin/python -m pip install \
-      --no-deps --no-build-isolation /opt/rpx-models/samurai/sam2 && \
-    /opt/rpx-envs/samurai/bin/python /usr/local/bin/rpx-register-model-env \
-      --model samurai \
-      --prompt mask \
-      --source-dir /opt/rpx-models/samurai \
-      --source-revision "${SAMURAI_GIT_SHA}" \
-      --checkpoint-repo facebook/sam2.1-hiera-large \
-      --checkpoint-revision 665f8e2ad61cf5f53d65644ff27c8ee525124610 \
-      --python-path sam2 \
-      --import sam2 \
-      --import sam2.sam2_video_predictor
-
-
-# 5. EdgeTAM — official Meta on-device tracker.
+# 4. EdgeTAM — official Meta on-device tracker.
 FROM ${EDGETAM_BASE_IMAGE} AS tracking_all_edgetam
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
@@ -182,7 +156,7 @@ RUN rpx-clone-pinned https://github.com/facebookresearch/EdgeTAM.git \
       --import sam2.sam2_video_predictor
 
 
-# 6. DeAOT — the official repository requires the correlation extension.
+# 5. DeAOT — the official repository requires the correlation extension.
 FROM ${DEAOT_BASE_IMAGE} AS tracking_all_deaot
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
@@ -210,7 +184,7 @@ RUN rpx-clone-pinned https://github.com/yoxu515/aot-benchmark.git \
       --import networks.models
 
 
-# 7. Cutie — install the official minimal inference package, excluding GUI extras.
+# 6. Cutie — install the official minimal inference package, excluding GUI extras.
 FROM ${CUTIE_BASE_IMAGE} AS tracking_all_cutie
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
@@ -234,7 +208,7 @@ RUN rpx-clone-pinned https://github.com/hkchengrex/Cutie.git \
       --import cutie
 
 
-# 8. MOTIP — compile its official multi-scale deformable-attention operation.
+# 7. MOTIP — compile its official multi-scale deformable-attention operation.
 FROM ${MOTIP_BASE_IMAGE} AS tracking_all_motip
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}
@@ -256,10 +230,13 @@ RUN rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
       --prompt detector \
       --source-dir /opt/rpx-models/motip \
       --source-revision "${MOTIP_GIT_SHA}" \
+      --checkpoint-repo MCG-NJU/MOTIP \
+      --checkpoint-revision v0.1 \
+      --prepend-source \
       --import models
 
 
-# 9. MASA — preserve the authors' Torch 2.1/CUDA 11.8 OpenMMLab ABI in its
+# 8. MASA — preserve the authors' Torch 2.1/CUDA 11.8 OpenMMLab ABI in its
 # own venv. This is intentionally the one large non-shared dependency layer.
 FROM ${MASA_BASE_IMAGE} AS tracking_all_masa
 ARG RPX_GIT_SHA
@@ -307,7 +284,7 @@ RUN rpx-clone-pinned https://github.com/siyuanliii/masa.git \
       --import masa
 
 
-# 10. Grounded-SAM2 — source-pinned text grounding + SAM 2 tracking stack.
+# 9. Grounded-SAM2 — source-pinned text grounding + SAM 2 tracking stack.
 FROM ${GROUNDED_SAM2_BASE_IMAGE} AS tracking_all_grounded_sam2
 ARG RPX_GIT_SHA
 ENV RPX_GIT_SHA=${RPX_GIT_SHA}

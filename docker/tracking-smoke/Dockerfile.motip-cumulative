@@ -1,0 +1,71 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 SAM2, EdgeTAM, Cutie, SAM2Long, SAM 2++ and MOTIP image"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/motip/bin/python \
+    MOTIP_SOURCE_DIR=/opt/rpx-models/motip \
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9+PTX" \
+    MAX_JOBS=8 \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/patches/motip-cuda-toolkit-build.patch /tmp/motip-cuda-toolkit-build.patch
+
+ARG MOTIP_GIT_SHA=14a4f2e4b96d7913899966ce7e70771f0ee7fc75
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    test -x /usr/local/cuda/bin/nvcc && \
+    rpx-clone-pinned https://github.com/MCG-NJU/MOTIP.git \
+      "${MOTIP_GIT_SHA}" /opt/rpx-models/motip && \
+    git -C /opt/rpx-models/motip apply --check \
+      /tmp/motip-cuda-toolkit-build.patch && \
+    git -C /opt/rpx-models/motip apply \
+      /tmp/motip-cuda-toolkit-build.patch && \
+    python -m venv --system-site-packages /opt/rpx-envs/motip && \
+    cd /opt/rpx-models/motip/models/ops && \
+    /opt/rpx-envs/motip/bin/python setup.py build_ext --inplace && \
+    /opt/rpx-envs/motip/bin/python /usr/local/bin/rpx-register-model-env \
+      --model motip \
+      --prompt detector \
+      --source-dir /opt/rpx-models/motip \
+      --source-revision "${MOTIP_GIT_SHA}" \
+      --checkpoint-repo MCG-NJU/MOTIP \
+      --checkpoint-revision v0.1 \
+      --prepend-source \
+      --import models \
+      --import models.motip \
+      --import models.runtime_tracker \
+      --import models.ops.modules
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/motip/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/motip/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model motip \
+      --source-revision 14a4f2e4b96d7913899966ce7e70771f0ee7fc75 \
+      --checkpoint-repo MCG-NJU/MOTIP \
+      --checkpoint-revision v0.1 && \
+    /opt/rpx-envs/motip/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/motip/bin/python -c \
+      "from pathlib import Path; import models.runtime_tracker as tracker; from models.ops.modules import MSDeformAttn; assert Path(tracker.__file__).is_relative_to('/opt/rpx-models/motip'); assert MSDeformAttn.__module__.startswith('models.ops')" && \
+    /opt/rpx-envs/motip/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'motip', 'sam2', 'sam2-plus', 'sam2long']; assert TRACKER_CLASSES['motip'].model_revision == 'v0.1'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

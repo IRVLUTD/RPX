@@ -13,6 +13,7 @@ from tracking_models import (  # noqa: E402
     TRACKER_CLASSES,
     CutieTracker,
     EdgeTAMTracker,
+    MOTIPTracker,
     SAM2LongTracker,
     SAM2PlusTracker,
     SAM2Tracker,
@@ -23,6 +24,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
     assert TRACKER_CLASSES == {
         "cutie": CutieTracker,
         "edgetam": EdgeTAMTracker,
+        "motip": MOTIPTracker,
         "sam2": SAM2Tracker,
         "sam2-plus": SAM2PlusTracker,
         "sam2long": SAM2LongTracker,
@@ -104,3 +106,27 @@ def test_sam2_plus_derives_tight_xyxy_boxes_from_first_frame_instances() -> None
 
     np.testing.assert_array_equal(boxes[7], np.asarray([2, 1, 6, 4], np.float32))
     np.testing.assert_array_equal(boxes[19], np.asarray([0, 4, 1, 6], np.float32))
+
+
+def test_motip_uses_official_dancetrack_detector_checkpoint() -> None:
+    assert MOTIPTracker.model_name == "motip"
+    assert MOTIPTracker.model_id == "MCG-NJU/MOTIP"
+    assert MOTIPTracker.model_revision == "v0.1"
+    assert MOTIPTracker.checkpoint_filename == (
+        "r50_deformable_detr_motip_dancetrack.pth"
+    )
+    assert MOTIPTracker.prompt_type == "detector"
+    assert MOTIPTracker.tracking_mode == "native-joint-mot"
+
+
+def test_motip_rasterizes_higher_confidence_boxes_last() -> None:
+    boxes = np.asarray([[0.0, 0.0, 3.0, 3.0], [2.0, 2.0, 3.0, 3.0]])
+    result = MOTIPTracker._rasterize_boxes(
+        boxes,
+        np.asarray([4, 9]),
+        np.asarray([0.4, 0.9]),
+        (5, 5),
+    )
+    assert result[0, 0] == 5
+    assert result[2, 2] == 10
+    assert result[4, 4] == 10
