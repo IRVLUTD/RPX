@@ -150,6 +150,25 @@ docker/tracking-smoke/package_acceptance_frames.sh \
 The resulting checksum file contains only the archive basename, so it remains
 valid after both files are copied to another machine with SCP.
 
+## Cutie cumulative image and real-RPX gates
+
+Cutie is the third accepted environment. It inherits EdgeTAM and SAM2, then
+adds the official pinned Cutie source and an isolated `/opt/rpx-envs/cutie`.
+The adapter follows the upstream `InferenceCore.step` mask-initialized API and
+uses the official v1.0 `cutie-base-mega.pth` checkpoint:
+
+```bash
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+docker/tracking-smoke/build_cutie_rpx.sh --push
+```
+
+The checkpoint is not baked into the image. On first smoke it is downloaded
+to the persistent cache, verified against the official release MD5, and its
+SHA-256 is included in result metadata. Run smoke, micro and acceptance with
+`/opt/rpx-envs/cutie/bin/python` and `--model cutie`. Acceptance renders the
+same portable `prediction_frames` layout and is packaged with the shared
+`package_acceptance_frames.sh --model cutie` command.
+
 EdgeTAM uses the official SAM-style video predictor API and its own isolated
 `/opt/rpx-envs/edgetam` environment. It does not import or execute the SAM 2
 checkpoint. EdgeTAM's wheel omits its nested Hydra YAML, so the adapter loads

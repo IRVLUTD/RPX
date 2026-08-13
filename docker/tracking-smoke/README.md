@@ -127,6 +127,18 @@ The EdgeTAM image therefore retains SAM2 while recording an immutable parent.
 Acceptance gates automatically render prediction overlays; use
 `package_acceptance_frames.sh` to archive and checksum them for SCP.
 
+Cutie is the third cumulative milestone and inherits the accepted EdgeTAM
+image (which already retains SAM2):
+
+```bash
+docker/tracking-smoke/build_cutie_rpx.sh --push
+```
+
+The image contains pinned Cutie source and dependencies but no weights. The
+official `cutie-base-mega.pth` v1.0 release is downloaded into the mounted
+runtime cache, verified against the publisher's MD5, and recorded with its
+SHA-256 in RPX result metadata.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:

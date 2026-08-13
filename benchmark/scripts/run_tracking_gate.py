@@ -13,6 +13,7 @@ from pathlib import Path
 
 import torch
 from run_tracking import DEFAULT_DATASET_REPO, PINNED_DATASET_REVISION
+from tracking_models.cutie_tracker import CUTIE_MODEL_ID, CUTIE_MODEL_REVISION
 from tracking_models.edgetam_tracker import (
     EDGETAM_MODEL_ID,
     EDGETAM_MODEL_REVISION,
@@ -30,6 +31,11 @@ MODEL_PROVENANCE = {
         "source_revision": "7711e012a30a2402c4eaab637bdb00a521302c91",
         "checkpoint_repo": EDGETAM_MODEL_ID,
         "checkpoint_revision": EDGETAM_MODEL_REVISION,
+    },
+    "cutie": {
+        "source_revision": "ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a",
+        "checkpoint_repo": CUTIE_MODEL_ID,
+        "checkpoint_revision": CUTIE_MODEL_REVISION,
     },
 }
 

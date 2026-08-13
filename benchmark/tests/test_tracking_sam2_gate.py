@@ -21,7 +21,7 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "micro": 8,
         "acceptance": 25,
     }
-    assert set(run_tracking_gate.MODEL_PROVENANCE) == {"sam2", "edgetam"}
+    assert set(run_tracking_gate.MODEL_PROVENANCE) == {"sam2", "edgetam", "cutie"}
 
 
 def test_prediction_resume_is_invalidated_by_adapter_revision(tmp_path: Path) -> None:
@@ -94,3 +94,19 @@ def test_edgetam_cumulative_overlay_inherits_sam2_digest() -> None:
     assert "sam2-rpx-sha-060b74b287a4" in builder
     assert "RepoDigests" in builder
     assert "edgetam-rpx-sha-${short_revision}" in builder
+
+
+def test_cutie_cumulative_overlay_inherits_edgetam_digest() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.cutie-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_cutie_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a" in dockerfile
+    assert "f6995795397118b7d0ac01aecd3f39ffbfad9dee" in dockerfile
+    assert "/opt/rpx-envs/cutie/bin/python" in dockerfile
+    assert "weights" not in "\n".join(
+        line for line in dockerfile.splitlines() if line.lstrip().startswith("COPY")
+    )
+    assert "edgetam-rpx-sha-73e9f1309b05" in builder
+    assert "RepoDigests" in builder
+    assert "cutie-rpx-sha-${short_revision}" in builder
