@@ -53,7 +53,8 @@ def test_sam2long_uses_official_source_and_sam21_large_checkpoint() -> None:
     assert SAM2LongTracker.model_id == "facebook/sam2.1-hiera-large"
     assert SAM2LongTracker.model_revision == "665f8e2ad61cf5f53d65644ff27c8ee525124610"
     assert SAM2LongTracker.checkpoint_filename == "sam2.1_hiera_large.pt"
-    assert SAM2LongTracker.config_name == "configs/sam2.1/sam2.1_hiera_l.yaml"
+    assert SAM2LongTracker.config_name == "sam2.1_hiera_l.yaml"
+    assert SAM2LongTracker.config_directory == ("/opt/rpx-models/sam2long/sam2/configs/sam2.1")
 
 
 def test_sam2long_consolidates_independent_object_pathways() -> None:

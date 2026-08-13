@@ -129,6 +129,7 @@ def test_sam2long_cumulative_overlay_inherits_cutie_digest() -> None:
     assert "7193b77fa0c8827e0520ab281acd2cf394ab898e" in dockerfile
     assert "665f8e2ad61cf5f53d65644ff27c8ee525124610" in dockerfile
     assert "/opt/rpx-envs/sam2long/bin/python" in dockerfile
+    assert "SAM2LONG_CONFIG_DIR=/opt/rpx-models/sam2long/sam2/configs/sam2.1" in dockerfile
     assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
     assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
     assert "cutie-rpx-sha-ccd827ee74ce" in builder

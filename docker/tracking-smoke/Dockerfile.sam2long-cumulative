@@ -13,6 +13,7 @@ LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
     RPX_TRACKING_PYTHON=/opt/rpx-envs/sam2long/bin/python \
+    SAM2LONG_CONFIG_DIR=/opt/rpx-models/sam2long/sam2/configs/sam2.1 \
     PYTHONUNBUFFERED=1
 
 COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env

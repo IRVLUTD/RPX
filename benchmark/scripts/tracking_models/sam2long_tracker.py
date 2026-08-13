@@ -14,7 +14,8 @@ from huggingface_hub import hf_hub_download
 SAM2LONG_MODEL_ID = "facebook/sam2.1-hiera-large"
 SAM2LONG_MODEL_REVISION = "665f8e2ad61cf5f53d65644ff27c8ee525124610"
 SAM2LONG_CHECKPOINT = "sam2.1_hiera_large.pt"
-SAM2LONG_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
+SAM2LONG_CONFIG = "sam2.1_hiera_l.yaml"
+SAM2LONG_CONFIG_DIR = "/opt/rpx-models/sam2long/sam2/configs/sam2.1"
 SAM2LONG_NUM_PATHWAYS = 3
 SAM2LONG_IOU_THRESHOLD = 0.1
 SAM2LONG_UNCERTAINTY = 2.0
@@ -36,6 +37,7 @@ class SAM2LongTracker:
     model_revision = SAM2LONG_MODEL_REVISION
     checkpoint_filename = SAM2LONG_CHECKPOINT
     config_name = SAM2LONG_CONFIG
+    config_directory = SAM2LONG_CONFIG_DIR
     adapter_label = "SAM2Long"
 
     def __init__(self, device: str = "cuda") -> None:
@@ -44,7 +46,20 @@ class SAM2LongTracker:
         if not torch.cuda.is_available():
             raise RuntimeError("CUDA is unavailable to the SAM2Long adapter.")
 
+        config_dir = Path(os.environ.get("SAM2LONG_CONFIG_DIR", self.config_directory)).resolve()
+        config_path = config_dir / self.config_name
+        if not config_path.is_file():
+            raise RuntimeError(
+                f"SAM2Long config is missing: {config_path}. "
+                "Use the pinned cumulative SAM2Long Docker image."
+            )
+
+        from hydra import initialize_config_dir
+        from hydra.core.global_hydra import GlobalHydra
         from sam2.build_sam import build_sam2_video_predictor
+
+        GlobalHydra.instance().clear()
+        initialize_config_dir(config_dir=str(config_dir), version_base="1.3")
 
         checkpoint = Path(
             hf_hub_download(
