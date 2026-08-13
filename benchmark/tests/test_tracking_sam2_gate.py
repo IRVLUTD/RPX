@@ -106,6 +106,8 @@ def test_cutie_cumulative_overlay_inherits_edgetam_digest() -> None:
     assert "/opt/rpx-envs/cutie/bin/python" in dockerfile
     assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
     assert "*[!0-9a-f]*" in dockerfile
+    assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
+    assert "from tracking_models import TRACKER_CLASSES" in dockerfile
     assert "weights" not in "\n".join(
         line for line in dockerfile.splitlines() if line.lstrip().startswith("COPY")
     )

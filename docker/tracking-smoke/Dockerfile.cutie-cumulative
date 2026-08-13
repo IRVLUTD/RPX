@@ -56,7 +56,7 @@ RUN /opt/rpx-envs/cutie/bin/python -m pip install \
     /opt/rpx-envs/cutie/bin/python -m compileall -q \
       /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
     /opt/rpx-envs/cutie/bin/python -c \
-      "from scripts.tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'sam2']; assert TRACKER_CLASSES['cutie'].model_revision == 'v1.0'"
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'sam2']; assert TRACKER_CLASSES['cutie'].model_revision == 'v1.0'"
 
 WORKDIR /opt/rpx/benchmark
 ENTRYPOINT []
