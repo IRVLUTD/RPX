@@ -123,7 +123,32 @@ mounts:
 
 The runner validates CUDA availability, embedded source/checkpoint provenance,
 the RPX adapter commit, the checkpoint SHA-256, mask artefacts, and the
-zero-forward resume contract.
+zero-forward resume contract. Acceptance additionally renders all 25 persisted
+instance masks over their exact manifest RGB frames under
+`prediction_frames/<scene>/<phase>/`.
+
+## EdgeTAM cumulative image and real-RPX gates
+
+EdgeTAM is the second accepted environment and inherits the immutable SAM2 RPX
+image. Its source, isolated Python environment, compatibility patch and RPX
+adapter are added without rebuilding or replacing SAM2:
+
+```bash
+export RPX_TRACKING_IMAGE="vndhiran123/rpx-tracking-smoke"
+docker/tracking-smoke/build_edgetam_rpx.sh --push
+```
+
+Run the same three gates using `/opt/rpx-envs/edgetam/bin/python` and
+`--model edgetam`. After acceptance, package the automatically rendered frames:
+
+```bash
+docker/tracking-smoke/package_acceptance_frames.sh \
+  --model edgetam \
+  --revision "$(git rev-parse HEAD)"
+```
+
+The resulting checksum file contains only the archive basename, so it remains
+valid after both files are copied to another machine with SCP.
 
 EdgeTAM uses the official SAM-style video predictor API and its own isolated
 `/opt/rpx-envs/edgetam` environment. It does not import or execute the SAM 2

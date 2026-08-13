@@ -13,15 +13,30 @@ from pathlib import Path
 
 import torch
 from run_tracking import DEFAULT_DATASET_REPO, PINNED_DATASET_REVISION
+from tracking_models.edgetam_tracker import (
+    EDGETAM_MODEL_ID,
+    EDGETAM_MODEL_REVISION,
+)
 from tracking_models.sam2_tracker import SAM2_MODEL_ID, SAM2_MODEL_REVISION
 
 GATE_FRAMES = {"smoke": 2, "micro": 8, "acceptance": 25}
-SAM2_SOURCE_REVISION = "2b90b9f5ceec907a1c18123530e92e794ad901a4"
+MODEL_PROVENANCE = {
+    "sam2": {
+        "source_revision": "2b90b9f5ceec907a1c18123530e92e794ad901a4",
+        "checkpoint_repo": SAM2_MODEL_ID,
+        "checkpoint_revision": SAM2_MODEL_REVISION,
+    },
+    "edgetam": {
+        "source_revision": "7711e012a30a2402c4eaab637bdb00a521302c91",
+        "checkpoint_repo": EDGETAM_MODEL_ID,
+        "checkpoint_revision": EDGETAM_MODEL_REVISION,
+    },
+}
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", choices=["sam2"], default="sam2")
+    parser.add_argument("--model", choices=sorted(MODEL_PROVENANCE), required=True)
     parser.add_argument("--gate", choices=sorted(GATE_FRAMES), required=True)
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-root", required=True)
@@ -48,9 +63,7 @@ def _validate_image_environment(model: str) -> str:
     expected = {
         "model": model,
         "rpx_git_sha": revision,
-        "source_revision": SAM2_SOURCE_REVISION,
-        "checkpoint_repo": SAM2_MODEL_ID,
-        "checkpoint_revision": SAM2_MODEL_REVISION,
+        **MODEL_PROVENANCE[model],
     }
     mismatches = {
         key: (manifest.get(key), value)
@@ -58,7 +71,7 @@ def _validate_image_environment(model: str) -> str:
         if manifest.get(key) != value
     }
     if mismatches:
-        raise SystemExit(f"SAM2 environment provenance mismatch: {mismatches}")
+        raise SystemExit(f"{model} environment provenance mismatch: {mismatches}")
     return revision
 
 
@@ -117,6 +130,18 @@ def main() -> None:
         ],
         check=True,
     )
+    if args.gate == "acceptance":
+        subprocess.run(
+            [
+                sys.executable,
+                str(script_dir / "render_tracking_predictions.py"),
+                "--output-dir",
+                str(output_dir),
+                "--cache-dir",
+                args.cache_dir,
+            ],
+            check=True,
+        )
     print(f"RPX {args.model} {args.gate} gate: PASS ({frames} real Easy frames)")
 
 

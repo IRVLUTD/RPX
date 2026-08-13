@@ -116,6 +116,17 @@ Override it only with `--base-image` and another digest-pinned cumulative SAM2
 image. See `benchmark/docs/tracking_runbook.md` for the sequential smoke,
 micro, and acceptance commands.
 
+The next cumulative milestone adds EdgeTAM directly on that SAM2 RPX image:
+
+```bash
+docker/tracking-smoke/build_edgetam_rpx.sh --push
+```
+
+The helper resolves the SAM2 tag to its repository digest before building.
+The EdgeTAM image therefore retains SAM2 while recording an immutable parent.
+Acceptance gates automatically render prediction overlays; use
+`package_acceptance_frames.sh` to archive and checksum them for SCP.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:
