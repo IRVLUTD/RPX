@@ -466,6 +466,7 @@ def main() -> None:
     result = {
         "model": args.model,
         "rpx_git_sha": rpx_git_sha,
+        "evaluator_git_sha": os.environ.get("RPX_EVALUATOR_GIT_SHA", rpx_git_sha),
         "task": "object_tracking",
         "split": args.split,
         "protocol": {
