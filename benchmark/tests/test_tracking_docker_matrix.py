@@ -177,6 +177,26 @@ def test_masa_installs_pinned_mmdetection_runtime_requirements():
     ).read_text()
 
 
+def test_mits_overlay_is_pinned_and_uses_box_initialization():
+    dockerfile = (DOCKER_DIR / "Dockerfile.mits-cumulative").read_text()
+    builder = (DOCKER_DIR / "build_mits_rpx.sh").read_text()
+    lock = (DOCKER_DIR / "requirements-mits-runtime.lock").read_text()
+    patch_name = "mits-torch27-checkpoint.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert "462ebee2c995818998d5f96ab6b615dd86c42688" in dockerfile
+    assert "4aa4431bf2f6057c9d40d4990227e3e655699ed3" in dockerfile
+    assert "--model mits" in dockerfile
+    assert "--prompt box" in dockerfile
+    assert "gdrive-1Db9DxXc-gyRkxhKs0AMXJ2RH6DyHWCfq" in dockerfile
+    assert f"patches/{patch_name}" in dockerfile
+    assert "weights_only=False" in patch
+    assert "gdown==5.2.0" in lock
+    assert "timm==0.9.16" in lock
+    assert "Dockerfile.mits-cumulative" in builder
+    assert "sam2-plus-rpx-sha-711b53f7b7e2" in builder
+
+
 def test_builder_supports_one_model_overlay_mode():
     builder = (DOCKER_DIR / "build_and_push_models.sh").read_text()
     assert "--model MODEL" in builder

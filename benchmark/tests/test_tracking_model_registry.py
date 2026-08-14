@@ -13,20 +13,20 @@ from tracking_models import (  # noqa: E402
     TRACKER_CLASSES,
     CutieTracker,
     EdgeTAMTracker,
-    MASATracker,
-    MOTIPTracker,
+    MITSTracker,
     SAM2LongTracker,
     SAM2PlusTracker,
     SAM2Tracker,
 )
+from tracking_models.masa_tracker import MASATracker  # noqa: E402
+from tracking_models.motip_tracker import MOTIPTracker  # noqa: E402
 
 
 def test_tracking_registry_contains_production_adapters() -> None:
     assert TRACKER_CLASSES == {
         "cutie": CutieTracker,
         "edgetam": EdgeTAMTracker,
-        "masa": MASATracker,
-        "motip": MOTIPTracker,
+        "mits": MITSTracker,
         "sam2": SAM2Tracker,
         "sam2-plus": SAM2PlusTracker,
         "sam2long": SAM2LongTracker,
@@ -37,8 +37,7 @@ def test_tracking_registry_declares_initialization_protocols() -> None:
     assert {name: tracker.prompt_type for name, tracker in TRACKER_CLASSES.items()} == {
         "cutie": "mask",
         "edgetam": "mask",
-        "masa": "detector",
-        "motip": "detector",
+        "mits": "box",
         "sam2": "mask",
         "sam2-plus": "box",
         "sam2long": "mask",
@@ -120,6 +119,30 @@ def test_sam2_plus_derives_tight_xyxy_boxes_from_first_frame_instances() -> None
 
     np.testing.assert_array_equal(boxes[7], np.asarray([2, 1, 6, 4], np.float32))
     np.testing.assert_array_equal(boxes[19], np.asarray([0, 4, 1, 6], np.float32))
+
+
+def test_mits_uses_official_full_checkpoint_and_box_protocol() -> None:
+    assert MITSTracker.model_name == "mits"
+    assert MITSTracker.model_id == "yoxu515/MITS"
+    assert MITSTracker.source_revision == "462ebee2c995818998d5f96ab6b615dd86c42688"
+    assert MITSTracker.model_revision == "gdrive-1Db9DxXc-gyRkxhKs0AMXJ2RH6DyHWCfq"
+    assert MITSTracker.checkpoint_filename == "mits.pth"
+    assert MITSTracker.prompt_type == "box"
+    assert MITSTracker.tracking_mode == "multi-object-box-initialized-vos"
+
+
+def test_mits_rasterizes_tight_boxes_and_preserves_original_id_mapping() -> None:
+    mask = np.zeros((8, 10), dtype=np.int32)
+    mask[1:7, 1:9] = 7
+    mask[3:5, 4:6] = 19
+
+    prompt, local_by_original = MITSTracker._box_prompt(mask, [7, 19])
+
+    assert local_by_original == {7: 1, 19: 2}
+    assert prompt[1, 1] == 1
+    assert prompt[3, 4] == 2
+    assert prompt[4, 5] == 2
+    assert prompt[0, 0] == 0
 
 
 def test_motip_uses_official_dancetrack_detector_checkpoint() -> None:

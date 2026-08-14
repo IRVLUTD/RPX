@@ -1,0 +1,3 @@
+# Runtime-only packages for the pinned official MITS source.
+gdown==5.2.0
+timm==0.9.16

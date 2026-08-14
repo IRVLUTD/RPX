@@ -1,0 +1,80 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 SAM2, EdgeTAM, Cutie, SAM2Long, SAM 2++ and MITS image"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/mits/bin/python \
+    MITS_SOURCE_DIR=/opt/rpx-models/mits \
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9+PTX" \
+    MAX_JOBS=8 \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/requirements-mits-runtime.lock /tmp/requirements-mits-runtime.lock
+COPY docker/tracking-smoke/patches/mits-torch27-checkpoint.patch /tmp/mits-torch27-checkpoint.patch
+COPY docker/tracking-smoke/patches/pytorch-correlation-torch27-openmp.patch /tmp/pytorch-correlation-torch27-openmp.patch
+
+ARG MITS_GIT_SHA=462ebee2c995818998d5f96ab6b615dd86c42688
+ARG CORRELATION_GIT_SHA=4aa4431bf2f6057c9d40d4990227e3e655699ed3
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    test -x /usr/local/cuda/bin/nvcc && \
+    rpx-clone-pinned https://github.com/yoxu515/MITS.git \
+      "${MITS_GIT_SHA}" /opt/rpx-models/mits && \
+    git -C /opt/rpx-models/mits apply --check /tmp/mits-torch27-checkpoint.patch && \
+    git -C /opt/rpx-models/mits apply /tmp/mits-torch27-checkpoint.patch && \
+    rpx-clone-pinned https://github.com/ClementPinard/Pytorch-Correlation-extension.git \
+      "${CORRELATION_GIT_SHA}" /opt/rpx-models/mits-correlation && \
+    git -C /opt/rpx-models/mits-correlation apply --check \
+      /tmp/pytorch-correlation-torch27-openmp.patch && \
+    git -C /opt/rpx-models/mits-correlation apply \
+      /tmp/pytorch-correlation-torch27-openmp.patch && \
+    python -m venv --system-site-packages /opt/rpx-envs/mits && \
+    /opt/rpx-envs/mits/bin/python -m pip install \
+      -r /tmp/requirements-mits-runtime.lock && \
+    /opt/rpx-envs/mits/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/mits-correlation && \
+    /opt/rpx-envs/mits/bin/python /usr/local/bin/rpx-register-model-env \
+      --model mits \
+      --prompt box \
+      --source-dir /opt/rpx-models/mits \
+      --source-revision "${MITS_GIT_SHA}" \
+      --checkpoint-repo yoxu515/MITS \
+      --checkpoint-revision gdrive-1Db9DxXc-gyRkxhKs0AMXJ2RH6DyHWCfq \
+      --prepend-source \
+      --import configs.mits \
+      --import networks.models \
+      --import networks.engines \
+      --import spatial_correlation_sampler
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/mits/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/mits/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model mits \
+      --source-revision 462ebee2c995818998d5f96ab6b615dd86c42688 \
+      --checkpoint-repo yoxu515/MITS \
+      --checkpoint-revision gdrive-1Db9DxXc-gyRkxhKs0AMXJ2RH6DyHWCfq && \
+    /opt/rpx-envs/mits/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/mits/bin/python -c \
+      "from pathlib import Path; import configs.mits as cfg; import networks.engines as engines; import spatial_correlation_sampler as correlation; assert Path(cfg.__file__).is_relative_to('/opt/rpx-models/mits'); assert Path(engines.__file__).is_relative_to('/opt/rpx-models/mits'); assert correlation.SpatialCorrelationSampler" && \
+    /opt/rpx-envs/mits/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'mits', 'sam2', 'sam2-plus', 'sam2long']; assert TRACKER_CLASSES['mits'].prompt_type == 'box'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

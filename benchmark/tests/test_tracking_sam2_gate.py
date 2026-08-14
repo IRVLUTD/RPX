@@ -25,8 +25,7 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "sam2",
         "sam2-plus",
         "edgetam",
-        "masa",
-        "motip",
+        "mits",
         "cutie",
         "sam2long",
     }

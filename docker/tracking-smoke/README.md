@@ -196,6 +196,27 @@ applied before score-filtered XYXY tracks are rasterized for the shared metric
 pipeline. Unlike prompt-initialized trackers, detector-driven MOTIP and MASA
 are scored on frame 0 because they predict it without annotation input.
 
+## Replacement milestone: MITS
+
+The active RPX registry replaces SAMURAI, MOTIP and MASA rather than carrying
+those excluded adapters forward. MITS is built directly on the accepted SAM 2++
+image:
+
+```bash
+docker/tracking-smoke/build_mits_rpx.sh --push
+```
+
+The adapter uses the official full MITS checkpoint. For every annotated object,
+RPX converts the first-frame instance mask to its tight bounding rectangle and
+initializes all objects together through MITS's box-to-mask transformer. The
+original instance IDs are restored in every saved prediction. The initialization
+frame is excluded from scored metrics under the common `box` prompt protocol.
+
+TRACT is not represented by an adapter or image at this revision: its paper's
+official project status still says that code will be released, and there is no
+public official checkpoint to pin. An open-vocabulary detector plus an unrelated
+association method must not be reported as TRACT.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:
