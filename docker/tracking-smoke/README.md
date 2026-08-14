@@ -219,6 +219,20 @@ inference command (the README's Usage section is empty). Those omissions prevent
 an immutable, reproducible RPX smoke gate. An open-vocabulary detector plus an
 unrelated association method must not be reported as TRACT.
 
+## Replacement milestone: XMem
+
+XMem follows MITS in the active cumulative chain:
+
+```bash
+docker/tracking-smoke/build_xmem_rpx.sh --push
+```
+
+The adapter pins the official XMem v1.0 `XMem.pth` release and verifies its
+size and SHA-256 before loading it. RPX supplies the full multi-object instance
+mask on frame zero, maps arbitrary RPX IDs into XMem's contiguous label space,
+and restores the original IDs in saved predictions. The image retains the
+official 480-pixel short-side resize and long-term memory defaults.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:

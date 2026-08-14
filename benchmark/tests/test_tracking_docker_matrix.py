@@ -197,6 +197,22 @@ def test_mits_overlay_is_pinned_and_uses_box_initialization():
     assert "sam2-plus-rpx-sha-711b53f7b7e2" in builder
 
 
+def test_xmem_overlay_is_pinned_and_uses_mask_initialization():
+    dockerfile = (DOCKER_DIR / "Dockerfile.xmem-cumulative").read_text()
+    builder = (DOCKER_DIR / "build_xmem_rpx.sh").read_text()
+    patch_name = "xmem-torch27-checkpoint.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert "f3b841d50df058910bbf690229ddc15fb1aef7d6" in dockerfile
+    assert "--model xmem" in dockerfile
+    assert "--prompt mask" in dockerfile
+    assert "--checkpoint-revision v1.0" in dockerfile
+    assert f"patches/{patch_name}" in dockerfile
+    assert "weights_only=True" in patch
+    assert "Dockerfile.xmem-cumulative" in builder
+    assert "mits-rpx-sha-7235506e4c7e" in builder
+
+
 def test_builder_supports_one_model_overlay_mode():
     builder = (DOCKER_DIR / "build_and_push_models.sh").read_text()
     assert "--model MODEL" in builder

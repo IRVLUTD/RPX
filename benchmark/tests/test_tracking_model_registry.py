@@ -17,6 +17,7 @@ from tracking_models import (  # noqa: E402
     SAM2LongTracker,
     SAM2PlusTracker,
     SAM2Tracker,
+    XMemTracker,
 )
 from tracking_models.masa_tracker import MASATracker  # noqa: E402
 from tracking_models.motip_tracker import MOTIPTracker  # noqa: E402
@@ -30,6 +31,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
         "sam2": SAM2Tracker,
         "sam2-plus": SAM2PlusTracker,
         "sam2long": SAM2LongTracker,
+        "xmem": XMemTracker,
     }
 
 
@@ -41,6 +43,7 @@ def test_tracking_registry_declares_initialization_protocols() -> None:
         "sam2": "mask",
         "sam2-plus": "box",
         "sam2long": "mask",
+        "xmem": "mask",
     }
 
 
@@ -143,6 +146,22 @@ def test_mits_rasterizes_tight_boxes_and_preserves_original_id_mapping() -> None
     assert prompt[3, 4] == 2
     assert prompt[4, 5] == 2
     assert prompt[0, 0] == 0
+
+
+def test_xmem_uses_official_v1_release_and_mask_protocol() -> None:
+    assert XMemTracker.model_name == "xmem"
+    assert XMemTracker.model_id == "hkchengrex/XMem"
+    assert XMemTracker.source_revision == "f3b841d50df058910bbf690229ddc15fb1aef7d6"
+    assert XMemTracker.model_revision == "v1.0"
+    assert XMemTracker.checkpoint_filename == "XMem.pth"
+    assert XMemTracker.prompt_type == "mask"
+    assert XMemTracker.tracking_mode == "multi-object-long-term-memory-vos"
+
+
+def test_xmem_uses_official_short_side_480_resize() -> None:
+    assert XMemTracker._target_size(480, 640) == (480, 640)
+    assert XMemTracker._target_size(720, 1280) == (480, 853)
+    assert XMemTracker._target_size(640, 480) == (640, 480)
 
 
 def test_motip_uses_official_dancetrack_detector_checkpoint() -> None:

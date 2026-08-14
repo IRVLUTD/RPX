@@ -28,6 +28,7 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "mits",
         "cutie",
         "sam2long",
+        "xmem",
     }
 
 

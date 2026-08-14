@@ -32,6 +32,11 @@ from tracking_models.sam2long_tracker import (
     SAM2LONG_MODEL_ID,
     SAM2LONG_MODEL_REVISION,
 )
+from tracking_models.xmem_tracker import (
+    XMEM_MODEL_ID,
+    XMEM_MODEL_REVISION,
+    XMEM_SOURCE_REVISION,
+)
 
 GATE_FRAMES = {"smoke": 2, "micro": 8, "acceptance": 25}
 MODEL_PROVENANCE = {
@@ -64,6 +69,11 @@ MODEL_PROVENANCE = {
         "source_revision": MITS_SOURCE_REVISION,
         "checkpoint_repo": MITS_MODEL_ID,
         "checkpoint_revision": MITS_MODEL_REVISION,
+    },
+    "xmem": {
+        "source_revision": XMEM_SOURCE_REVISION,
+        "checkpoint_repo": XMEM_MODEL_ID,
+        "checkpoint_revision": XMEM_MODEL_REVISION,
     },
 }
 
