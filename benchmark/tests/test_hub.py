@@ -7,6 +7,9 @@ HuggingFace network calls are monkey-patched so the tests run offline.
 from __future__ import annotations
 
 import json
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -18,6 +21,30 @@ from rpx_benchmark.exceptions import DownloadError, ManifestError
 # --------------------------------------------------------------------------- #
 # Pure helpers
 # --------------------------------------------------------------------------- #
+
+
+def test_snapshot_extraction_is_serialized(tmp_path: Path, monkeypatch) -> None:
+    active = 0
+    maximum_active = 0
+    state_lock = threading.Lock()
+
+    def fake_extract(root: Path) -> tuple[int, int]:
+        nonlocal active, maximum_active
+        assert root == tmp_path
+        with state_lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+        time.sleep(0.05)
+        with state_lock:
+            active -= 1
+        return 0, 0
+
+    monkeypatch.setattr(hub, "_extract_snapshot_tars_unlocked", fake_extract)
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        results = list(executor.map(hub._extract_snapshot_tars, [tmp_path] * 3))
+
+    assert results == [(0, 0)] * 3
+    assert maximum_active == 1
 
 
 def test_manifest_repo_path_with_enums_and_strings():

@@ -25,6 +25,7 @@ Repo layout (on HF)::
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -540,7 +541,7 @@ def mount(repo_id: str = DEFAULT_REPO_ID):
 # ------------------------------------------------------------------ #
 
 
-def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
+def _extract_snapshot_tars_unlocked(snapshot_root: Path) -> Tuple[int, int]:
     """Extract every tar shard under ``snapshot_root`` into ``snapshot_root/extracted/``.
 
     The HF dataset tree ships tar shards (``scenes/<scene>/<phase>/rgb.tar``,
@@ -659,3 +660,23 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
             log.warning("failed to extract %s: %s", tar_path, e)
             continue
     return n_new, n_skip
+
+
+def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
+    """Serialize extraction into a shared HF snapshot across processes.
+
+    Tracking jobs deliberately share one content-addressed cache. Without a
+    snapshot-level lock, concurrent processes can overwrite and rename the
+    same ``.part`` file, causing one process to fail after another moves it.
+    ``flock`` keeps the existing idempotent extraction implementation while
+    ensuring only one process mutates ``extracted/`` at a time.
+    """
+
+    snapshot_root = Path(snapshot_root)
+    lock_path = snapshot_root / ".rpx-extraction.lock"
+    with lock_path.open("a+b") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            return _extract_snapshot_tars_unlocked(snapshot_root)
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
