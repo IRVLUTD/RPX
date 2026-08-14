@@ -56,7 +56,7 @@ RUN /opt/rpx-envs/xmem/bin/python -m pip install \
     /opt/rpx-envs/xmem/bin/python -c \
       "from pathlib import Path; import model.network as network; import inference.inference_core as core; assert Path(network.__file__).is_relative_to('/opt/rpx-models/xmem'); assert Path(core.__file__).is_relative_to('/opt/rpx-models/xmem')" && \
     /opt/rpx-envs/xmem/bin/python -c \
-      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'mits', 'sam2', 'sam2-plus', 'sam2long', 'xmem']; assert TRACKER_CLASSES['xmem'].prompt_type == 'mask'"
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; required = {'cutie', 'edgetam', 'mits', 'sam2', 'sam2-plus', 'sam2long', 'xmem'}; assert required <= TRACKER_CLASSES.keys(), (required, sorted(TRACKER_CLASSES)); assert TRACKER_CLASSES['xmem'].prompt_type == 'mask'"
 
 WORKDIR /opt/rpx/benchmark
 ENTRYPOINT []

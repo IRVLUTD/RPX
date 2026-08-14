@@ -210,7 +210,15 @@ def test_xmem_overlay_is_pinned_and_uses_mask_initialization():
     assert f"patches/{patch_name}" in dockerfile
     assert "weights_only=True" in patch
     assert "Dockerfile.xmem-cumulative" in builder
-    assert "mits-rpx-sha-7235506e4c7e" in builder
+    assert "mits-rpx-latest" in builder
+
+
+def test_incremental_milestone_registry_checks_allow_later_adapters():
+    mits = (DOCKER_DIR / "Dockerfile.mits-cumulative").read_text()
+    xmem = (DOCKER_DIR / "Dockerfile.xmem-cumulative").read_text()
+
+    assert "required <= TRACKER_CLASSES.keys()" in mits
+    assert "required <= TRACKER_CLASSES.keys()" in xmem
 
 
 def test_builder_supports_one_model_overlay_mode():

@@ -74,7 +74,7 @@ RUN /opt/rpx-envs/mits/bin/python -m pip install \
     /opt/rpx-envs/mits/bin/python -c \
       "from pathlib import Path; import configs.mits as cfg; import networks.engines as engines; import spatial_correlation_sampler as correlation; assert Path(cfg.__file__).is_relative_to('/opt/rpx-models/mits'); assert Path(engines.__file__).is_relative_to('/opt/rpx-models/mits'); assert correlation.SpatialCorrelationSampler" && \
     /opt/rpx-envs/mits/bin/python -c \
-      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'mits', 'sam2', 'sam2-plus', 'sam2long']; assert TRACKER_CLASSES['mits'].prompt_type == 'box'"
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; required = {'cutie', 'edgetam', 'mits', 'sam2', 'sam2-plus', 'sam2long'}; assert required <= TRACKER_CLASSES.keys(), (required, sorted(TRACKER_CLASSES)); assert TRACKER_CLASSES['mits'].prompt_type == 'box'"
 
 WORKDIR /opt/rpx/benchmark
 ENTRYPOINT []
