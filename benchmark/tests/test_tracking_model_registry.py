@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 import numpy as np
 import torch
+from PIL import Image
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
@@ -146,6 +148,50 @@ def test_mits_rasterizes_tight_boxes_and_preserves_original_id_mapping() -> None
     assert prompt[3, 4] == 2
     assert prompt[4, 5] == 2
     assert prompt[0, 0] == 0
+
+
+def test_mits_passes_the_complete_augmentation_list_to_multi_to_tensor(
+    tmp_path, monkeypatch
+) -> None:
+    class DummyTensor:
+        def unsqueeze(self, dimension):
+            assert dimension == 0
+            return self
+
+        def cuda(self, non_blocking):
+            assert non_blocking is True
+            return self
+
+    class FakeRestrictSize:
+        def __init__(self, *args):
+            pass
+
+        def __call__(self, sample):
+            return [sample]
+
+    class FakeToTensor:
+        def __call__(self, samples):
+            assert isinstance(samples, list)
+            samples[0]["current_img"] = DummyTensor()
+            return samples
+
+    package = ModuleType("dataloaders")
+    transforms = ModuleType("dataloaders.video_transforms")
+    transforms.MultiRestrictSize = FakeRestrictSize
+    transforms.MultiToTensor = FakeToTensor
+    monkeypatch.setitem(sys.modules, "dataloaders", package)
+    monkeypatch.setitem(sys.modules, "dataloaders.video_transforms", transforms)
+
+    image_path = tmp_path / "00000.jpg"
+    Image.new("RGB", (8, 6)).save(image_path)
+    tracker = MITSTracker.__new__(MITSTracker)
+    tracker.cfg = SimpleNamespace(
+        TEST_MAX_SHORT_EDGE=None,
+        TEST_MAX_LONG_EDGE=1040,
+        MODEL_ALIGN_CORNERS=True,
+    )
+
+    assert isinstance(tracker._transform_image(image_path), DummyTensor)
 
 
 def test_xmem_uses_official_v1_release_and_mask_protocol() -> None:

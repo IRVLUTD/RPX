@@ -147,7 +147,7 @@ class MITSTracker:
             [1.0],
             self.cfg.MODEL_ALIGN_CORNERS,
         )
-        sample = MultiToTensor()(resize({"current_img": image})[0])
+        sample = MultiToTensor()(resize({"current_img": image}))[0]
         return sample["current_img"].unsqueeze(0).cuda(non_blocking=True)
 
     def track(
