@@ -60,6 +60,7 @@ class CutieTracker:
     checkpoint_filename = CUTIE_CHECKPOINT
     config_directory = CUTIE_CONFIG_DIR
     adapter_label = "Cutie"
+    prompt_type = "mask"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda":

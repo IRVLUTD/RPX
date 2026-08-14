@@ -33,6 +33,18 @@ def test_tracking_registry_contains_production_adapters() -> None:
     }
 
 
+def test_tracking_registry_declares_initialization_protocols() -> None:
+    assert {name: tracker.prompt_type for name, tracker in TRACKER_CLASSES.items()} == {
+        "cutie": "mask",
+        "edgetam": "mask",
+        "masa": "detector",
+        "motip": "detector",
+        "sam2": "mask",
+        "sam2-plus": "box",
+        "sam2long": "mask",
+    }
+
+
 def test_edgetam_uses_pinned_official_checkpoint_and_config() -> None:
     assert EdgeTAMTracker.model_id == "facebook/EdgeTAM"
     assert EdgeTAMTracker.model_revision == "14d7ecc48c656b94e5184519f698cd5386c5a2bf"

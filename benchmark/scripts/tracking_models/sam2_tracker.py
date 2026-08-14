@@ -28,6 +28,7 @@ class SAM2Tracker:
     checkpoint_filename = SAM2_CHECKPOINT
     config_name = SAM2_CONFIG
     adapter_label = "SAM 2"
+    prompt_type = "mask"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda":

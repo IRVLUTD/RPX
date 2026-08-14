@@ -39,6 +39,7 @@ class SAM2LongTracker:
     config_name = SAM2LONG_CONFIG
     config_directory = SAM2LONG_CONFIG_DIR
     adapter_label = "SAM2Long"
+    prompt_type = "mask"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda":
