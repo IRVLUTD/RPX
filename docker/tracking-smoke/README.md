@@ -212,10 +212,12 @@ initializes all objects together through MITS's box-to-mask transformer. The
 original instance IDs are restored in every saved prediction. The initialization
 frame is excluded from scored metrics under the common `box` prompt protocol.
 
-TRACT is not represented by an adapter or image at this revision: its paper's
-official project status still says that code will be released, and there is no
-public official checkpoint to pin. An open-vocabulary detector plus an unrelated
-association method must not be reported as TRACT.
+TRACT is not represented by an adapter or image at this revision. The authors'
+repository now contains a MASA fork and TraCLIP research scripts, but it provides
+no released TRACT checkpoint, no release assets, and no complete end-to-end
+inference command (the README's Usage section is empty). Those omissions prevent
+an immutable, reproducible RPX smoke gate. An open-vocabulary detector plus an
+unrelated association method must not be reported as TRACT.
 
 ## Legacy full SAM2 rebuild
 
