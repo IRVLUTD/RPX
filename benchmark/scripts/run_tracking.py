@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import torch
 from PIL import Image
 
 DEFAULT_DATASET_REPO = "IRVLUTD/RPX"
@@ -266,6 +267,34 @@ def _write_tables(rows: list[dict[str, Any]], output_dir: Path) -> None:
     frame.to_parquet(output_dir / "cells.parquet", index=False)
 
 
+def _previous_cells(output_dir: Path) -> dict[tuple[str, int], dict[str, Any]]:
+    """Load hardware measurements from an earlier resumable invocation."""
+
+    path = output_dir / "cells.parquet"
+    if not path.is_file():
+        return {}
+    try:
+        import pandas as pd
+
+        frame = pd.read_parquet(path)
+    except (ImportError, OSError, ValueError):
+        return {}
+    if not {"scene", "phase"}.issubset(frame.columns):
+        return {}
+    return {
+        (str(row["scene"]), int(row["phase"])): row
+        for row in frame.to_dict(orient="records")
+    }
+
+
+def _finite_or_nan(value: Any) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return float("nan")
+    return numeric if np.isfinite(numeric) else float("nan")
+
+
 def main() -> None:
     args = _parse_args()
     if args.revision != PINNED_DATASET_REVISION:
@@ -290,6 +319,7 @@ def main() -> None:
             previous_metadata = json.loads(previous_metadata_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             previous_metadata = {}
+    previous_cells = _previous_cells(output_dir)
     tracker_class = TRACKER_CLASSES[args.model]
     detector_initialized = tracker_class.prompt_type == "detector"
     score_start = 0 if detector_initialized else 1
@@ -329,6 +359,7 @@ def main() -> None:
 
     for clip_index, clip in enumerate(clips, start=1):
         samples = clip.samples[: args.max_frames] if args.max_frames else clip.samples
+        previous_row = previous_cells.get((clip.scene, clip.phase), {})
         predictions = (
             _clip_predictions(clip, samples, output_dir, args.model, rpx_git_sha)
             if args.resume_predictions
@@ -337,6 +368,13 @@ def main() -> None:
         if predictions is not None:
             cache_hits += 1
             latencies = [0.0] * len(samples)
+            peak_allocated_mb = _finite_or_nan(
+                previous_row.get("peak_gpu_memory_allocated_mb")
+            )
+            peak_reserved_mb = _finite_or_nan(
+                previous_row.get("peak_gpu_memory_reserved_mb")
+            )
+            clip_wall_time_s = _finite_or_nan(previous_row.get("clip_wall_time_s"))
             print(f"[{clip_index}/{len(clips)}] resume {clip.key}: {len(samples)} frames")
         else:
             if tracker is None:
@@ -344,11 +382,17 @@ def main() -> None:
             first_mask = _load_mask_file(_resolve(str(samples[0]["mask"]), clip.root))
             video_dir = _stage_video(clip, samples, scratch_root / clip.key)
             try:
+                torch.cuda.reset_peak_memory_stats()
+                clip_started = time.perf_counter()
                 predictions, latencies = tracker.track(
                     video_dir=video_dir,
                     first_frame_mask=first_mask,
                     frame_count=len(samples),
                 )
+                torch.cuda.synchronize()
+                clip_wall_time_s = time.perf_counter() - clip_started
+                peak_allocated_mb = torch.cuda.max_memory_allocated() / (1024**2)
+                peak_reserved_mb = torch.cuda.max_memory_reserved() / (1024**2)
             finally:
                 shutil.rmtree(video_dir, ignore_errors=True)
             inferred_clips += 1
@@ -379,6 +423,18 @@ def main() -> None:
         measured_latencies = [
             value for value in latencies[score_start:] if value > 0
         ]
+        latency_ms = (
+            float(np.median(measured_latencies)) if measured_latencies else np.nan
+        )
+        if not np.isfinite(latency_ms):
+            latency_ms = _finite_or_nan(previous_row.get("latency_ms"))
+        parameter_count = (
+            tracker.parameter_count
+            if tracker is not None
+            else previous_row.get(
+                "parameter_count", previous_metadata.get("parameter_count")
+            )
+        )
         row: dict[str, Any] = {
             "model": args.model,
             "task": "object_tracking",
@@ -387,9 +443,12 @@ def main() -> None:
             "phase": clip.phase,
             "n_frames": len(samples),
             "n_scored_frames": len(samples) - score_start,
-            "latency_ms": (
-                float(np.median(measured_latencies)) if measured_latencies else np.nan
-            ),
+            "latency_ms": latency_ms,
+            "throughput_fps": 1000.0 / latency_ms if latency_ms > 0 else np.nan,
+            "peak_gpu_memory_allocated_mb": peak_allocated_mb,
+            "peak_gpu_memory_reserved_mb": peak_reserved_mb,
+            "clip_wall_time_s": clip_wall_time_s,
+            "parameter_count": parameter_count,
         }
         row.update({f"metric:{name}": metrics[name] for name in PAPER_TRACKING_METRICS})
         rows.append(row)
@@ -447,6 +506,13 @@ def main() -> None:
             "complete_clip_cache_hits": cache_hits,
             "inferred_clips": inferred_clips,
             "model_propagation_frames": forwards,
+        },
+        "hardware": {
+            "gpu_name": torch.cuda.get_device_name(),
+            "gpu_compute_capability": list(torch.cuda.get_device_capability()),
+            "gpu_total_memory_bytes": torch.cuda.get_device_properties(0).total_memory,
+            "torch_version": torch.__version__,
+            "torch_cuda_version": torch.version.cuda,
         },
     }
     _atomic_json(output_dir / "result.json", result)

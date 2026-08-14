@@ -10,12 +10,17 @@
 - Positive mask values are persistent instance IDs within the clip.
 - Predictions are evaluated as tight boxes derived from the predicted and GT
   masks using the official TrackEval implementation:
-  - MOTA
-  - IDF1
   - HOTA (mean over thresholds 0.05 through 0.95)
+  - DetA (mean over thresholds 0.05 through 0.95)
+  - AssA (mean over thresholds 0.05 through 0.95)
+  - IDF1
+  - MOTA
   - ID switches
 - CLEAR and Identity association use the MOTChallenge IoU threshold 0.5.
 - No depth F-score is part of D3.
+- Each cell also records median propagation latency, derived throughput,
+  peak CUDA allocated/reserved memory, clip wall time and parameter count.
+  Result metadata identifies the GPU, CUDA runtime and PyTorch build.
 
 YOLOE is in the paper's D2 detection roster. The historical
 `run_yoloe_tracking_smoke.py` is retained only as an engineering check for

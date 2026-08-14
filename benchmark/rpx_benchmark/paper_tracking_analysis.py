@@ -22,9 +22,11 @@ from .paper_depth_analysis import (
 )
 
 TRACKING_DIRECTIONS = {
-    "mota": "higher",
-    "idf1": "higher",
     "hota": "higher",
+    "deta": "higher",
+    "assa": "higher",
+    "idf1": "higher",
+    "mota": "higher",
     "idsw": "lower",
 }
 _PHASE_NAMES = {0: "clutter", 1: "interaction", 2: "clean"}
@@ -150,7 +152,9 @@ def analyze_tracking_cells(
     flat = oriented.reshape(-1, len(PAPER_TRACKING_METRICS))
     standard_deviation = flat.std(axis=0, ddof=0)
     if np.any(standard_deviation <= 0):
-        raise DatasetError("D3 analysis requires four non-constant metrics.")
+        raise DatasetError(
+            f"D3 analysis requires {len(PAPER_TRACKING_METRICS)} non-constant metrics."
+        )
     standardized = ((flat - flat.mean(axis=0)) / standard_deviation).reshape(oriented.shape)
 
     transitions: list[dict[str, Any]] = []
@@ -263,14 +267,15 @@ def write_tracking_analysis(
         "",
         "## Per-phase means",
         "",
-        "| Phase | MOTA | IDF1 | HOTA | ID switches |",
-        "|---|---:|---:|---:|---:|",
+        "| Phase | HOTA | DetA | AssA | IDF1 | MOTA | ID switches |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for phase in PHASES:
         values = analysis["metric_means"]["per_phase"][phase]
         lines.append(
-            f"| {phase} | {values['mota']:.6g} | {values['idf1']:.6g} | "
-            f"{values['hota']:.6g} | {values['idsw']:.6g} |"
+            f"| {phase} | {values['hota']:.6g} | {values['deta']:.6g} | "
+            f"{values['assa']:.6g} | {values['idf1']:.6g} | "
+            f"{values['mota']:.6g} | {values['idsw']:.6g} |"
         )
     paths["markdown"].write_text("\n".join(lines) + "\n", encoding="utf-8")
     return paths

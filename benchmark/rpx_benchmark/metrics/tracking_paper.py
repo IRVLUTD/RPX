@@ -15,7 +15,7 @@ import numpy as np
 
 from ..exceptions import MetricError
 
-PAPER_TRACKING_METRICS = ("mota", "idf1", "hota", "idsw")
+PAPER_TRACKING_METRICS = ("hota", "deta", "assa", "idf1", "mota", "idsw")
 MOT_IOU_THRESHOLD = 0.5
 
 
@@ -133,7 +133,7 @@ def paper_tracking_metrics(
     pred_masks: Sequence[np.ndarray],
     gt_masks: Sequence[np.ndarray],
 ) -> dict[str, float]:
-    """Compute MOTA, IDF1, HOTA and ID switches for one complete clip.
+    """Compute HOTA, DetA, AssA, IDF1, MOTA and ID switches for one clip.
 
     TrackEval is intentionally a runtime dependency rather than a locally
     reimplemented approximation.  HOTA is the standard mean over association
@@ -166,9 +166,11 @@ def paper_tracking_metrics(
     hota_result = HOTA().eval_sequence(data)
 
     metrics = {
-        "mota": float(clear_result["MOTA"]),
-        "idf1": float(identity_result["IDF1"]),
         "hota": float(np.mean(hota_result["HOTA"])),
+        "deta": float(np.mean(hota_result["DetA"])),
+        "assa": float(np.mean(hota_result["AssA"])),
+        "idf1": float(identity_result["IDF1"]),
+        "mota": float(clear_result["MOTA"]),
         "idsw": float(clear_result["IDSW"]),
     }
     if not all(np.isfinite(value) for value in metrics.values()):

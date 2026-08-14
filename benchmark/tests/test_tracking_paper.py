@@ -14,9 +14,11 @@ def _mask(instance_id: int) -> np.ndarray:
 def test_paper_tracking_metrics_perfect_sequence() -> None:
     ground_truth = [_mask(7), _mask(7), _mask(7)]
     result = paper_tracking_metrics(ground_truth, ground_truth)
-    assert result["mota"] == 1.0
-    assert result["idf1"] == 1.0
     assert result["hota"] == 1.0
+    assert result["deta"] == 1.0
+    assert result["assa"] == 1.0
+    assert result["idf1"] == 1.0
+    assert result["mota"] == 1.0
     assert result["idsw"] == 0.0
 
 
@@ -28,3 +30,5 @@ def test_paper_tracking_metrics_counts_identity_switch() -> None:
     assert result["mota"] < 1.0
     assert result["idf1"] < 1.0
     assert result["hota"] < 1.0
+    assert result["deta"] == 1.0
+    assert result["assa"] < 1.0

@@ -24,6 +24,8 @@ def _write_cells(root: Path, phase_shift: float) -> list[Path]:
                     "metric:mota": 0.3 + baseline + shift,
                     "metric:idf1": 0.4 + baseline * 0.7 + shift * 0.8,
                     "metric:hota": 0.2 + baseline * 0.4 + shift * 0.5,
+                    "metric:deta": 0.25 + baseline * 0.3 + shift * 0.4,
+                    "metric:assa": 0.15 + baseline * 0.2 + shift * 0.3,
                     "metric:idsw": 20.0 + scene_index * 0.3 - shift * 10,
                 }
             )
