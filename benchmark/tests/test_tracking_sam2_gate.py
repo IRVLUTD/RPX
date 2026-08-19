@@ -92,6 +92,30 @@ def test_renderer_uses_manifest_rgb_path(tmp_path: Path) -> None:
     }
 
 
+def test_renderer_indexes_open_vocabulary_track_labels(tmp_path: Path) -> None:
+    metadata = tmp_path / "open_vocabulary_predictions" / "scene011__0.json"
+    metadata.parent.mkdir(parents=True)
+    metadata.write_text(
+        json.dumps(
+            {
+                "frames": [
+                    {
+                        "frame_index": 0,
+                        "frame": "00000",
+                        "tracks": [
+                            {"track_id": 4, "class_name": "coffee_mug"},
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+
+    assert render_tracking_predictions._open_vocabulary_index(tmp_path) == {
+        ("scene011", "0", "00000", 4): "coffee_mug"
+    }
+
+
 def test_edgetam_cumulative_overlay_inherits_sam2_digest() -> None:
     dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.edgetam-cumulative").read_text()
     builder = (ROOT / "docker/tracking-smoke/build_edgetam_rpx.sh").read_text()

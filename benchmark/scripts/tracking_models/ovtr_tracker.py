@@ -249,6 +249,7 @@ class OVTRTracker:
                 self._frame_metadata.append(
                     {
                         "frame_index": frame_index,
+                        "frame": frame_path.stem,
                         "tracks": [
                             {
                                 "track_id": int(track_id) + 1,

@@ -52,6 +52,32 @@ def _colour(instance_id: int) -> np.ndarray:
     )
 
 
+def _open_vocabulary_index(output_dir: Path) -> dict[tuple[str, str, str, int], str]:
+    index: dict[tuple[str, str, str, int], str] = {}
+    metadata_root = output_dir / "open_vocabulary_predictions"
+    for metadata_path in sorted(metadata_root.glob("*.json")):
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        key = metadata_path.stem
+        if "__" not in key:
+            continue
+        scene, phase = key.rsplit("__", 1)
+        for frame in payload.get("frames") or []:
+            frame_value = frame.get("frame")
+            frame_name = (
+                str(frame_value)
+                if frame_value is not None
+                else f"{int(frame['frame_index']):05d}"
+            )
+            for track in frame.get("tracks") or []:
+                index[(scene, phase, frame_name, int(track["track_id"]))] = str(
+                    track["class_name"]
+                )
+    return index
+
+
 def main() -> None:
     args = _parse_args()
     output_dir = Path(args.output_dir)
@@ -64,6 +90,7 @@ def main() -> None:
     rgb_index = _rgb_index(Path(args.cache_dir))
     if not rgb_index:
         raise SystemExit("No usable RGB entries found in cached Easy tracking manifests.")
+    vocabulary_index = _open_vocabulary_index(output_dir)
 
     rows: list[dict[str, str]] = []
     for prediction_path in predictions:
@@ -95,7 +122,12 @@ def main() -> None:
             if len(xs):
                 draw.text(
                     (int(xs.mean()), int(ys.mean())),
-                    str(object_id),
+                    (
+                        f"{object_id}: "
+                        f"{vocabulary_index[(scene, phase, frame, object_id)]}"
+                        if (scene, phase, frame, object_id) in vocabulary_index
+                        else str(object_id)
+                    ),
                     fill=(255, 255, 255),
                     stroke_width=2,
                     stroke_fill=(0, 0, 0),
@@ -112,6 +144,11 @@ def main() -> None:
                 "rgb": str(rgb_path),
                 "prediction": str(prediction_path),
                 "preview": str(destination),
+                "open_vocabulary_labels": {
+                    str(object_id): vocabulary_index[(scene, phase, frame, object_id)]
+                    for object_id in object_ids
+                    if (scene, phase, frame, object_id) in vocabulary_index
+                },
             }
         )
 
