@@ -16,6 +16,7 @@ from tracking_models import (  # noqa: E402
     CutieTracker,
     EdgeTAMTracker,
     MITSTracker,
+    OVTRTracker,
     SAM2LongTracker,
     SAM2PlusTracker,
     SAM2Tracker,
@@ -30,6 +31,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
         "cutie": CutieTracker,
         "edgetam": EdgeTAMTracker,
         "mits": MITSTracker,
+        "ovtr": OVTRTracker,
         "sam2": SAM2Tracker,
         "sam2-plus": SAM2PlusTracker,
         "sam2long": SAM2LongTracker,
@@ -42,6 +44,7 @@ def test_tracking_registry_declares_initialization_protocols() -> None:
         "cutie": "mask",
         "edgetam": "mask",
         "mits": "box",
+        "ovtr": "detector",
         "sam2": "mask",
         "sam2-plus": "box",
         "sam2long": "mask",
@@ -208,6 +211,30 @@ def test_xmem_uses_official_short_side_480_resize() -> None:
     assert XMemTracker._target_size(480, 640) == (480, 640)
     assert XMemTracker._target_size(720, 1280) == (480, 853)
     assert XMemTracker._target_size(640, 480) == (640, 480)
+
+
+def test_ovtr_uses_official_full_open_vocabulary_model() -> None:
+    assert OVTRTracker.model_name == "ovtr"
+    assert OVTRTracker.model_id == "jinyanglii/OVTR"
+    assert OVTRTracker.source_revision == "500e72c19bf5f7f8717546911a5639fdc26bfee5"
+    assert OVTRTracker.model_revision == "gdrive-10GKAIBxAseTiXnJXV1MnxnJBTmOHVFh5"
+    assert OVTRTracker.checkpoint_filename == "ovtr_5_frame.pth"
+    assert OVTRTracker.prompt_type == "detector"
+    assert OVTRTracker.tracking_mode == "native-open-vocabulary-mot"
+    assert OVTRTracker.vocabulary_size == 1203
+
+
+def test_ovtr_rasterizes_higher_confidence_open_vocab_boxes_last() -> None:
+    boxes = np.asarray([[0.0, 0.0, 3.0, 3.0], [2.0, 2.0, 5.0, 5.0]])
+    result = OVTRTracker._rasterize_boxes(
+        boxes,
+        np.asarray([4, 9]),
+        np.asarray([0.4, 0.9]),
+        (5, 5),
+    )
+    assert result[0, 0] == 5
+    assert result[2, 2] == 10
+    assert result[4, 4] == 10
 
 
 def test_motip_uses_official_dancetrack_detector_checkpoint() -> None:

@@ -233,6 +233,21 @@ mask on frame zero, maps arbitrary RPX IDs into XMem's contiguous label space,
 and restores the original IDs in saved predictions. The image retains the
 official 480-pixel short-side resize and long-term memory defaults.
 
+## Open-vocabulary milestone: OVTR
+
+OVTR follows the accepted XMem image in the active cumulative chain:
+
+```bash
+docker/tracking-smoke/build_ovtr_rpx.sh --push
+```
+
+The adapter pins the official full five-frame OVTR checkpoint and both published
+CLIP embedding assets. It runs detector-driven open-vocabulary MOT against the
+official 1,203-class LVIS/DetPro vocabulary, receives no RPX first-frame prompt,
+and is scored from frame zero. Tracked boxes are rasterized for the shared D3
+metrics, while class IDs, class names, scores, track IDs and XYXY boxes are saved
+under `open_vocabulary_predictions/` and included in acceptance archives.
+
 ## Legacy full SAM2 rebuild
 
 Build the cumulative SAM 2 target from the repository root:

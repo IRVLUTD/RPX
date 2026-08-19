@@ -213,6 +213,23 @@ def test_xmem_overlay_is_pinned_and_uses_mask_initialization():
     assert "mits-rpx-latest" in builder
 
 
+def test_ovtr_overlay_is_pinned_and_uses_official_open_vocabulary_assets():
+    dockerfile = (DOCKER_DIR / "Dockerfile.ovtr-cumulative").read_text()
+    builder = (DOCKER_DIR / "build_ovtr_rpx.sh").read_text()
+    patch_name = "ovtr-torch27-runtime.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert "500e72c19bf5f7f8717546911a5639fdc26bfee5" in dockerfile
+    assert "--model ovtr" in dockerfile
+    assert "--prompt detector" in dockerfile
+    assert "gdrive-10GKAIBxAseTiXnJXV1MnxnJBTmOHVFh5" in dockerfile
+    assert "MultiScaleDeformableAttention" in dockerfile
+    assert f"patches/{patch_name}" in dockerfile
+    assert "weights_only=False" in patch
+    assert "xmem-rpx-latest" in builder
+    assert "Dockerfile.ovtr-cumulative" in builder
+
+
 def test_incremental_milestone_registry_checks_allow_later_adapters():
     mits = (DOCKER_DIR / "Dockerfile.mits-cumulative").read_text()
     xmem = (DOCKER_DIR / "Dockerfile.xmem-cumulative").read_text()

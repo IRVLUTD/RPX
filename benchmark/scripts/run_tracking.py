@@ -240,6 +240,7 @@ def _write_complete_marker(
     model_name: str,
     tracker_class: type,
     rpx_git_sha: str,
+    model_outputs: str | None = None,
 ) -> None:
     marker = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     _atomic_json(
@@ -250,6 +251,7 @@ def _write_complete_marker(
             "model_revision": tracker_class.model_revision,
             "rpx_git_sha": rpx_git_sha,
             "frames": sample_count,
+            "model_outputs": model_outputs,
         },
     )
 
@@ -400,6 +402,14 @@ def main() -> None:
             if args.save_predictions:
                 for sample, prediction in zip(samples, predictions, strict=True):
                     _atomic_mask(_prediction_path(output_dir, clip, sample), prediction)
+                metadata_name = None
+                metadata_exporter = getattr(tracker, "prediction_metadata", None)
+                if callable(metadata_exporter):
+                    metadata_name = f"{clip.key}.json"
+                    _atomic_json(
+                        output_dir / "open_vocabulary_predictions" / metadata_name,
+                        metadata_exporter(),
+                    )
                 _write_complete_marker(
                     clip,
                     len(samples),
@@ -407,6 +417,7 @@ def main() -> None:
                     args.model,
                     tracker_class,
                     rpx_git_sha,
+                    metadata_name,
                 )
             print(f"[{clip_index}/{len(clips)}] inferred {clip.key}: {len(samples)} frames")
 
@@ -484,6 +495,11 @@ def main() -> None:
             "association_iou_threshold": 0.5,
             "metric_implementation": "TrackEval",
             "hota": "mean_over_0.05_to_0.95",
+            "open_vocabulary": bool(
+                getattr(tracker_class, "vocabulary_name", None)
+            ),
+            "vocabulary": getattr(tracker_class, "vocabulary_name", None),
+            "vocabulary_size": getattr(tracker_class, "vocabulary_size", None),
         },
         "dataset": {
             "repo": args.repo,

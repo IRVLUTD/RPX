@@ -52,7 +52,11 @@ fi
 
 short_revision="${revision:0:12}"
 archive="${output_root}/${model}-acceptance-${short_revision}-prediction-frames.tar.gz"
-tar -C "${acceptance_dir}" -czf "${archive}" prediction_frames
+archive_members=(prediction_frames)
+if [[ -d "${acceptance_dir}/open_vocabulary_predictions" ]]; then
+  archive_members+=(open_vocabulary_predictions)
+fi
+tar -C "${acceptance_dir}" -czf "${archive}" "${archive_members[@]}"
 (
   cd "${output_root}"
   sha256sum "$(basename "${archive}")" > "$(basename "${archive}").sha256"

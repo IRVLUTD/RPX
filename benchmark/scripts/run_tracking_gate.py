@@ -23,6 +23,11 @@ from tracking_models.mits_tracker import (
     MITS_MODEL_REVISION,
     MITS_SOURCE_REVISION,
 )
+from tracking_models.ovtr_tracker import (
+    OVTR_MODEL_ID,
+    OVTR_MODEL_REVISION,
+    OVTR_SOURCE_REVISION,
+)
 from tracking_models.sam2_plus_tracker import (
     SAM2_PLUS_MODEL_ID,
     SAM2_PLUS_MODEL_REVISION,
@@ -74,6 +79,11 @@ MODEL_PROVENANCE = {
         "source_revision": XMEM_SOURCE_REVISION,
         "checkpoint_repo": XMEM_MODEL_ID,
         "checkpoint_revision": XMEM_MODEL_REVISION,
+    },
+    "ovtr": {
+        "source_revision": OVTR_SOURCE_REVISION,
+        "checkpoint_repo": OVTR_MODEL_ID,
+        "checkpoint_revision": OVTR_MODEL_REVISION,
     },
 }
 
