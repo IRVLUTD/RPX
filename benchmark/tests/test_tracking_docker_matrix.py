@@ -238,6 +238,25 @@ def test_ovtr_overlay_is_pinned_and_uses_official_open_vocabulary_assets():
     assert "Dockerfile.ovtr-cumulative" in builder
 
 
+def test_dam4sam_overlay_is_pinned_and_declares_independent_sot_protocol():
+    dockerfile = (DOCKER_DIR / "Dockerfile.dam4sam-cumulative").read_text()
+    builder = (DOCKER_DIR / "build_dam4sam_rpx.sh").read_text()
+    patch_name = "dam4sam-rpx-runtime.patch"
+    patch = (DOCKER_DIR / "patches" / patch_name).read_text()
+
+    assert "9c954504b39ebca4c412f207be0787c26bfac85a" in dockerfile
+    assert "665f8e2ad61cf5f53d65644ff27c8ee525124610" in dockerfile
+    assert "https://github.com/jovanavidenovic/DAM4SAM.git" in dockerfile
+    assert "--model dam4sam" in dockerfile
+    assert "--prompt mask" in dockerfile
+    assert f"patches/{patch_name}" in dockerfile
+    assert "DAM4SAM_CHECKPOINT" in patch
+    assert "pred_iou" in dockerfile
+    assert "video_res_masks_" in dockerfile
+    assert "ovtr-rpx-sha-3ec872bc3d9c" in builder
+    assert "Dockerfile.dam4sam-cumulative" in builder
+
+
 def test_incremental_milestone_registry_checks_allow_later_adapters():
     mits = (DOCKER_DIR / "Dockerfile.mits-cumulative").read_text()
     xmem = (DOCKER_DIR / "Dockerfile.xmem-cumulative").read_text()

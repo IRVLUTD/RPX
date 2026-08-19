@@ -22,6 +22,7 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "acceptance": 25,
     }
     assert set(run_tracking_gate.MODEL_PROVENANCE) == {
+        "dam4sam",
         "sam2",
         "sam2-plus",
         "edgetam",

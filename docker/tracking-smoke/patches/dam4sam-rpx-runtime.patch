@@ -1,0 +1,24 @@
+diff --git a/dam4sam_tracker.py b/dam4sam_tracker.py
+index 24ff981..b1ffce2 100644
+--- a/dam4sam_tracker.py
++++ b/dam4sam_tracker.py
+@@ -188,3 +188,2 @@ class DAM4SAMTracker():
+         """
+-        torch.cuda.empty_cache()
+         # Prepare the image for input to the model
+@@ -198,2 +197,3 @@ class DAM4SAMTracker():
+         # return_all_masks=True returns all predicted (chosen and alternative) masks and corresponding IoUs
++        m_iou = 0.0
+         for out in self.predictor.propagate_in_video(self.inference_state, start_frame_idx=self.frame_index, max_frame_num_to_track=0, return_all_masks=True):
+diff --git a/utils/utils.py b/utils/utils.py
+index 478f133..53a6415 100644
+--- a/utils/utils.py
++++ b/utils/utils.py
+@@ -29,3 +29,6 @@ def determine_tracker(tracker_name):
+     if tracker_name == "sam21pp-L":
+-        checkpoint = os.path.join(path_, "../checkpoints/sam2.1_hiera_large.pt")
++        checkpoint = os.environ.get(
++            "DAM4SAM_CHECKPOINT",
++            os.path.join(path_, "../checkpoints/sam2.1_hiera_large.pt"),
++        )
+         model_cfg = "sam21pp_hiera_l.yaml"

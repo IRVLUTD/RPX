@@ -14,6 +14,7 @@ sys.path.insert(0, str(SCRIPTS))
 from tracking_models import (  # noqa: E402
     TRACKER_CLASSES,
     CutieTracker,
+    DAM4SAMTracker,
     EdgeTAMTracker,
     MITSTracker,
     OVTRTracker,
@@ -29,6 +30,7 @@ from tracking_models.motip_tracker import MOTIPTracker  # noqa: E402
 def test_tracking_registry_contains_production_adapters() -> None:
     assert TRACKER_CLASSES == {
         "cutie": CutieTracker,
+        "dam4sam": DAM4SAMTracker,
         "edgetam": EdgeTAMTracker,
         "mits": MITSTracker,
         "ovtr": OVTRTracker,
@@ -42,6 +44,7 @@ def test_tracking_registry_contains_production_adapters() -> None:
 def test_tracking_registry_declares_initialization_protocols() -> None:
     assert {name: tracker.prompt_type for name, tracker in TRACKER_CLASSES.items()} == {
         "cutie": "mask",
+        "dam4sam": "mask",
         "edgetam": "mask",
         "mits": "box",
         "ovtr": "detector",
@@ -58,6 +61,31 @@ def test_edgetam_uses_pinned_official_checkpoint_and_config() -> None:
     assert EdgeTAMTracker.checkpoint_filename == "edgetam.pt"
     assert EdgeTAMTracker.config_name == "edgetam.yaml"
     assert EdgeTAMTracker.config_directory.endswith("/rpx-models/edgetam/sam2/configs")
+
+
+def test_dam4sam_uses_pinned_official_mask_protocol() -> None:
+    assert DAM4SAMTracker.model_name == "dam4sam"
+    assert DAM4SAMTracker.model_id == "facebook/sam2.1-hiera-large"
+    assert DAM4SAMTracker.model_revision == (
+        "665f8e2ad61cf5f53d65644ff27c8ee525124610"
+    )
+    assert DAM4SAMTracker.source_revision == (
+        "9c954504b39ebca4c412f207be0787c26bfac85a"
+    )
+    assert DAM4SAMTracker.checkpoint_filename == "sam2.1_hiera_large.pt"
+    assert DAM4SAMTracker.prompt_type == "mask"
+    assert not DAM4SAMTracker.native_multi_object
+
+
+def test_dam4sam_merges_independent_masks_by_predicted_iou() -> None:
+    first = np.asarray([[1, 1], [0, 0]], dtype=np.uint8)
+    second = np.asarray([[1, 0], [1, 0]], dtype=np.uint8)
+
+    merged = DAM4SAMTracker._merge_object_masks(
+        [7, 19], [first, second], [0.4, 0.9], (2, 2)
+    )
+
+    np.testing.assert_array_equal(merged, np.asarray([[19, 7], [19, 0]]))
 
 
 def test_sam2_metadata_is_unchanged() -> None:

@@ -1,0 +1,79 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 tracking image with official DAM4SAM"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/dam4sam/bin/python \
+    DAM4SAM_SOURCE_DIR=/opt/rpx-models/dam4sam \
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9+PTX" \
+    MAX_JOBS=8 \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/requirements-dam4sam-runtime.lock /tmp/requirements-dam4sam-runtime.lock
+COPY docker/tracking-smoke/patches/dam4sam-rpx-runtime.patch /tmp/dam4sam-rpx-runtime.patch
+
+ARG DAM4SAM_GIT_SHA=9c954504b39ebca4c412f207be0787c26bfac85a
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    test -x /usr/local/cuda/bin/nvcc && \
+    rpx-clone-pinned https://github.com/jovanavidenovic/DAM4SAM.git \
+      "${DAM4SAM_GIT_SHA}" /opt/rpx-models/dam4sam && \
+    git -C /opt/rpx-models/dam4sam apply --check /tmp/dam4sam-rpx-runtime.patch && \
+    git -C /opt/rpx-models/dam4sam apply /tmp/dam4sam-rpx-runtime.patch && \
+    sed -i \
+      's/yield frame_idx, obj_ids, video_res_masks$/yield frame_idx, obj_ids, video_res_masks_/' \
+      /opt/rpx-models/dam4sam/sam2/sam2_video_predictor.py && \
+    sed -i \
+      "s/out_dict = {'pred_mask': m}$/out_dict = {'pred_mask': m, 'pred_iou': float(m_iou)}/" \
+      /opt/rpx-models/dam4sam/dam4sam_tracker.py && \
+    python -m venv --system-site-packages /opt/rpx-envs/dam4sam && \
+    /opt/rpx-envs/dam4sam/bin/python -m pip install \
+      -r /tmp/requirements-dam4sam-runtime.lock && \
+    cd /opt/rpx-models/dam4sam && \
+    SAM2_BUILD_ALLOW_ERRORS=0 \
+      /opt/rpx-envs/dam4sam/bin/python setup.py build_ext --inplace && \
+    /opt/rpx-envs/dam4sam/bin/python /usr/local/bin/rpx-register-model-env \
+      --model dam4sam \
+      --prompt mask \
+      --source-dir /opt/rpx-models/dam4sam \
+      --source-revision "${DAM4SAM_GIT_SHA}" \
+      --checkpoint-repo facebook/sam2.1-hiera-large \
+      --checkpoint-revision 665f8e2ad61cf5f53d65644ff27c8ee525124610 \
+      --prepend-source \
+      --import dam4sam_tracker \
+      --import sam2 \
+      --import sam2.build_sam \
+      --import vot
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/dam4sam/bin/python -m pip install \
+      --no-deps --no-build-isolation --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/dam4sam/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model dam4sam \
+      --source-revision 9c954504b39ebca4c412f207be0787c26bfac85a \
+      --checkpoint-repo facebook/sam2.1-hiera-large \
+      --checkpoint-revision 665f8e2ad61cf5f53d65644ff27c8ee525124610 && \
+    /opt/rpx-envs/dam4sam/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/dam4sam/bin/python -c \
+      "from pathlib import Path; import dam4sam_tracker as official; import sam2; import vot; assert Path(official.__file__).is_relative_to('/opt/rpx-models/dam4sam'); assert Path(sam2.__file__).is_relative_to('/opt/rpx-models/dam4sam')" && \
+    /opt/rpx-envs/dam4sam/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; required = {'cutie', 'dam4sam', 'edgetam', 'mits', 'ovtr', 'sam2', 'sam2-plus', 'sam2long', 'xmem'}; assert required <= TRACKER_CLASSES.keys(), (required, sorted(TRACKER_CLASSES)); assert TRACKER_CLASSES['dam4sam'].prompt_type == 'mask'; assert not TRACKER_CLASSES['dam4sam'].native_multi_object"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

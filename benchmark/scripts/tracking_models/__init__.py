@@ -1,6 +1,7 @@
 """Official model adapters for the RPX D3 tracking protocol."""
 
 from .cutie_tracker import CutieTracker
+from .dam4sam_tracker import DAM4SAMTracker
 from .edgetam_tracker import EdgeTAMTracker
 from .mits_tracker import MITSTracker
 from .ovtr_tracker import OVTRTracker
@@ -11,6 +12,7 @@ from .xmem_tracker import XMemTracker
 
 TRACKER_CLASSES = {
     "cutie": CutieTracker,
+    "dam4sam": DAM4SAMTracker,
     "edgetam": EdgeTAMTracker,
     "mits": MITSTracker,
     "ovtr": OVTRTracker,
@@ -22,6 +24,7 @@ TRACKER_CLASSES = {
 
 __all__ = [
     "CutieTracker",
+    "DAM4SAMTracker",
     "EdgeTAMTracker",
     "MITSTracker",
     "OVTRTracker",

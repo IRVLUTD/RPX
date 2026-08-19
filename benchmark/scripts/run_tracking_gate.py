@@ -14,6 +14,11 @@ from pathlib import Path
 import torch
 from run_tracking import DEFAULT_DATASET_REPO, PINNED_DATASET_REVISION
 from tracking_models.cutie_tracker import CUTIE_MODEL_ID, CUTIE_MODEL_REVISION
+from tracking_models.dam4sam_tracker import (
+    DAM4SAM_MODEL_ID,
+    DAM4SAM_MODEL_REVISION,
+    DAM4SAM_SOURCE_REVISION,
+)
 from tracking_models.edgetam_tracker import (
     EDGETAM_MODEL_ID,
     EDGETAM_MODEL_REVISION,
@@ -45,6 +50,11 @@ from tracking_models.xmem_tracker import (
 
 GATE_FRAMES = {"smoke": 2, "micro": 8, "acceptance": 25}
 MODEL_PROVENANCE = {
+    "dam4sam": {
+        "source_revision": DAM4SAM_SOURCE_REVISION,
+        "checkpoint_repo": DAM4SAM_MODEL_ID,
+        "checkpoint_revision": DAM4SAM_MODEL_REVISION,
+    },
     "sam2": {
         "source_revision": "2b90b9f5ceec907a1c18123530e92e794ad901a4",
         "checkpoint_repo": SAM2_MODEL_ID,
