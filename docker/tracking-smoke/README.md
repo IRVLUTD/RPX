@@ -242,7 +242,10 @@ docker/tracking-smoke/build_ovtr_rpx.sh --push
 ```
 
 The adapter pins the official full five-frame OVTR checkpoint and both published
-CLIP embedding assets. It runs detector-driven open-vocabulary MOT against the
+CLIP embedding assets. The official OpenAI CLIP package is source-pinned at
+`d05afc436d78f1c48dc0dbf8e5980a9d471f35f6`; it is installed without dependency
+resolution so it cannot replace the cumulative image's Torch/CUDA ABI. OVTR runs
+detector-driven open-vocabulary MOT against the
 official 1,203-class LVIS/DetPro vocabulary, receives no RPX first-frame prompt,
 and is scored from frame zero. Tracked boxes are rasterized for the shared D3
 metrics, while class IDs, class names, scores, track IDs and XYXY boxes are saved

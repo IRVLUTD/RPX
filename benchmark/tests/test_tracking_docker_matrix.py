@@ -223,6 +223,10 @@ def test_ovtr_overlay_is_pinned_and_uses_official_open_vocabulary_assets():
     assert "--model ovtr" in dockerfile
     assert "--prompt detector" in dockerfile
     assert "gdrive-10GKAIBxAseTiXnJXV1MnxnJBTmOHVFh5" in dockerfile
+    assert "d05afc436d78f1c48dc0dbf8e5980a9d471f35f6" in dockerfile
+    assert "rpx-clone-pinned https://github.com/openai/CLIP.git" in dockerfile
+    assert "--no-deps --no-build-isolation /opt/rpx-models/openai-clip" in dockerfile
+    assert "--import clip" in dockerfile
     assert "MultiScaleDeformableAttention" in dockerfile
     assert f"patches/{patch_name}" in dockerfile
     assert "weights_only=False" in patch

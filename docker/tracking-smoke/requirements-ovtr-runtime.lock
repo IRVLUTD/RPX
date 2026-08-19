@@ -1,4 +1,7 @@
 addict==2.4.0
+ftfy==6.3.1
 gdown==5.2.0
+regex==2024.11.6
 timm==0.9.16
+wcwidth==0.2.13
 yapf==0.40.2

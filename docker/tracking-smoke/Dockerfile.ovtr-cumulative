@@ -25,6 +25,7 @@ COPY docker/tracking-smoke/patches/ovtr-torch27-runtime.patch /tmp/ovtr-torch27-
 COPY docker/tracking-smoke/ovtr_bbox_overlaps.py /tmp/ovtr_bbox_overlaps.py
 
 ARG OVTR_GIT_SHA=500e72c19bf5f7f8717546911a5639fdc26bfee5
+ARG OPENAI_CLIP_GIT_SHA=d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
 RUN test "${#RPX_GIT_SHA}" -eq 40 && \
     case "${RPX_GIT_SHA}" in \
       *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
@@ -33,6 +34,8 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
     test -x /usr/local/cuda/bin/nvcc && \
     rpx-clone-pinned https://github.com/jinyanglii/OVTR.git \
       "${OVTR_GIT_SHA}" /opt/rpx-models/ovtr && \
+    rpx-clone-pinned https://github.com/openai/CLIP.git \
+      "${OPENAI_CLIP_GIT_SHA}" /opt/rpx-models/openai-clip && \
     sed -i 's/\r$//' \
       /opt/rpx-models/ovtr/ovtr/models/ops/setup.py \
       /opt/rpx-models/ovtr/ovtr/models/ops/src/cuda/ms_deform_attn_cuda.cu \
@@ -48,6 +51,8 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
     python -m venv --system-site-packages /opt/rpx-envs/ovtr && \
     /opt/rpx-envs/ovtr/bin/python -m pip install \
       -r /tmp/requirements-ovtr-runtime.lock && \
+    /opt/rpx-envs/ovtr/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/openai-clip && \
     cp /tmp/ovtr_bbox_overlaps.py \
       /opt/rpx-models/ovtr/ovtr/util/rpx_bbox_overlaps.py && \
     cd /opt/rpx-models/ovtr/ovtr/models/ops && \
@@ -65,6 +70,7 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
       --import models \
       --import models.ovtr \
       --import util.list_LVIS \
+      --import clip \
       --import MultiScaleDeformableAttention
 
 COPY benchmark /opt/rpx/benchmark
@@ -79,7 +85,7 @@ RUN /opt/rpx-envs/ovtr/bin/python -m pip install \
     /opt/rpx-envs/ovtr/bin/python -m compileall -q \
       /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
     /opt/rpx-envs/ovtr/bin/python -c \
-      "from util.list_LVIS import CLASSES; import MultiScaleDeformableAttention; assert len(CLASSES) == 1203" && \
+      "from util.list_LVIS import CLASSES; from clip import clip; import MultiScaleDeformableAttention; assert len(CLASSES) == 1203; assert callable(clip.tokenize)" && \
     /opt/rpx-envs/ovtr/bin/python -c \
       "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; required = {'cutie', 'edgetam', 'mits', 'ovtr', 'sam2', 'sam2-plus', 'sam2long', 'xmem'}; assert required <= TRACKER_CLASSES.keys(), (required, sorted(TRACKER_CLASSES)); assert TRACKER_CLASSES['ovtr'].prompt_type == 'detector'; assert TRACKER_CLASSES['ovtr'].vocabulary_size == 1203"
 
