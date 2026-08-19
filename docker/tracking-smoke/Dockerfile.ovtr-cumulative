@@ -76,7 +76,7 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
 COPY benchmark /opt/rpx/benchmark
 
 RUN /opt/rpx-envs/ovtr/bin/python -m pip install \
-      --no-deps --force-reinstall /opt/rpx/benchmark && \
+      --no-deps --no-build-isolation --force-reinstall /opt/rpx/benchmark && \
     /opt/rpx-envs/ovtr/bin/python /usr/local/bin/rpx-stamp-adapter-env \
       --model ovtr \
       --source-revision 500e72c19bf5f7f8717546911a5639fdc26bfee5 \
