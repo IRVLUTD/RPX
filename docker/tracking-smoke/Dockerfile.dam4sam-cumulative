@@ -38,6 +38,9 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
       's/yield frame_idx, obj_ids, video_res_masks$/yield frame_idx, obj_ids, video_res_masks_/' \
       /opt/rpx-models/dam4sam/sam2/sam2_video_predictor.py && \
     sed -i \
+      "0,/out_dict = {'pred_mask': m}$/s//out_dict = {'pred_mask': m, 'pred_iou': 1.0}/" \
+      /opt/rpx-models/dam4sam/dam4sam_tracker.py && \
+    sed -i \
       "s/out_dict = {'pred_mask': m}$/out_dict = {'pred_mask': m, 'pred_iou': float(m_iou)}/" \
       /opt/rpx-models/dam4sam/dam4sam_tracker.py && \
     python -m venv --system-site-packages /opt/rpx-envs/dam4sam && \

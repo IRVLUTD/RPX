@@ -251,6 +251,7 @@ def test_dam4sam_overlay_is_pinned_and_declares_independent_sot_protocol():
     assert "--prompt mask" in dockerfile
     assert f"patches/{patch_name}" in dockerfile
     assert "DAM4SAM_CHECKPOINT" in patch
+    assert "'pred_iou': 1.0" in dockerfile
     assert "pred_iou" in dockerfile
     assert "video_res_masks_" in dockerfile
     assert "ovtr-rpx-sha-3ec872bc3d9c" in builder
