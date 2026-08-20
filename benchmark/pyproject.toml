@@ -67,6 +67,11 @@ schemas = [
 esd-fast = [
   "opencv-python>=4.8",
 ]
+# Decode the ALVAR MarkerData tags used by the FewSOL/RPX single-object
+# capture board through an equivalent OpenCV custom dictionary.
+ar-pose-audit = [
+  "opencv-contrib-python-headless>=4.8",
+]
 # ESD-feature analysis helpers (PCA, k-means, GMM, correlation tests,
 # plots) used by `rpx_benchmark.data.esd_scoring`. Heavy deps kept out
 # of the core install — opt in with `pip install 'rpx-benchmark[analysis]'`.

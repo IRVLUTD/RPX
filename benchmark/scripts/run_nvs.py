@@ -518,6 +518,9 @@ def main() -> None:
                     help="device for the adapter (cpu / cuda / cuda:0 / mps)")
     ap.add_argument("--max-samples", type=int, default=None,
                     help="cap the number of NVS samples (smoke runs)")
+    ap.add_argument("--context-counts", type=int, nargs="+", default=None,
+                    help="override context-view counts. Use `--context-counts 2` "
+                    "for DepthSplat's released two-view operating point")
     ap.add_argument("--extracted-root", type=Path, default=None,
                     help="override the auto-resolved HF snapshot's extracted/ root")
     ap.add_argument("--parquet-path", type=Path, default=None,
@@ -557,7 +560,7 @@ def main() -> None:
     # ── Build pair generator
     cli_ux.section("Pair generator")
     with cli_ux.working("constructing NVSPairGenerator + loading parquet metadata"):
-        from rpx_benchmark.nvs_pairs import NVSPairGenerator  # noqa: PLC0415
+        from rpx_benchmark.nvs_pairs import NVSConfig, NVSPairGenerator  # noqa: PLC0415
 
         # Resolve cache paths from local_manifest helpers if not given.
         if args.extracted_root is None or args.parquet_path is None:
@@ -574,6 +577,11 @@ def main() -> None:
             extracted_root=extracted_root,
             parquet_path=parquet_path,
             split=args.split,
+            config=(
+                NVSConfig(context_counts=tuple(args.context_counts))
+                if args.context_counts is not None
+                else None
+            ),
         )
     cli_ux.note(gen.summary())
 
@@ -594,6 +602,7 @@ def main() -> None:
     latencies_ms: List[float] = []
     saved_predictions: List[Path] = []
     pred_root = args.results_root / display / args.split / "predictions"
+    frame_root = args.results_root / display / args.split / "prediction_frames"
 
     t_wall_start = time.perf_counter()
     skipped: List[Dict[str, Any]] = []  # graceful-skip log
@@ -638,6 +647,7 @@ def main() -> None:
 
                 if args.save_predictions:
                     import numpy as np  # noqa: PLC0415
+                    from PIL import Image  # noqa: PLC0415
 
                     out_path = pred_root / sample.scene_id / str(sample.phase) / f"{sample.id}.npz"
                     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -646,6 +656,11 @@ def main() -> None:
                         payload["depth"] = rendered["depth"]
                     np.savez_compressed(out_path, **payload)
                     saved_predictions.append(out_path)
+                    frame_path = (
+                        frame_root / sample.scene_id / str(sample.phase) / f"{sample.id}.png"
+                    )
+                    frame_path.parent.mkdir(parents=True, exist_ok=True)
+                    Image.fromarray(np.asarray(rendered.get("rgb"), dtype=np.uint8)).save(frame_path)
             except (FileNotFoundError, OSError, KeyError, ValueError) as e:
                 # KeyError covers the npz-key-missing case in _load_pose;
                 # ValueError handles a too-small adapter call (zero ctx).
@@ -707,6 +722,17 @@ def main() -> None:
     cli_ux.step(f"wrote {md_path}")
     if saved_predictions:
         cli_ux.step(f"saved {len(saved_predictions)} predictions under {pred_root}")
+        manifest = {
+            "model": args.model,
+            "display_name": display,
+            "split": args.split,
+            "count": len(saved_predictions),
+            "context_counts": args.context_counts,
+            "frames_root": str(frame_root),
+        }
+        (frame_root / "manifest.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8"
+        )
 
     # ── Optional: mirror to UTD Box (mirrors run_relative_pose.py's pattern)
     if args.upload_to_box:

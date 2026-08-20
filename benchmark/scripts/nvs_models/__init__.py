@@ -54,6 +54,13 @@ def _build_splatter_image(*, device: str = "cuda", **kwargs: Any) -> Any:
     return SplatterImage(device=device, **kwargs)
 
 
+def _build_depthsplat(*, device: str = "cuda", **kwargs: Any) -> Any:
+    """DepthSplat (CVPR 2025), released two-view 256x256 checkpoint."""
+    from .depthsplat import DepthSplatNVS
+
+    return DepthSplatNVS(device=device, **kwargs)
+
+
 # ── Feed-forward 3DGS / pointmap models ──────────────────────────────────────
 
 
@@ -86,10 +93,6 @@ def _not_yet_wired(name: str, upstream: str, install_hint: str) -> Callable[...,
 # repo URL + install hint so a contributor knows exactly what to clone.
 
 _PENDING_MODELS: Dict[str, Dict[str, str]] = {
-    "depthsplat": {
-        "upstream": "https://github.com/cvg/depthsplat",
-        "hint":     "clone the repo and `pip install -e .` from a torch 2.1+ env.",
-    },
     "mvsplat": {
         "upstream": "https://github.com/donydchen/mvsplat",
         "hint":     "clone the repo + download the re10k-trained checkpoint.",
@@ -127,6 +130,7 @@ _PENDING_MODELS: Dict[str, Dict[str, str]] = {
 
 MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "identity_passthrough": _build_identity_passthrough,
+    "depthsplat":           _build_depthsplat,
     "splatter_image":       _build_splatter_image,
     **{
         name: _not_yet_wired(name, info["upstream"], info["hint"])

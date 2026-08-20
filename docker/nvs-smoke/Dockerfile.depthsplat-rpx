@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE=pytorch/pytorch:2.4.0-cuda12.4-cudnn9-devel
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+ARG DEPTHSPLAT_GIT_SHA=2dad25a7b9ba7c5537aba08463ef88d8511a06be
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="RPX DepthSplat NVS smoke, acceptance and SOS image"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    DEPTHSPLAT_SOURCE_DIR=/opt/rpx-models/depthsplat \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TORCH_CUDA_ARCH_LIST="8.9"
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential git ninja-build libgl1 libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    git clone https://github.com/cvg/depthsplat.git /opt/rpx-models/depthsplat && \
+    git -C /opt/rpx-models/depthsplat checkout --detach "${DEPTHSPLAT_GIT_SHA}" && \
+    test "$(git -C /opt/rpx-models/depthsplat rev-parse HEAD)" = "${DEPTHSPLAT_GIT_SHA}" && \
+    python -m pip install -r /opt/rpx-models/depthsplat/requirements.txt
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN python -m pip install '/opt/rpx/benchmark[hub,ar-pose-audit]' && \
+    python -m compileall -q /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    cd /opt/rpx/benchmark && python -c \
+      "import sys; sys.path.insert(0, 'scripts'); from nvs_models import MODEL_REGISTRY; assert 'depthsplat' in MODEL_REGISTRY" && \
+    test -f /opt/rpx-models/depthsplat/config/main.yaml
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []
