@@ -12,15 +12,20 @@ LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.base.name="${BASE_IMAGE}" \
       org.opencontainers.image.description="RPX DepthSplat NVS smoke, acceptance and SOS image"
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    DEPTHSPLAT_SOURCE_DIR=/opt/rpx-models/depthsplat \
+ENV DEPTHSPLAT_SOURCE_DIR=/opt/rpx-models/depthsplat \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     TORCH_CUDA_ARCH_LIST="8.9"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential git ninja-build libgl1 libglib2.0-0 && \
-    rm -rf /var/lib/apt/lists/*
+# The pinned PyTorch CUDA devel base already contains git and the CUDA/C++
+# compiler toolchain. Keep the build independent of mutable Ubuntu/NVIDIA APT
+# metadata; only Ninja is missing and is safely supplied as a Python wheel.
+RUN command -v git && \
+    command -v gcc && \
+    command -v g++ && \
+    command -v make && \
+    test -x /usr/local/cuda/bin/nvcc && \
+    python -m pip install ninja==1.11.1.4
 
 RUN test "${#RPX_GIT_SHA}" -eq 40 && \
     git clone https://github.com/cvg/depthsplat.git /opt/rpx-models/depthsplat && \
