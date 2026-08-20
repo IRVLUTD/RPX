@@ -223,36 +223,52 @@ class NVSPairGenerator:
         if n_context >= n:
             return []
 
-        # Evenly space context views across the sequence
-        context_positions = np.linspace(0, n - 1, n_context, dtype=int)
-        context_idxs = [frame_idxs[p] for p in context_positions]
-        context_set = set(context_positions)
-
-        # Available targets: all frames NOT in context
-        available = [i for i in range(n) if i not in context_set]
-        if not available:
-            return []
-
-        # Split into interpolation (between first and last context) and
-        # extrapolation (outside context span)
-        interp = [i for i in available if context_positions[0] < i < context_positions[-1]]
-        extrap = [i for i in available if i <= context_positions[0] or i >= context_positions[-1]]
-
         results = []
 
-        # Interpolation targets
-        n_interp = min(len(interp), n_targets // 2) if interp else 0
-        if n_interp > 0:
-            sel = rng.choice(len(interp), size=n_interp, replace=False)
-            for idx in sel:
-                results.append((context_idxs, frame_idxs[interp[idx]], "interpolation"))
+        # Interpolation trial: contexts span the whole capture and targets
+        # are strictly between them.
+        interp_context = np.linspace(0, n - 1, n_context, dtype=int)
+        interp_candidates = [
+            i for i in range(n) if interp_context[0] < i < interp_context[-1]
+            and i not in set(interp_context)
+        ]
+        n_interp = min(len(interp_candidates), n_targets // 2)
+        if n_interp:
+            selected = rng.choice(interp_candidates, size=n_interp, replace=False)
+            context_idxs = [frame_idxs[p] for p in interp_context]
+            results.extend(
+                (context_idxs, frame_idxs[int(position)], "interpolation")
+                for position in selected
+            )
 
-        # Extrapolation targets
-        n_extrap = min(len(extrap), n_targets - n_interp) if extrap else 0
-        if n_extrap > 0:
-            sel = rng.choice(len(extrap), size=n_extrap, replace=False)
-            for idx in sel:
-                results.append((context_idxs, frame_idxs[extrap[idx]], "extrapolation"))
+        # Extrapolation trials use disjoint temporal regions. Half look
+        # forward (early contexts -> late targets), half backward. A 20%
+        # guard band prevents a target adjacent to the context boundary from
+        # being mislabeled as meaningful extrapolation.
+        n_extrap = n_targets - n_interp
+        context_width = max(n_context, int(np.floor(0.40 * n)))
+        guard_start = min(n - 1, int(np.ceil(0.60 * n)))
+        forward_context = np.linspace(0, context_width - 1, n_context, dtype=int)
+        forward_targets = [i for i in range(guard_start, n)]
+
+        backward_context = np.linspace(n - context_width, n - 1, n_context, dtype=int)
+        backward_targets = [i for i in range(0, max(0, n - guard_start))]
+
+        n_forward = (n_extrap + 1) // 2
+        n_backward = n_extrap // 2
+        for context_positions, candidates, budget in (
+            (forward_context, forward_targets, n_forward),
+            (backward_context, backward_targets, n_backward),
+        ):
+            count = min(len(candidates), budget)
+            if not count:
+                continue
+            selected = rng.choice(candidates, size=count, replace=False)
+            context_idxs = [frame_idxs[int(p)] for p in context_positions]
+            results.extend(
+                (context_idxs, frame_idxs[int(position)], "extrapolation")
+                for position in selected
+            )
 
         return results
 

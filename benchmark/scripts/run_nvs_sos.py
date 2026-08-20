@@ -133,8 +133,13 @@ def main() -> None:
             frames = sorted(set(rgb_members) & set(depth_members) & set(pose_members))
             if len(frames) < 3:
                 continue
-            context_ids = [frames[0], frames[-1]]
-            available = frames[1:-1]
+            # Explicit forward extrapolation: K=2 contexts come from the
+            # first 40% of the trial and targets from the final 40%, leaving
+            # a 20% temporal guard band.
+            context_end = max(1, int(np.floor(0.40 * len(frames))) - 1)
+            context_ids = [frames[0], frames[context_end]]
+            target_start = min(len(frames) - 1, int(np.ceil(0.60 * len(frames))))
+            available = frames[target_start:]
             target_positions = np.linspace(
                 0, len(available) - 1, min(args.max_targets, len(available)), dtype=int
             )

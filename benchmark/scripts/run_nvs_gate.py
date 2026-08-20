@@ -33,6 +33,8 @@ def main() -> None:
         "--device", args.device,
         "--max-samples", str(count),
         "--context-counts", "2",
+        "--sample-types", "extrapolation",
+        "--sample-order", "scene_round_robin",
         "--extracted-root", str(args.extracted_root),
         "--parquet-path", str(args.parquet_path),
         "--results-root", str(gate_root),
@@ -45,12 +47,20 @@ def main() -> None:
     result_path = gate_root / display / args.split / "result.json"
     frames_root = gate_root / display / args.split / "prediction_frames"
     result = json.loads(result_path.read_text(encoding="utf-8"))
-    png_count = sum(1 for _ in frames_root.rglob("*.png"))
+    png_paths = list(frames_root.rglob("*.png"))
+    png_count = len(png_paths)
     if result.get("num_samples") != count or png_count != count:
         raise SystemExit(
             f"gate validation failed: samples={result.get('num_samples')} "
             f"PNGs={png_count}, expected={count}"
         )
+    if any("__extrapolation__" not in path.stem for path in png_paths):
+        raise SystemExit("gate validation failed: a target is not labeled extrapolation")
+    protocol = result.get("sampling_protocol", {})
+    if protocol.get("context_counts") != [2] or protocol.get("sample_types") != [
+        "extrapolation"
+    ]:
+        raise SystemExit(f"gate validation failed: wrong sampling protocol: {protocol}")
     for metric in ("psnr", "ssim"):
         if metric not in result.get("aggregated", {}):
             raise SystemExit(f"gate validation failed: missing {metric}")

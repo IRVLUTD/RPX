@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 import time
 from dataclasses import dataclass
@@ -521,6 +522,12 @@ def main() -> None:
     ap.add_argument("--context-counts", type=int, nargs="+", default=None,
                     help="override context-view counts. Use `--context-counts 2` "
                     "for DepthSplat's released two-view operating point")
+    ap.add_argument("--sample-types", nargs="+",
+                    choices=("interpolation", "extrapolation", "cross_phase"),
+                    help="evaluate only the requested sample types")
+    ap.add_argument("--sample-order", choices=("generator", "scene_round_robin"),
+                    default="generator",
+                    help="scene_round_robin spreads capped gates across distinct scenes")
     ap.add_argument("--extracted-root", type=Path, default=None,
                     help="override the auto-resolved HF snapshot's extracted/ root")
     ap.add_argument("--parquet-path", type=Path, default=None,
@@ -607,7 +614,33 @@ def main() -> None:
     t_wall_start = time.perf_counter()
     skipped: List[Dict[str, Any]] = []  # graceful-skip log
 
-    samples_iter = gen.iter_samples()
+    samples = gen.iter_samples()
+    if args.sample_types:
+        allowed_types = set(args.sample_types)
+        samples = (sample for sample in samples if sample.sample_type in allowed_types)
+    if args.sample_order == "scene_round_robin":
+        by_scene: Dict[str, List[Any]] = {}
+        for sample in samples:
+            by_scene.setdefault(sample.scene_id, []).append(sample)
+        # Deterministically mix phase, direction and target within each
+        # scene before taking one scene at a time. This prevents a capped
+        # acceptance gate from containing only the first forward trial.
+        for scene_id, scene_samples in by_scene.items():
+            random.Random(f"5062026:{scene_id}").shuffle(scene_samples)
+        ordered: List[Any] = []
+        depth = 0
+        while True:
+            added = False
+            for scene_id in sorted(by_scene):
+                if depth < len(by_scene[scene_id]):
+                    ordered.append(by_scene[scene_id][depth])
+                    added = True
+            if not added:
+                break
+            depth += 1
+        samples_iter = iter(ordered)
+    else:
+        samples_iter = samples
     total = args.max_samples  # may be None if unbounded
     with cli_ux.progress("samples", total=total) as (p, task):
         for i, sample in enumerate(samples_iter):
@@ -700,6 +733,17 @@ def main() -> None:
         latencies_ms=latencies_ms,
         wall_seconds=wall_seconds,
     )
+    result["sampling_protocol"] = {
+        "context_counts": args.context_counts,
+        "sample_types": args.sample_types,
+        "sample_order": args.sample_order,
+        "seed": 5_062_026,
+        "extrapolation_definition": (
+            "target outside the temporal context span with a 20% sequence guard band"
+            if args.sample_types == ["extrapolation"]
+            else None
+        ),
+    }
 
     # Surface loader-cache stats inside result.json before writing.
     # On a sweep through one (scene, phase) the hit-rate is typically

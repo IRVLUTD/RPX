@@ -28,5 +28,6 @@ fi
 
 archive="${output_root}/${model}-${gate}-results.tar.gz"
 tar -C "$(dirname "${source_dir}")" -czf "${archive}" "$(basename "${source_dir}")"
-sha256sum "${archive}" | tee "${archive}.sha256"
+(cd "$(dirname "${archive}")" && sha256sum "$(basename "${archive}")") \
+  | tee "${archive}.sha256"
 ls -lh "${archive}" "${archive}.sha256"
