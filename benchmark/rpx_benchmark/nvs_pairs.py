@@ -179,9 +179,15 @@ class NVSPairGenerator:
         """Load frame indices per (scene, phase). Lightweight — no pixel data."""
         df = pd.read_parquet(parquet_path)
 
-        scene_split = df.groupby("scene_id")["split"].agg(
-            lambda s: s.value_counts().idxmax()
-        )
+        # The authoritative frames manifest also contains single-object
+        # sequences, whose split is intentionally null. Collapse only
+        # non-null multi-object tiers to scene level and let the inner merge
+        # exclude un-tiered SOS rows from this multi-object generator.
+        def _mode_split(series: pd.Series) -> str | None:
+            counts = series.dropna().value_counts()
+            return str(counts.idxmax()) if len(counts) else None
+
+        scene_split = df.groupby("scene_id")["split"].agg(_mode_split).dropna()
         df = df.drop(columns=["split"]).merge(
             scene_split.rename("split"), left_on="scene_id", right_index=True
         )
