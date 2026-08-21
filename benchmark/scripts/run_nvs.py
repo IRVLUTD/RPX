@@ -172,10 +172,11 @@ def _mask_path_for_target(sample: Any) -> str:
 
 @lru_cache(maxsize=_POSE_CACHE_SIZE)
 def _load_pose(path: Path) -> "Any":
-    """Load a T265 pose ``.npz`` → 4×4 SE(3) camera-to-world (float64).
+    """Load a T265 pose → 4×4 SE(3) camera-to-world (float64).
 
-    The RPX NPZ schema (see ``loader._load_pose``) stores **two arrays**,
-    not a baked 4×4:
+    RPX v1 stores an NPZ with ``position`` and ``orientation`` arrays.
+    RPX v2 losslessly packs the same values into one NPY vector ordered
+    ``[x, y, z, qx, qy, qz, qw]``.
 
     * ``position``    — ``(3,)`` metres
     * ``orientation`` — ``(4,)`` quaternion in T265 ``[x, y, z, w]`` order
@@ -187,8 +188,13 @@ def _load_pose(path: Path) -> "Any":
     import numpy as np  # noqa: PLC0415
 
     data = np.load(path)
-    position  = np.asarray(data["position"], dtype=np.float64)
-    quat_xyzw = np.asarray(data["orientation"], dtype=np.float64)
+    if path.suffix.lower() == ".npy":
+        pose7 = np.asarray(data, dtype=np.float64).reshape(7)
+        position = pose7[:3]
+        quat_xyzw = pose7[3:]
+    else:
+        position = np.asarray(data["position"], dtype=np.float64)
+        quat_xyzw = np.asarray(data["orientation"], dtype=np.float64)
 
     x, y, z, w = quat_xyzw / np.linalg.norm(quat_xyzw)
     rot = np.array(

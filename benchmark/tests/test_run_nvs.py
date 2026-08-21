@@ -189,6 +189,20 @@ class TestModalityLoaders:
         # Bottom row of a homogeneous SE(3) matrix.
         assert np.allclose(T[3, :], [0.0, 0.0, 0.0, 1.0])
 
+    def test_pose_v2_npy_to_se3(self, tmp_path: Path) -> None:
+        path = tmp_path / "00002.npy"
+        np.save(path, np.asarray([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0]))
+
+        T = run_nvs._load_pose(path)
+
+        np.testing.assert_allclose(T, np.asarray([
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 2.0],
+            [0.0, 0.0, 1.0, 3.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]))
+        assert not T.flags.writeable
+
     def test_mask_shape_dtype_readonly(self, synthetic_nvs_root: Path) -> None:
         m = run_nvs._load_mask(
             synthetic_nvs_root / "scenes/scene00.synth/0/sam2/masks/00000.png"

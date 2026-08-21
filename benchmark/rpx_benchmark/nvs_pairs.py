@@ -42,6 +42,7 @@ Usage
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
@@ -135,8 +136,41 @@ class NVSSample:
         }
 
 
-def _modality_path(scene: str, phase: int, modality: str, frame_idx: int) -> str:
-    return f"scenes/{scene}/{phase}/{modality}/{frame_idx:05d}.{'npz' if modality == 'cam_pose' else 'png'}"
+DEFAULT_MODALITY_EXTENSIONS = {
+    "rgb": ".png",
+    "depth": ".png",
+    "cam_pose": ".npz",
+}
+
+
+def _modality_path(
+    scene: str,
+    phase: int,
+    modality: str,
+    frame_idx: int,
+    extensions: Dict[str, str] | None = None,
+) -> str:
+    extension = (extensions or DEFAULT_MODALITY_EXTENSIONS)[modality]
+    return f"scenes/{scene}/{phase}/{modality}/{frame_idx:05d}{extension}"
+
+
+def _load_modality_extensions(parquet_path: Path) -> Dict[str, str]:
+    """Resolve v1/v2 on-disk suffixes from the snapshot's current.json."""
+    extensions = dict(DEFAULT_MODALITY_EXTENSIONS)
+    current_path = parquet_path.parent / "current.json"
+    if not current_path.is_file():
+        return extensions
+    try:
+        payload = json.loads(current_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return extensions
+    declared = payload.get("modality_extensions") or {}
+    if isinstance(declared, dict):
+        for modality in extensions:
+            value = declared.get(modality)
+            if isinstance(value, str) and value.startswith("."):
+                extensions[modality] = value
+    return extensions
 
 
 def _is_valid(scene: str, phase: int) -> bool:
@@ -170,10 +204,12 @@ class NVSPairGenerator:
         self.cfg = config or NVSConfig()
         self._snapshot_root = Path(snapshot_root) if snapshot_root else None
         self._repo_id = repo_id
+        parquet_path = Path(parquet_path)
+        self._modality_extensions = _load_modality_extensions(parquet_path)
 
         self._sequences: Dict[Tuple[str, int], List[int]] = {}
         self._cross_scenes: List[str] = []
-        self._load_metadata(Path(parquet_path))
+        self._load_metadata(parquet_path)
 
     def _load_metadata(self, parquet_path: Path) -> None:
         """Load frame indices per (scene, phase). Lightweight — no pixel data."""
@@ -302,17 +338,29 @@ class NVSPairGenerator:
                         phase_target=phase,
                         n_context=n_ctx,
                         context_rgb_paths=[
-                            _modality_path(scene, phase, "rgb", c) for c in ctx_idxs
+                            _modality_path(
+                                scene, phase, "rgb", c, self._modality_extensions
+                            ) for c in ctx_idxs
                         ],
                         context_depth_paths=[
-                            _modality_path(scene, phase, "depth", c) for c in ctx_idxs
+                            _modality_path(
+                                scene, phase, "depth", c, self._modality_extensions
+                            ) for c in ctx_idxs
                         ],
                         context_pose_paths=[
-                            _modality_path(scene, phase, "cam_pose", c) for c in ctx_idxs
+                            _modality_path(
+                                scene, phase, "cam_pose", c, self._modality_extensions
+                            ) for c in ctx_idxs
                         ],
-                        target_rgb_path=_modality_path(scene, phase, "rgb", tgt_idx),
-                        target_depth_path=_modality_path(scene, phase, "depth", tgt_idx),
-                        target_pose_path=_modality_path(scene, phase, "cam_pose", tgt_idx),
+                        target_rgb_path=_modality_path(
+                            scene, phase, "rgb", tgt_idx, self._modality_extensions
+                        ),
+                        target_depth_path=_modality_path(
+                            scene, phase, "depth", tgt_idx, self._modality_extensions
+                        ),
+                        target_pose_path=_modality_path(
+                            scene, phase, "cam_pose", tgt_idx, self._modality_extensions
+                        ),
                         sample_type=stype,
                         context_frame_idxs=ctx_idxs,
                         target_frame_idx=tgt_idx,
@@ -347,17 +395,29 @@ class NVSPairGenerator:
                             phase_target=2,
                             n_context=n_ctx,
                             context_rgb_paths=[
-                                _modality_path(scene, 0, "rgb", c) for c in ctx_idxs
+                                _modality_path(
+                                    scene, 0, "rgb", c, self._modality_extensions
+                                ) for c in ctx_idxs
                             ],
                             context_depth_paths=[
-                                _modality_path(scene, 0, "depth", c) for c in ctx_idxs
+                                _modality_path(
+                                    scene, 0, "depth", c, self._modality_extensions
+                                ) for c in ctx_idxs
                             ],
                             context_pose_paths=[
-                                _modality_path(scene, 0, "cam_pose", c) for c in ctx_idxs
+                                _modality_path(
+                                    scene, 0, "cam_pose", c, self._modality_extensions
+                                ) for c in ctx_idxs
                             ],
-                            target_rgb_path=_modality_path(scene, 2, "rgb", tgt_idx),
-                            target_depth_path=_modality_path(scene, 2, "depth", tgt_idx),
-                            target_pose_path=_modality_path(scene, 2, "cam_pose", tgt_idx),
+                            target_rgb_path=_modality_path(
+                                scene, 2, "rgb", tgt_idx, self._modality_extensions
+                            ),
+                            target_depth_path=_modality_path(
+                                scene, 2, "depth", tgt_idx, self._modality_extensions
+                            ),
+                            target_pose_path=_modality_path(
+                                scene, 2, "cam_pose", tgt_idx, self._modality_extensions
+                            ),
                             sample_type="cross_phase",
                             context_frame_idxs=ctx_idxs,
                             target_frame_idx=tgt_idx,
