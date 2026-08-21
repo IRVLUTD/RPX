@@ -39,8 +39,9 @@ RUN test "${#RPX_GIT_SHA}" -eq 40 && \
 
 COPY benchmark /opt/rpx/benchmark
 
-RUN python -m pip install '/opt/rpx/benchmark[hub,ar-pose-audit]' && \
+RUN python -m pip install '/opt/rpx/benchmark[hub,nvs,ar-pose-audit]' && \
     python -m compileall -q /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    python -c "import pandas, pyarrow" && \
     cd /opt/rpx/benchmark && python -c \
       "import sys; sys.path.insert(0, 'scripts'); from nvs_models import MODEL_REGISTRY; assert 'depthsplat' in MODEL_REGISTRY" && \
     test -f /opt/rpx-models/depthsplat/config/main.yaml

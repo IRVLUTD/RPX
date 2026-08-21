@@ -54,6 +54,11 @@ hub = [
   "huggingface_hub[hf_xet]>=0.26",
   "pyarrow>=14",
 ]
+# NVS pair generation reads the authoritative per-frame Parquet manifest
+# through pandas. Keep this separate from the heavier general analysis stack.
+nvs = [
+  "pandas>=2.0,<3",
+]
 # One-line `datasets.load_dataset(...)` + PyTorch DataLoader bridge.
 hf-datasets = [
   "datasets>=2.18",
