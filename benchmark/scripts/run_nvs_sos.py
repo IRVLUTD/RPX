@@ -17,7 +17,9 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-def _members(archive: tarfile.TarFile, suffix: str) -> dict[int, tarfile.TarInfo]:
+def _members(
+    archive: tarfile.TarFile, suffix: str | tuple[str, ...]
+) -> dict[int, tarfile.TarInfo]:
     result = {}
     for member in archive.getmembers():
         if member.isfile() and member.name.endswith(suffix):
@@ -42,9 +44,25 @@ def _depth(payload: bytes) -> np.ndarray:
 
 
 def _pose(payload: bytes) -> np.ndarray:
-    from rpx_benchmark.ar_pose_audit import pose_from_npz_bytes
+    """Decode either legacy NPZ or release-format ``(7,)`` NPY poses."""
+    from scipy.spatial.transform import Rotation
 
-    return pose_from_npz_bytes(payload)
+    loaded = np.load(io.BytesIO(payload))
+    if isinstance(loaded, np.lib.npyio.NpzFile):
+        try:
+            position = np.asarray(loaded["position"], dtype=np.float64).reshape(3)
+            quaternion = np.asarray(loaded["orientation"], dtype=np.float64).reshape(4)
+        finally:
+            loaded.close()
+    else:
+        pose7 = np.asarray(loaded, dtype=np.float64).reshape(7)
+        position = pose7[:3]
+        quaternion = pose7[3:]
+
+    transform = np.eye(4, dtype=np.float64)
+    transform[:3, :3] = Rotation.from_quat(quaternion).as_matrix()
+    transform[:3, 3] = position
+    return transform
 
 
 def _ar_comparison(pred: np.ndarray, gt: np.ndarray) -> dict[str, Any]:
@@ -127,9 +145,9 @@ def main() -> None:
             tarfile.open(depth_path) as depth_tar,
             tarfile.open(pose_path) as pose_tar,
         ):
-            rgb_members = _members(rgb_tar, ".png")
+            rgb_members = _members(rgb_tar, (".png", ".webp", ".jpg", ".jpeg"))
             depth_members = _members(depth_tar, ".png")
-            pose_members = _members(pose_tar, ".npz")
+            pose_members = _members(pose_tar, (".npz", ".npy"))
             frames = sorted(set(rgb_members) & set(depth_members) & set(pose_members))
             if len(frames) < 3:
                 continue
