@@ -17,15 +17,19 @@ ENV DEPTHSPLAT_SOURCE_DIR=/opt/rpx-models/depthsplat \
     PIP_NO_CACHE_DIR=1 \
     TORCH_CUDA_ARCH_LIST="8.9"
 
-# The pinned PyTorch CUDA devel base already contains git and the CUDA/C++
-# compiler toolchain. Keep the build independent of mutable Ubuntu/NVIDIA APT
-# metadata; only Ninja is missing and is safely supplied as a Python wheel.
-RUN command -v git && \
-    command -v gcc && \
-    command -v g++ && \
-    command -v make && \
-    test -x /usr/local/cuda/bin/nvcc && \
-    python -m pip install ninja==1.11.1.4
+# DepthSplat installs a git-pinned CUDA extension, while the upstream PyTorch
+# devel image supplies nvcc but not Git or the complete host build toolchain.
+RUN rm -rf /var/lib/apt/lists/* && \
+    apt-get clean && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential \
+      git \
+      libgl1 \
+      libglib2.0-0 \
+      ninja-build && \
+    rm -rf /var/lib/apt/lists/* && \
+    test -x /usr/local/cuda/bin/nvcc
 
 RUN test "${#RPX_GIT_SHA}" -eq 40 && \
     git clone https://github.com/cvg/depthsplat.git /opt/rpx-models/depthsplat && \
