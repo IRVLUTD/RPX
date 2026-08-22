@@ -12,11 +12,16 @@ here ever writes into the source ego captures):
 
     <DATA>/ego/<scene_id>/0/{rgb,sam2/...}
 
-``<scene_id>`` is resolved to the EXACT ``mos/`` sibling scene id (e.g.
-``scene20.su.checkerboard`` for ``ego/scene020``) so ``manifest.py``'s
-split/difficulty lookup (an exact-string ``splits.get(scene.scene_id)``)
-works with zero extra code downstream — same physical scene, same scene
-number, captured on independent cameras (rig D435 vs. head-worn GoPro).
+``<scene_id>`` is ego's own bare, zero-padded name (``scene020``) —
+VERIFIED against the live IRVLUTD/RPX repo, which publishes mos/ scenes as
+bare ``scene001``..``scene100`` (a local working copy may use a
+location-suffixed directory name like ``scene20.su.checkerboard.``; the
+frame/mask bytes underneath are identical to the live repo, only that
+local directory name differs). Using the bare form means
+``manifest.py``'s split/difficulty lookup (an exact-string
+``splits.get(scene.scene_id)``) works against the live splits file with
+zero extra code — same physical scene, same scene number, captured on
+independent cameras (rig D435 vs. head-worn GoPro).
 
 A few loose files/dirs are intentionally left OUT of the arranged tree —
 internal to the ego labeling pipeline, not something a downstream benchmark
@@ -88,12 +93,24 @@ def _ego_scene_number(ego_scene_dir_name: str) -> Optional[int]:
 
 
 def resolve_mos_scene_id(mos_root: Path, ego_scene_dir_name: str) -> Optional[str]:
-    """Find the ``mos/`` sibling for an ego scene dir, by scene NUMBER.
+    """Validate an ego scene dir has a ``mos/`` sibling, by scene NUMBER, and
+    return the CANONICAL scene_id to use for both.
 
-    Ego dirs are zero-padded (``scene020``); mos dirs are not and carry a
-    location suffix (``scene20.su.checkerboard``). Matches on the leading
-    number only. Returns ``None`` if there's no exactly-one match (missing,
-    or ambiguous — caller should treat either as "skip, don't guess").
+    IMPORTANT: the canonical scene_id is ego's own bare, zero-padded form
+    (``scene020``) — verified against the live IRVLUTD/RPX repo, where
+    scenes are published as bare ``scene001``..``scene100`` (NOT the
+    location-suffixed form some local working copies use, e.g.
+    ``scene20.su.checkerboard`` — that's a local/staging naming quirk that
+    predates upload; the actual frame/mask bytes underneath match the live
+    repo exactly, only the on-disk directory name differs). Do not use the
+    matched mos/ directory's own (possibly suffixed) name as the scene_id —
+    that was the bug in an earlier version of this function.
+
+    ``mos_root`` is used purely as a validation gate — confirms a scene
+    with this number actually exists as a mos/ scene, regardless of what
+    its local directory happens to be named. Returns ``None`` if there's no
+    exactly-one match (missing, or ambiguous — caller should treat either
+    as "skip, don't guess").
     """
     n = _ego_scene_number(ego_scene_dir_name)
     if n is None or not mos_root.is_dir():
@@ -105,7 +122,7 @@ def resolve_mos_scene_id(mos_root: Path, ego_scene_dir_name: str) -> Optional[st
     ]
     if len(matches) != 1:
         return None
-    return matches[0]
+    return ego_scene_dir_name  # canonical bare form, e.g. "scene020"
 
 
 def _link_or_copy(src: Path, dst: Path, mode: str) -> None:

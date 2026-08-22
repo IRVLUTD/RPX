@@ -35,6 +35,7 @@ from typing import (
 from ..exceptions import ConfigError, DownloadError
 from ..logging_utils import get_logger
 from .manifest import SCHEMA_VERSION
+from .packer import SCENE_ROOT_BY_TYPE
 from .recipes import (
     DEFAULT_REPO_ID,
     QUESTIONNAIRE,
@@ -42,6 +43,10 @@ from .recipes import (
     TaskRecipe,
     resolve_recipe,
 )
+
+#: Scene types whose scenes carry a real difficulty split (ego inherits its
+#: split from its mos sibling via a shared scene_id — see ego_layout.py).
+_SPLIT_BEARING_TYPES = (SceneType.MULTI_OBJECT, SceneType.EGO)
 
 if TYPE_CHECKING:  # pragma: no cover - only for type hints
     import pyarrow as pa
@@ -140,7 +145,7 @@ def _filter_manifest(
     import pyarrow.compute as pc  # noqa: WPS433
 
     mask = pc.equal(table["scene_type"], pa.scalar(scene_type.value))
-    if split is not None and scene_type is SceneType.MULTI_OBJECT:
+    if split is not None and scene_type in _SPLIT_BEARING_TYPES:
         mask = pc.and_(mask, pc.equal(table["split"], pa.scalar(split)))
     return table.filter(mask)
 
@@ -163,7 +168,7 @@ def _resolve_label_version(
 
 
 def _scene_root_for(scene_type: SceneType) -> str:
-    return "scenes" if scene_type is SceneType.MULTI_OBJECT else "objects"
+    return SCENE_ROOT_BY_TYPE[scene_type]
 
 
 def _build_allow_patterns(
@@ -261,9 +266,9 @@ def download_for_task(
             f"task {task!r} targets single-object scenes, which have no splits.",
             hint="Drop the --split argument for single-object recipes.",
         )
-    if recipe.scene_type is SceneType.MULTI_OBJECT and split is None:
+    if recipe.scene_type in _SPLIT_BEARING_TYPES and split is None:
         raise ConfigError(
-            f"task {task!r} targets multi-object scenes — pick a split.",
+            f"task {task!r} targets {recipe.scene_type.value} scenes — pick a split.",
             hint="Pass split='easy' | 'medium' | 'hard'.",
         )
 

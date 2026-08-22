@@ -174,7 +174,7 @@ def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
     for scene in scan.scenes:
         if not scene.phases:
             continue
-        sub = "mos" if scene.scene_type is SceneType.MULTI_OBJECT else "sos"
+        sub = SRC_SUBDIR_BY_TYPE[scene.scene_type]
         phase_root = scan.root / sub / scene.scene_id / str(scene.phases[0].phase_index)
         for modality, subpath in _MODALITY_SUBPATH_FOR_DETECTION.items():
             if modality in found:

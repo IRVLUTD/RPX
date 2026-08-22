@@ -180,6 +180,13 @@ EGO_TASK_RECIPES: Dict[str, TaskRecipe] = {
             "differs, matching the mos segmentation/object_tracking split."
         ),
     ),
+    "ego_vqa": TaskRecipe(
+        name="ego_vqa",
+        scene_type=SceneType.EGO,
+        inputs=frozenset({RGB}),
+        labels=frozenset({VQA, QUESTIONNAIRE}),
+        notes="Reserved slot, mirrors mos vqa — VQA labels land in v1.x.",
+    ),
 }
 
 # Single-object scenes (1 collection, used for in-context / template tasks).

@@ -49,6 +49,7 @@ def ego_mock(tmp_path: Path) -> Path:
 def test_ego_recipes_exist():
     assert "ego_segmentation" in EGO_TASK_RECIPES
     assert "ego_object_tracking" in EGO_TASK_RECIPES
+    assert "ego_vqa" in EGO_TASK_RECIPES
     for rec in EGO_TASK_RECIPES.values():
         assert rec.scene_type is SceneType.EGO
 
@@ -64,6 +65,16 @@ def test_all_recipe_names_includes_ego():
     names = set(all_recipe_names())
     assert "ego_segmentation" in names
     assert "ego_object_tracking" in names
+    assert "ego_vqa" in names
+
+
+def test_ego_vqa_recipe_reserved_slot():
+    """Mirrors mos's vqa reserved slot — same rgb->vqa+questionnaire shape,
+    same "not yet wired" status, just scoped to ego scenes."""
+    rec = EGO_TASK_RECIPES["ego_vqa"]
+    assert "vqa" in rec.labels
+    assert "questionnaire" in rec.labels
+    assert "v1.x" in rec.notes
 
 
 # --------------------------------------------------------------------- #
@@ -71,12 +82,17 @@ def test_all_recipe_names_includes_ego():
 # --------------------------------------------------------------------- #
 
 
-def test_resolve_mos_scene_id_matches_by_number(tmp_path: Path):
+def test_resolve_mos_scene_id_returns_egos_own_bare_form(tmp_path: Path):
+    # The canonical scene_id is ego's own bare/padded name — verified to
+    # match the live IRVLUTD/RPX repo's convention (bare scene001..scene100)
+    # — NOT whatever the local mos/ directory happens to be named (which
+    # can carry a location suffix that's a local/staging naming quirk).
+    # mos_root is only used to validate a sibling exists by scene number.
     mos_root = tmp_path / "mos"
     (mos_root / "scene20.su.checkerboard").mkdir(parents=True)
     (mos_root / "scene7.library.fountain").mkdir(parents=True)
-    assert resolve_mos_scene_id(mos_root, "scene020") == "scene20.su.checkerboard"
-    assert resolve_mos_scene_id(mos_root, "scene007") == "scene7.library.fountain"
+    assert resolve_mos_scene_id(mos_root, "scene020") == "scene020"
+    assert resolve_mos_scene_id(mos_root, "scene007") == "scene007"
 
 
 def test_resolve_mos_scene_id_no_match_returns_none(tmp_path: Path):
@@ -162,7 +178,7 @@ def test_prepare_ego_layout_end_to_end(tmp_path: Path):
     report = prepare_ego_layout(raw_ego_root, mos_root, dst)
 
     ok_ids = {r.ego_scene_dir: r.scene_id for r in report.ok}
-    assert ok_ids == {"scene001": "scene1.mock.loc"}
+    assert ok_ids == {"scene001": "scene001"}  # bare form, not mos_root's suffixed name
 
     skipped = {r.ego_scene_dir: r.status for r in report.skipped}
     assert skipped["scene099"] == "no_mos_sibling"

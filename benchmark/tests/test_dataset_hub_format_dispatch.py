@@ -127,6 +127,31 @@ def test_detect_v2_tree_returns_webp_and_npy(v1_mock: Path):
     assert ext["cam_pose"] == ".npy"
 
 
+def test_detect_ego_only_tree_does_not_go_blind(tmp_path: Path):
+    """Regression test: _detect_modality_extensions used to compute the
+    scan-subdir via a `"mos" if MULTI_OBJECT else "sos"` ternary — for an
+    EGO scene that resolves to "sos", so it looked for ego's files under
+    <root>/sos/<scene_id>/... which doesn't exist, silently finding
+    nothing (found={}). That's masked whenever mos/sos scenes are also
+    present (mos alone fills in every modality first) but would go fully
+    blind on an ego-only capture root, like the real
+    ego-only-DATA staging path used to validate the ego upload before it
+    was ever combined with the mos/sos data. Uses SRC_SUBDIR_BY_TYPE now.
+    """
+    src = tmp_path / "src"
+    rgb = src / "ego" / "scene009" / "0" / "rgb"
+    rgb.mkdir(parents=True)
+    (rgb / "00000.png").write_text("x")
+    masks = src / "ego" / "scene009" / "0" / "sam2" / "masks"
+    masks.mkdir(parents=True)
+    (masks / "00000.png").write_text("x")
+    # No mos/ or sos/ dirs at all.
+    scan = scan_capture_root(src)
+    ext = _detect_modality_extensions(scan)
+    assert ext.get("rgb") == ".png", f"ego-only tree went blind: {ext}"
+    assert ext.get("masks") == ".png", f"ego-only tree went blind: {ext}"
+
+
 def test_detect_skips_missing_modalities(tmp_path: Path):
     """A tree that doesn't have every modality only reports what exists."""
     src = tmp_path / "src"
