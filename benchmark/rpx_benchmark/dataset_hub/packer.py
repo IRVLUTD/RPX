@@ -231,7 +231,14 @@ def _write_tar(
 
     # Write to a temp path then rename — never expose a half-written tar.
     tmp = out_path.with_suffix(out_path.suffix + ".part")
-    with tarfile.open(tmp, mode="w", format=tarfile.USTAR_FORMAT) as tf:
+    # dereference=True: gettarinfo() must use os.stat() (follow symlinks),
+    # not os.lstat(). Without it, any symlinked source file -- e.g. ego
+    # scenes arranged via ego_layout.py's per-file symlinks -- would be
+    # packed as a broken symlink tar entry pointing at a local machine
+    # path (near-zero bytes, unreadable by anyone downloading the shard)
+    # instead of the real file content. See lossless_convert.py's
+    # _link_one docstring for how this was originally discovered.
+    with tarfile.open(tmp, mode="w", format=tarfile.USTAR_FORMAT, dereference=True) as tf:
         for f in files:
             arcname = str(f.relative_to(rel_to)).replace(os.sep, "/")
             ti = tf.gettarinfo(name=str(f), arcname=arcname)
