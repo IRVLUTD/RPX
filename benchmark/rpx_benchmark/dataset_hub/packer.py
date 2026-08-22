@@ -157,12 +157,30 @@ class PackResult:
 SCENE_ROOT_BY_TYPE: Dict[SceneType, str] = {
     SceneType.MULTI_OBJECT: "scenes",
     SceneType.SINGLE_OBJECT: "objects",
-    SceneType.EGO: "ego",
+    # ego nests under the SAME scenes/<scene_id>/ dir as its mos sibling,
+    # as a phase-like "ego" segment alongside 0/1/2 -- not its own
+    # top-level root. See phase_segment() below.
+    SceneType.EGO: "scenes",
 }
 
 
 def _scene_root_for(scene_type: SceneType) -> str:
     return SCENE_ROOT_BY_TYPE[scene_type]
+
+
+def phase_segment(scene_type: SceneType, phase_index: int) -> str:
+    """The path segment standing in for "phase" in a repo path.
+
+    mos/sos use the numeric phase (0/1/2/...). ego has exactly one
+    continuous capture per scene and nests under its mos sibling's own
+    scene directory, so it uses the literal segment "ego" instead of a
+    number -- distinguishing ``scenes/<scene>/ego/`` from
+    ``scenes/<scene>/0/``, ``.../1/``, etc. Single source of truth: every
+    module that builds a repo path from (scene_type, phase) must call
+    this rather than stringifying phase_index directly, or ego paths
+    will end up as ``scenes/<scene>/0/...`` and collide with mos.
+    """
+    return "ego" if scene_type is SceneType.EGO else str(phase_index)
 
 
 def _shard_repo_path(
@@ -173,7 +191,7 @@ def _shard_repo_path(
     is_label: bool,
     label_version: str,
 ) -> str:
-    base = f"{_scene_root_for(scene_type)}/{scene_id}/{phase}"
+    base = f"{_scene_root_for(scene_type)}/{scene_id}/{phase_segment(scene_type, phase)}"
     if is_label:
         return f"{base}/labels/{modality}/{label_version}.tar"
     return f"{base}/{modality}.tar"

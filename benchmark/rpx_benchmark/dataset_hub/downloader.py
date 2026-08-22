@@ -171,6 +171,20 @@ def _scene_root_for(scene_type: SceneType) -> str:
     return SCENE_ROOT_BY_TYPE[scene_type]
 
 
+def _phase_glob_segment(scene_type: SceneType) -> str:
+    """The glob segment standing in for "phase" in an allow_pattern.
+
+    ego now nests under the SAME scenes/<scene>/ root as mos (as a
+    literal "ego" segment alongside the numeric 0/1/2/... phases -- see
+    packer.phase_segment), so a bare "*" would match BOTH: a mos download
+    would incidentally also sweep up scenes/<scene>/ego/rgb.tar, and vice
+    versa. "[0-9]*" matches only digit-leading (numeric-phase) segments;
+    ego's literal "ego" doesn't match it, and "ego" is used verbatim for
+    ego scene_type -- so each family's pull stays scoped to itself.
+    """
+    return "ego" if scene_type is SceneType.EGO else "[0-9]*"
+
+
 def _build_allow_patterns(
     matched_scenes: Iterable[str],
     scene_type: SceneType,
@@ -183,16 +197,17 @@ def _build_allow_patterns(
     the per-object dedup pull.
     """
     root = _scene_root_for(scene_type)
+    phase_seg = _phase_glob_segment(scene_type)
     patterns: List[str] = []
     for scene in sorted(matched_scenes):
         for m in sorted(modalities):
             if m in _SHARED_MODALITIES:
                 continue  # handled by _shared_artefact_patterns
             if m in _RAW_MODALITIES:
-                patterns.append(f"{root}/{scene}/*/{m}.tar")
+                patterns.append(f"{root}/{scene}/{phase_seg}/{m}.tar")
             else:
                 v = _resolve_label_version(m, current, label_versions)
-                patterns.append(f"{root}/{scene}/*/labels/{m}/{v}.tar")
+                patterns.append(f"{root}/{scene}/{phase_seg}/labels/{m}/{v}.tar")
     return patterns
 
 

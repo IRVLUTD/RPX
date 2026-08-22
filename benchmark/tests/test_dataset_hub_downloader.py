@@ -191,19 +191,32 @@ def test_ego_recipe_requires_a_split(staging, monkeypatch):
         download_for_task(task="ego_segmentation", split=None, repo_id="acme/RPX")
 
 
-def test_ego_segmentation_pulls_from_ego_root_not_objects(staging, monkeypatch):
-    """Regression test: _scene_root_for used to fall through to 'objects/'
-    for any non-multi-object scene_type (a leftover mos/sos-only ternary),
-    which would have silently produced allow_patterns pointing at
-    objects/<scene>/... — a path that doesn't exist for ego data, which is
-    packed under ego/<scene>/0/... via packer.SCENE_ROOT_BY_TYPE."""
+def test_ego_segmentation_pulls_from_scenes_root_not_objects(staging, monkeypatch):
+    """ego nests under the SAME scenes/<scene>/ dir as its mos sibling, as
+    a literal "ego" phase-segment (scenes/<scene>/ego/...), not its own
+    top-level root or objects/ (a leftover mos/sos-only ternary would
+    have fallen through to 'objects/', a path that doesn't exist for
+    ego)."""
     _patch_hf(monkeypatch, staging)
     res = download_for_task(task="ego_segmentation", split="easy", repo_id="acme/RPX")
     assert res.scene_type is SceneType.EGO
     assert res.matched_scenes  # at least one ego scene matched
-    assert all(p.startswith("ego/") for p in res.allow_patterns)
+    assert all(p.startswith("scenes/") and "/ego/" in p for p in res.allow_patterns)
     assert not any(p.startswith("objects/") for p in res.allow_patterns)
-    assert not any(p.startswith("scenes/") for p in res.allow_patterns)
+    assert not any(p.startswith("ego/") for p in res.allow_patterns)  # no top-level ego/ root
+
+
+def test_ego_and_mos_patterns_dont_cross_contaminate(staging, monkeypatch):
+    """Regression test: both mos and ego now live under scenes/<scene>/,
+    disambiguated only by the phase segment ("[0-9]*" vs literal "ego").
+    A bare "*" glob would match both, so an ego pull must never also sweep
+    up a mos numeric-phase tar, and vice versa."""
+    _patch_hf(monkeypatch, staging)
+    ego_res = download_for_task(task="ego_segmentation", split="easy", repo_id="acme/RPX")
+    assert all("/ego/" in p for p in ego_res.allow_patterns)
+
+    mos_res = download_for_task(task="segmentation", split="easy", repo_id="acme/RPX")
+    assert all("/ego/" not in p for p in mos_res.allow_patterns)
 
 
 def test_ego_split_filter_actually_filters(staging, monkeypatch):

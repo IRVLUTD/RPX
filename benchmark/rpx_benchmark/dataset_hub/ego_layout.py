@@ -54,6 +54,15 @@ from ..exceptions import ConfigError
 #: Loose files directly under sam2/ that are pipeline-internal, not shipped.
 EXCLUDED_META_FILES = frozenset({"ref_frame.txt", "mask_to_object_multi.json"})
 
+#: Directories directly under sam2/ that are pipeline-internal refinement
+#: provenance (iteration-by-iteration snapshots from manual mask review),
+#: not final shipped data -- same category as EXCLUDED_META_FILES. Only
+#: present on scenes that went through >=1 refinement pass; absent on
+#: clean single-pass scenes. Not recognised by any packer.py modality
+#: mapping either way, so excluding it is a pure size/time win with no
+#: behavior change for what actually gets packed.
+EXCLUDED_META_DIRS = frozenset({"mask_refinement"})
+
 #: Top-level dirs under <scene>/ego/ that are never part of the arranged tree
 #: (only rgb/ and sam2/ are recognised modalities).
 _ARRANGED_TOP_LEVEL = ("rgb", "sam2")
@@ -130,7 +139,30 @@ def _link_or_copy(src: Path, dst: Path, mode: str) -> None:
     if dst.exists() or dst.is_symlink():
         return
     if mode == "symlink":
-        dst.symlink_to(src.resolve())
+        if src.is_dir():
+            # Mirror with a REAL directory containing per-file symlinks,
+            # not one directory-level symlink. A directory symlink is
+            # invisible to any standard recursive tree walk that doesn't
+            # explicitly opt in to following symlinks -- notably
+            # ``Path.rglob`` (Python's default: does not descend into
+            # symlinked directories), which lossless_convert.py's
+            # _plan_tree relies on. A single dir-symlink here would make
+            # every rgb/mask frame invisible to lossless-convert while
+            # still resolving fine for direct-path reads (scan/pack) --
+            # confirmed via a real lossless-convert dry-run before this
+            # fix: 0 of ~1500 real ego frames were discovered, only the
+            # two individually-symlinked meta files per scene were. Still
+            # 100% symlinks (nothing written into the source), just at
+            # file granularity so any tree walk works uniformly.
+            dst.mkdir(parents=True, exist_ok=True)
+            for entry in sorted(src.rglob("*")):
+                if not entry.is_file():
+                    continue
+                target = dst / entry.relative_to(src)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.symlink_to(entry.resolve())
+        else:
+            dst.symlink_to(src.resolve())
     elif mode == "copy":
         if src.is_dir():
             shutil.copytree(src, dst)
@@ -166,16 +198,25 @@ def arrange_ego_scene(
 
     _link_or_copy(rgb_src, dst_phase / "rgb", mode)
 
+    # Allow-list, not exclude-list: ship exactly rgb/ + sam2/masks/ +
+    # mask_to_object.json (+ verified_masks.txt, tiny provenance) --
+    # nothing else. masks_aux (bbox_overlay/dino_output/palette/
+    # contour_gt_masks/rgb_and_mask/masks_contour_with_hidden) is QC/
+    # visualization data, not read by any ego task recipe, and dropped
+    # entirely per the "just rgb + masks (+ the id->name mapping)"
+    # decision -- ego's per-frame composite images are large (high-res
+    # GoPro source), so this is also the single biggest size lever.
     dst_sam2 = dst_phase / "sam2"
-    for child in sorted(sam2_src.iterdir()):
-        if child.is_dir():
-            if child.name == "masks_verified" and not include_masks_verified:
-                continue
-            _link_or_copy(child, dst_sam2 / child.name, mode)
-        else:
-            if child.name in EXCLUDED_META_FILES:
-                continue
-            _link_or_copy(child, dst_sam2 / child.name, mode)
+    masks_src = sam2_src / "masks"
+    if not masks_src.is_dir():
+        raise ConfigError(f"no sam2/masks/ under {ego_scene_src}")
+    _link_or_copy(masks_src, dst_sam2 / "masks", mode)
+    if include_masks_verified and (sam2_src / "masks_verified").is_dir():
+        _link_or_copy(sam2_src / "masks_verified", dst_sam2 / "masks_verified", mode)
+    for fname in ("mask_to_object.json", "verified_masks.txt"):
+        src_file = sam2_src / fname
+        if src_file.is_file():
+            _link_or_copy(src_file, dst_sam2 / fname, mode)
 
     return dst_phase
 

@@ -261,7 +261,7 @@ def _rehydrate_pack_result(scan, staging):
     import hashlib
     import tarfile
 
-    from .packer import PackedShard, PackResult, SCENE_ROOT_BY_TYPE  # local import to avoid cycles
+    from .packer import PackedShard, PackResult, SCENE_ROOT_BY_TYPE, phase_segment  # local import to avoid cycles
 
     def _file_sha256(path: Path) -> str:
         h = hashlib.sha256()
@@ -274,7 +274,8 @@ def _rehydrate_pack_result(scan, staging):
     for scene in scan.scenes:
         for phase in scene.phases:
             scene_root = SCENE_ROOT_BY_TYPE[scene.scene_type]
-            base = Path(staging) / scene_root / scene.scene_id / str(phase.phase_index)
+            seg = phase_segment(scene.scene_type, phase.phase_index)
+            base = Path(staging) / scene_root / scene.scene_id / seg
             for tar_path in sorted(base.rglob("*.tar")) if base.is_dir() else []:
                 try:
                     with tarfile.open(tar_path, "r") as tf:

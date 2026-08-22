@@ -163,7 +163,29 @@ def test_arrange_ego_scene_symlink_mode_does_not_copy_bytes(tmp_path: Path):
     ego_scene_src = _make_raw_ego_scene(tmp_path / "raw_ego", "scene001")
     dst_root = tmp_path / "DATA" / "ego"
     dst_phase = arrange_ego_scene(ego_scene_src, dst_root, "scene1.mock", mode="symlink")
-    assert (dst_phase / "rgb").is_symlink()
+    # Per-file symlinks (see next test for why NOT a directory-level
+    # symlink) -- the directory itself is real, its contents are links.
+    assert not (dst_phase / "rgb").is_symlink()
+    assert (dst_phase / "rgb" / "00000.png").is_symlink()
+    assert (dst_phase / "sam2" / "masks" / "00000.png").is_symlink()
+
+
+def test_arrange_ego_scene_symlinked_files_are_visible_to_rglob(tmp_path: Path):
+    """Regression test: arrange_ego_scene used to symlink whole
+    directories (dst_phase/"rgb" -> src rgb/ as ONE symlink). Path.rglob
+    does not descend into symlinked directories, so any tool that
+    discovers files via rglob (lossless_convert.py's _plan_tree, in
+    particular -- confirmed via a real dry-run before this fix: 0 of
+    ~1500 real ego frames were found, only 2 individually-symlinked meta
+    files per scene were) would silently see zero rgb/mask frames. Now
+    every real file must show up under a plain rglob("*") walk."""
+    ego_scene_src = _make_raw_ego_scene(tmp_path / "raw_ego", "scene001")
+    dst_root = tmp_path / "DATA" / "ego"
+    dst_phase = arrange_ego_scene(ego_scene_src, dst_root, "scene1.mock", mode="symlink")
+    found_via_rglob = {p.name for p in dst_phase.rglob("*") if p.is_file()}
+    assert "00000.png" in found_via_rglob  # from rgb/ AND sam2/masks/
+    assert "mask_to_object.json" in found_via_rglob
+    assert "verified_masks.txt" in found_via_rglob
 
 
 def test_prepare_ego_layout_end_to_end(tmp_path: Path):
@@ -205,17 +227,25 @@ def test_ego_scene_has_one_phase(ego_mock: Path):
     assert ego_scene.phases[0].phase_index == 0
 
 
-def test_packer_writes_ego_scenes_under_ego_root(tmp_path: Path, ego_mock: Path):
+def test_packer_nests_ego_under_its_mos_siblings_scene_dir(tmp_path: Path, ego_mock: Path):
+    """ego nests under the SAME scenes/<scene_id>/ dir as its mos sibling,
+    as a phase-like "ego" segment (scenes/<scene_id>/ego/...) -- not its
+    own top-level root -- per Jishnu's requested layout."""
     scan = scan_capture_root(ego_mock)
     plan = PackPlan(src_root=ego_mock, staging_root=tmp_path / "stage")
     result = pack_capture_tree(plan, scan)
 
-    ego_shards = [s for s in result.shards if s.repo_path.startswith("ego/")]
-    assert ego_shards, "expected at least one ego/ shard"
+    ego_shards = [s for s in result.shards if s.scene_type is SceneType.EGO]
+    assert ego_shards, "expected at least one ego shard"
     for s in ego_shards:
-        assert s.repo_path.startswith(f"ego/{s.scene_id}/0/")
-    # mos/sos shard roots are unaffected (still "scenes/" and "objects/").
-    assert any(s.repo_path.startswith("scenes/") for s in result.shards)
+        assert s.repo_path.startswith(f"scenes/{s.scene_id}/ego/")
+    # No top-level "ego/" root at all anymore.
+    assert not any(s.repo_path.startswith("ego/") for s in result.shards)
+    # mos's own numeric-phase shards under the same scene dir are unaffected.
+    mos_shards = [s for s in result.shards if s.scene_type is SceneType.MULTI_OBJECT]
+    assert mos_shards
+    for s in mos_shards:
+        assert s.repo_path.startswith(f"scenes/{s.scene_id}/") and "/ego/" not in s.repo_path
     assert any(s.repo_path.startswith("objects/") for s in result.shards)
 
 

@@ -64,7 +64,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
-from .packer import SCENE_ROOT_BY_TYPE
+from .packer import SCENE_ROOT_BY_TYPE, phase_segment
 from .recipes import SceneType
 
 log = logging.getLogger(__name__)
@@ -154,8 +154,10 @@ def _modality_path(
             hint=f"Known modalities: {', '.join(sorted(layout))}",
         )
     _, subdir, ext = layout[modality]
-    repo_root = SCENE_ROOT_BY_TYPE[SceneType(scene_type)]
-    return f"extracted/{repo_root}/{scene}/{phase}/{subdir}/{frame_stem}{ext}"
+    st = SceneType(scene_type)
+    repo_root = SCENE_ROOT_BY_TYPE[st]
+    seg = phase_segment(st, phase)
+    return f"extracted/{repo_root}/{scene}/{seg}/{subdir}/{frame_stem}{ext}"
 
 
 def _has_col(modality: str) -> str:
@@ -440,8 +442,10 @@ class _ObjectTrackingSpec(_TaskSpec):
             e["mask"] = _modality_path(scene, phase, "masks", stem, scene_type=st)
             # Per-(scene, phase) aggregated tracklets JSON. Convention:
             # ``extracted/<repo_root>/<scene>/<phase>/tracklets/v1.json``.
-            repo_root = SCENE_ROOT_BY_TYPE[SceneType(st)]
-            e["tracks"] = f"extracted/{repo_root}/{scene}/{phase}/tracklets/v1.json"
+            scene_type_enum = SceneType(st)
+            repo_root = SCENE_ROOT_BY_TYPE[scene_type_enum]
+            seg = phase_segment(scene_type_enum, phase)
+            e["tracks"] = f"extracted/{repo_root}/{scene}/{seg}/tracklets/v1.json"
             rows.append(e)
         return rows
 
