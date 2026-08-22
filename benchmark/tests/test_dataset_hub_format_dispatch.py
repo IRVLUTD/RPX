@@ -35,6 +35,7 @@ from rpx_benchmark.dataset_hub.mock import MockSpec, generate_mock
 from rpx_benchmark.dataset_hub.packer import PackPlan, pack_capture_tree
 from rpx_benchmark.dataset_hub.scanner import scan_capture_root
 from rpx_benchmark.dataset_hub.split_manifests import write_split_manifests
+from rpx_benchmark.exceptions import DatasetError
 
 pytest.importorskip("pyarrow", reason="pyarrow required for manifest builder")
 pytest.importorskip("pandas", reason="pandas required for split-manifest writer")
@@ -150,6 +151,59 @@ def test_detect_ego_only_tree_does_not_go_blind(tmp_path: Path):
     ext = _detect_modality_extensions(scan)
     assert ext.get("rgb") == ".png", f"ego-only tree went blind: {ext}"
     assert ext.get("masks") == ".png", f"ego-only tree went blind: {ext}"
+
+
+def test_detect_raises_on_cross_scene_type_extension_conflict(tmp_path: Path):
+    """Regression test for the most consequential bug found this session:
+    modality_extensions in current.json is a single flat {modality: ext}
+    dict shared by every scene family, with no scene_type dimension. If
+    mos rgb has already been lossless-converted to .webp (the live repo's
+    actual current state) while a freshly-added ego family is still raw
+    .png, _detect_modality_extensions used to silently pick whichever
+    scene the scan order hit first (ego sorts before mos alphabetically)
+    and record .png for "rgb" globally -- corrupting every MOS manifest
+    path with no error at all. It must now raise instead of guessing."""
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=3,
+            ego_scenes=2,
+        ),
+    )
+    # Simulate: mos already lossless-converted (.webp), ego still raw (.png)
+    # -- our actual real-world situation right now.
+    for p in (src / "mos").rglob("rgb"):
+        if p.is_dir():
+            for f in list(p.iterdir()):
+                f.rename(f.with_suffix(".webp"))
+
+    scan = scan_capture_root(src)
+    with pytest.raises(DatasetError, match="Conflicting on-disk file extensions"):
+        _detect_modality_extensions(scan)
+
+
+def test_detect_agrees_across_scene_types_when_extensions_match(tmp_path: Path):
+    """Sanity check for the fix above: when every scene family genuinely
+    agrees on the same on-disk extension (the normal, correctly-converted
+    state), detection still succeeds and returns the shared value --
+    the conflict check must not false-positive on agreement."""
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=3,
+            ego_scenes=2,
+        ),
+    )
+    scan = scan_capture_root(src)
+    ext = _detect_modality_extensions(scan)
+    assert ext.get("rgb") == ".png"
+    assert ext.get("masks") == ".png"
 
 
 def test_detect_skips_missing_modalities(tmp_path: Path):

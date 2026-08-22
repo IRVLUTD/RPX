@@ -169,15 +169,28 @@ def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
     Backward-compatible: if a modality's directory is missing or empty
     in the scanned tree, that modality is omitted from the returned
     dict, and downstream code falls back to its built-in defaults.
+
+    Detection runs per scene_type first, then merges: ``current.json``'s
+    ``modality_extensions`` is a single flat ``{modality: ext}`` dict
+    shared by every scene family (mos/sos/ego), with no scene_type
+    dimension. If two families actually disagree on a modality's on-disk
+    extension at manifest-build time (e.g. mos ``rgb`` already
+    lossless-converted to ``.webp`` while a freshly-added ego family is
+    still raw ``.png``), silently picking whichever scene the scan
+    happens to hit first would corrupt the OTHER family's manifest paths
+    without any error. Raise instead of guessing.
     """
-    found: Dict[str, str] = {}
+    per_type: Dict[SceneType, Dict[str, str]] = {}
     for scene in scan.scenes:
         if not scene.phases:
             continue
+        by_modality = per_type.setdefault(scene.scene_type, {})
+        if len(by_modality) == len(_MODALITY_SUBPATH_FOR_DETECTION):
+            continue  # this scene_type is already fully covered
         sub = SRC_SUBDIR_BY_TYPE[scene.scene_type]
         phase_root = scan.root / sub / scene.scene_id / str(scene.phases[0].phase_index)
         for modality, subpath in _MODALITY_SUBPATH_FOR_DETECTION.items():
-            if modality in found:
+            if modality in by_modality:
                 continue
             mod_dir = phase_root / subpath
             if not mod_dir.is_dir():
@@ -188,10 +201,34 @@ def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
             # no files directly inside).
             for entry in sorted(mod_dir.rglob("*")):
                 if entry.is_file():
-                    found[modality] = entry.suffix
+                    by_modality[modality] = entry.suffix
                     break
-        if len(found) == len(_MODALITY_SUBPATH_FOR_DETECTION):
-            break
+
+    found: Dict[str, str] = {}
+    conflicts: List[str] = []
+    for scene_type, by_modality in per_type.items():
+        for modality, ext in by_modality.items():
+            if modality in found and found[modality] != ext:
+                conflicts.append(
+                    f"{modality!r} is {found[modality]!r} elsewhere but "
+                    f"{ext!r} for scene_type={scene_type.value!r}"
+                )
+                continue
+            found[modality] = ext
+
+    if conflicts:
+        raise DatasetError(
+            "Conflicting on-disk file extensions for the same modality "
+            f"across scene types: {'; '.join(conflicts)}.",
+            hint=(
+                "modality_extensions in current.json has no scene_type "
+                "dimension -- every family must agree on the same on-disk "
+                "extension per modality before the manifest is rebuilt. "
+                "Run lossless_convert over whichever family is out of sync "
+                "(commonly: a newly-added family that hasn't been "
+                "converted yet) and retry."
+            ),
+        )
     return found
 
 
