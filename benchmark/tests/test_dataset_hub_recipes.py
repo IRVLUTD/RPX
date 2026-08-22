@@ -73,8 +73,12 @@ def test_all_recipe_names_filtering():
     assert "object_templates" in single_names
     assert "segmentation" not in single_names
 
+    ego_names = list(all_recipe_names(SceneType.EGO))
+    assert "ego_segmentation" in ego_names
+    assert "segmentation" not in ego_names
+
     everything = list(all_recipe_names())
-    assert set(everything) == set(multi_names) | set(single_names)
+    assert set(everything) == set(multi_names) | set(single_names) | set(ego_names)
 
 
 def test_vqa_recipe_reserved_slot():

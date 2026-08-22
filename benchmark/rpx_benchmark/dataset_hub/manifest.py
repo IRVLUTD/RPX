@@ -56,7 +56,7 @@ from .recipes import (
     RGB,
     SceneType,
 )  # noqa: F401  CAM_POSE used in default label_versions
-from .scanner import ScanResult
+from .scanner import SRC_SUBDIR_BY_TYPE, ScanResult
 
 log = get_logger(__name__)
 
@@ -99,27 +99,44 @@ def _arrow():
 
 def _index_shards_by_phase(
     pack: PackResult,
-) -> Dict[tuple[str, int], Dict[str, PackedShard]]:
-    """Group shards by (scene_id, phase) for fast lookup while walking frames."""
-    out: Dict[tuple[str, int], Dict[str, PackedShard]] = {}
+) -> Dict[tuple[SceneType, str, int], Dict[str, PackedShard]]:
+    """Group shards by (scene_type, scene_id, phase) for fast lookup while
+    walking frames.
+
+    scene_type is part of the key deliberately — ego scenes intentionally
+    share their exact scene_id string with their mos/ sibling (that's how
+    split/difficulty assignment joins them), so (scene_id, phase) alone is
+    NOT unique once ego scenes exist. Keying by scene_id alone here used to
+    silently let one scene type's shards clobber the other's for any
+    (scene_id, phase) pair they both used — same bug class as
+    _frame_filenames_for below.
+    """
+    out: Dict[tuple[SceneType, str, int], Dict[str, PackedShard]] = {}
     for s in pack.shards:
-        key = (s.scene_id, s.phase)
+        key = (s.scene_type, s.scene_id, s.phase)
         out.setdefault(key, {})[s.modality] = s
     return out
 
 
 def _frame_filenames_for(
     scan: ScanResult,
+    scene_type: SceneType,
     scene_id: str,
     phase_index: int,
 ) -> List[str]:
     """Pick one modality (rgb, then depth, then anything) and return its
     sorted filenames as the canonical frame list for that phase.
+
+    scene_type disambiguates scenes that share a scene_id string across
+    families (ego scenes deliberately reuse their mos/ sibling's scene_id —
+    see _index_shards_by_phase) — without it, `next(... if s.scene_id ==
+    scene_id)` could resolve to the WRONG scene's phase entirely.
     """
-    scene = next(s for s in scan.scenes if s.scene_id == scene_id)
+    scene = next(
+        s for s in scan.scenes if s.scene_id == scene_id and s.scene_type is scene_type
+    )
     phase = next(p for p in scene.phases if p.phase_index == phase_index)
-    sub = "mos" if scene.scene_type is SceneType.MULTI_OBJECT else "sos"
-    src = scan.root / sub / scene_id / str(phase_index)
+    src = scan.root / SRC_SUBDIR_BY_TYPE[scene_type] / scene_id / str(phase_index)
     for prefer in ("rgb", "depth", "fisheye"):
         if prefer in phase.modalities:
             return sorted(p.name for p in (src / prefer).iterdir() if p.is_file())
@@ -234,14 +251,23 @@ def build_frame_manifest(
 
     for scene in scan.scenes:
         for phase in scene.phases:
-            shards_here = shard_index.get((scene.scene_id, phase.phase_index), {})
+            shards_here = shard_index.get(
+                (scene.scene_type, scene.scene_id, phase.phase_index), {}
+            )
             filenames = _frame_filenames_for(
                 scan,
+                scene.scene_type,
                 scene.scene_id,
                 phase.phase_index,
             )
+            # Ego scenes reuse their MOS sibling's split/difficulty tier —
+            # same scene_id (e.g. "scene20.su.checkerboard"), no separate
+            # ego difficulty scoring. SOS (single-object, no scene-level
+            # difficulty concept) still gets None.
             split_label = (
-                splits.get(scene.scene_id) if scene.scene_type is SceneType.MULTI_OBJECT else None
+                splits.get(scene.scene_id)
+                if scene.scene_type in (SceneType.MULTI_OBJECT, SceneType.EGO)
+                else None
             )
             for idx, fname in enumerate(filenames):
                 cols["scene_id"].append(scene.scene_id)

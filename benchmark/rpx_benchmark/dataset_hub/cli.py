@@ -24,6 +24,7 @@ from typing import List, Optional
 from .croissant import CroissantPatch, stage_croissant
 from .dataset_card import CardSpec, write_dataset_card
 from .downloader import download_for_task
+from .ego_layout import prepare_ego_layout
 from .lossless_convert import ConvertSpec, convert_capture_tree
 from .manifest import build_frame_manifest
 from .mock import MockSpec, generate_mock, measure_tree
@@ -124,6 +125,35 @@ def _cmd_scan(args: argparse.Namespace) -> int:
             print(f"    - {p.name}")
         if len(res.skipped) > 5:
             print(f"    ... and {len(res.skipped) - 5} more")
+    print()
+    return 0
+
+
+def _cmd_prepare_ego(args: argparse.Namespace) -> int:
+    scenes = args.scenes.split(",") if args.scenes else None
+    report = prepare_ego_layout(
+        ego_captures_root=Path(args.ego_root),
+        mos_root=Path(args.mos_root),
+        dst_root=Path(args.dst),
+        scenes=scenes,
+        include_masks_verified=args.include_masks_verified,
+        mode="copy" if args.copy else "symlink",
+    )
+    ok = report.ok
+    skipped = report.skipped
+    print(f"\n  arranged {len(ok)} ego scene(s) -> {Path(args.dst) / 'ego'}")
+    for r in ok:
+        print(f"    ✓ {r.ego_scene_dir:12s} -> ego/{r.scene_id}/0")
+    if skipped:
+        print(f"\n  ⚠ skipped {len(skipped)}:")
+        for r in skipped:
+            print(f"    - {r.ego_scene_dir:12s} [{r.status}] {r.message}")
+    print(
+        "\n  NOTE: scene_id join to splits/scene_splits.json is an exact string "
+        "match — verify your mos_root's directory names actually match the "
+        "splits file's naming (padding/casing can silently drift; run `scan` "
+        "and cross-check before trusting difficulty tiers downstream)."
+    )
     print()
     return 0
 
@@ -231,7 +261,7 @@ def _rehydrate_pack_result(scan, staging):
     import hashlib
     import tarfile
 
-    from .packer import PackedShard, PackResult  # local import to avoid cycles
+    from .packer import PackedShard, PackResult, SCENE_ROOT_BY_TYPE  # local import to avoid cycles
 
     def _file_sha256(path: Path) -> str:
         h = hashlib.sha256()
@@ -243,7 +273,7 @@ def _rehydrate_pack_result(scan, staging):
     shards = []
     for scene in scan.scenes:
         for phase in scene.phases:
-            scene_root = "scenes" if scene.scene_type.value == "multi_object" else "objects"
+            scene_root = SCENE_ROOT_BY_TYPE[scene.scene_type]
             base = Path(staging) / scene_root / scene.scene_id / str(phase.phase_index)
             for tar_path in sorted(base.rglob("*.tar")) if base.is_dir() else []:
                 try:
@@ -264,6 +294,7 @@ def _rehydrate_pack_result(scan, staging):
                     PackedShard(
                         repo_path=rel,
                         scene_id=scene.scene_id,
+                        scene_type=scene.scene_type,
                         phase=phase.phase_index,
                         modality=modality,
                         is_label=is_label,
@@ -529,6 +560,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Emit machine-readable JSON instead of a table."
     )
     p_scan.set_defaults(func=_cmd_scan)
+
+    p_pe = sub.add_parser(
+        "prepare-ego",
+        help="Arrange raw ego (GoPro) captures into <DATA>/ego/<scene_id>/0/ for scan/pack.",
+    )
+    p_pe.add_argument("--ego-root", dest="ego_root", required=True,
+                      help="Root holding sceneNNN/ego/{rgb,sam2} captures.")
+    p_pe.add_argument("--mos-root", dest="mos_root", required=True,
+                      help="The mos/ dir to resolve each ego scene's sibling scene_id against.")
+    p_pe.add_argument("--dst", required=True,
+                      help="Capture-tree root to arrange into (writes <dst>/ego/...).")
+    p_pe.add_argument("--scenes", default=None,
+                      help="Comma-separated ego scene dir names to restrict to (default: all).")
+    p_pe.add_argument("--include-masks-verified", action="store_true",
+                      help="Include sam2/masks_verified/ (excluded by default — no MOS precedent).")
+    p_pe.add_argument("--copy", action="store_true",
+                      help="Copy files instead of symlinking (default: symlink, no duplication).")
+    p_pe.set_defaults(func=_cmd_prepare_ego)
 
     p_pack = sub.add_parser("pack", help="Pack a capture tree into HF tar shards.")
     p_pack.add_argument("--src", required=True, help="Capture-tree root.")

@@ -33,6 +33,7 @@ class SceneType(str, Enum):
 
     MULTI_OBJECT = "multi_object"
     SINGLE_OBJECT = "single_object"
+    EGO = "ego"
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,32 @@ MULTI_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
     ),
 }
 
+# Ego (egocentric/GoPro) scenes — one continuous capture per scene, no
+# phase subdivision (mirrors the single-object shape: one collection "0").
+# Same scene_id as the sibling MOS scene (e.g. "scene20.su.checkerboard"),
+# so downloaders can pair an ego clip with its static-camera MOS phases.
+# Only rgb + masks exist for ego today — no depth/fisheye/cam_pose.
+EGO_TASK_RECIPES: Dict[str, TaskRecipe] = {
+    "ego_segmentation": TaskRecipe(
+        name="ego_segmentation",
+        scene_type=SceneType.EGO,
+        inputs=frozenset({RGB}),
+        labels=frozenset({MASKS}),
+        notes="Frame-level instance segmentation from the egocentric (head/hand-worn) viewpoint.",
+    ),
+    "ego_object_tracking": TaskRecipe(
+        name="ego_object_tracking",
+        scene_type=SceneType.EGO,
+        inputs=frozenset({RGB}),
+        labels=frozenset({MASKS}),
+        notes=(
+            "Same modalities as ego_segmentation — separate recipe because the "
+            "task (per-frame masks vs. track-consistent masks across the clip) "
+            "differs, matching the mos segmentation/object_tracking split."
+        ),
+    ),
+}
+
 # Single-object scenes (1 collection, used for in-context / template tasks).
 SINGLE_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
     "object_templates": TaskRecipe(
@@ -194,10 +221,14 @@ def resolve_recipe(
         return MULTI_OBJECT_TASK_RECIPES[task]
     if scene_type is SceneType.SINGLE_OBJECT:
         return SINGLE_OBJECT_TASK_RECIPES[task]
+    if scene_type is SceneType.EGO:
+        return EGO_TASK_RECIPES[task]
     if task in MULTI_OBJECT_TASK_RECIPES:
         return MULTI_OBJECT_TASK_RECIPES[task]
     if task in SINGLE_OBJECT_TASK_RECIPES:
         return SINGLE_OBJECT_TASK_RECIPES[task]
+    if task in EGO_TASK_RECIPES:
+        return EGO_TASK_RECIPES[task]
     raise ConfigError(
         f"Unknown task {task!r}.",
         hint=(
@@ -205,8 +236,10 @@ def resolve_recipe(
             f"{sorted(MULTI_OBJECT_TASK_RECIPES)}. "
             "Known single-object recipes: "
             f"{sorted(SINGLE_OBJECT_TASK_RECIPES)}. "
+            "Known ego recipes: "
+            f"{sorted(EGO_TASK_RECIPES)}. "
             "Pass `scene_type=SceneType.SINGLE_OBJECT` if a name collides "
-            "between the two tables."
+            "between tables."
         ),
     )
 
@@ -217,3 +250,5 @@ def all_recipe_names(scene_type: Optional[SceneType] = None) -> Iterable[str]:
         yield from MULTI_OBJECT_TASK_RECIPES
     if scene_type is None or scene_type is SceneType.SINGLE_OBJECT:
         yield from SINGLE_OBJECT_TASK_RECIPES
+    if scene_type is None or scene_type is SceneType.EGO:
+        yield from EGO_TASK_RECIPES

@@ -96,6 +96,10 @@ class MockSpec:
     phases_per_multi: int = 3
     frames_per_phase: int = 4
     image_size: int = 32
+    ego_scenes: int = 0
+    """How many of the mos/ scenes also get an ego/ sibling (one phase,
+    "0", same scene_id as its mos/ sibling, same objects). Capped at
+    multi_object_scenes. Default 0 — existing tests are unaffected."""
     sam2_aux_subdirs: tuple[str, ...] = (
         "bbox_overlay",
         "contour_gt_masks",
@@ -123,6 +127,8 @@ def generate_mock(out_root: Path, spec: MockSpec | None = None) -> Path:
     out_root.mkdir(parents=True, exist_ok=True)
     (out_root / "mos").mkdir(exist_ok=True)
     (out_root / "sos").mkdir(exist_ok=True)
+    if spec.ego_scenes:
+        (out_root / "ego").mkdir(exist_ok=True)
 
     # SOS first so MOS scenes can reference real SOS object names.
     sos_object_names: list[str] = []
@@ -155,6 +161,18 @@ def generate_mock(out_root: Path, spec: MockSpec | None = None) -> Path:
         for phase in range(spec.phases_per_multi):
             _emit_phase(
                 scene_dir / str(phase), spec, salt=i * 100 + phase, mask_to_object=m2o or None
+            )
+
+        # Ego sibling — same scene_id as this mos/ scene (that's the join
+        # key manifest.py uses for split/difficulty), one phase ("0"),
+        # same objects. Salt offset keeps its frames distinct from the
+        # mos phases' pixels.
+        if i <= spec.ego_scenes:
+            _emit_phase(
+                out_root / "ego" / scene_dir.name / "0",
+                spec,
+                salt=i * 100 + 900,
+                mask_to_object=m2o or None,
             )
 
     return out_root

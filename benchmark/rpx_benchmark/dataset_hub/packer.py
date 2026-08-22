@@ -30,9 +30,14 @@ Output layout (under the staging directory)::
     │           ├── masks/v1.tar
     │           ├── masks_aux/v1.tar
     │           └── sam2_meta/v1.tar
-    └── objects/                               # single-object captures (one phase)
-        └── <object_id>/0/
-            (same modality structure)
+    ├── objects/                               # single-object captures (one phase)
+    │   └── <object_id>/0/
+    │       (same modality structure)
+    └── ego/                                    # egocentric captures (one phase)
+        └── <scene_id>/0/
+            (same modality structure — rgb + masks/masks_aux only today;
+            scene_id matches the sibling mos/ scene so splits/difficulty
+            join without any extra lookup table)
 
 The packer is *content-stable*: tar member order is sorted, mtime is
 zeroed, ownership is normalised — so re-running on the same source
@@ -63,7 +68,7 @@ from .recipes import (
     RGB,
     SceneType,
 )
-from .scanner import ScanResult
+from .scanner import SRC_SUBDIR_BY_TYPE, ScanResult
 
 log = get_logger(__name__)
 
@@ -113,6 +118,10 @@ class PackedShard:
 
     repo_path: str  # path relative to staging_root, forward-slashes
     scene_id: str
+    scene_type: SceneType  # disambiguates scene_id collisions across families
+                            # (ego scenes deliberately reuse their mos/
+                            # sibling's scene_id — see manifest.py's
+                            # _index_shards_by_phase / _frame_filenames_for)
     phase: int
     modality: str
     is_label: bool
@@ -142,8 +151,18 @@ class PackResult:
 # --------------------------------------------------------------------- #
 
 
+#: Repo-path root per scene type. Public (no leading underscore) — other
+#: modules (cli.py's manifest-rebuild-from-existing-tars path) need this
+#: same mapping and should import it rather than keep their own copy.
+SCENE_ROOT_BY_TYPE: Dict[SceneType, str] = {
+    SceneType.MULTI_OBJECT: "scenes",
+    SceneType.SINGLE_OBJECT: "objects",
+    SceneType.EGO: "ego",
+}
+
+
 def _scene_root_for(scene_type: SceneType) -> str:
-    return "scenes" if scene_type is SceneType.MULTI_OBJECT else "objects"
+    return SCENE_ROOT_BY_TYPE[scene_type]
 
 
 def _shard_repo_path(
@@ -161,9 +180,8 @@ def _shard_repo_path(
 
 
 def _scene_src_root(src_root: Path, scene_type: SceneType, scene_id: str) -> Path:
-    """Where a scene actually lives on disk: ``<src>/{mos,sos}/<scene_id>``."""
-    sub = "mos" if scene_type is SceneType.MULTI_OBJECT else "sos"
-    return src_root / sub / scene_id
+    """Where a scene actually lives on disk: ``<src>/{mos,sos,ego}/<scene_id>``."""
+    return src_root / SRC_SUBDIR_BY_TYPE[scene_type] / scene_id
 
 
 def _src_dir_for(
@@ -315,6 +333,7 @@ def pack_capture_tree(plan: PackPlan, scan: ScanResult) -> PackResult:
                     PackedShard(
                         repo_path=repo_path,
                         scene_id=scene.scene_id,
+                        scene_type=scene.scene_type,
                         phase=phase.phase_index,
                         modality=out_modality,
                         is_label=is_label,
