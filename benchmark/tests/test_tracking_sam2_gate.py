@@ -89,6 +89,43 @@ def test_prediction_resume_is_invalidated_by_dataset_protocol(tmp_path: Path) ->
     )
 
 
+def test_prediction_resume_is_invalidated_by_evaluator_revision(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam2",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "evaluator_git_sha": "b" * 40,
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_EVALUATOR_GIT_SHA", "b" * 40)
+    assert (
+        run_tracking._clip_predictions(
+            clip, clip.samples, tmp_path, "sam2", "a" * 40
+        )
+        is not None
+    )
+    monkeypatch.setenv("RPX_EVALUATOR_GIT_SHA", "c" * 40)
+    assert (
+        run_tracking._clip_predictions(
+            clip, clip.samples, tmp_path, "sam2", "a" * 40
+        )
+        is None
+    )
+
+
 def test_ego_protocol_has_pinned_variable_length_split() -> None:
     assert run_tracking.PINNED_EGO_DATASET_REVISION == (
         "f082723002bad5800dd85e583115b4ea05734d31"

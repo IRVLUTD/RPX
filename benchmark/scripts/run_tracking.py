@@ -263,10 +263,13 @@ def _clip_predictions(
         marker = json.loads(marker_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+    evaluator_git_sha = os.environ.get("RPX_EVALUATOR_GIT_SHA", rpx_git_sha)
     if (
         marker.get("model") != model_name
         or marker.get("frames") != len(samples)
         or marker.get("rpx_git_sha") != rpx_git_sha
+        or marker.get("evaluator_git_sha", marker.get("rpx_git_sha"))
+        != evaluator_git_sha
         or marker.get("dataset_protocol", "mos") != dataset_protocol
     ):
         return None
@@ -300,6 +303,9 @@ def _write_complete_marker(
             "model_id": tracker_class.model_id,
             "model_revision": tracker_class.model_revision,
             "rpx_git_sha": rpx_git_sha,
+            "evaluator_git_sha": os.environ.get(
+                "RPX_EVALUATOR_GIT_SHA", rpx_git_sha
+            ),
             "dataset_protocol": dataset_protocol,
             "frames": sample_count,
             "model_outputs": model_outputs,
