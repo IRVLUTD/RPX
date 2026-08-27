@@ -15,12 +15,20 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--cache-dir", required=True)
+    parser.add_argument(
+        "--dataset-protocol",
+        choices=("mos", "ego"),
+        default="mos",
+    )
     return parser.parse_args()
 
 
-def _rgb_index(cache_root: Path) -> dict[tuple[str, str, str], Path]:
+def _rgb_index(
+    cache_root: Path,
+    manifest_name: str = "object_tracking",
+) -> dict[tuple[str, str, str], Path]:
     index: dict[tuple[str, str, str], Path] = {}
-    manifests = sorted(cache_root.rglob("manifests/object_tracking/easy.json"))
+    manifests = sorted(cache_root.rglob(f"manifests/{manifest_name}/easy.json"))
     for manifest_path in manifests:
         try:
             payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -87,9 +95,16 @@ def main() -> None:
     if not predictions:
         raise SystemExit(f"No predictions found under {prediction_root}")
 
-    rgb_index = _rgb_index(Path(args.cache_dir))
+    manifest_name = (
+        "ego_object_tracking"
+        if args.dataset_protocol == "ego"
+        else "object_tracking"
+    )
+    rgb_index = _rgb_index(Path(args.cache_dir), manifest_name)
     if not rgb_index:
-        raise SystemExit("No usable RGB entries found in cached Easy tracking manifests.")
+        raise SystemExit(
+            f"No usable RGB entries found in cached Easy {manifest_name} manifests."
+        )
     vocabulary_index = _open_vocabulary_index(output_dir)
 
     rows: list[dict[str, str]] = []

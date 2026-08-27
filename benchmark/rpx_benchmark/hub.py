@@ -252,8 +252,12 @@ def _rpx_cache_dir() -> Path:
     return Path.home() / ".cache" / "rpx_benchmark"
 
 
-def _manifest_repo_path(task: TaskType | str, split: Difficulty | str) -> str:
-    task_name = task.value if isinstance(task, TaskType) else str(task)
+def _manifest_repo_path(
+    task: TaskType | str,
+    split: Difficulty | str,
+    manifest_name: str | None = None,
+) -> str:
+    task_name = manifest_name or (task.value if isinstance(task, TaskType) else str(task))
     split_name = split.value if isinstance(split, Difficulty) else str(split)
     return f"manifests/{task_name}/{split_name}.json"
 
@@ -277,6 +281,7 @@ def fetch_manifest(
     repo_id: str = DEFAULT_REPO_ID,
     cache_dir: str | Path | None = None,
     revision: str | None = None,
+    manifest_name: str | None = None,
 ) -> Dict[str, Any]:
     """Download and parse the task-level manifest for ``(task, split)``.
 
@@ -308,7 +313,7 @@ def fetch_manifest(
         If the downloaded file is not valid JSON.
     """
     hf = _hub()
-    repo_path = _manifest_repo_path(task, split)
+    repo_path = _manifest_repo_path(task, split, manifest_name)
     try:
         local = hf.hf_hub_download(
             repo_id=repo_id,
@@ -342,17 +347,25 @@ def _extract_scene_phase_pairs(manifest: Dict[str, Any]) -> Set[Tuple[str, str]]
             pairs.add((str(entry["scene"]), str(entry["phase"])))
         return pairs
     for sample in manifest.get("samples", []):
-        if sample.get("scene_id") is not None and sample.get("phase") is not None:
-            pairs.add((str(sample["scene_id"]), str(sample["phase"])))
-            continue
+        # Prefer the physical path over the logical ``phase`` field. Ego
+        # manifests intentionally use phase=0 for metric grouping while their
+        # files live under scenes/<scene>/ego/ on the Hub.
+        found_path = False
         for key in ("rgb", "depth", "mask"):
             p = sample.get(key)
             if not p:
                 continue
             parts = Path(p).parts
-            if len(parts) >= 3 and parts[0] == "scenes":
-                pairs.add((parts[1], parts[2]))
+            try:
+                scene_part = parts.index("scenes")
+            except ValueError:
+                continue
+            if len(parts) >= scene_part + 3:
+                pairs.add((parts[scene_part + 1], parts[scene_part + 2]))
+                found_path = True
                 break
+        if not found_path and sample.get("scene_id") is not None and sample.get("phase") is not None:
+            pairs.add((str(sample["scene_id"]), str(sample["phase"])))
     return pairs
 
 
@@ -396,6 +409,7 @@ def download_split(
     extra_modalities: Sequence[str] | None = None,
     max_workers: int = 8,
     max_samples: int | None = None,
+    manifest_name: str | None = None,
 ) -> Path:
     """Download only the files (task, split) needs, return resolved manifest path.
 
@@ -409,7 +423,14 @@ def download_split(
     )
     split_enum = Difficulty(split) if isinstance(split, str) else split
 
-    manifest = fetch_manifest(task_enum, split_enum, repo_id, cache_dir, revision)
+    manifest = fetch_manifest(
+        task_enum,
+        split_enum,
+        repo_id,
+        cache_dir,
+        revision,
+        manifest_name,
+    )
     if max_samples is not None:
         if max_samples < 1:
             raise ConfigError(
@@ -432,7 +453,7 @@ def download_split(
         modalities.extend(extra_modalities)
 
     allow_patterns = _build_allow_patterns(modalities, pairs)
-    allow_patterns.append(_manifest_repo_path(task_enum, split_enum))
+    allow_patterns.append(_manifest_repo_path(task_enum, split_enum, manifest_name))
     allow_patterns.append("manifest/checksums.json")
 
     log.info(
@@ -476,7 +497,9 @@ def download_split(
         task_enum.value if isinstance(task_enum, TaskType) else str(task_enum),
     )
 
-    task_name = task_enum.value if isinstance(task_enum, TaskType) else str(task_enum)
+    task_name = manifest_name or (
+        task_enum.value if isinstance(task_enum, TaskType) else str(task_enum)
+    )
     out_dir = _rpx_cache_dir() / repo_id.replace("/", "__") / "manifests" / task_name
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = (

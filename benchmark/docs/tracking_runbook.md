@@ -44,6 +44,53 @@ Expected production inventory:
 | Hard | 25,500 | 102 |
 | Total | 75,000 | 300 |
 
+## Ego tracking protocol
+
+Pass `--dataset-protocol ego` to select the separately pinned
+`ego-preview-v2` release rather than the default MOS D3 protocol. The runner
+uses `manifests/ego_object_tracking/<split>.json`, downloads physical
+`scenes/<scene>/ego/` shards, and records the protocol and immutable dataset
+revision in every result and prediction-completion marker.
+
+| Split | Frames | Ego clips |
+|---|---:|---:|
+| Easy | 7,552 | 33 |
+| Medium | 7,691 | 33 |
+| Hard | 7,878 | 34 |
+| Total | 23,121 | 100 |
+
+Each scene contributes one variable-length ego clip. Promptable trackers use
+the first ego frame's released instances with their declared mask or derived
+box prompt; that initialization frame is excluded from their metrics.
+Detector-driven trackers receive no RPX prompt and are scored from frame 0.
+
+The bounded gates accept the same argument:
+
+```bash
+/opt/rpx-envs/sam2/bin/python scripts/run_tracking_gate.py \
+  --model sam2 \
+  --dataset-protocol ego \
+  --gate acceptance \
+  --cache-dir /cache/huggingface \
+  --output-root /outputs
+```
+
+Run all three ego splits and aggregate HOTA, DetA, AssA, IDF1, MOTA, ID
+switches, latency, throughput and CUDA-memory measurements with:
+
+```bash
+/opt/rpx-envs/sam2/bin/python scripts/run_tracking_paper.py \
+  --model sam2 \
+  --dataset-protocol ego \
+  --cache-dir /cache/huggingface \
+  --output-root /outputs
+```
+
+Ego outputs are isolated under `/outputs/ego/<model>/`; existing MOS outputs
+remain under `/outputs/<model>/` and retain their original layout.
+Package an ego acceptance preview by adding `--dataset-protocol ego` to
+`package_acceptance_frames.sh`; the archive name includes `-ego-`.
+
 ## Resume contract
 
 Predictions are written atomically to:

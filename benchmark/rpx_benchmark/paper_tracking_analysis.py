@@ -29,6 +29,7 @@ TRACKING_DIRECTIONS = {
     "mota": "higher",
     "idsw": "lower",
 }
+EGO_SPLIT_CELLS = {"easy": 33, "medium": 33, "hard": 34}
 _PHASE_NAMES = {0: "clutter", 1: "interaction", 2: "clean"}
 
 
@@ -222,6 +223,137 @@ def analyze_tracking_cells(
         "jedi_status": jedi["status"],
     }
     return analysis, cells
+
+
+def analyze_ego_tracking_cells(
+    paths: Sequence[str | Path],
+) -> tuple[dict[str, Any], "Any"]:
+    """Aggregate the one-clip-per-scene RPX ego tracking protocol."""
+
+    import pandas as pd
+
+    cells = pd.concat([pd.read_parquet(path) for path in paths], ignore_index=True)
+    required = {
+        "model",
+        "task",
+        "split",
+        "scene",
+        "phase",
+        *(f"metric:{metric}" for metric in PAPER_TRACKING_METRICS),
+    }
+    missing = required - set(cells.columns)
+    if missing:
+        raise DatasetError(f"Ego tracking cells are missing columns: {sorted(missing)}")
+    cells = cells[cells["task"] == "object_tracking"].copy()
+    if "dataset_protocol" in cells:
+        cells = cells[cells["dataset_protocol"] == "ego"].copy()
+    if cells.empty:
+        raise DatasetError("No ego object_tracking cells found.")
+    models = set(cells["model"].astype(str))
+    if len(models) != 1:
+        raise DatasetError(
+            f"Ego tracking analysis requires one model, got {sorted(models)}."
+        )
+    if cells.duplicated(["scene", "phase"]).any():
+        raise DatasetError("Ego tracking cells contain duplicate scene-phase rows.")
+    split_counts = cells.groupby("split").size().to_dict()
+    if split_counts != EGO_SPLIT_CELLS or cells["scene"].nunique() != 100:
+        raise DatasetError(
+            "Ego analysis requires 100 scenes split 33/33/34; got "
+            f"{split_counts} across {cells['scene'].nunique()} scenes."
+        )
+
+    metric_columns = {metric: f"metric:{metric}" for metric in PAPER_TRACKING_METRICS}
+    for metric, column in metric_columns.items():
+        values = cells[column].astype(float).to_numpy()
+        if not np.isfinite(values).all():
+            raise DatasetError(f"Non-finite ego tracking metric: {metric}.")
+    metric_means = {
+        "overall": {
+            metric: float(cells[column].astype(float).mean())
+            for metric, column in metric_columns.items()
+        },
+        "per_difficulty": {
+            split: {
+                metric: float(rows[column].astype(float).mean())
+                for metric, column in metric_columns.items()
+            }
+            for split, rows in cells.groupby("split", sort=True)
+        },
+    }
+    hardware_columns = (
+        "latency_ms",
+        "throughput_fps",
+        "peak_gpu_memory_allocated_mb",
+        "peak_gpu_memory_reserved_mb",
+        "clip_wall_time_s",
+        "parameter_count",
+    )
+    hardware_means = {
+        column: float(cells[column].astype(float).mean())
+        for column in hardware_columns
+        if column in cells and np.isfinite(cells[column].astype(float)).all()
+    }
+    analysis = {
+        "schema_version": "rpx-ego-tracking-analysis-v1",
+        "dataset_protocol": "ego",
+        "model": next(iter(models)),
+        "metrics": list(PAPER_TRACKING_METRICS),
+        "directions": TRACKING_DIRECTIONS,
+        "n_scenes": 100,
+        "n_cells": len(cells),
+        "split_cells": split_counts,
+        "metric_means": metric_means,
+        "hardware_means": hardware_means,
+    }
+    return analysis, cells
+
+
+def write_ego_tracking_analysis(
+    analysis: Mapping[str, Any],
+    cells: Any,
+    output_dir: str | Path,
+) -> dict[str, Path]:
+    import pandas as pd
+
+    output = Path(output_dir)
+    output.mkdir(parents=True, exist_ok=True)
+    paths = {
+        "combined_cells": output / "combined_cells.parquet",
+        "json": output / "paper_analysis.json",
+        "markdown": output / "paper_analysis.md",
+        "table": output / "paper_table.csv",
+    }
+    cells.to_parquet(paths["combined_cells"], index=False)
+    paths["json"].write_text(
+        json.dumps(dict(analysis), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    rows = []
+    for split, values in (
+        [("overall", analysis["metric_means"]["overall"])]
+        + list(analysis["metric_means"]["per_difficulty"].items())
+    ):
+        rows.append({"model": analysis["model"], "split": split, **values})
+    pd.DataFrame(rows).to_csv(paths["table"], index=False)
+    lines = [
+        "# RPX ego tracking analysis",
+        "",
+        f"- Model: `{analysis['model']}`",
+        f"- Clips/scenes: {analysis['n_cells']}",
+        "- Protocol: one ego video per scene",
+        "",
+        "| Split | HOTA | DetA | AssA | IDF1 | MOTA | ID switches |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| {row['split']} | {row['hota']:.6g} | {row['deta']:.6g} | "
+            f"{row['assa']:.6g} | {row['idf1']:.6g} | "
+            f"{row['mota']:.6g} | {row['idsw']:.6g} |"
+        )
+    paths["markdown"].write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return paths
 
 
 def write_tracking_analysis(

@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 
 EXPECTED_SHAPE = (480, 640)
+EXPECTED_SHAPES = {"mos": EXPECTED_SHAPE, "ego": (1080, 1920)}
 
 
 def main() -> None:
@@ -19,6 +20,11 @@ def main() -> None:
     parser.add_argument("--model", required=True)
     parser.add_argument("--expected-clips", type=int, required=True)
     parser.add_argument("--expected-frames", type=int, required=True)
+    parser.add_argument(
+        "--expected-dataset-protocol",
+        choices=("mos", "ego"),
+        default="mos",
+    )
     parser.add_argument("--require-resume-hit", action="store_true")
     parser.add_argument("--expected-rpx-revision")
     args = parser.parse_args()
@@ -46,6 +52,13 @@ def main() -> None:
         raise SystemExit(
             f"result has {result.get('frames')} frames; expected {args.expected_frames}"
         )
+    for name, payload in (("result", result), ("metadata", metadata)):
+        if payload.get("dataset_protocol", "mos") != args.expected_dataset_protocol:
+            raise SystemExit(
+                f"{name} dataset protocol is "
+                f"{payload.get('dataset_protocol', 'mos')!r}; expected "
+                f"{args.expected_dataset_protocol!r}"
+            )
     if args.expected_rpx_revision:
         for name, payload in (("result", result), ("metadata", metadata)):
             if payload.get("rpx_git_sha") != args.expected_rpx_revision:
@@ -71,7 +84,8 @@ def main() -> None:
                     bad.append(f"{path}: keys={archive.files}")
                     continue
                 mask = archive["mask"]
-            if mask.shape != EXPECTED_SHAPE:
+            expected_shape = EXPECTED_SHAPES[args.expected_dataset_protocol]
+            if mask.shape != expected_shape:
                 bad.append(f"{path}: shape={mask.shape}")
             elif not np.issubdtype(mask.dtype, np.integer):
                 bad.append(f"{path}: dtype={mask.dtype}")
@@ -86,6 +100,11 @@ def main() -> None:
             bad.append(f"{path}: marker model={marker.get('model')!r}")
         if marker.get("frames") != args.expected_frames:
             bad.append(f"{path}: marker frames={marker.get('frames')!r}")
+        if marker.get("dataset_protocol", "mos") != args.expected_dataset_protocol:
+            bad.append(
+                f"{path}: marker dataset protocol="
+                f"{marker.get('dataset_protocol', 'mos')!r}"
+            )
         if (
             args.expected_rpx_revision
             and marker.get("rpx_git_sha") != args.expected_rpx_revision

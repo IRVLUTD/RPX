@@ -21,12 +21,35 @@ from PIL import Image
 
 DEFAULT_DATASET_REPO = "IRVLUTD/RPX"
 PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
-EXPECTED_SPLITS = {
+PINNED_EGO_DATASET_REVISION = "f082723002bad5800dd85e583115b4ea05734d31"
+MOS_EXPECTED_SPLITS = {
     "easy": (24750, 99),
     "medium": (24750, 99),
     "hard": (25500, 102),
 }
+EGO_EXPECTED_SPLITS = {
+    "easy": (7552, 33),
+    "medium": (7691, 33),
+    "hard": (7878, 34),
+}
+EXPECTED_SPLITS = MOS_EXPECTED_SPLITS
+TRACKING_DATASETS = {
+    "mos": {
+        "revision": PINNED_DATASET_REVISION,
+        "manifest_name": "object_tracking",
+        "expected_splits": MOS_EXPECTED_SPLITS,
+        "fixed_clip_frames": 250,
+    },
+    "ego": {
+        "revision": PINNED_EGO_DATASET_REVISION,
+        "manifest_name": "ego_object_tracking",
+        "expected_splits": EGO_EXPECTED_SPLITS,
+        "fixed_clip_frames": None,
+    },
+}
 EXPECTED_SHAPE = (480, 640)
+EGO_EXPECTED_SHAPE = (1080, 1920)
+EXPECTED_SHAPES = {"mos": EXPECTED_SHAPE, "ego": EGO_EXPECTED_SHAPE}
 
 
 def _rpx_git_sha() -> str:
@@ -68,9 +91,18 @@ def _parse_args() -> argparse.Namespace:
         )
     )
     parser.add_argument("--model", choices=sorted(TRACKER_CLASSES), default="sam2")
-    parser.add_argument("--split", choices=sorted(EXPECTED_SPLITS), required=True)
+    parser.add_argument("--split", choices=sorted(MOS_EXPECTED_SPLITS), required=True)
+    parser.add_argument(
+        "--dataset-protocol",
+        choices=sorted(TRACKING_DATASETS),
+        default="mos",
+        help="Use the canonical multi-object scenes (mos) or ego videos (ego).",
+    )
     parser.add_argument("--repo", default=DEFAULT_DATASET_REPO)
-    parser.add_argument("--revision", default=PINNED_DATASET_REVISION)
+    parser.add_argument(
+        "--revision",
+        help="Dataset revision; defaults to the immutable revision pinned for the protocol.",
+    )
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--manifest-path")
@@ -98,22 +130,28 @@ def _atomic_mask(path: Path, mask: np.ndarray) -> None:
     temporary.replace(path)
 
 
-def _load_mask_file(path: Path) -> np.ndarray:
+def _load_mask_file(
+    path: Path,
+    expected_shape: tuple[int, int] = EXPECTED_SHAPE,
+) -> np.ndarray:
     with Image.open(path) as image:
         mask = np.asarray(image)
     if mask.ndim != 2:
         raise DatasetError(f"Tracking mask {path} must be 2-D, got {mask.shape}.")
     mask = mask.astype(np.int32, copy=False)
-    if mask.shape != EXPECTED_SHAPE:
+    if mask.shape != expected_shape:
         raise DatasetError(
-            f"Tracking mask {path} has shape {mask.shape}; expected {EXPECTED_SHAPE}."
+            f"Tracking mask {path} has shape {mask.shape}; expected {expected_shape}."
         )
     if np.any(mask < 0):
         raise DatasetError(f"Tracking mask {path} contains negative IDs.")
     return mask
 
 
-def _load_prediction(path: Path) -> np.ndarray | None:
+def _load_prediction(
+    path: Path,
+    expected_shape: tuple[int, int] = EXPECTED_SHAPE,
+) -> np.ndarray | None:
     if not path.is_file():
         return None
     try:
@@ -124,7 +162,7 @@ def _load_prediction(path: Path) -> np.ndarray | None:
     except (OSError, ValueError, KeyError):
         return None
     if (
-        mask.shape != EXPECTED_SHAPE
+        mask.shape != expected_shape
         or not np.issubdtype(mask.dtype, np.integer)
         or np.any(mask < 0)
     ):
@@ -179,16 +217,22 @@ def _load_clips(manifest_path: Path, split: str) -> list[Clip]:
     return clips
 
 
-def _validate_split(clips: list[Clip], split: str) -> None:
-    expected_frames, expected_clips = EXPECTED_SPLITS[split]
+def _validate_split(clips: list[Clip], split: str, dataset_protocol: str = "mos") -> None:
+    spec = TRACKING_DATASETS[dataset_protocol]
+    expected_frames, expected_clips = spec["expected_splits"][split]
     actual_frames = sum(len(clip.samples) for clip in clips)
     if (actual_frames, len(clips)) != (expected_frames, expected_clips):
         raise DatasetError(
             f"{split} has {actual_frames} frames/{len(clips)} clips; "
             f"expected {expected_frames}/{expected_clips}."
         )
-    if any(len(clip.samples) != 250 for clip in clips):
-        raise DatasetError(f"{split} contains a clip that is not exactly 250 frames.")
+    fixed_clip_frames = spec["fixed_clip_frames"]
+    if fixed_clip_frames is not None and any(
+        len(clip.samples) != fixed_clip_frames for clip in clips
+    ):
+        raise DatasetError(
+            f"{split} contains a clip that is not exactly {fixed_clip_frames} frames."
+        )
 
 
 def _stage_video(clip: Clip, samples: tuple[dict[str, Any], ...], scratch: Path) -> Path:
@@ -210,6 +254,7 @@ def _clip_predictions(
     output_dir: Path,
     model_name: str,
     rpx_git_sha: str,
+    dataset_protocol: str = "mos",
 ) -> list[np.ndarray] | None:
     marker_path = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     if not marker_path.is_file():
@@ -222,11 +267,15 @@ def _clip_predictions(
         marker.get("model") != model_name
         or marker.get("frames") != len(samples)
         or marker.get("rpx_git_sha") != rpx_git_sha
+        or marker.get("dataset_protocol", "mos") != dataset_protocol
     ):
         return None
     predictions: list[np.ndarray] = []
+    expected_shape = EXPECTED_SHAPES[dataset_protocol]
     for sample in samples:
-        prediction = _load_prediction(_prediction_path(output_dir, clip, sample))
+        prediction = _load_prediction(
+            _prediction_path(output_dir, clip, sample), expected_shape
+        )
         if prediction is None:
             return None
         predictions.append(prediction)
@@ -241,6 +290,7 @@ def _write_complete_marker(
     tracker_class: type,
     rpx_git_sha: str,
     model_outputs: str | None = None,
+    dataset_protocol: str = "mos",
 ) -> None:
     marker = output_dir / "predictions" / clip.scene / str(clip.phase) / "_complete.json"
     _atomic_json(
@@ -250,6 +300,7 @@ def _write_complete_marker(
             "model_id": tracker_class.model_id,
             "model_revision": tracker_class.model_revision,
             "rpx_git_sha": rpx_git_sha,
+            "dataset_protocol": dataset_protocol,
             "frames": sample_count,
             "model_outputs": model_outputs,
         },
@@ -299,9 +350,14 @@ def _finite_or_nan(value: Any) -> float:
 
 def main() -> None:
     args = _parse_args()
-    if args.revision != PINNED_DATASET_REVISION:
+    dataset_spec = TRACKING_DATASETS[args.dataset_protocol]
+    expected_revision = str(dataset_spec["revision"])
+    if args.revision is None:
+        args.revision = expected_revision
+    if args.revision != expected_revision:
         raise ConfigError(
-            f"RPX D3 is pinned to dataset revision {PINNED_DATASET_REVISION}; "
+            f"RPX {args.dataset_protocol} tracking is pinned to dataset revision "
+            f"{expected_revision}; "
             f"got {args.revision}."
         )
     if args.max_clips is not None and args.max_clips < 1:
@@ -323,6 +379,7 @@ def main() -> None:
             previous_metadata = {}
     previous_cells = _previous_cells(output_dir)
     tracker_class = TRACKER_CLASSES[args.model]
+    expected_shape = EXPECTED_SHAPES[args.dataset_protocol]
     detector_initialized = tracker_class.prompt_type == "detector"
     score_start = 0 if detector_initialized else 1
     if args.manifest_path:
@@ -344,10 +401,11 @@ def main() -> None:
             revision=args.revision,
             max_workers=args.dataset_workers,
             max_samples=download_max_samples,
+            manifest_name=str(dataset_spec["manifest_name"]),
         )
     clips = _load_clips(manifest_path, args.split)
     if args.max_clips is None and args.max_frames is None:
-        _validate_split(clips, args.split)
+        _validate_split(clips, args.split, args.dataset_protocol)
     if args.max_clips is not None:
         clips = clips[: args.max_clips]
 
@@ -363,7 +421,14 @@ def main() -> None:
         samples = clip.samples[: args.max_frames] if args.max_frames else clip.samples
         previous_row = previous_cells.get((clip.scene, clip.phase), {})
         predictions = (
-            _clip_predictions(clip, samples, output_dir, args.model, rpx_git_sha)
+            _clip_predictions(
+                clip,
+                samples,
+                output_dir,
+                args.model,
+                rpx_git_sha,
+                args.dataset_protocol,
+            )
             if args.resume_predictions
             else None
         )
@@ -381,7 +446,9 @@ def main() -> None:
         else:
             if tracker is None:
                 tracker = tracker_class(device=args.device)
-            first_mask = _load_mask_file(_resolve(str(samples[0]["mask"]), clip.root))
+            first_mask = _load_mask_file(
+                _resolve(str(samples[0]["mask"]), clip.root), expected_shape
+            )
             video_dir = _stage_video(clip, samples, scratch_root / clip.key)
             try:
                 torch.cuda.reset_peak_memory_stats()
@@ -418,11 +485,15 @@ def main() -> None:
                     tracker_class,
                     rpx_git_sha,
                     metadata_name,
+                    args.dataset_protocol,
                 )
             print(f"[{clip_index}/{len(clips)}] inferred {clip.key}: {len(samples)} frames")
 
         gt_masks = [
-            _load_mask_file(_resolve(str(sample["mask"]), clip.root)) for sample in samples
+            _load_mask_file(
+                _resolve(str(sample["mask"]), clip.root), expected_shape
+            )
+            for sample in samples
         ]
         # Prompt-initialized trackers receive GT information on frame 0, so it
         # is excluded. Detector-driven trackers receive no RPX prompt and are
@@ -449,6 +520,7 @@ def main() -> None:
         row: dict[str, Any] = {
             "model": args.model,
             "task": "object_tracking",
+            "dataset_protocol": args.dataset_protocol,
             "split": args.split,
             "scene": clip.scene,
             "phase": clip.phase,
@@ -479,6 +551,7 @@ def main() -> None:
         "rpx_git_sha": rpx_git_sha,
         "evaluator_git_sha": os.environ.get("RPX_EVALUATOR_GIT_SHA", rpx_git_sha),
         "task": "object_tracking",
+        "dataset_protocol": args.dataset_protocol,
         "split": args.split,
         "protocol": {
             "initialization": (
@@ -504,6 +577,8 @@ def main() -> None:
         "dataset": {
             "repo": args.repo,
             "revision": args.revision,
+            "protocol": args.dataset_protocol,
+            "manifest_name": dataset_spec["manifest_name"],
             "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
         },
         "model_checkpoint": {

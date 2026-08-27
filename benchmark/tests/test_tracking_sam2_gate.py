@@ -56,6 +56,61 @@ def test_prediction_resume_is_invalidated_by_adapter_revision(tmp_path: Path) ->
     assert run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "b" * 40) is None
 
 
+def test_prediction_resume_is_invalidated_by_dataset_protocol(tmp_path: Path) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EGO_EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam2",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "dataset_protocol": "ego",
+            }
+        )
+    )
+
+    assert (
+        run_tracking._clip_predictions(
+            clip, clip.samples, tmp_path, "sam2", "a" * 40, "ego"
+        )
+        is not None
+    )
+    assert (
+        run_tracking._clip_predictions(
+            clip, clip.samples, tmp_path, "sam2", "a" * 40, "mos"
+        )
+        is None
+    )
+
+
+def test_ego_protocol_has_pinned_variable_length_split() -> None:
+    assert run_tracking.PINNED_EGO_DATASET_REVISION == (
+        "f082723002bad5800dd85e583115b4ea05734d31"
+    )
+    samples = ({"rgb": "unused", "mask": "unused"},) * 228
+    clips = [
+        run_tracking.Clip(f"scene{i:03d}", 0, "easy", Path("/"), samples)
+        for i in range(32)
+    ]
+    clips.append(
+        run_tracking.Clip(
+            "scene032",
+            0,
+            "easy",
+            Path("/"),
+            ({"rgb": "unused", "mask": "unused"},) * 256,
+        )
+    )
+
+    run_tracking._validate_split(clips, "easy", "ego")
+
+
 def test_sam2_overlay_is_pinned_and_uses_sam2_python() -> None:
     dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.sam2-rpx").read_text()
     builder = (ROOT / "docker/tracking-smoke/build_sam2_rpx.sh").read_text()
@@ -91,6 +146,32 @@ def test_renderer_uses_manifest_rgb_path(tmp_path: Path) -> None:
     assert render_tracking_predictions._rgb_index(tmp_path) == {
         ("scene011", "0", "frame-00000"): rgb_path
     }
+
+
+def test_renderer_uses_ego_manifest_rgb_path(tmp_path: Path) -> None:
+    snapshot = tmp_path / "datasets--IRVLUTD--RPX" / "snapshots" / "revision"
+    manifest_path = snapshot / "manifests" / "ego_object_tracking" / "easy.json"
+    rgb_path = snapshot / "extracted" / "scenes" / "scene004" / "ego" / "rgb" / "00000.webp"
+    rgb_path.parent.mkdir(parents=True)
+    rgb_path.write_bytes(b"rgb")
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "samples": [
+                    {
+                        "scene_id": "scene004",
+                        "phase": 0,
+                        "rgb": "extracted/scenes/scene004/ego/rgb/00000.webp",
+                    }
+                ]
+            }
+        )
+    )
+
+    assert render_tracking_predictions._rgb_index(
+        tmp_path, "ego_object_tracking"
+    ) == {("scene004", "0", "00000"): rgb_path}
 
 
 def test_renderer_indexes_open_vocabulary_track_labels(tmp_path: Path) -> None:

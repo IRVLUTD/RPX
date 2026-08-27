@@ -4,7 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from rpx_benchmark.paper_tracking_analysis import analyze_tracking_cells
+from rpx_benchmark.paper_tracking_analysis import (
+    analyze_ego_tracking_cells,
+    analyze_tracking_cells,
+)
 
 
 def _write_cells(root: Path, phase_shift: float) -> list[Path]:
@@ -48,3 +51,40 @@ def test_phase_shift_reduces_tracking_phi(tmp_path: Path) -> None:
     analysis, _ = analyze_tracking_cells(_write_cells(tmp_path, phase_shift=0.03))
     assert analysis["overall_phase_manova"]["phi_wilks"] < 1.0
     assert analysis["overall_phase_manova"]["p_value"] < 0.05
+
+
+def test_ego_tracking_aggregates_one_clip_per_scene(tmp_path: Path) -> None:
+    paths = []
+    offset = 0
+    for split, count in (("easy", 33), ("medium", 33), ("hard", 34)):
+        rows = []
+        for index in range(count):
+            value = 0.5 + (offset + index) / 1000
+            rows.append(
+                {
+                    "model": "xmem",
+                    "task": "object_tracking",
+                    "dataset_protocol": "ego",
+                    "split": split,
+                    "scene": f"scene{offset + index:03d}",
+                    "phase": 0,
+                    "metric:mota": value,
+                    "metric:idf1": value,
+                    "metric:hota": value,
+                    "metric:deta": value,
+                    "metric:assa": value,
+                    "metric:idsw": 10 - value,
+                    "latency_ms": 20.0,
+                }
+            )
+        offset += count
+        path = tmp_path / f"{split}.parquet"
+        pd.DataFrame(rows).to_parquet(path, index=False)
+        paths.append(path)
+
+    analysis, cells = analyze_ego_tracking_cells(paths)
+
+    assert len(cells) == 100
+    assert analysis["dataset_protocol"] == "ego"
+    assert analysis["split_cells"] == {"easy": 33, "medium": 33, "hard": 34}
+    assert analysis["hardware_means"]["latency_ms"] == 20.0

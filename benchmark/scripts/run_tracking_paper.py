@@ -11,23 +11,38 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from run_tracking import TRACKING_DATASETS  # noqa: E402
 from tracking_models import TRACKER_CLASSES  # noqa: E402
-
-PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", choices=sorted(TRACKER_CLASSES), default="sam2")
+    parser.add_argument(
+        "--dataset-protocol",
+        choices=sorted(TRACKING_DATASETS),
+        default="mos",
+    )
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-root", required=True)
     parser.add_argument("--repo", default="IRVLUTD/RPX")
-    parser.add_argument("--revision", default=PINNED_DATASET_REVISION)
+    parser.add_argument("--revision")
     parser.add_argument("--jedi-bounds")
     args = parser.parse_args()
+    expected_revision = str(TRACKING_DATASETS[args.dataset_protocol]["revision"])
+    if args.revision is None:
+        args.revision = expected_revision
+    if args.revision != expected_revision:
+        raise SystemExit(
+            f"{args.dataset_protocol} tracking requires dataset revision "
+            f"{expected_revision}; got {args.revision}."
+        )
 
     scripts = Path(__file__).resolve().parent
-    output_root = Path(args.output_root) / args.model
+    output_root = Path(args.output_root)
+    if args.dataset_protocol == "ego":
+        output_root /= "ego"
+    output_root /= args.model
     output_root.mkdir(parents=True, exist_ok=True)
     cells: list[str] = []
     for split in ("easy", "medium", "hard"):
@@ -39,6 +54,8 @@ def main() -> None:
             args.model,
             "--split",
             split,
+            "--dataset-protocol",
+            args.dataset_protocol,
             "--repo",
             args.repo,
             "--revision",
@@ -63,12 +80,14 @@ def main() -> None:
         *cells,
         "--output-dir",
         str(output_root),
+        "--dataset-protocol",
+        args.dataset_protocol,
     ]
     if args.jedi_bounds:
         analysis_command.extend(["--jedi-bounds", args.jedi_bounds])
     print("+", " ".join(analysis_command), flush=True)
     subprocess.run(analysis_command, check=True, env=os.environ.copy())
-    print(f"RPX D3 complete: {output_root}")
+    print(f"RPX {args.dataset_protocol} tracking complete: {output_root}")
 
 
 if __name__ == "__main__":

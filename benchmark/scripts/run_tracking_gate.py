@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 import torch
-from run_tracking import DEFAULT_DATASET_REPO, PINNED_DATASET_REVISION
+from run_tracking import DEFAULT_DATASET_REPO, TRACKING_DATASETS
 from tracking_models.cutie_tracker import CUTIE_MODEL_ID, CUTIE_MODEL_REVISION
 from tracking_models.dam4sam_tracker import (
     DAM4SAM_MODEL_ID,
@@ -104,8 +104,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--gate", choices=sorted(GATE_FRAMES), required=True)
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-root", required=True)
+    parser.add_argument(
+        "--dataset-protocol",
+        choices=sorted(TRACKING_DATASETS),
+        default="mos",
+    )
     parser.add_argument("--repo", default=DEFAULT_DATASET_REPO)
-    parser.add_argument("--revision", default=PINNED_DATASET_REVISION)
+    parser.add_argument("--revision")
     parser.add_argument("--manifest-path")
     parser.add_argument("--dataset-workers", type=int, default=8)
     return parser.parse_args()
@@ -141,9 +146,22 @@ def _validate_image_environment(model: str) -> str:
 
 def main() -> None:
     args = _parse_args()
+    expected_dataset_revision = str(
+        TRACKING_DATASETS[args.dataset_protocol]["revision"]
+    )
+    if args.revision is None:
+        args.revision = expected_dataset_revision
+    if args.revision != expected_dataset_revision:
+        raise SystemExit(
+            f"{args.dataset_protocol} gate requires dataset revision "
+            f"{expected_dataset_revision}; got {args.revision}."
+        )
     revision = _validate_image_environment(args.model)
     frames = GATE_FRAMES[args.gate]
-    output_dir = Path(args.output_root) / revision / args.model / args.gate
+    output_dir = Path(args.output_root) / revision / args.model
+    if args.dataset_protocol == "ego":
+        output_dir /= "ego"
+    output_dir /= args.gate
     script_dir = Path(__file__).resolve().parent
 
     common = [
@@ -153,6 +171,8 @@ def main() -> None:
         args.model,
         "--split",
         "easy",
+        "--dataset-protocol",
+        args.dataset_protocol,
         "--repo",
         args.repo,
         "--revision",
@@ -188,6 +208,8 @@ def main() -> None:
             "1",
             "--expected-frames",
             str(frames),
+            "--expected-dataset-protocol",
+            args.dataset_protocol,
             "--expected-rpx-revision",
             revision,
             "--require-resume-hit",
@@ -203,10 +225,15 @@ def main() -> None:
                 str(output_dir),
                 "--cache-dir",
                 args.cache_dir,
+                "--dataset-protocol",
+                args.dataset_protocol,
             ],
             check=True,
         )
-    print(f"RPX {args.model} {args.gate} gate: PASS ({frames} real Easy frames)")
+    print(
+        f"RPX {args.model} {args.dataset_protocol} {args.gate} gate: "
+        f"PASS ({frames} real Easy frames)"
+    )
 
 
 if __name__ == "__main__":
