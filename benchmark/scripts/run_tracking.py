@@ -51,6 +51,12 @@ EXPECTED_SHAPE = (480, 640)
 EGO_EXPECTED_SHAPE = (1080, 1920)
 EXPECTED_SHAPES = {"mos": EXPECTED_SHAPE, "ego": EGO_EXPECTED_SHAPE}
 
+# Prefer the benchmark source tree containing this script over an older
+# rpx_benchmark wheel installed in a cumulative model environment. This is
+# required when the evaluator is bind-mounted into an immutable model image.
+BENCHMARK_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BENCHMARK_ROOT))
+
 
 def _rpx_git_sha() -> str:
     """Return the adapter identity embedded by the image build."""
