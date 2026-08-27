@@ -602,9 +602,10 @@ def main() -> None:
     cli_ux.section("Model")
     with cli_ux.working(f"building adapter '{args.model}'"):
         adapter = _build_model(args.model, args.device)
-    from nvs_models import MODEL_DISPLAY_NAMES  # noqa: PLC0415
+    from nvs_models import MODEL_DISPLAY_NAMES, MODEL_SPECS  # noqa: PLC0415
 
     display = MODEL_DISPLAY_NAMES.get(args.model, args.model)
+    model_spec = MODEL_SPECS.get(args.model)
     cli_ux.kv("display name",     display)
     cli_ux.kv("native precision", getattr(adapter, "native_precision", "fp32"))
     cli_ux.kv("has torch module", getattr(adapter, "torch_module", None) is not None)
@@ -750,6 +751,14 @@ def main() -> None:
             else None
         ),
     }
+    if model_spec is not None:
+        result["model_protocol"] = {
+            "track": model_spec.track,
+            "execution_mode": model_spec.execution_mode,
+            "uses_sensor_depth": model_spec.uses_sensor_depth,
+            "uses_known_poses": model_spec.uses_known_poses,
+            "upstream": model_spec.upstream,
+        }
 
     # Surface loader-cache stats inside result.json before writing.
     # On a sweep through one (scene, phase) the hit-rate is typically
