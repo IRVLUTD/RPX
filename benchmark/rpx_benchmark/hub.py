@@ -640,19 +640,24 @@ def _extract_snapshot_tars_unlocked(snapshot_root: Path) -> Tuple[int, int]:
                             "publisher."
                         ),
                     )
-        # Locate the (scene, phase) prefix: the parts up to and including
-        # the first numeric component (the phase index 0/1/2). Example:
-        # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'
-        # ('scenes', 'scene1', '0', 'labels', 'masks', 'v1.tar') → same.
-        prefix_parts: List[str] = []
-        for p in rel.parts[:-1]:  # stop before the .tar filename
-            prefix_parts.append(p)
-            if p.isdigit():
-                break
-        if not prefix_parts or not prefix_parts[-1].isdigit():
-            # Not a per-scene-per-phase shard (e.g. an unrelated tar at
-            # repo root); skip rather than guess.
-            continue
+        # Locate the physical capture prefix. MOS uses numeric phase names,
+        # while the ego-preview release stores each capture under the literal
+        # directory ``scenes/<scene>/ego``. Requiring ``str.isdigit()`` here
+        # silently skipped every downloaded ego tar even though the manifest
+        # and allow-pattern generation were correct.
+        if len(rel.parts) >= 4 and rel.parts[0] == "scenes":
+            prefix_parts = list(rel.parts[:3])
+        else:
+            # Retain the legacy numeric-prefix fallback for old snapshots that
+            # did not use the canonical scenes/<scene>/<capture>/ layout.
+            prefix_parts = []
+            for p in rel.parts[:-1]:  # stop before the .tar filename
+                prefix_parts.append(p)
+                if p.isdigit():
+                    break
+            if not prefix_parts or not prefix_parts[-1].isdigit():
+                # Unrelated tar at repo root; skip rather than guess.
+                continue
         out_base = extracted_root.joinpath(*prefix_parts)
         out_base.mkdir(parents=True, exist_ok=True)
         try:

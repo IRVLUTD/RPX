@@ -6,7 +6,9 @@ HuggingFace network calls are monkey-patched so the tests run offline.
 
 from __future__ import annotations
 
+import io
 import json
+import tarfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -45,6 +47,24 @@ def test_snapshot_extraction_is_serialized(tmp_path: Path, monkeypatch) -> None:
 
     assert results == [(0, 0)] * 3
     assert maximum_active == 1
+
+
+def test_snapshot_extraction_supports_ego_capture_directory(tmp_path: Path) -> None:
+    """Ego shards use ``scenes/<scene>/ego`` rather than a numeric phase."""
+    tar_path = tmp_path / "scenes" / "scene004" / "ego" / "rgb.tar"
+    tar_path.parent.mkdir(parents=True)
+    payload = b"valid-webp-placeholder"
+    with tarfile.open(tar_path, "w") as archive:
+        member = tarfile.TarInfo("rgb/00000.webp")
+        member.size = len(payload)
+        archive.addfile(member, io.BytesIO(payload))
+
+    n_new, n_skipped = hub._extract_snapshot_tars(tmp_path)
+
+    extracted = tmp_path / "extracted/scenes/scene004/ego/rgb/00000.webp"
+    assert n_new == 1
+    assert n_skipped == 0
+    assert extracted.read_bytes() == payload
 
 
 def test_manifest_repo_path_with_enums_and_strings():
