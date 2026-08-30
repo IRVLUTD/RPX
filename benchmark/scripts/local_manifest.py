@@ -114,8 +114,14 @@ def _hf_snapshot_root(
     revision: str | None = None,
 ) -> Path:
     """Resolve a requested local HF snapshot, or the most recent one."""
-    cache = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface")) / "hub"
-    repo_dir = cache / f"datasets--{repo_id.replace('/', '--')}" / "snapshots"
+    hf_home = Path(os.environ.get("HF_HOME", Path.home() / ".cache" / "huggingface"))
+    repo_name = f"datasets--{repo_id.replace('/', '--')}"
+    candidates = (hf_home / "hub", hf_home)
+    cache = next(
+        (candidate for candidate in candidates if (candidate / repo_name / "snapshots").is_dir()),
+        hf_home / "hub",
+    )
+    repo_dir = cache / repo_name / "snapshots"
     if not repo_dir.exists():
         from rpx_benchmark.exceptions import DatasetError
 

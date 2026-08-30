@@ -77,6 +77,7 @@ def _run_via_local_manifest(
     max_samples: int | None,
     save_predictions: bool,
     pairs_manifest: Path | None = None,
+    revision: str | None = None,
 ):
     import json as _json
 
@@ -105,7 +106,7 @@ def _run_via_local_manifest(
     # produced by the dataset_hub `_RelativePoseSpec` writer. Use it directly:
     # paths inside are relative to <snap>/, so we pass `root=<snap>` to
     # `RPXDataset.from_dict`.
-    snap = _hf_snapshot_root(repo_id)
+    snap = _hf_snapshot_root(repo_id, revision=revision)
     if pairs_manifest is not None:
         manifest_path = Path(pairs_manifest)
         if not manifest_path.is_file():
@@ -238,6 +239,7 @@ def _run_on_the_fly(
     intra_pairs_per_bin: int = 50,
     cross_pairs_per_bin: int = 30,
     skip_flops: bool = False,
+    revision: str | None = None,
 ):
     """Run using PosePairGenerator — deterministic on-the-fly pairs."""
     import json as _json
@@ -260,7 +262,7 @@ def _run_on_the_fly(
     from rpx_benchmark.tasks._pipeline import resolve_device
 
     device = resolve_device(device)
-    snap = _hf_snapshot_root(repo_id)
+    snap = _hf_snapshot_root(repo_id, revision=revision)
 
     cfg = PairConfig(
         intra_pairs_per_bin=intra_pairs_per_bin,
@@ -483,6 +485,11 @@ def main() -> None:
     ap.add_argument("--model", default="opencv_baseline", help="adapter to use")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")
     ap.add_argument("--repo", default="itaykadosh/rpx-test", help="HuggingFace dataset repo")
+    ap.add_argument(
+        "--revision",
+        default=None,
+        help="exact cached Hugging Face dataset revision to use",
+    )
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--output-dir", default=None, help="default: ./rpx_results/<model>/<split>/")
     ap.add_argument(
@@ -571,6 +578,7 @@ def main() -> None:
             intra_pairs_per_bin=args.intra_pairs_per_bin,
             cross_pairs_per_bin=args.cross_pairs_per_bin,
             skip_flops=args.skip_flops,
+            revision=args.revision,
         )
     else:
         result, dr_report, paths = _run_via_local_manifest(
@@ -584,13 +592,14 @@ def main() -> None:
             max_samples=args.max_samples,
             save_predictions=args.save_predictions,
             pairs_manifest=args.pairs_manifest,
+            revision=args.revision,
         )
 
     if args.comprehensive_metrics:
         from local_manifest import _hf_snapshot_root
         from pose_comprehensive_metrics import compute_run
 
-        snap = _hf_snapshot_root(args.repo)
+        snap = _hf_snapshot_root(args.repo, revision=args.revision)
         manifest_path = (
             Path(args.pairs_manifest)
             if args.pairs_manifest is not None

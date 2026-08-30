@@ -36,6 +36,7 @@ from pose_models._pose_base import (  # noqa: E402
 
 
 EXPECTED_KEYS = {
+    "vggt-omega",
     "reloc3r",
     "dust3r",
     "mast3r",
@@ -74,7 +75,21 @@ def test_each_adapter_module_imports():
     for key in EXPECTED_KEYS:
         # Use the module name directly; e.g. "opencv_baseline" → module
         # `pose_models.opencv_baseline`.
-        __import__(f"pose_models.{key}", fromlist=["_"])
+        module_name = key.replace("-", "_")
+        __import__(f"pose_models.{module_name}", fromlist=["_"])
+
+
+def test_vggt_world_to_camera_conversion_matches_rpx_convention():
+    from pose_models.vggt_omega import _relative_from_world_to_camera
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, 2.0, 3.0]
+    extrinsics = np.stack(
+        [np.linalg.inv(c2w_a)[:3], np.linalg.inv(c2w_b)[:3]], axis=0
+    )
+    relative = _relative_from_world_to_camera(extrinsics)
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
 
 
 # ── _pose_base helpers ────────────────────────────────────────────────────

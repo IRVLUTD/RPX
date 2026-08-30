@@ -30,6 +30,13 @@ ModelBuilder = Callable[..., Any]
 # ── Direct pose regression (HF-loadable) ─────────────────────────────────────
 
 
+def _build_vggt_omega(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """VGGT-Ω: official facebook/VGGT-1B camera head."""
+    from .vggt_omega import VGGTOmega
+
+    return VGGTOmega(device=device, batch_size=batch_size, **kwargs)
+
+
 def _build_reloc3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """Reloc3r (CVPR 2025) — 25 ms inference, current SOTA regression."""
     from .reloc3r import Reloc3r
@@ -103,6 +110,7 @@ def _build_icp_open3d(*, device: str = "cpu", batch_size: int = 1, **kwargs):
 #: Public name → builder.
 MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     # ── Category A: direct pose regression ─────────────────────────────
+    "vggt-omega": _build_vggt_omega,
     "reloc3r": _build_reloc3r,
     "dust3r": _build_dust3r,
     "mast3r": _build_mast3r,
@@ -120,6 +128,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
 
 
 MODEL_DISPLAY_NAMES: Dict[str, str] = {
+    "vggt-omega": "VGGT-Ω",
     "reloc3r": "Reloc3r-512",
     "dust3r": "DUSt3R-ViTL-512",
     "mast3r": "MASt3R-ViTL-512",

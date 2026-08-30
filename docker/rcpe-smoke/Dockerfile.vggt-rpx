@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/cache/huggingface
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    test -x /opt/rpx-envs/vggt/bin/python && \
+    /opt/rpx-envs/vggt/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/vggt/bin/python -c \
+      "from vggt.models.vggt import VGGT; from pose_models import MODEL_REGISTRY; assert 'vggt-omega' in MODEL_REGISTRY; print('VGGT-Ω RCPE environment: OK')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]
