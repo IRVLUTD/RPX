@@ -45,6 +45,59 @@ def _human_bytes(n: int | float) -> str:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
+def _stratified_cap(samples: list[dict], limit: int) -> list[dict]:
+    """Deterministically cap a gate run while retaining protocol coverage."""
+    if limit >= len(samples):
+        return samples
+    priorities = [
+        ("intra_phase", 0),
+        ("intra_phase", 2),
+        ("cross_phase", 0),
+        ("temporal_chain", 0),
+    ]
+    selected = []
+    selected_ids = set()
+    for pair_type, phase in priorities:
+        match = next(
+            (
+                sample
+                for sample in samples
+                if sample.get("pair_type") == pair_type
+                and sample.get("phase") == phase
+            ),
+            None,
+        )
+        if match is not None:
+            selected.append(match)
+            selected_ids.add(match["id"])
+            if len(selected) == limit:
+                return selected
+    buckets: dict[tuple, list[dict]] = {}
+    for sample in samples:
+        if sample["id"] in selected_ids:
+            continue
+        key = (
+            sample.get("pair_type"),
+            sample.get("phase"),
+            sample.get("rotation_bin"),
+        )
+        buckets.setdefault(key, []).append(sample)
+    bucket_values = list(buckets.values())
+    offset = 0
+    while len(selected) < limit:
+        added = False
+        for bucket in bucket_values:
+            if offset < len(bucket):
+                selected.append(bucket[offset])
+                added = True
+                if len(selected) == limit:
+                    break
+        if not added:
+            break
+        offset += 1
+    return selected
+
+
 def _build_model(name: str, device: str, batch_size: int = 1):
     """Resolve a registry name → (BenchmarkableModel placeholder, raw adapter)."""
     from pose_models import MODEL_DISPLAY_NAMES, MODEL_REGISTRY, list_models
@@ -248,8 +301,14 @@ def _run_on_the_fly(
 
     from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
     from rpx_benchmark.api import TaskType
+    from rpx_benchmark.cell_log import write_cells
     from rpx_benchmark.evaluators import MetricSuite
-    from rpx_benchmark.pose_metrics import evaluate_rcpe
+    from rpx_benchmark.phi_jedi_summary import summarize_phi_jedi
+    from rpx_benchmark.pose_metrics import (
+        CANONICAL_POSE_METRICS,
+        build_rcpe_cells,
+        evaluate_rcpe,
+    )
     from rpx_benchmark.pose_pairs import PairConfig, PosePairGenerator
     from rpx_benchmark.profiler import (
         EfficiencyMetadata,
@@ -280,7 +339,7 @@ def _run_on_the_fly(
 
     manifest = gen.manifest()
     if max_samples is not None:
-        manifest["samples"] = manifest["samples"][:max_samples]
+        manifest["samples"] = _stratified_cap(manifest["samples"], max_samples)
     print(
         f"[pose-pipeline] on_the_fly: {len(manifest['samples'])} pairs, "
         f"device={device}, batch_size={batch_size}"
@@ -288,15 +347,19 @@ def _run_on_the_fly(
 
     out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
     out_dir.mkdir(parents=True, exist_ok=True)
+    pairs_manifest_path = out_dir / "pairs_manifest.json"
+    pairs_manifest_path.write_text(
+        _json.dumps(manifest, indent=2), encoding="utf-8"
+    )
     pred_dir = out_dir if save_predictions else None
 
     model = BatchedRelativePoseBenchmarkModel(
         adapter, name=name, save_dir=pred_dir,
     )
-    dataset = gen.as_dataset(batch_size=batch_size)
-    if max_samples is not None:
-        # Truncate the already-materialised dataset
-        dataset.samples = dataset.samples[:max_samples]
+    from rpx_benchmark.loader import RPXDataset
+
+    gen.ensure_pairs_extracted(manifest["samples"])
+    dataset = RPXDataset.from_dict(manifest, batch_size=batch_size)
 
     model.setup()
 
@@ -352,23 +415,65 @@ def _run_on_the_fly(
     )
 
     # ── Novel RPX-RCPE metrics ────────────────────────────────────────
-    # Enrich per-sample results with pair metadata for the novel metrics.
-    # The runner's _sample_meta only copies id/phase/difficulty/scene, so
-    # pair_type / rotation_bin / chain_* must be looked up from the manifest.
-    id_to_meta = {s["id"]: s.get("metadata", {}) for s in manifest["samples"]}
+    if save_predictions:
+        from pose_comprehensive_metrics import compute_run
 
-    per_pair_enriched = []
-    for row in bench_result.per_sample:
-        enriched = dict(row)
-        meta = id_to_meta.get(row.get("id", ""), {})
-        enriched["pair_type"] = meta.get("pair_type", "unknown")
-        enriched["rotation_bin"] = meta.get("rotation_bin")
-        enriched["chain_id"] = meta.get("chain_id")
-        enriched["chain_position"] = meta.get("chain_position")
-        enriched["metadata"] = meta
-        per_pair_enriched.append(enriched)
+        comprehensive = compute_run(
+            out_dir / "predictions.csv",
+            pairs_manifest_path,
+            snapshot_root=snap,
+        )
+        per_pair_enriched = comprehensive["per_pair"]
+        comprehensive_path = out_dir / "pose_comprehensive_metrics.json"
+        comprehensive_path.write_text(
+            _json.dumps(comprehensive, indent=2, default=str), encoding="utf-8"
+        )
+    else:
+        id_to_meta = {s["id"]: s.get("metadata", {}) for s in manifest["samples"]}
+        per_pair_enriched = []
+        for row in bench_result.per_sample:
+            enriched = dict(row)
+            meta = id_to_meta.get(row.get("id", ""), {})
+            enriched.update(meta)
+            enriched["metadata"] = meta
+            per_pair_enriched.append(enriched)
 
-    rcpe_results = evaluate_rcpe(per_pair_enriched)
+    metric_translation_available = (
+        getattr(adapter, "native_alignment", "none") == "none"
+    )
+    rcpe_results = evaluate_rcpe(
+        per_pair_enriched,
+        metric_translation_available=metric_translation_available,
+    )
+
+    # The active Φ/JEDI input is one locked K=3 angular row per
+    # (scene, phase), computed only from exact-gap intra-phase pairs. Metric
+    # M-AUC is skipped; cross-phase and chain samples remain diagnostics.
+    cells, analysis_rows = build_rcpe_cells(
+        per_pair_enriched,
+        model_name=name,
+        difficulty=split,
+        metric_translation_available=metric_translation_available,
+    )
+    cells_result = write_cells(cells, out_dir / "cells.parquet")
+    phase_coverage = sorted({row["phase"] for row in analysis_rows})
+    if phase_coverage != ["clean", "clutter"]:
+        phi_jedi = {
+            "status": "insufficient_gate_coverage",
+            "reason": "phases 0 (clutter) and 2 (clean) are required for D6 Phi/JEDI",
+            "phase_coverage": phase_coverage,
+            "metrics": list(CANONICAL_POSE_METRICS),
+        }
+    else:
+        summary = summarize_phi_jedi(
+            analysis_rows,
+            metric_keys=CANONICAL_POSE_METRICS,
+        )
+        phi_jedi = {"status": "computed", **summary.to_dict()}
+    phi_jedi_path = out_dir / "phi_jedi.json"
+    phi_jedi_path.write_text(
+        _json.dumps(phi_jedi, indent=2, default=str), encoding="utf-8"
+    )
 
     # Attach efficiency summary — structured by tier so consumers know
     # which numbers are hardware-agnostic and which are not.
@@ -425,9 +530,10 @@ def _run_on_the_fly(
     for k, v in sauc.items():
         print(f"  {k:>35}: {v:.4f}")
     print()
-    mauc = rcpe_results.get("metric_auc", {})
-    for k, v in sorted(mauc.items()):
-        print(f"  {k:>35}: {v:.4f}")
+    print("  Active D6 K=3 (M-AUC skipped):")
+    for k, v in rcpe_results.get("canonical", {}).items():
+        rendered = "unavailable (up-to-scale)" if v is None else f"{v:.4f}"
+        print(f"  {k:>35}: {rendered}")
     print()
     print("  Per rotation bin:")
     for b, m in rcpe_results.get("per_bin", {}).items():
@@ -458,9 +564,13 @@ def _run_on_the_fly(
     artefacts: dict = {
         "json": json_path, "markdown": md_path,
         "rcpe_metrics": rcpe_path, "out_dir": out_dir,
+        "pairs_manifest": pairs_manifest_path,
+        "cells": cells_result.path,
+        "phi_jedi": phi_jedi_path,
     }
     if save_predictions:
         artefacts["predictions_csv"] = out_dir / "predictions.csv"
+        artefacts["pose_comprehensive_metrics"] = comprehensive_path
 
     return bench_result, dr_report, artefacts
 

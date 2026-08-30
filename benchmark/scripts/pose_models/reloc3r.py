@@ -19,11 +19,13 @@ from ._pose_base import coerce_pose_output, validate_pair
 
 
 class Reloc3r:
-    """rgb pair → 4×4 SE(3) (rotation, translation in metres)."""
+    """rgb pair → rotation and translation direction."""
 
     DEFAULT_MODEL_ID = "siyan824/reloc3r-512"
 
-    native_alignment: str = "none"  # publishes metric translation
+    # Reloc3r explicitly learns translation direction; motion averaging can
+    # recover scale later, but a standalone two-view prediction is non-metric.
+    native_alignment: str = "unit"
     native_precision: str = "fp16"
 
     def __init__(

@@ -51,6 +51,10 @@ def main() -> None:
         output / "summary.md",
         output / "rcpe_metrics.json",
         output / "predictions.csv",
+        output / "pairs_manifest.json",
+        output / "cells.parquet",
+        output / "phi_jedi.json",
+        output / "pose_comprehensive_metrics.json",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -71,6 +75,24 @@ def main() -> None:
         raise SystemExit(
             f"expected rcpe_metrics n_pairs={count}, got {metrics.get('n_pairs')}"
         )
+    manifest = json.loads((output / "pairs_manifest.json").read_text())
+    samples = manifest["samples"]
+    for sample in samples:
+        if sample.get("pair_type") in {"intra_phase", "temporal_chain"}:
+            gap = int(sample["frame_idx_b"]) - int(sample["frame_idx"])
+            if gap != 5:
+                raise SystemExit(f"non-canonical frame gap {gap} in {sample['id']}")
+    if args.gate in {"micro", "acceptance"}:
+        pair_types = {sample.get("pair_type") for sample in samples}
+        phases = {
+            int(sample["phase"])
+            for sample in samples
+            if sample.get("pair_type") == "intra_phase"
+        }
+        if pair_types != {"intra_phase", "cross_phase", "temporal_chain"}:
+            raise SystemExit(f"gate lacks pair-type coverage: {sorted(pair_types)}")
+        if phases != {0, 2}:
+            raise SystemExit(f"gate lacks phase-0/2 intra coverage: {sorted(phases)}")
     print(f"RPX RCPE {args.model} {args.gate} gate: PASS ({count} real pairs)")
     print(f"Output: {output}")
 

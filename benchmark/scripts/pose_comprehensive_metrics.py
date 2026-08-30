@@ -290,6 +290,15 @@ def compute_run(
                 "frame_a": frame_a,
                 "frame_b": frame_b,
                 "stride": int(meta.get("pair_stride") or 0) or _infer_stride(frame_a, frame_b),
+                "pair_type": meta.get("pair_type", s.get("pair_type", "unknown")),
+                "rotation_bin": meta.get("rotation_bin", s.get("rotation_bin")),
+                "chain_id": meta.get("chain_id"),
+                "chain_position": meta.get("chain_position"),
+                "metadata": meta,
+                "pred_rotation": R_pred.tolist(),
+                "pred_translation": t_pred.tolist(),
+                "gt_rotation": R_gt.tolist(),
+                "gt_translation": t_gt.tolist(),
             }
         )
         per_pair.append(m)

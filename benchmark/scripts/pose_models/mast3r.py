@@ -23,7 +23,9 @@ class MASt3R:
 
     DEFAULT_MODEL_ID = "naver/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric"
 
-    native_alignment: str = "none"
+    # This adapter currently uses PointCloudOptimizer, not MASt3R's newer
+    # metric sparse-global-alignment path, so translation scale is ambiguous.
+    native_alignment: str = "unit"
     native_precision: str = "fp16"
 
     def __init__(

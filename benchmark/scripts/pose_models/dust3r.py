@@ -26,7 +26,8 @@ class DUSt3R:
 
     DEFAULT_MODEL_ID = "naver/DUSt3R_ViTLarge_BaseDecoder_512_dpt"
 
-    native_alignment: str = "none"  # metric pointmaps → metric pose
+    # Original DUSt3R global alignment is similarity-scale ambiguous.
+    native_alignment: str = "unit"
     native_precision: str = "fp16"
 
     def __init__(

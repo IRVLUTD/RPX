@@ -31,6 +31,10 @@ from typing import Any, Dict, List, Sequence
 
 import numpy as np
 
+CANONICAL_POSE_METRICS = ("auc_5deg", "auc_10deg", "auc_20deg")
+PHASE_LABELS = {0: "clutter", 1: "interaction", 2: "clean"}
+_trapezoid = getattr(np, "trapezoid", None) or np.trapz  # type: ignore[attr-defined]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Per-pair error functions (pure numpy, no framework deps)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -73,7 +77,7 @@ def auc_at_thresholds(
         # Trapezoidal AUC of the recall curve from 0 to th
         bins = np.linspace(0, th, num=100)
         recall = np.array([(errors <= b).sum() / max(n, 1) for b in bins])
-        auc = float(np.trapz(recall, bins) / th)
+        auc = float(_trapezoid(recall, bins) / th)
         out[f"auc@{th:.0f}"] = auc
     return out
 
@@ -98,6 +102,122 @@ def metric_auc(
             ))
             out[f"metric_auc@({th_r:.0f}deg,{th_t:.0f}cm)"] = frac
     return out
+
+
+def metric_auc_curve(
+    rot_errors_deg: np.ndarray,
+    trans_errors_m: np.ndarray,
+    max_rotation_deg: float = 20.0,
+    max_translation_cm: float = 20.0,
+) -> float:
+    """Joint rotation/metric-translation AUC used as the paper's M-AUC.
+
+    At curve position ``u`` a pair succeeds only when both
+    ``rotation <= u*max_rotation_deg`` and
+    ``translation <= u*max_translation_cm``. Integrating joint recall over
+    ``u in [0, 1]`` produces one bounded higher-is-better number.
+    """
+    rot = np.asarray(rot_errors_deg, dtype=np.float64)
+    trans_cm = np.asarray(trans_errors_m, dtype=np.float64) * 100.0
+    valid = np.isfinite(rot) & np.isfinite(trans_cm)
+    if not np.any(valid):
+        return 0.0
+    u = np.linspace(0.0, 1.0, 101)
+    recall = np.array([
+        np.mean(
+            (rot[valid] <= value * max_rotation_deg)
+            & (trans_cm[valid] <= value * max_translation_cm)
+        )
+        for value in u
+    ])
+    return float(_trapezoid(recall, u))
+
+
+def canonical_metric_vector(
+    per_pair: List[Dict[str, Any]],
+    *,
+    metric_translation_available: bool = True,
+) -> Dict[str, float | None]:
+    """Return the active D6 K=3 angular vector for one pose cell.
+
+    The three angular AUCs use ``max(rotation error, translation-direction
+    error)``. Metric-translation M-AUC is intentionally excluded from the
+    active protocol so metric- and up-to-scale adapters remain comparable.
+    """
+    valid = [
+        row for row in per_pair
+        if np.isfinite(row.get("pose_error_max_deg", np.nan))
+    ]
+    if not valid:
+        return {key: None for key in CANONICAL_POSE_METRICS}
+    pose_error = np.asarray(
+        [row["pose_error_max_deg"] for row in valid], dtype=np.float64
+    )
+    auc = auc_at_thresholds(pose_error, (5.0, 10.0, 20.0))
+    values: Dict[str, float | None] = {
+        "auc_5deg": auc["auc@5"],
+        "auc_10deg": auc["auc@10"],
+        "auc_20deg": auc["auc@20"],
+    }
+    return values
+
+
+def build_rcpe_cells(
+    per_pair: List[Dict[str, Any]],
+    *,
+    model_name: str,
+    difficulty: str,
+    metric_translation_available: bool,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Build canonical per-(scene, phase) D6 cells from intra-phase pairs.
+
+    Cross-phase pairs and temporal chains are diagnostics and intentionally
+    do not enter the phase MANOVA/JEDI cells. Their results remain in
+    ``cross_phase_delta`` and ``temporal_drift`` respectively.
+    """
+    from .cell_log import cell_from_metrics
+
+    buckets: Dict[tuple[str, int], List[Dict[str, Any]]] = {}
+    for row in per_pair:
+        if row.get("pair_type") != "intra_phase":
+            continue
+        try:
+            phase = int(row.get("phase"))
+        except (TypeError, ValueError):
+            continue
+        if phase not in PHASE_LABELS:
+            continue
+        scene = str(row.get("scene_id") or "")
+        if not scene:
+            continue
+        buckets.setdefault((scene, phase), []).append(row)
+
+    cells: List[Dict[str, Any]] = []
+    analysis_rows: List[Dict[str, Any]] = []
+    for (scene, phase), rows in sorted(buckets.items()):
+        metrics = canonical_metric_vector(
+            rows,
+            metric_translation_available=metric_translation_available,
+        )
+        phase_label = PHASE_LABELS[phase]
+        cells.append(cell_from_metrics(
+            metrics,
+            model_name=model_name,
+            task="relative_camera_pose",
+            scene_id=scene,
+            phase=phase_label,
+            n_samples=len(rows),
+            difficulty=difficulty,
+            metric_keys=CANONICAL_POSE_METRICS,
+        ))
+        analysis_rows.append({
+            "id": f"{scene}_{phase_label}",
+            "scene": scene,
+            "phase": phase_label,
+            "difficulty": difficulty,
+            **metrics,
+        })
+    return cells, analysis_rows
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -181,6 +301,46 @@ def cross_phase_delta(
     return out
 
 
+def cross_phase_auc_delta(
+    per_pair: List[Dict[str, Any]],
+    thresholds: Sequence[float] = (5.0, 10.0, 20.0),
+) -> Dict[str, float]:
+    """Matched-bin AUC loss from intra-phase to Clutter/Clean pairs.
+
+    Positive means cross-phase is worse. The overall value is the mean of
+    available bin/threshold deltas, so lower is better as in the paper table.
+    """
+    deltas: Dict[str, float] = {}
+    all_values = []
+    for bin_name in ("easy", "medium", "hard", "extreme"):
+        intra = [
+            float(row["pose_error_max_deg"])
+            for row in per_pair
+            if row.get("pair_type") == "intra_phase"
+            and row.get("rotation_bin") == bin_name
+            and np.isfinite(row.get("pose_error_max_deg", np.nan))
+        ]
+        cross = [
+            float(row["pose_error_max_deg"])
+            for row in per_pair
+            if row.get("pair_type") == "cross_phase"
+            and row.get("rotation_bin") == bin_name
+            and np.isfinite(row.get("pose_error_max_deg", np.nan))
+        ]
+        if not intra or not cross:
+            continue
+        intra_auc = auc_at_thresholds(np.asarray(intra), thresholds)
+        cross_auc = auc_at_thresholds(np.asarray(cross), thresholds)
+        for threshold in thresholds:
+            key = f"auc@{threshold:.0f}"
+            value = float(intra_auc[key] - cross_auc[key])
+            deltas[f"delta_{bin_name}_{key}"] = value
+            all_values.append(value)
+    if all_values:
+        deltas["delta_overall"] = float(np.mean(all_values))
+    return deltas
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Temporal drift
 # ─────────────────────────────────────────────────────────────────────────────
@@ -206,12 +366,34 @@ def temporal_drift(per_pair: List[Dict[str, Any]]) -> Dict[str, Any]:
     chain_results = []
     for cid, pairs in sorted(chains.items()):
         pairs.sort(key=lambda x: (x.get("metadata") or x).get("chain_position", 0))
-        cum_rot = 0.0
-        cum_trans = 0.0
+        pred_total = np.eye(4, dtype=np.float64)
+        gt_total = np.eye(4, dtype=np.float64)
+        legacy_cum_rot = 0.0
+        legacy_cum_trans = 0.0
         steps = []
         for p in pairs:
-            cum_rot += p.get("rotation_error_deg", 0.0)
-            cum_trans += p.get("translation_error_m", 0.0)
+            if all(
+                key in p
+                for key in (
+                    "pred_rotation", "pred_translation",
+                    "gt_rotation", "gt_translation",
+                )
+            ):
+                pred_step = np.eye(4, dtype=np.float64)
+                gt_step = np.eye(4, dtype=np.float64)
+                pred_step[:3, :3] = np.asarray(p["pred_rotation"])
+                pred_step[:3, 3] = np.asarray(p["pred_translation"])
+                gt_step[:3, :3] = np.asarray(p["gt_rotation"])
+                gt_step[:3, 3] = np.asarray(p["gt_translation"])
+                pred_total = pred_total @ pred_step
+                gt_total = gt_total @ gt_step
+                cum_rot = rotation_error_deg(pred_total[:3, :3], gt_total[:3, :3])
+                cum_trans = translation_l2(pred_total[:3, 3], gt_total[:3, 3])
+            else:
+                legacy_cum_rot += p.get("rotation_error_deg", 0.0)
+                legacy_cum_trans += p.get("translation_error_m", 0.0)
+                cum_rot = legacy_cum_rot
+                cum_trans = legacy_cum_trans
             steps.append({
                 "position": (p.get("metadata") or p).get("chain_position", 0),
                 "rotation_error_deg": p.get("rotation_error_deg", 0.0),
@@ -247,6 +429,7 @@ def evaluate_rcpe(
     rot_auc_thresholds: Sequence[float] = (5.0, 10.0, 20.0),
     metric_rot_thresholds: Sequence[float] = (5.0, 10.0, 20.0),
     metric_trans_thresholds_cm: Sequence[float] = (5.0, 10.0, 20.0),
+    metric_translation_available: bool = True,
 ) -> Dict[str, Any]:
     """Compute the full RPX-RCPE metric basket from per-pair results.
 
@@ -263,7 +446,7 @@ def evaluate_rcpe(
     dict with keys:
         ``aggregated`` — overall means.
         ``standard_auc`` — AUC@5°/10°/20° on pose_error_max_deg.
-        ``metric_auc`` — joint (rot°, trans_cm) threshold (novel).
+        ``metric_auc`` — null with status ``skipped_by_protocol``.
         ``per_bin`` — breakdown by rotation difficulty.
         ``per_type`` — breakdown by pair type (intra/cross/temporal).
         ``cross_phase_delta`` — perf drop intra→cross (novel).
@@ -287,12 +470,23 @@ def evaluate_rcpe(
                 p.get("rotation_error_deg", 0.0), ta,
             )
 
-    rot_errs = np.array([p["rotation_error_deg"] for p in per_pair])
-    trans_errs = np.array([p["translation_error_m"] for p in per_pair])
-    pose_max = np.array([p["pose_error_max_deg"] for p in per_pair])
+    # Headline angular AUC values are defined on exact-gap intra-phase pairs.
+    # Cross-phase pairs and temporal chains have separate diagnostics.
+    headline_rows = [p for p in per_pair if p.get("pair_type") == "intra_phase"]
+    if not headline_rows:  # backwards compatibility for legacy manifests
+        headline_rows = per_pair
+    rot_errs = np.array([p["rotation_error_deg"] for p in headline_rows])
+    trans_errs = np.array([p["translation_error_m"] for p in headline_rows])
+    pose_max = np.array([p["pose_error_max_deg"] for p in headline_rows])
+    canonical = canonical_metric_vector(
+        headline_rows,
+        metric_translation_available=metric_translation_available,
+    )
 
     return {
         "n_pairs": len(per_pair),
+        "n_headline_intra_pairs": len(headline_rows),
+        "metric_translation_available": metric_translation_available,
         "aggregated": {
             "rotation_error_deg": float(np.mean(rot_errs)),
             "rotation_error_deg_median": float(np.median(rot_errs)),
@@ -301,13 +495,14 @@ def evaluate_rcpe(
             "pose_error_max_deg": float(np.mean(pose_max)),
         },
         "standard_auc": auc_at_thresholds(pose_max, rot_auc_thresholds),
-        "metric_auc": metric_auc(
-            rot_errs, trans_errs,
-            metric_rot_thresholds, metric_trans_thresholds_cm,
-        ),
+        "canonical": canonical,
+        "m_auc": None,
+        "metric_auc": None,
+        "metric_auc_status": "skipped_by_protocol",
         "per_bin": per_bin_breakdown(per_pair),
         "per_type": per_type_breakdown(per_pair),
-        "cross_phase_delta": cross_phase_delta(per_pair, "rotation_error_deg"),
+        "cross_phase_delta": cross_phase_auc_delta(per_pair, rot_auc_thresholds),
+        "cross_phase_error_delta": cross_phase_delta(per_pair, "rotation_error_deg"),
         "cross_phase_delta_trans": cross_phase_delta(per_pair, "translation_error_m"),
         "temporal_drift": temporal_drift(per_pair),
     }

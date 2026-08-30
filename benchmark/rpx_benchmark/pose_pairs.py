@@ -82,17 +82,17 @@ EXCLUDED_SCENE_PHASES: Set[Tuple[str, int]] = {
 """(scene_id, phase) pairs where ICP optimization failed."""
 
 VALID_PHASES: Tuple[int, ...] = (0, 2)
-"""Only Clutter and Clean — Interaction excluded (noisy T265 VIO)."""
+"""Clutter and Clean; Interaction is excluded from the RCPE protocol."""
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Rotation bins
 # ─────────────────────────────────────────────────────────────────────────────
 
 ROTATION_BINS: List[Tuple[float, float]] = [
-    (5.0, 15.0),
+    (0.0, 15.0),
     (15.0, 45.0),
     (45.0, 90.0),
-    (90.0, 180.0),
+    (90.0, 180.000001),
 ]
 BIN_NAMES: List[str] = ["easy", "medium", "hard", "extreme"]
 
@@ -133,9 +133,11 @@ class PairConfig:
 
     # Intra-phase
     intra_pairs_per_bin: int = 50
-    max_frame_gap: int = 200
-    min_rotation_deg: float = 5.0
-    min_translation_m: float = 0.01
+    frame_gap: int = 5
+    # D6 retains every available t -> t+5 pair. The first rotation bin
+    # therefore starts at zero instead of dropping low-motion pairs.
+    min_rotation_deg: float = 0.0
+    min_translation_m: float = 0.0
 
     # Cross-phase (Clutter ↔ Clean)
     cross_pairs_per_bin: int = 30
@@ -387,18 +389,21 @@ class PosePairGenerator:
         n = len(seq.frame_idxs)
         # Collect candidates per bin
         bins: List[List[Tuple[int, int, float, float]]] = [[] for _ in BIN_NAMES]
-        for i in range(n):
-            upper = min(n, i + cfg.max_frame_gap + 1)
-            for j in range(i + 1, upper):
-                rot = _rotation_deg(seq.rotations[i], seq.rotations[j])
-                if rot < cfg.min_rotation_deg:
-                    continue
-                t_m = float(np.linalg.norm(seq.translations[j] - seq.translations[i]))
-                if t_m < cfg.min_translation_m:
-                    continue
-                bi = _bin_index(rot)
-                if bi >= 0:
-                    bins[bi].append((seq.frame_idxs[i], seq.frame_idxs[j], rot, t_m))
+        index_by_frame = {frame: index for index, frame in enumerate(seq.frame_idxs)}
+        for i, frame_a in enumerate(seq.frame_idxs):
+            frame_b = frame_a + cfg.frame_gap
+            j = index_by_frame.get(frame_b)
+            if j is None:
+                continue
+            rot = _rotation_deg(seq.rotations[i], seq.rotations[j])
+            if rot < cfg.min_rotation_deg:
+                continue
+            t_m = float(np.linalg.norm(seq.translations[j] - seq.translations[i]))
+            if t_m < cfg.min_translation_m:
+                continue
+            bi = _bin_index(rot)
+            if bi >= 0:
+                bins[bi].append((frame_a, frame_b, rot, t_m))
 
         out: List[Dict[str, Any]] = []
         for bi, name in enumerate(BIN_NAMES):
@@ -464,22 +469,27 @@ class PosePairGenerator:
     ) -> List[Dict[str, Any]]:
         """Ordered chains of consecutive pairs for drift evaluation."""
         cfg = self.cfg
-        n = len(seq.frame_idxs)
-        span = cfg.chain_length * cfg.chain_stride
-        if span >= n:
+        index_by_frame = {frame: index for index, frame in enumerate(seq.frame_idxs)}
+        starts = [
+            frame
+            for frame in seq.frame_idxs
+            if all(
+                frame + step * cfg.chain_stride in index_by_frame
+                for step in range(cfg.chain_length + 1)
+            )
+        ]
+        if not starts:
             return []
-        max_start = n - span - 1
-        if max_start < 0:
-            return []
-
-        k = min(cfg.chain_count, max_start + 1)
-        starts = rng.choice(max_start + 1, size=k, replace=False)
+        k = min(cfg.chain_count, len(starts))
+        starts = [starts[index] for index in rng.choice(len(starts), size=k, replace=False)]
 
         out: List[Dict[str, Any]] = []
-        for ci, s in enumerate(starts):
+        for ci, start_frame in enumerate(starts):
             for pi in range(cfg.chain_length):
-                i = int(s + pi * cfg.chain_stride)
-                j = int(s + (pi + 1) * cfg.chain_stride)
+                frame_a = start_frame + pi * cfg.chain_stride
+                frame_b = start_frame + (pi + 1) * cfg.chain_stride
+                i = index_by_frame[frame_a]
+                j = index_by_frame[frame_b]
                 rot = _rotation_deg(seq.rotations[i], seq.rotations[j])
                 t_m = float(np.linalg.norm(seq.translations[j] - seq.translations[i]))
                 entry = self._make_entry(
@@ -595,7 +605,7 @@ class PosePairGenerator:
                 "chain_count": self.cfg.chain_count,
                 "chain_length": self.cfg.chain_length,
                 "chain_stride": self.cfg.chain_stride,
-                "max_frame_gap": self.cfg.max_frame_gap,
+                "frame_gap": self.cfg.frame_gap,
                 "excluded_scenes": sorted(EXCLUDED_SCENE_IDS),
                 "excluded_scene_phases": [
                     f"{s}/{p}" for s, p in sorted(EXCLUDED_SCENE_PHASES)

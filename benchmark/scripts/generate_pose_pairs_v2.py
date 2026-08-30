@@ -73,8 +73,7 @@ EXCLUDED_SCENE_PHASES: set[tuple[str, int]] = {
 }
 """(scene_id, phase) pairs where ICP optimization failed."""
 
-# Only evaluate on Clutter (0) and Clean (2) — Interaction (1) excluded
-# because T265 VIO poses are too noisy during human manipulation.
+# RCPE covers Clutter (0) and Clean (2); Interaction (1) is excluded.
 VALID_PHASES = (0, 2)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -82,12 +81,12 @@ VALID_PHASES = (0, 2)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ROTATION_BINS: List[Tuple[float, float]] = [
-    (5.0, 15.0),    # easy — small viewpoint change
+    (0.0, 15.0),    # easy — small viewpoint change
     (15.0, 45.0),   # medium — moderate change
     (45.0, 90.0),   # hard — large change
-    (90.0, 180.0),  # extreme — near-opposite views
+    (90.0, 180.000001),  # extreme — near-opposite views
 ]
-"""Rotation magnitude bins in degrees. Pairs <5° are excluded (degenerate)."""
+"""Four deterministic rotation-magnitude bins in degrees."""
 
 BIN_NAMES = ["easy", "medium", "hard", "extreme"]
 
@@ -127,9 +126,9 @@ def _relative_rotation_deg(R_a: np.ndarray, R_b: np.ndarray) -> float:
 class SamplerConfig:
     # Intra-phase
     intra_pairs_per_bin: int = 50
-    max_frame_gap: int = 200
-    min_rotation_deg: float = 5.0
-    min_translation_m: float = 0.01
+    frame_gap: int = 5
+    min_rotation_deg: float = 0.0
+    min_translation_m: float = 0.0
 
     # Cross-phase
     cross_pairs_per_bin: int = 30
@@ -161,23 +160,24 @@ def _generate_intra_phase_pairs(
     candidates_by_bin: Dict[str, List[Tuple[int, int, float, float]]] = {
         name: [] for name in BIN_NAMES
     }
-    n = len(poses)
-    for i in range(n):
+    index_by_frame = {frame: index for index, frame in enumerate(frame_idxs)}
+    for i, frame_a in enumerate(frame_idxs):
+        frame_b = frame_a + cfg.frame_gap
+        j = index_by_frame.get(frame_b)
+        if j is None:
+            continue
         R_i, t_i = poses[i]
-        upper = min(n, i + cfg.max_frame_gap + 1)
-        for j in range(i + 1, upper):
-            R_j, t_j = poses[j]
-            rot = _relative_rotation_deg(R_i, R_j)
-            trans = float(np.linalg.norm(t_j - t_i))
-            if rot < cfg.min_rotation_deg or trans < cfg.min_translation_m:
-                continue
-            # Bin it
-            for k, (lo, hi) in enumerate(ROTATION_BINS):
-                if lo <= rot < hi:
-                    candidates_by_bin[BIN_NAMES[k]].append(
-                        (frame_idxs[i], frame_idxs[j], rot, trans)
-                    )
-                    break
+        R_j, t_j = poses[j]
+        rot = _relative_rotation_deg(R_i, R_j)
+        trans = float(np.linalg.norm(t_j - t_i))
+        if rot < cfg.min_rotation_deg or trans < cfg.min_translation_m:
+            continue
+        for k, (lo, hi) in enumerate(ROTATION_BINS):
+            if lo <= rot < hi:
+                candidates_by_bin[BIN_NAMES[k]].append(
+                    (frame_a, frame_b, rot, trans)
+                )
+                break
 
     # Sample from each bin
     selected: Dict[str, List[Tuple[int, int, float, float]]] = {}
@@ -270,31 +270,33 @@ def _generate_temporal_chains(
 
     Returns list of chains, each chain is a list of (frame_a, frame_b, rot, t).
     """
-    n = len(poses)
-    chain_span = cfg.chain_length * cfg.chain_stride
-    if chain_span >= n:
+    index_by_frame = {frame: index for index, frame in enumerate(frame_idxs)}
+    starts = [
+        frame
+        for frame in frame_idxs
+        if all(
+            frame + step * cfg.chain_stride in index_by_frame
+            for step in range(cfg.chain_length + 1)
+        )
+    ]
+    if not starts:
         return []
-
-    # Valid starting indices
-    max_start = n - chain_span - 1
-    if max_start < 0:
-        return []
-
-    # Pick random starting points
-    n_chains = min(cfg.chain_count, max_start + 1)
-    starts = rng.choice(max_start + 1, size=n_chains, replace=False)
+    n_chains = min(cfg.chain_count, len(starts))
+    starts = [starts[index] for index in rng.choice(len(starts), size=n_chains, replace=False)]
 
     chains: List[List[Tuple[int, int, float, float]]] = []
-    for s in starts:
+    for start_frame in starts:
         chain = []
         for k in range(cfg.chain_length):
-            i = int(s + k * cfg.chain_stride)
-            j = int(s + (k + 1) * cfg.chain_stride)
+            frame_a = start_frame + k * cfg.chain_stride
+            frame_b = start_frame + (k + 1) * cfg.chain_stride
+            i = index_by_frame[frame_a]
+            j = index_by_frame[frame_b]
             R_i, t_i = poses[i]
             R_j, t_j = poses[j]
             rot = _relative_rotation_deg(R_i, R_j)
             trans = float(np.linalg.norm(t_j - t_i))
-            chain.append((frame_idxs[i], frame_idxs[j], rot, trans))
+            chain.append((frame_a, frame_b, rot, trans))
         chains.append(chain)
     return chains
 
@@ -518,7 +520,7 @@ def build_manifest(
             "chain_count": cfg.chain_count,
             "chain_length": cfg.chain_length,
             "chain_stride": cfg.chain_stride,
-            "max_frame_gap": cfg.max_frame_gap,
+            "frame_gap": cfg.frame_gap,
             "min_rotation_deg": cfg.min_rotation_deg,
             "min_translation_m": cfg.min_translation_m,
             "seed": cfg.seed,
@@ -551,7 +553,8 @@ def _cli() -> None:
                     help="pairs per chain")
     ap.add_argument("--chain-stride", type=int, default=5,
                     help="frame gap between consecutive chain pairs")
-    ap.add_argument("--max-frame-gap", type=int, default=200)
+    ap.add_argument("--frame-gap", type=int, default=5,
+                    help="exact frame-index separation for intra-phase pairs")
     ap.add_argument("--seed", type=int, default=RPX_SEED)
     args = ap.parse_args()
 
@@ -572,7 +575,7 @@ def _cli() -> None:
         chain_count=args.chain_count,
         chain_length=args.chain_length,
         chain_stride=args.chain_stride,
-        max_frame_gap=args.max_frame_gap,
+        frame_gap=args.frame_gap,
         seed=args.seed,
     )
     manifest = build_manifest(
