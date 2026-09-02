@@ -44,6 +44,13 @@ def _build_da3(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return DA3(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_cut3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """CUT3R: official final 512-DPT recurrent camera-pose model."""
+    from .cut3r import CUT3R
+
+    return CUT3R(device=device, batch_size=batch_size, **kwargs)
+
+
 def _build_reloc3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """Reloc3r (CVPR 2025) — 25 ms inference, current SOTA regression."""
     from .reloc3r import Reloc3r
@@ -119,6 +126,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     # ── Category A: direct pose regression ─────────────────────────────
     "vggt-omega": _build_vggt_omega,
     "da3": _build_da3,
+    "cut3r": _build_cut3r,
     "reloc3r": _build_reloc3r,
     "dust3r": _build_dust3r,
     "mast3r": _build_mast3r,
@@ -138,6 +146,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
 MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "vggt-omega": "VGGT-Ω",
     "da3": "DA3-GIANT",
+    "cut3r": "CUT3R-512-DPT",
     "reloc3r": "Reloc3r-512",
     "dust3r": "DUSt3R-ViTL-512",
     "mast3r": "MASt3R-ViTL-512",

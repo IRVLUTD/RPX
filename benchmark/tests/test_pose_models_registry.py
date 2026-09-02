@@ -39,6 +39,7 @@ from pose_models._pose_base import (  # noqa: E402
 EXPECTED_KEYS = {
     "vggt-omega",
     "da3",
+    "cut3r",
     "reloc3r",
     "dust3r",
     "mast3r",
@@ -137,6 +138,16 @@ def test_da3_adapter_uses_camera_decoder_and_first_reference():
     assert calls[0]["process_res"] == 504
     np.testing.assert_allclose(result["rotation"], np.eye(3))
     np.testing.assert_allclose(result["translation"], [0.0, 0.0, 2.0])
+
+
+def test_cut3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.cut3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, -2.0, 3.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
 
 
 # ── _pose_base helpers ────────────────────────────────────────────────────

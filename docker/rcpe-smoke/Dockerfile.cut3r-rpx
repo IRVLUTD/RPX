@@ -1,0 +1,67 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+ARG CUT3R_GIT_SHA=8bc15dc92a6d7fd92920b4ec81540d3dec7d3ecf
+ARG CUT3R_CHECKPOINT_ID=1Asz-ZB3FfpzZYwunhQvNPZEUA8XUNAYD
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3 + CUT3R" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/cache/huggingface \
+    PYTHONPATH=/opt/rpx-models/cut3r/src:/opt/rpx-models/cut3r
+
+COPY docker/rcpe-smoke/requirements-cut3r.lock \
+     /tmp/requirements-cut3r.lock
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    test -n "${CUT3R_GIT_SHA}" && \
+    test -n "${CUT3R_CHECKPOINT_ID}" && \
+    mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/cut3r && \
+    git -C /opt/rpx-models/cut3r remote add origin \
+      https://github.com/CUT3R/CUT3R.git && \
+    git -C /opt/rpx-models/cut3r fetch --depth 1 origin "${CUT3R_GIT_SHA}" && \
+    git -C /opt/rpx-models/cut3r checkout --detach FETCH_HEAD && \
+    sed -i \
+      's/torch.load(model_path, map_location="cpu")/torch.load(model_path, map_location="cpu", weights_only=False)/' \
+      /opt/rpx-models/cut3r/src/dust3r/model.py && \
+    sed -i \
+      's/all_cuda_archs = cuda.get_gencode_flags().replace("compute=", "arch=").split()/all_cuda_archs = ["-gencode", "arch=compute_89,code=sm_89"]/' \
+      /opt/rpx-models/cut3r/src/croco/models/curope/setup.py
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/cut3r && \
+    /opt/rpx-envs/cut3r/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/cut3r/bin/python -m pip install \
+      -r /tmp/requirements-cut3r.lock
+
+RUN test -x /usr/local/cuda/bin/nvcc && \
+    cd /opt/rpx-models/cut3r/src/croco/models/curope && \
+    TORCH_CUDA_ARCH_LIST=8.9 \
+      /opt/rpx-envs/cut3r/bin/python setup.py build_ext --inplace
+
+RUN /opt/rpx-envs/cut3r/bin/gdown \
+      --id "${CUT3R_CHECKPOINT_ID}" \
+      --output /opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth && \
+    test "$(stat -c %s /opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth)" -gt 1000000000
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/cut3r/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/cut3r/bin/python -c \
+      "import numpy,pandas,pyarrow,torch; from models.curope import cuRoPE2D; from dust3r.model import ARCroco3DStereo; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'cut3r' in MODEL_REGISTRY; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__})')" && \
+    /opt/rpx-envs/cut3r/bin/python -m pip freeze \
+      > /opt/rpx-envs/cut3r/rpx-pip-freeze.txt && \
+    /opt/rpx-envs/cut3r/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/cut3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'cut3r', 'checkpoint': 'cut3r_512_dpt_4_64.pth', 'checkpoint_revision': 'gdrive-${CUT3R_CHECKPOINT_ID}', 'prompt': 'ordered-image-pair', 'translation_scale': 'metric', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${CUT3R_GIT_SHA}'}, indent=2)+'\\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]
