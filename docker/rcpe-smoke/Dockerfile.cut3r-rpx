@@ -12,8 +12,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY docker/rcpe-smoke/requirements-cut3r.lock \
      /tmp/requirements-cut3r.lock
-COPY docker/rcpe-smoke/cut3r-signed-rope.patch \
-     /tmp/cut3r-signed-rope.patch
 
 RUN test -n "${CUT3R_GIT_SHA}" && \
     test -n "${CUT3R_CHECKPOINT_ID}" && \
@@ -23,7 +21,6 @@ RUN test -n "${CUT3R_GIT_SHA}" && \
       https://github.com/CUT3R/CUT3R.git && \
     git -C /opt/rpx-models/cut3r fetch --depth 1 origin "${CUT3R_GIT_SHA}" && \
     git -C /opt/rpx-models/cut3r checkout --detach FETCH_HEAD && \
-    git -C /opt/rpx-models/cut3r apply /tmp/cut3r-signed-rope.patch && \
     sed -i \
       's/torch.load(model_path, map_location="cpu")/torch.load(model_path, map_location="cpu", weights_only=False)/' \
       /opt/rpx-models/cut3r/src/dust3r/model.py
@@ -37,6 +34,11 @@ RUN /opt/rpx-envs/cut3r/bin/gdown \
       "${CUT3R_CHECKPOINT_ID}" \
       -O /opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth && \
     test "$(stat -c %s /opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth)" -gt 1000000000
+
+COPY docker/rcpe-smoke/cut3r-signed-rope.patch \
+     /tmp/cut3r-signed-rope.patch
+
+RUN git -C /opt/rpx-models/cut3r apply /tmp/cut3r-signed-rope.patch
 
 ARG RPX_GIT_SHA
 
