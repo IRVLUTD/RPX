@@ -42,6 +42,7 @@ EXPECTED_KEYS = {
     "cut3r",
     "reloc3r",
     "pi3x",
+    "fast3r",
     "dust3r",
     "mast3r",
     "must3r",
@@ -209,6 +210,18 @@ def test_pi3x_preprocessing_size_matches_official_patch_14_rule():
     assert height % 14 == 0
     assert width % 14 == 0
     assert height * width <= 255000
+
+
+def test_fast3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.fast3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [2.0, -1.0, 0.5]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [5.0, 3.0, 2.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
 
 
 def test_must3r_camera_to_world_conversion_matches_rpx_convention():

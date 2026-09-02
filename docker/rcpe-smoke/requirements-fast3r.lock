@@ -1,0 +1,10 @@
+einops==0.8.1
+lightning-utilities==0.15.2
+numpy==1.26.4
+omegaconf==2.3.0
+opencv-python-headless==4.11.0.86
+packaging==25.0
+pillow==10.3.0
+roma==1.5.4
+scipy==1.15.3
+tqdm==4.67.1

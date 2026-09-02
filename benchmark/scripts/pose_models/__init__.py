@@ -65,6 +65,13 @@ def _build_pi3x(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return Pi3X(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_fast3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Fast3R — global pointmaps with shared-focal PnP camera recovery."""
+    from .fast3r import Fast3R
+
+    return Fast3R(device=device, batch_size=batch_size, **kwargs)
+
+
 def _build_dust3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """DUSt3R (CVPR 2024) — joint 3D pointmap + relative pose."""
     from .dust3r import DUSt3R
@@ -143,6 +150,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "cut3r": _build_cut3r,
     "reloc3r": _build_reloc3r,
     "pi3x": _build_pi3x,
+    "fast3r": _build_fast3r,
     "dust3r": _build_dust3r,
     "mast3r": _build_mast3r,
     "must3r": _build_must3r,
@@ -165,6 +173,7 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "cut3r": "CUT3R-512-DPT",
     "reloc3r": "Reloc3r-512",
     "pi3x": "Pi3X",
+    "fast3r": "Fast3R-ViT-Large-512",
     "dust3r": "DUSt3R-ViTL-512",
     "mast3r": "MASt3R-ViTL-512",
     "must3r": "MUSt3R-512",
