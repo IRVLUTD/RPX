@@ -41,6 +41,7 @@ EXPECTED_KEYS = {
     "da3",
     "cut3r",
     "reloc3r",
+    "pi3x",
     "dust3r",
     "mast3r",
     "must3r",
@@ -187,6 +188,27 @@ def test_reloc3r_pose2to1_matches_rpx_convention_without_inversion():
     np.testing.assert_allclose(
         _rpx_from_pose2to1(native_pose2to1), native_pose2to1
     )
+
+
+def test_pi3x_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.pi3x import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [-2.0, 1.0, 0.5]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [3.0, 4.0, 2.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_pi3x_preprocessing_size_matches_official_patch_14_rule():
+    from pose_models.pi3x import _target_size
+
+    height, width = _target_size(480, 640)
+    assert height % 14 == 0
+    assert width % 14 == 0
+    assert height * width <= 255000
 
 
 def test_must3r_camera_to_world_conversion_matches_rpx_convention():
