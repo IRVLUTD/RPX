@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -37,6 +38,7 @@ from pose_models._pose_base import (  # noqa: E402
 
 EXPECTED_KEYS = {
     "vggt-omega",
+    "da3",
     "reloc3r",
     "dust3r",
     "mast3r",
@@ -90,6 +92,51 @@ def test_vggt_world_to_camera_conversion_matches_rpx_convention():
     )
     relative = _relative_from_world_to_camera(extrinsics)
     np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_da3_world_to_camera_conversion_matches_rpx_convention():
+    from pose_models.da3 import _relative_from_world_to_camera
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, 2.0, 3.0]
+    extrinsics = np.stack(
+        [np.linalg.inv(c2w_a)[:3], np.linalg.inv(c2w_b)[:3]], axis=0
+    )
+    relative = _relative_from_world_to_camera(extrinsics)
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_da3_adapter_uses_camera_decoder_and_first_reference():
+    from pose_models.da3 import DA3
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [0.0, 0.0, 2.0]
+    calls = []
+
+    class FakeModel:
+        def inference(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(
+                extrinsics=np.stack(
+                    [np.linalg.inv(c2w_a)[:3], np.linalg.inv(c2w_b)[:3]], axis=0
+                )
+            )
+
+    adapter = object.__new__(DA3)
+    adapter._model = FakeModel()
+    pair = {
+        "rgb_a": np.zeros((32, 48, 3), dtype=np.uint8),
+        "rgb_b": np.ones((32, 48, 3), dtype=np.uint8),
+    }
+    result = adapter._infer_pair(pair)
+
+    assert calls[0]["use_ray_pose"] is False
+    assert calls[0]["ref_view_strategy"] == "first"
+    assert calls[0]["process_res"] == 504
+    np.testing.assert_allclose(result["rotation"], np.eye(3))
+    np.testing.assert_allclose(result["translation"], [0.0, 0.0, 2.0])
 
 
 # ── _pose_base helpers ────────────────────────────────────────────────────

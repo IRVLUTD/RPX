@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+ARG DA3_GIT_SHA=41736238f5bced4debf3f2a12375d2466874866d
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/cache/huggingface
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    test -x /opt/rpx-envs/da3/bin/python && \
+    test -d /opt/rpx-envs/sources/da3/.git && \
+    test "$(git -C /opt/rpx-envs/sources/da3 rev-parse HEAD)" = "${DA3_GIT_SHA}"
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/da3/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark
+
+RUN PYTHONPATH=/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/da3/bin/python -c \
+      "import numpy, pandas, pyarrow, torch; from depth_anything_3.api import DepthAnything3; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'da3' in MODEL_REGISTRY; print(f'DA3 RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__})')" && \
+    /opt/rpx-envs/da3/bin/python -m pip freeze \
+      > /opt/rpx-envs/da3/rpx-rcpe-pip-freeze.txt && \
+    PYTHONPATH=/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/da3/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/da3/rpx-rcpe-environment.json').write_text(json.dumps({'container': True, 'model': 'da3', 'checkpoint': 'depth-anything/DA3-GIANT', 'pose_head': 'camera_decoder', 'prompt': 'image-pair', 'translation_scale': 'unit', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${DA3_GIT_SHA}'}, indent=2)+'\\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]
