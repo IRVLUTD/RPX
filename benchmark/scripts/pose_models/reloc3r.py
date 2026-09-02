@@ -1,89 +1,92 @@
-"""Reloc3r adapter — direct relative pose regression (CVPR 2025).
-
-Loads ``siyan824/reloc3r-512`` (or ``-224``) via the ``reloc3r`` package
-which is the official upstream. 25 ms inference at 512px on a single
-GPU. Trained on 8M pairs.
-
-Tracker reference: RCPE — Category A direct regression, top SOTA.
-
-Install
--------
-    pip install reloc3r torch pillow
-"""
+"""Reloc3r adapter using the official 512px relative-pose model."""
 
 from __future__ import annotations
 
-from typing import Optional, Sequence
+import sys
+import tempfile
+from pathlib import Path
+from typing import Sequence
+
+import numpy as np
 
 from ._pose_base import coerce_pose_output, validate_pair
 
 
+def _rpx_from_pose2to1(pose: np.ndarray) -> np.ndarray:
+    """Validate the native pose2-to-1 transform used by RPX unchanged."""
+    value = np.asarray(pose, dtype=np.float64)
+    if value.shape != (4, 4):
+        raise ValueError(f"expected a 4x4 pose2to1 transform, got {value.shape}")
+    return value
+
+
 class Reloc3r:
-    """rgb pair → rotation and translation direction."""
+    """Two ordered RGB frames -> scale-invariant relative camera pose."""
 
-    DEFAULT_MODEL_ID = "siyan824/reloc3r-512"
-
-    # Reloc3r explicitly learns translation direction; motion averaging can
-    # recover scale later, but a standalone two-view prediction is non-metric.
+    DEFAULT_MODEL_DIR = "/opt/rpx-models/reloc3r/checkpoints/reloc3r-512"
     native_alignment: str = "unit"
     native_precision: str = "fp16"
 
-    def __init__(
-        self,
-        model_id: str = DEFAULT_MODEL_ID,
-        device: str = "cuda",
-        batch_size: int = 1,
-        dtype: Optional[str] = None,
-    ) -> None:
+    def __init__(self, model_dir: str = DEFAULT_MODEL_DIR,
+                 device: str = "cuda", batch_size: int = 1) -> None:
+        reloc3r_root = Path("/opt/rpx-models/reloc3r")
+        value = str(reloc3r_root)
+        if value in sys.path:
+            sys.path.remove(value)
+        sys.path.insert(0, value)
+
         try:
             import torch
-            from reloc3r import Reloc3rModel  # type: ignore[import-not-found]
-        except ImportError as e:
+            from reloc3r.reloc3r_relpose import Reloc3rRelpose
+        except ImportError as exc:
             raise ImportError(
-                "Reloc3r needs the `reloc3r` package. Install with: "
-                "pip install reloc3r torch pillow"
-            ) from e
-        self.model_id = model_id
+                "Reloc3r requires its official source and pinned CroCo submodule"
+            ) from exc
+
+        model_path = Path(model_dir)
+        for required in ("config.json", "model.safetensors"):
+            if not (model_path / required).is_file():
+                raise FileNotFoundError(
+                    f"Reloc3r checkpoint file is missing: {model_path / required}"
+                )
+        self.model_dir = str(model_path)
         self.device = device
         self.batch_size = int(batch_size)
         self._torch = torch
-
-        try:
-            model = Reloc3rModel.from_pretrained(model_id)
-        except Exception as e:
-            from rpx_benchmark.exceptions import AdapterError
-
-            raise AdapterError(
-                f"Reloc3r load failed for {model_id!r}: {e}",
-                hint="Check the latest checkpoint id at "
-                "https://huggingface.co/siyan824 — Reloc3r ships the "
-                "-512 (default) and -224 (faster) variants.",
-            ) from e
-        if dtype:
-            target_dtype = getattr(torch, dtype) if isinstance(dtype, str) else dtype
-            model = model.to(dtype=target_dtype)
-        self._model = model.to(device).eval()
+        self._model = Reloc3rRelpose.from_pretrained(self.model_dir).to(device).eval()
 
     @property
     def torch_module(self):
         return self._model
 
+    def _infer_pair(self, pair: dict) -> dict:
+        from PIL import Image
+        from reloc3r.reloc3r_relpose import inference_relpose
+        from reloc3r.utils.image import check_images_shape_format, load_images
+
+        rgb_a, rgb_b = validate_pair(pair)
+        with tempfile.TemporaryDirectory() as temporary:
+            paths = []
+            for index, image in enumerate((rgb_a, rgb_b)):
+                path = Path(temporary) / f"{index}.png"
+                Image.fromarray(image).save(path)
+                paths.append(str(path))
+            images = load_images(paths, size=512, verbose=False)
+
+        images = check_images_shape_format(images, self.device)
+        pose2to1 = inference_relpose(
+            [images[0], images[1]],
+            self._model,
+            self.device,
+            use_amp=str(self.device).startswith("cuda"),
+        )[0].detach().cpu().numpy()
+        relative = _rpx_from_pose2to1(pose2to1)
+        return coerce_pose_output(relative[:3, :3], relative[:3, 3])
+
     def __call__(self, pairs: Sequence[dict]) -> list[dict]:
         if not isinstance(pairs, (list, tuple)):
             pairs = [pairs]
-        outs: list[dict] = []
-        with self._torch.inference_mode():
-            for pair in pairs:
-                rgb_a, rgb_b = validate_pair(pair)
-                try:
-                    pose = self._model.infer_pair(rgb_a, rgb_b)
-                    rot = pose["rotation"] if isinstance(pose, dict) else pose[0]
-                    trans = pose["translation"] if isinstance(pose, dict) else pose[1]
-                    outs.append(coerce_pose_output(rot, trans))
-                except Exception as e:
-                    from rpx_benchmark.exceptions import AdapterError
+        return [self._infer_pair(pair) for pair in pairs]
 
-                    raise AdapterError(
-                        f"Reloc3r inference failed on a pair: {e}",
-                    ) from e
-        return outs
+
+__all__ = ["Reloc3r", "_rpx_from_pose2to1"]
