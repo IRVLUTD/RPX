@@ -32,7 +32,7 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/vggt && \
     /opt/rpx-envs/vggt/bin/python -m pip install \
       --upgrade pip==25.3 && \
     /opt/rpx-envs/vggt/bin/python -m pip install \
-      --no-deps -r /tmp/requirements-vggt.lock && \
+      -r /tmp/requirements-vggt.lock && \
     /opt/rpx-envs/vggt/bin/python -m pip install \
       --no-deps /opt/rpx-models/vggt
 
