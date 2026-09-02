@@ -1,0 +1,30 @@
+diff --git a/src/croco/models/pos_embed.py b/src/croco/models/pos_embed.py
+index 8a808a0..9a4a7f1 100644
+--- a/src/croco/models/pos_embed.py
++++ b/src/croco/models/pos_embed.py
+@@ -153,8 +153,14 @@ except ImportError:
+ 
+         def apply_rope1d(self, tokens, pos1d, cos, sin):
+             assert pos1d.ndim == 2
+-            cos = torch.nn.functional.embedding(pos1d, cos)[:, None, :, :]
+-            sin = torch.nn.functional.embedding(pos1d, sin)[:, None, :, :]
++            # The pose token deliberately uses coordinate -1.  The CUDA
++            # kernel evaluates the signed angle directly, whereas embedding
++            # rejects negative indices.  Mirror the kernel by indexing the
++            # absolute coordinate and applying sin(-x) = -sin(x).
++            positions = pos1d.abs()
++            cos = torch.nn.functional.embedding(positions, cos)[:, None, :, :]
++            sin = torch.nn.functional.embedding(positions, sin)[:, None, :, :]
++            sin = sin * pos1d.sign()[:, None, :, None]
+             return (tokens * cos) + (self.rotate_half(tokens) * sin)
+ 
+         def forward(self, tokens, positions):
+@@ -171,7 +177,7 @@ except ImportError:
+             D = tokens.size(3) // 2
+             assert positions.ndim == 3 and positions.shape[-1] == 2  # Batch, Seq, 2
+             cos, sin = self.get_cos_sin(
+-                D, int(positions.max()) + 1, tokens.device, tokens.dtype
++                D, int(positions.abs().max()) + 1, tokens.device, tokens.dtype
+             )
+             # split features into two along the feature dimension, and apply rope1d on each half
+             y, x = tokens.chunk(2, dim=-1)

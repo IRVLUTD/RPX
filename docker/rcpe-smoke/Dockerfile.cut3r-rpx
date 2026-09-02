@@ -12,6 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
 
 COPY docker/rcpe-smoke/requirements-cut3r.lock \
      /tmp/requirements-cut3r.lock
+COPY docker/rcpe-smoke/cut3r-signed-rope.patch \
+     /tmp/cut3r-signed-rope.patch
 
 RUN test -n "${CUT3R_GIT_SHA}" && \
     test -n "${CUT3R_CHECKPOINT_ID}" && \
@@ -21,6 +23,7 @@ RUN test -n "${CUT3R_GIT_SHA}" && \
       https://github.com/CUT3R/CUT3R.git && \
     git -C /opt/rpx-models/cut3r fetch --depth 1 origin "${CUT3R_GIT_SHA}" && \
     git -C /opt/rpx-models/cut3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-models/cut3r apply /tmp/cut3r-signed-rope.patch && \
     sed -i \
       's/torch.load(model_path, map_location="cpu")/torch.load(model_path, map_location="cpu", weights_only=False)/' \
       /opt/rpx-models/cut3r/src/dust3r/model.py
@@ -50,7 +53,7 @@ RUN test -n "${RPX_GIT_SHA}" && \
       --no-deps --force-reinstall /opt/rpx/benchmark && \
     PYTHONPATH=/opt/rpx/benchmark/scripts:${PYTHONPATH} \
       /opt/rpx-envs/cut3r/bin/python -c \
-      "import cv2,numpy,omegaconf,pandas,pyarrow,roma,scipy,torch,torchvision,tqdm,transformers; from dust3r.inference import inference; from dust3r.model import ARCroco3DStereo; from dust3r.utils.camera import pose_encoding_to_camera; from dust3r.utils.image import load_images; from models.pos_embed import RoPE2D; from pose_models import MODEL_REGISTRY; assert RoPE2D is not None; assert numpy.__version__ == '1.26.4'; assert omegaconf.__version__ == '2.3.0'; assert 'cut3r' in MODEL_REGISTRY; model=ARCroco3DStereo.from_pretrained('/opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth'); assert model is not None; del model; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__}, transformers={transformers.__version__}, omegaconf={omegaconf.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__}, rope={RoPE2D.__name__})')" && \
+      "import cv2,numpy,omegaconf,pandas,pyarrow,roma,scipy,torch,torchvision,tqdm,transformers; from dust3r.inference import inference; from dust3r.model import ARCroco3DStereo; from dust3r.utils.camera import pose_encoding_to_camera; from dust3r.utils.image import load_images; from models.pos_embed import RoPE2D; from pose_models import MODEL_REGISTRY; assert RoPE2D is not None; assert numpy.__version__ == '1.26.4'; assert omegaconf.__version__ == '2.3.0'; rope=RoPE2D(); tokens=torch.randn(1,2,3,8); positions=torch.tensor([[[-1,-1],[0,0],[2,3]]]); assert torch.isfinite(rope(tokens,positions)).all(); assert 'cut3r' in MODEL_REGISTRY; model=ARCroco3DStereo.from_pretrained('/opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth'); assert model is not None; del model; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__}, transformers={transformers.__version__}, omegaconf={omegaconf.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__}, rope={RoPE2D.__name__})')" && \
     /opt/rpx-envs/cut3r/bin/python -m pip freeze \
       > /opt/rpx-envs/cut3r/rpx-pip-freeze.txt && \
     /opt/rpx-envs/cut3r/bin/python -c \
