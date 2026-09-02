@@ -30,6 +30,14 @@ RUN mkdir -p /opt/rpx-models/mast3r/checkpoints && \
     test "$(stat -c %s /opt/rpx-models/mast3r/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth)" \
       -eq "${MAST3R_CHECKPOINT_BYTES}"
 
+# MASt3R pins DUSt3R as a submodule, and DUSt3R in turn pins CroCo.  Initialise
+# this nested submodule after the large checkpoint layer so failed rebuilds can
+# reuse the already-downloaded checkpoint.
+ARG CROCO_GIT_SHA=d7de0705845239092414480bd829228723bf20de
+RUN git -C /opt/rpx-models/mast3r/dust3r submodule update --init --depth 1 croco && \
+    test -d /opt/rpx-models/mast3r/dust3r/croco/models && \
+    test "$(git -C /opt/rpx-models/mast3r/dust3r/croco rev-parse HEAD)" = "${CROCO_GIT_SHA}"
+
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3 + CUT3R + MASt3R" \
@@ -47,7 +55,7 @@ RUN test -n "${RPX_GIT_SHA}" && \
       "import cv2,numpy,pandas,pyarrow,roma,scipy,sklearn,torch,torchvision,tqdm,transformers; from mast3r.model import AsymmetricMASt3R; from mast3r.image_pairs import make_pairs; from dust3r.inference import inference; from dust3r.cloud_opt import GlobalAlignerMode,global_aligner; from dust3r.utils.image import load_images; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'mast3r' in MODEL_REGISTRY; model=AsymmetricMASt3R.from_pretrained('/opt/rpx-models/mast3r/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth'); assert model is not None; del model; print(f'MASt3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__}, transformers={transformers.__version__}, sklearn={sklearn.__version__})')" && \
     /opt/rpx-envs/mast3r/bin/python -m pip freeze > /opt/rpx-envs/mast3r/rpx-pip-freeze.txt && \
     /opt/rpx-envs/mast3r/bin/python -c \
-      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/mast3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'mast3r', 'checkpoint_bytes': ${MAST3R_CHECKPOINT_BYTES}, 'translation_scale': 'unit', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${MAST3R_GIT_SHA}', 'dust3r_revision': '${DUST3R_GIT_SHA}'}, indent=2)+'\\n')"
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/mast3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'mast3r', 'checkpoint_bytes': ${MAST3R_CHECKPOINT_BYTES}, 'translation_scale': 'unit', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${MAST3R_GIT_SHA}', 'dust3r_revision': '${DUST3R_GIT_SHA}', 'croco_revision': '${CROCO_GIT_SHA}'}, indent=2)+'\\n')"
 
 WORKDIR /opt/rpx/benchmark
 VOLUME ["/cache/huggingface", "/outputs"]
