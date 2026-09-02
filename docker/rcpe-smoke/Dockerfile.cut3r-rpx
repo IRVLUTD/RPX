@@ -38,7 +38,8 @@ RUN python -m venv --system-site-packages /opt/rpx-envs/cut3r && \
       -r /tmp/requirements-cut3r.lock
 
 RUN /opt/rpx-envs/cut3r/bin/gdown \
-      --id "${CUT3R_CHECKPOINT_ID}" \
+      --fuzzy \
+      "https://drive.google.com/file/d/${CUT3R_CHECKPOINT_ID}/view?usp=drive_link" \
       --output /opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth && \
     test "$(stat -c %s /opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth)" -gt 1000000000
 
