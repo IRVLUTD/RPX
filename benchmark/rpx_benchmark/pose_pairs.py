@@ -84,6 +84,12 @@ EXCLUDED_SCENE_PHASES: Set[Tuple[str, int]] = {
 VALID_PHASES: Tuple[int, ...] = (0, 2)
 """Clutter and Clean; Interaction is excluded from the RCPE protocol."""
 
+
+def _mode_split(series: pd.Series) -> str | None:
+    """Return the most common non-null split, or ``None`` if unspecified."""
+    counts = series.dropna().value_counts()
+    return str(counts.idxmax()) if not counts.empty else None
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Rotation bins
 # ─────────────────────────────────────────────────────────────────────────────
@@ -216,9 +222,7 @@ class PosePairGenerator:
         self._df_cache = df  # kept for ensure_pairs_extracted
 
         # Scene-wise split assignment
-        scene_split = df.groupby("scene_id")["split"].agg(
-            lambda s: s.value_counts().idxmax()
-        )
+        scene_split = df.groupby("scene_id")["split"].agg(_mode_split).dropna()
         df = df.drop(columns=["split"]).merge(
             scene_split.rename("split"), left_on="scene_id", right_index=True
         )

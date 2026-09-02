@@ -6,6 +6,7 @@ from rpx_benchmark.pose_pairs import (
     VALID_PHASES,
     PairConfig,
     PosePairGenerator,
+    _mode_split,
     _SeqPoses,
 )
 
@@ -29,6 +30,13 @@ def _sequence() -> _SeqPoses:
 
 def test_rcpe_uses_clutter_and_clean_phases() -> None:
     assert VALID_PHASES == (0, 2)
+
+
+def test_scene_split_ignores_null_rows_and_all_null_scenes() -> None:
+    import pandas as pd
+
+    assert _mode_split(pd.Series([None, "easy", "easy", "medium"])) == "easy"
+    assert _mode_split(pd.Series([None, None])) is None
 
 
 def test_intra_phase_pairs_are_exactly_five_frames_apart() -> None:

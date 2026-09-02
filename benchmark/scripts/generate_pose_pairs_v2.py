@@ -330,8 +330,8 @@ def build_manifest(
 
     # Scene-wise split assignment
     scene_split = df.groupby("scene_id")["split"].agg(
-        lambda s: s.value_counts().idxmax()
-    )
+        lambda s: s.dropna().value_counts().idxmax() if s.notna().any() else None
+    ).dropna()
     df = df.drop(columns=["split"]).merge(
         scene_split.rename("split"), left_on="scene_id", right_index=True
     )
