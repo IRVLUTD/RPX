@@ -43,7 +43,7 @@ RUN /opt/rpx-envs/vggt/bin/python -m pip install \
 
 RUN PYTHONPATH=/opt/rpx/benchmark/scripts \
       /opt/rpx-envs/vggt/bin/python -c \
-      "import numpy, torch; from vggt.models.vggt import VGGT; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'vggt-omega' in MODEL_REGISTRY; print(f'VGGT-Ω RCPE environment: OK (torch={torch.__version__})')" && \
+      "import numpy, pandas, pyarrow, torch; from vggt.models.vggt import VGGT; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'vggt-omega' in MODEL_REGISTRY; print(f'VGGT-Ω RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__})')" && \
     /opt/rpx-envs/vggt/bin/python -m pip freeze \
       > /opt/rpx-envs/vggt/rpx-pip-freeze.txt && \
     PYTHONPATH=/opt/rpx/benchmark/scripts \
