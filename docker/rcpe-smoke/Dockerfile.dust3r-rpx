@@ -31,6 +31,14 @@ RUN mkdir -p /opt/rpx-models/dust3r/checkpoints && \
     test "$(stat -c %s /opt/rpx-models/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth)" \
       -eq "${DUST3R_CHECKPOINT_BYTES}"
 
+# PyTorch 2.6 changed torch.load's default to weights_only=True. The official
+# trusted checkpoint includes argparse.Namespace metadata, so make that trust
+# decision explicit without weakening loading globally.
+COPY docker/rcpe-smoke/dust3r-torch-load.patch /tmp/dust3r-torch-load.patch
+RUN git -C /opt/rpx-models/dust3r apply --check /tmp/dust3r-torch-load.patch && \
+    git -C /opt/rpx-models/dust3r apply /tmp/dust3r-torch-load.patch && \
+    grep -Fq "weights_only=False" /opt/rpx-models/dust3r/dust3r/model.py
+
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime through DUSt3R" \
