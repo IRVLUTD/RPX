@@ -18,13 +18,16 @@ import numpy as np
 from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
 
 
-def _fake_sample(scene: str, phase: int, frame_a: str, frame_b: str):
+def _fake_sample(
+    scene: str, phase: int, frame_a: str, frame_b: str, *, phase_b: int | None = None
+):
     return SimpleNamespace(
         id=f"{scene}__{phase}__{frame_a}__{frame_b}",
         rgb=np.zeros((10, 10, 3), dtype=np.uint8),
         metadata={
             "scene_id": scene,
             "phase_idx": phase,
+            "phase_idx_b": phase if phase_b is None else phase_b,
             "frame": frame_a,
             "frame_b": frame_b,
         },
@@ -62,9 +65,34 @@ def test_maybe_save_writes_one_row_per_unique_pair(tmp_path: Path):
     rows = _read(tmp_path / "predictions.csv")
     # 1 header + 2 unique data rows.
     assert len(rows) == 3, f"expected header + 2 rows, got {len(rows)}: {rows}"
-    assert rows[0][:4] == ["scene_id", "phase", "frame_a", "frame_b"]
-    assert rows[1][:4] == ["scene_x", "0", "00000", "00005"]
-    assert rows[2][:4] == ["scene_x", "0", "00001", "00006"]
+    assert rows[0][:6] == [
+        "sample_id", "scene_id", "phase", "phase_b", "frame_a", "frame_b"
+    ]
+    assert rows[1][:6] == [
+        "scene_x__0__00000__00005", "scene_x", "0", "0", "00000", "00005"
+    ]
+    assert rows[2][:6] == [
+        "scene_x__0__00001__00006", "scene_x", "0", "0", "00001", "00006"
+    ]
+
+
+def test_maybe_save_cross_phase_has_distinct_identity(tmp_path: Path):
+    model = BatchedRelativePoseBenchmarkModel(
+        lambda _: [{"rotation": np.eye(3), "translation": np.zeros(3)}],
+        name="cross-phase",
+        save_dir=tmp_path,
+    )
+    out = {"rotation": np.eye(3), "translation": np.zeros(3)}
+    intra = _fake_sample("scene_x", 0, "00000", "00005")
+    cross = _fake_sample("scene_x", 0, "00000", "00005", phase_b=2)
+    cross.id = "scene_x__cross__0_00000__2_00005"
+
+    model.maybe_save(intra, out)
+    model.maybe_save(cross, out)
+
+    rows = list(csv.DictReader((tmp_path / "predictions.csv").open(newline="")))
+    assert len(rows) == 2
+    assert {row["phase_b"] for row in rows} == {"0", "2"}
 
 
 def test_maybe_save_dedup_is_per_instance(tmp_path: Path):

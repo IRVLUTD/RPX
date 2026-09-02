@@ -26,6 +26,8 @@ from pose_comprehensive_metrics import (  # noqa: E402
     translation_l2,
 )
 
+from rpx_benchmark.pose_metrics import evaluate_rcpe  # noqa: E402
+
 # ────────────────────────  per-pair metrics  ──────────────────────────────
 
 
@@ -143,7 +145,7 @@ def test_compute_run_reads_published_npy_pose_manifest(tmp_path: Path):
 
     predictions_path = tmp_path / "predictions.csv"
     fieldnames = [
-        "scene_id", "phase", "frame_a", "frame_b",
+        "sample_id", "scene_id", "phase", "phase_b", "frame_a", "frame_b",
         "R00", "R01", "R02", "R10", "R11", "R12",
         "R20", "R21", "R22", "tx", "ty", "tz",
     ]
@@ -151,7 +153,9 @@ def test_compute_run_reads_published_npy_pose_manifest(tmp_path: Path):
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerow({
+            "sample_id": "scene004__0__00000__00005",
             "scene_id": "scene004", "phase": "0",
+            "phase_b": "0",
             "frame_a": "00000", "frame_b": "00005",
             "R00": 1, "R01": 0, "R02": 0,
             "R10": 0, "R11": 1, "R12": 0,
@@ -163,4 +167,8 @@ def test_compute_run_reads_published_npy_pose_manifest(tmp_path: Path):
 
     assert len(result["per_pair"]) == 1
     assert result["per_pair"][0]["rotation_error_deg"] == pytest.approx(0.0)
+    assert result["per_pair"][0]["translation_error_m"] == pytest.approx(0.0)
     assert result["per_pair"][0]["translation_l2"] == pytest.approx(0.0)
+    rcpe = evaluate_rcpe(result["per_pair"])
+    assert rcpe["n_pairs"] == 1
+    assert rcpe["aggregated"]["translation_error_m"] == pytest.approx(0.0)

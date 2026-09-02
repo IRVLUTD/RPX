@@ -2,7 +2,7 @@
 
 Sister of ``comprehensive_depth_metrics.py``. Reads a per-pair CSV
 log written by ``BatchedRelativePoseBenchmarkModel`` (one row per
-prediction, columns ``scene_id, phase, frame_a, frame_b, R00..R22,
+prediction, columns ``sample_id, scene_id, phase, phase_b, frame_a, frame_b, R00..R22,
 tx, ty, tz``) plus the matching split manifest (carries GT poses
 ``pose_a`` / ``pose_b`` per pair) and emits the full pose-error
 basket with 95% CIs.
@@ -160,6 +160,9 @@ def _pair_metrics(
     t_ang = translation_angular_deg(t_pred, t_gt)
     return {
         "rotation_error_deg": rot_err,
+        # Canonical rpx_benchmark pose-metric name. Keep translation_l2 as a
+        # compatibility alias in the comprehensive report.
+        "translation_error_m": t_l2,
         "translation_l2": t_l2,
         "translation_angular_deg": t_ang,
         "pose_error_max_deg": max(rot_err, t_ang),
@@ -171,18 +174,20 @@ def _pair_metrics(
 
 def _read_predictions_csv(
     path: Path,
-) -> Dict[Tuple[str, str, str, str], Tuple[np.ndarray, np.ndarray]]:
-    """Read predictions.csv → ``{(scene, phase, frame_a, frame_b): (R, t)}``.
+) -> Dict[tuple, Tuple[np.ndarray, np.ndarray]]:
+    """Read predictions.csv into canonical and legacy lookup keys.
 
     Tolerates the CSV's exact column order via DictReader; rows with
-    non-finite numeric entries are skipped with a warning.
+    non-finite numeric entries are skipped with a warning. New logs are keyed
+    by the manifest sample ID and by both endpoint phases. The four-field key
+    remains as a read-only fallback for pre-existing intra-phase logs.
     """
-    out: Dict[Tuple[str, str, str, str], Tuple[np.ndarray, np.ndarray]] = {}
+    out: Dict[tuple, Tuple[np.ndarray, np.ndarray]] = {}
     with path.open() as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                key = (row["scene_id"], row["phase"], row["frame_a"], row["frame_b"])
+                phase_b = row.get("phase_b") or row["phase"]
                 R = np.array(
                     [
                         float(row["R00"]),
@@ -206,7 +211,22 @@ def _read_predictions_csv(
             if not (np.isfinite(R).all() and np.isfinite(t).all()):
                 log.warning("skipping non-finite row %s", row)
                 continue
-            out[key] = (R, t)
+            value = (R, t)
+            sample_id = row.get("sample_id")
+            if sample_id:
+                out[("id", sample_id)] = value
+            out[(
+                "pair",
+                row["scene_id"], row["phase"], phase_b,
+                row["frame_a"], row["frame_b"],
+            )] = value
+            # Legacy logs did not distinguish phase_b. Only expose their old
+            # key when the row truly lacks the new phase_b column.
+            if "phase_b" not in row:
+                out[(
+                    "legacy", row["scene_id"], row["phase"],
+                    row["frame_a"], row["frame_b"],
+                )] = value
     return out
 
 
@@ -260,9 +280,16 @@ def compute_run(
         meta = s.get("metadata") or {}
         frame_a = str(meta.get("frame") or "")
         frame_b = str(meta.get("frame_b") or "")
-        key = (scene, phase, frame_a, frame_b)
-        if key not in preds:
+        phase_b = str(meta.get("phase_idx_b") if meta.get("phase_idx_b") is not None else phase)
+        lookup_keys = [
+            ("id", str(s.get("id") or "")),
+            ("pair", scene, phase, phase_b, frame_a, frame_b),
+            ("legacy", scene, phase, frame_a, frame_b),
+        ]
+        prediction = next((preds[k] for k in lookup_keys if k in preds), None)
+        if prediction is None:
             continue
+        key = lookup_keys[0]
 
         try:
             T_a = _load_pose_npz(extracted_root / s["pose_a"])
@@ -271,7 +298,7 @@ def compute_run(
             log.warning("skipping pair %s — could not load GT pose: %s", key, e)
             continue
         R_gt, t_gt = _relative_pose_from_world(T_a, T_b)
-        R_pred, t_pred = preds[key]
+        R_pred, t_pred = prediction
         m = _pair_metrics(R_pred, t_pred, R_gt, t_gt)
         m.update(
             {
@@ -307,6 +334,7 @@ def compute_run(
     # Plain means (backwards-compat with the depth-side comprehensive shape).
     metric_keys = (
         "rotation_error_deg",
+        "translation_error_m",
         "translation_l2",
         "translation_angular_deg",
         "pose_error_max_deg",
