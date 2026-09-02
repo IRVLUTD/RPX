@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG MAST3R_GIT_SHA=f5209afc300cec36239a7ac992263f36847bbba0
+ARG DUST3R_GIT_SHA=3cc8c88c413bb9e34c41db0e0eef99c2ee010b12
+ARG MAST3R_CHECKPOINT_URL=https://download.europe.naverlabs.com/ComputerVision/MASt3R/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth
+ARG MAST3R_CHECKPOINT_BYTES=2754910614
+
+COPY docker/rcpe-smoke/requirements-mast3r.lock /tmp/requirements-mast3r.lock
+
+RUN test -n "${MAST3R_GIT_SHA}" && \
+    mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/mast3r && \
+    git -C /opt/rpx-models/mast3r remote add origin https://github.com/naver/mast3r.git && \
+    git -C /opt/rpx-models/mast3r fetch --depth 1 origin "${MAST3R_GIT_SHA}" && \
+    git -C /opt/rpx-models/mast3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-models/mast3r submodule update --init --depth 1 dust3r && \
+    test "$(git -C /opt/rpx-models/mast3r/dust3r rev-parse HEAD)" = "${DUST3R_GIT_SHA}"
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/mast3r && \
+    /opt/rpx-envs/mast3r/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/mast3r/bin/python -m pip install -r /tmp/requirements-mast3r.lock
+
+RUN mkdir -p /opt/rpx-models/mast3r/checkpoints && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "${MAST3R_CHECKPOINT_URL}" \
+      --output /opt/rpx-models/mast3r/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth && \
+    test "$(stat -c %s /opt/rpx-models/mast3r/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth)" \
+      -eq "${MAST3R_CHECKPOINT_BYTES}"
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3 + CUT3R + MASt3R" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    /opt/rpx-envs/mast3r/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx-models/mast3r/dust3r:/opt/rpx-models/mast3r:/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/mast3r/bin/python -c \
+      "import cv2,numpy,pandas,pyarrow,roma,scipy,sklearn,torch,torchvision,tqdm,transformers; from mast3r.model import AsymmetricMASt3R; from mast3r.image_pairs import make_pairs; from dust3r.inference import inference; from dust3r.cloud_opt import GlobalAlignerMode,global_aligner; from dust3r.utils.image import load_images; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'mast3r' in MODEL_REGISTRY; model=AsymmetricMASt3R.from_pretrained('/opt/rpx-models/mast3r/checkpoints/MASt3R_ViTLarge_BaseDecoder_512_catmlpdpt_metric.pth'); assert model is not None; del model; print(f'MASt3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__}, transformers={transformers.__version__}, sklearn={sklearn.__version__})')" && \
+    /opt/rpx-envs/mast3r/bin/python -m pip freeze > /opt/rpx-envs/mast3r/rpx-pip-freeze.txt && \
+    /opt/rpx-envs/mast3r/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/mast3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'mast3r', 'checkpoint_bytes': ${MAST3R_CHECKPOINT_BYTES}, 'translation_scale': 'unit', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${MAST3R_GIT_SHA}', 'dust3r_revision': '${DUST3R_GIT_SHA}'}, indent=2)+'\\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]

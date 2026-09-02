@@ -150,6 +150,18 @@ def test_cut3r_camera_to_world_conversion_matches_rpx_convention():
     np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
 
 
+def test_mast3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.mast3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [1.0, 0.0, 0.0]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, 2.0, 0.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
 # ── _pose_base helpers ────────────────────────────────────────────────────
 
 
