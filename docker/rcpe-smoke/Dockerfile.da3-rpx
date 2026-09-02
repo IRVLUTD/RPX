@@ -15,9 +15,24 @@ ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
     HF_HOME=/cache/huggingface
 
 RUN test -n "${RPX_GIT_SHA}" && \
-    test -x /opt/rpx-envs/da3/bin/python && \
-    test -d /opt/rpx-envs/sources/da3/.git && \
-    test "$(git -C /opt/rpx-envs/sources/da3 rev-parse HEAD)" = "${DA3_GIT_SHA}"
+    test -n "${DA3_GIT_SHA}"
+
+COPY docker/depth-smoke/requirements-da3.lock \
+     /tmp/requirements-da3.lock
+
+RUN mkdir -p /opt/rpx-envs/sources && \
+    git init /opt/rpx-envs/sources/da3 && \
+    git -C /opt/rpx-envs/sources/da3 remote add origin \
+      https://github.com/ByteDance-Seed/depth-anything-3.git && \
+    git -C /opt/rpx-envs/sources/da3 fetch --depth 1 origin "${DA3_GIT_SHA}" && \
+    git -C /opt/rpx-envs/sources/da3 checkout --detach FETCH_HEAD
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/da3 && \
+    /opt/rpx-envs/da3/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/da3/bin/python -m pip install \
+      -r /tmp/requirements-da3.lock && \
+    /opt/rpx-envs/da3/bin/python -m pip install \
+      --no-deps -e /opt/rpx-envs/sources/da3
 
 COPY benchmark /opt/rpx/benchmark
 
