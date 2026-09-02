@@ -14,7 +14,7 @@ LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
     PYTHONUNBUFFERED=1 \
     HF_HOME=/cache/huggingface \
-    PYTHONPATH=/opt/rpx-models/cut3r/src:/opt/rpx-models/cut3r
+    PYTHONPATH=/opt/rpx/benchmark/scripts:/opt/rpx-models/cut3r/src:/opt/rpx-models/cut3r
 
 COPY docker/rcpe-smoke/requirements-cut3r.lock \
      /tmp/requirements-cut3r.lock
@@ -47,7 +47,7 @@ COPY benchmark /opt/rpx/benchmark
 RUN /opt/rpx-envs/cut3r/bin/python -m pip install \
       --no-deps --force-reinstall /opt/rpx/benchmark && \
     /opt/rpx-envs/cut3r/bin/python -c \
-      "import numpy,pandas,pyarrow,torch; from dust3r.model import ARCroco3DStereo; from models.pos_embed import RoPE2D; from pose_models import MODEL_REGISTRY; assert RoPE2D is not None; assert numpy.__version__ == '1.26.4'; assert 'cut3r' in MODEL_REGISTRY; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__}, rope={RoPE2D.__name__})')" && \
+      "import numpy,pandas,pyarrow,torch; from dust3r.model import ARCroco3DStereo; from models.pos_embed import RoPE2D; from pose_models import MODEL_REGISTRY; assert RoPE2D is not None; assert numpy.__version__ == '1.26.4'; assert 'cut3r' in MODEL_REGISTRY; model=ARCroco3DStereo.from_pretrained('/opt/rpx-models/cut3r/src/cut3r_512_dpt_4_64.pth'); assert model is not None; del model; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__}, rope={RoPE2D.__name__})')" && \
     /opt/rpx-envs/cut3r/bin/python -m pip freeze \
       > /opt/rpx-envs/cut3r/rpx-pip-freeze.txt && \
     /opt/rpx-envs/cut3r/bin/python -c \
