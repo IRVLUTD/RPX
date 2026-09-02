@@ -231,19 +231,20 @@ def _read_predictions_csv(
 
 
 def _load_pose_npz(path: Path) -> np.ndarray:
-    """Load a 4×4 SE(3) from a published NPY or legacy NPZ pose.
+    """Load a 4×4 OpenCV SE(3) from a published NPY or legacy NPZ pose.
 
     Published RPX snapshots use a ``(7,)`` NPY vector ordered as
     ``[x, y, z, qx, qy, qz, qw]``. Legacy trees store the same values in
     named NPZ arrays. Keep this wrapper name for compatibility with callers.
     """
+    from rpx_benchmark.pose_conventions import t265_c2w_to_opencv
     from rpx_benchmark.pose_pairs import _load_pose_file
 
     R, pos = _load_pose_file(path)
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = R
     T[:3, 3] = pos
-    return T
+    return t265_c2w_to_opencv(T)
 
 
 # ─────────────────────────  public entry  ──────────────────────────────────
@@ -255,6 +256,7 @@ def compute_run(
     *,
     auc_thresholds: Tuple[float, ...] = DEFAULT_AUC_DEG,
     snapshot_root: Path | None = None,
+    metric_translation_available: bool = True,
 ) -> Dict:
     """Walk the prediction CSV against the manifest, compute the full
     pose-error basket with 95% CIs.
@@ -332,13 +334,13 @@ def compute_run(
         }
 
     # Plain means (backwards-compat with the depth-side comprehensive shape).
-    metric_keys = (
+    metric_keys = [
         "rotation_error_deg",
-        "translation_error_m",
-        "translation_l2",
         "translation_angular_deg",
         "pose_error_max_deg",
-    )
+    ]
+    if metric_translation_available:
+        metric_keys.extend(("translation_error_m", "translation_l2"))
     aggregated = {k: float(np.mean([r[k] for r in per_pair])) for k in metric_keys}
 
     # AUC over the *whole-split* pose_error_max_deg distribution.
@@ -390,6 +392,7 @@ def compute_run(
         }
 
     return {
+        "metric_translation_available": metric_translation_available,
         "per_pair": per_pair,
         "aggregated": aggregated,
         "aggregated_with_ci": aggregated_with_ci,

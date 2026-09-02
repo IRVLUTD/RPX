@@ -89,7 +89,7 @@ def main() -> None:
             for sample in samples
             if sample.get("pair_type") == "intra_phase"
         }
-        if pair_types != {"intra_phase", "cross_phase", "temporal_chain"}:
+        if pair_types != {"intra_phase", "temporal_chain"}:
             raise SystemExit(f"gate lacks pair-type coverage: {sorted(pair_types)}")
         if phases != {0, 2}:
             raise SystemExit(f"gate lacks phase-0/2 intra coverage: {sorted(phases)}")

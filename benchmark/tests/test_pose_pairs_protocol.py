@@ -33,6 +33,10 @@ def test_rcpe_uses_clutter_and_clean_phases() -> None:
     assert VALID_PHASES == (0, 2)
 
 
+def test_cross_phase_is_disabled_because_capture_worlds_are_unrelated() -> None:
+    assert PairConfig().cross_pairs_per_bin == 0
+
+
 def test_scene_split_ignores_null_rows_and_all_null_scenes() -> None:
     import pandas as pd
 

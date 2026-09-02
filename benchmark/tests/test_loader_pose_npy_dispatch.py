@@ -20,6 +20,11 @@ import pytest
 
 from rpx_benchmark.exceptions import ManifestError
 from rpx_benchmark.loader import RPXDataset, TaskType
+from rpx_benchmark.pose_conventions import (
+    T265_TO_OPENCV,
+    relative_pose_from_raw_t265,
+    t265_c2w_to_opencv,
+)
 
 
 @pytest.fixture
@@ -99,3 +104,21 @@ def test_npy_wrong_shape_raises(pose_loader: RPXDataset, tmp_path: Path):
     np.save(bad_dir / "00000.npy", np.zeros(8, dtype=np.float64))  # 8 != 7
     with pytest.raises(ManifestError, match="must be shape"):
         pose_loader._load_pose("bad/00000.npy")
+
+
+def test_raw_t265_pose_is_expressed_in_opencv_axes() -> None:
+    opencv_pose = np.eye(4)
+    opencv_pose[:3, 3] = [0.1, 0.2, 0.3]
+    raw_t265_pose = T265_TO_OPENCV @ opencv_pose @ T265_TO_OPENCV
+
+    np.testing.assert_allclose(t265_c2w_to_opencv(raw_t265_pose), opencv_pose)
+
+
+def test_relative_rcpe_pose_uses_opencv_axes() -> None:
+    opencv_a = np.eye(4)
+    opencv_b = np.eye(4)
+    opencv_b[:3, 3] = [0.1, 0.2, 0.3]
+    raw_a = T265_TO_OPENCV @ opencv_a @ T265_TO_OPENCV
+    raw_b = T265_TO_OPENCV @ opencv_b @ T265_TO_OPENCV
+
+    np.testing.assert_allclose(relative_pose_from_raw_t265(raw_a, raw_b), opencv_b)

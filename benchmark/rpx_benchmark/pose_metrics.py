@@ -345,7 +345,9 @@ def cross_phase_auc_delta(
 # Temporal drift
 # ─────────────────────────────────────────────────────────────────────────────
 
-def temporal_drift(per_pair: List[Dict[str, Any]]) -> Dict[str, Any]:
+def temporal_drift(
+    per_pair: List[Dict[str, Any]], *, metric_translation_available: bool = True
+) -> Dict[str, Any]:
     """Accumulated error along temporal chains.
 
     Groups chain pairs by ``chain_id``, orders by ``chain_position``,
@@ -397,25 +399,37 @@ def temporal_drift(per_pair: List[Dict[str, Any]]) -> Dict[str, Any]:
             steps.append({
                 "position": (p.get("metadata") or p).get("chain_position", 0),
                 "rotation_error_deg": p.get("rotation_error_deg", 0.0),
-                "translation_error_m": p.get("translation_error_m", 0.0),
+                "translation_error_m": (
+                    p.get("translation_error_m", 0.0)
+                    if metric_translation_available else None
+                ),
                 "cumulative_rotation_error": cum_rot,
-                "cumulative_translation_error": cum_trans,
+                "cumulative_translation_error": (
+                    cum_trans if metric_translation_available else None
+                ),
             })
         chain_results.append({
             "chain_id": cid,
             "length": len(pairs),
             "total_drift_rot_deg": cum_rot,
-            "total_drift_trans_m": cum_trans,
+            "total_drift_trans_m": cum_trans if metric_translation_available else None,
             "steps": steps,
         })
 
     if not chain_results:
-        return {"chains": [], "mean_drift_rot_deg": 0.0, "mean_drift_trans_m": 0.0}
+        return {
+            "chains": [],
+            "mean_drift_rot_deg": 0.0,
+            "mean_drift_trans_m": 0.0 if metric_translation_available else None,
+        }
 
     return {
         "chains": chain_results,
         "mean_drift_rot_deg": float(np.mean([c["total_drift_rot_deg"] for c in chain_results])),
-        "mean_drift_trans_m": float(np.mean([c["total_drift_trans_m"] for c in chain_results])),
+        "mean_drift_trans_m": (
+            float(np.mean([c["total_drift_trans_m"] for c in chain_results]))
+            if metric_translation_available else None
+        ),
         "n_chains": len(chain_results),
     }
 
@@ -483,6 +497,13 @@ def evaluate_rcpe(
         metric_translation_available=metric_translation_available,
     )
 
+    per_bin = per_bin_breakdown(per_pair)
+    per_type = per_type_breakdown(per_pair)
+    if not metric_translation_available:
+        for breakdown in (per_bin, per_type):
+            for values in breakdown.values():
+                values.pop("translation_error_m", None)
+
     return {
         "n_pairs": len(per_pair),
         "n_headline_intra_pairs": len(headline_rows),
@@ -490,8 +511,12 @@ def evaluate_rcpe(
         "aggregated": {
             "rotation_error_deg": float(np.mean(rot_errs)),
             "rotation_error_deg_median": float(np.median(rot_errs)),
-            "translation_error_m": float(np.mean(trans_errs)),
-            "translation_error_m_median": float(np.median(trans_errs)),
+            "translation_error_m": (
+                float(np.mean(trans_errs)) if metric_translation_available else None
+            ),
+            "translation_error_m_median": (
+                float(np.median(trans_errs)) if metric_translation_available else None
+            ),
             "pose_error_max_deg": float(np.mean(pose_max)),
         },
         "standard_auc": auc_at_thresholds(pose_max, rot_auc_thresholds),
@@ -499,10 +524,15 @@ def evaluate_rcpe(
         "m_auc": None,
         "metric_auc": None,
         "metric_auc_status": "skipped_by_protocol",
-        "per_bin": per_bin_breakdown(per_pair),
-        "per_type": per_type_breakdown(per_pair),
+        "per_bin": per_bin,
+        "per_type": per_type,
         "cross_phase_delta": cross_phase_auc_delta(per_pair, rot_auc_thresholds),
         "cross_phase_error_delta": cross_phase_delta(per_pair, "rotation_error_deg"),
-        "cross_phase_delta_trans": cross_phase_delta(per_pair, "translation_error_m"),
-        "temporal_drift": temporal_drift(per_pair),
+        "cross_phase_delta_trans": (
+            cross_phase_delta(per_pair, "translation_error_m")
+            if metric_translation_available else {}
+        ),
+        "temporal_drift": temporal_drift(
+            per_pair, metric_translation_available=metric_translation_available
+        ),
     }

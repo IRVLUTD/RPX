@@ -390,10 +390,14 @@ class RPXDataset:
         return TrackletGroundTruth(tracks=tracks)
 
     def _load_relative_pose(self, entry: Dict[str, Any]) -> RelativePoseGroundTruth:
-        # Load the two poses and compute relative transform
+        from .pose_conventions import relative_pose_from_raw_t265
+
+        # Published RPX poses retain librealsense's T265 axes. RCPE models
+        # consume D435 RGB and conventionally emit OpenCV camera coordinates,
+        # so convert the fixed axis basis before forming the relative pose.
         pose_a = self._load_pose(entry["pose_a"])  # 4×4 SE(3)
         pose_b = self._load_pose(entry["pose_b"])
-        T_rel = np.linalg.inv(pose_a) @ pose_b
+        T_rel = relative_pose_from_raw_t265(pose_a, pose_b)
         return RelativePoseGroundTruth(
             rotation=T_rel[:3, :3],
             translation=T_rel[:3, 3],

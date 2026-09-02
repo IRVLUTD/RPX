@@ -130,8 +130,8 @@ class SamplerConfig:
     min_rotation_deg: float = 0.0
     min_translation_m: float = 0.0
 
-    # Cross-phase
-    cross_pairs_per_bin: int = 30
+    # Cross-phase is invalid across independently initialized T265 worlds.
+    cross_pairs_per_bin: int = 0
     cross_max_candidates: int = 5000  # subsample before binning (speed)
 
     # Temporal chains
@@ -421,7 +421,12 @@ def build_manifest(
             {n: len(selected[n]) for n in BIN_NAMES},
         )
 
-    # ─── Cross-phase pairs (Clutter ↔ Clean) ─────────────────────────────
+    # Cross-phase ground truth is undefined across independent T265 worlds.
+    # Keep the legacy code below unreachable for old-manifest archaeology.
+    if cfg.cross_pairs_per_bin == 0:
+        scenes_with_both_phases.clear()
+
+    # ─── Cross-phase pairs (legacy; disabled) ────────────────────────────
     for scene in sorted(scenes_with_both_phases):
         frames_0, poses_0 = scene_phase_groups[(scene, 0)]
         frames_2, poses_2 = scene_phase_groups[(scene, 2)]
@@ -545,8 +550,8 @@ def _cli() -> None:
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--pairs-per-bin", type=int, default=50,
                     help="intra-phase pairs per rotation bin per (scene, phase)")
-    ap.add_argument("--cross-pairs-per-bin", type=int, default=30,
-                    help="cross-phase pairs per rotation bin per scene")
+    ap.add_argument("--cross-pairs-per-bin", type=int, default=0,
+                    help="deprecated; must remain 0 (unrelated T265 worlds)")
     ap.add_argument("--chain-count", type=int, default=5,
                     help="temporal chains per (scene, phase)")
     ap.add_argument("--chain-length", type=int, default=10,
@@ -557,6 +562,12 @@ def _cli() -> None:
                     help="exact frame-index separation for intra-phase pairs")
     ap.add_argument("--seed", type=int, default=RPX_SEED)
     args = ap.parse_args()
+
+    if args.cross_pairs_per_bin != 0:
+        ap.error(
+            "--cross-pairs-per-bin must be 0: phases are independent captures "
+            "with unrelated T265 local world frames"
+        )
 
     logging.basicConfig(level=logging.INFO, format="[pose-v2] %(message)s")
 

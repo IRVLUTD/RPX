@@ -40,6 +40,26 @@ def test_active_vector_skips_metric_auc_for_up_to_scale_adapter() -> None:
     assert "metric_auc" not in metrics
 
 
+def test_up_to_scale_rcpe_suppresses_metric_translation_outputs() -> None:
+    from rpx_benchmark.pose_metrics import evaluate_rcpe
+
+    row = {
+        **_perfect_row(),
+        "pair_type": "temporal_chain",
+        "chain_id": "chain0",
+        "chain_position": 0,
+        "pred_rotation": np.eye(3).tolist(),
+        "pred_translation": [1.0, 0.0, 0.0],
+        "gt_rotation": np.eye(3).tolist(),
+        "gt_translation": [0.1, 0.0, 0.0],
+    }
+    result = evaluate_rcpe([row], metric_translation_available=False)
+
+    assert result["aggregated"]["translation_error_m"] is None
+    assert "translation_error_m" not in result["per_type"]["temporal_chain"]
+    assert result["temporal_drift"]["mean_drift_trans_m"] is None
+
+
 def test_rcpe_cells_use_only_intra_pairs_and_canonical_phase_labels() -> None:
     rows = [_perfect_row(phase=phase) for phase in (0, 2)]
     rows.append({**_perfect_row(), "pair_type": "cross_phase"})

@@ -327,8 +327,8 @@ done
 #### Pair sampling: on-the-fly stratified generation (recommended)
 
 The **recommended** pair source is `--pairs-source on_the_fly`, which
-uses `rpx_benchmark.pose_pairs.PosePairGenerator` to generate ~60K
-deterministic pairs directly from the HF-cached poses — no manifest
+uses `rpx_benchmark.pose_pairs.PosePairGenerator` to generate deterministic
+exact-gap pairs directly from the HF-cached poses — no manifest
 file needed, no disk writes, fully reproducible from seed.
 
 ```bash
@@ -337,18 +337,20 @@ PYTHONPATH=. python scripts/run_relative_pose.py --model <KEY> --split easy \
     --pairs-source on_the_fly --save-predictions --comprehensive-metrics
 ```
 
-**Three pair types** (seed `5_062_026`):
+**Two pair types** (seed `5_062_026`):
 
 | Type | What | Count (full dataset) |
 |------|------|---------------------|
 | **Intra-phase** | Within one (scene, phase), 4 rotation bins (5°–15°, 15°–45°, 45°–90°, 90°–180°) | ~38,600 |
-| **Cross-phase** | Clutter ↔ Clean of same scene (objects rearranged) | ~11,280 |
 | **Temporal chains** | Ordered consecutive pairs for drift measurement | ~9,650 |
-| **Total** | | **~59,500** |
+
+Phases 0 and 2 are evaluated separately. Cross-phase pairs are excluded because
+each capture starts an unrelated T265 local world frame, so direct cross-phase
+relative-pose ground truth is undefined. Raw T265 poses are converted from
+X-right/Y-up/Z-back to OpenCV X-right/Y-down/Z-forward before scoring.
 
 **Novel metrics** in `rcpe_metrics.json`:
 - Metric AUC@(θ°, d cm) — joint rotation + metric translation threshold
-- Cross-phase Δ — performance drop intra → cross at matched bins
 - Temporal drift — accumulated error over chains
 - Per-rotation-bin + per-pair-type breakdowns
 

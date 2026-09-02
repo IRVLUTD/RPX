@@ -52,8 +52,8 @@ def _stratified_cap(samples: list[dict], limit: int) -> list[dict]:
     priorities = [
         ("intra_phase", 0),
         ("intra_phase", 2),
-        ("cross_phase", 0),
         ("temporal_chain", 0),
+        ("temporal_chain", 2),
     ]
     selected = []
     selected_ids = set()
@@ -290,7 +290,7 @@ def _run_on_the_fly(
     max_samples: int | None,
     save_predictions: bool,
     intra_pairs_per_bin: int = 50,
-    cross_pairs_per_bin: int = 30,
+    cross_pairs_per_bin: int = 0,
     skip_flops: bool = False,
     revision: str | None = None,
 ):
@@ -325,7 +325,7 @@ def _run_on_the_fly(
 
     cfg = PairConfig(
         intra_pairs_per_bin=intra_pairs_per_bin,
-        cross_pairs_per_bin=cross_pairs_per_bin,
+        cross_pairs_per_bin=0,
     )
     gen = PosePairGenerator(
         extracted_root=snap / "extracted",
@@ -397,6 +397,23 @@ def _run_on_the_fly(
         skip_flops=skip_flops,
     )
 
+    metric_translation_available = (
+        getattr(adapter, "native_alignment", "none") == "none"
+    )
+    if not metric_translation_available:
+        # Up-to-scale models have no meaningful metric translation error.
+        # Keep their scale-invariant translation-angle metric, but do not emit
+        # a misleading metre value in the standard result/summary.
+        bench_result.aggregated.pop("translation_error_m", None)
+        for row in bench_result.per_sample:
+            row.pop("translation_error_m", None)
+
+    # The generic deployment report assumes all three RPX phases. RCPE is
+    # intentionally phase 0/2 only, so its three-phase WPS and STR would insert
+    # a fictitious zero-valued phase 1. Φ/JEDI below is the valid phase report.
+    dr_report.weighted_phase_score = None
+    dr_report.state_transition = None
+
     # ── Standard output ───────────────────────────────────────────────
     json_path = out_dir / "result.json"
     md_path = out_dir / "summary.md"
@@ -422,6 +439,7 @@ def _run_on_the_fly(
             out_dir / "predictions.csv",
             pairs_manifest_path,
             snapshot_root=snap,
+            metric_translation_available=metric_translation_available,
         )
         per_pair_enriched = comprehensive["per_pair"]
         comprehensive_path = out_dir / "pose_comprehensive_metrics.json"
@@ -438,9 +456,6 @@ def _run_on_the_fly(
             enriched["metadata"] = meta
             per_pair_enriched.append(enriched)
 
-    metric_translation_available = (
-        getattr(adapter, "native_alignment", "none") == "none"
-    )
     rcpe_results = evaluate_rcpe(
         per_pair_enriched,
         metric_translation_available=metric_translation_available,
@@ -448,7 +463,7 @@ def _run_on_the_fly(
 
     # The active Φ/JEDI input is one locked K=3 angular row per
     # (scene, phase), computed only from exact-gap intra-phase pairs. Metric
-    # M-AUC is skipped; cross-phase and chain samples remain diagnostics.
+    # M-AUC is skipped; temporal-chain samples remain diagnostic.
     cells, analysis_rows = build_rcpe_cells(
         per_pair_enriched,
         model_name=name,
@@ -524,7 +539,8 @@ def _run_on_the_fly(
     print(f"{'='*60}")
     agg = rcpe_results.get("aggregated", {})
     for k, v in agg.items():
-        print(f"  {k:>35}: {v:.4f}")
+        rendered = "unavailable (up-to-scale)" if v is None else f"{v:.4f}"
+        print(f"  {k:>35}: {rendered}")
     print()
     sauc = rcpe_results.get("standard_auc", {})
     for k, v in sauc.items():
@@ -539,15 +555,17 @@ def _run_on_the_fly(
     for b, m in rcpe_results.get("per_bin", {}).items():
         n = m.get('n_pairs', 0)
         re = m.get('rotation_error_deg', 0)
-        te = m.get('translation_error_m', 0)
-        print(f"    {b:>8}: n={n:.0f}  rot={re:.2f}°  trans={te*100:.1f}cm")
+        te = m.get('translation_error_m')
+        trans = "n/a (up-to-scale)" if te is None else f"{te*100:.1f}cm"
+        print(f"    {b:>8}: n={n:.0f}  rot={re:.2f}°  trans={trans}")
     print()
     print("  Per pair type:")
     for t, m in rcpe_results.get("per_type", {}).items():
         n = m.get('n_pairs', 0)
         re = m.get('rotation_error_deg', 0)
-        te = m.get('translation_error_m', 0)
-        print(f"    {t:>15}: n={n:.0f}  rot={re:.2f}°  trans={te*100:.1f}cm")
+        te = m.get('translation_error_m')
+        trans = "n/a (up-to-scale)" if te is None else f"{te*100:.1f}cm"
+        print(f"    {t:>15}: n={n:.0f}  rot={re:.2f}°  trans={trans}")
     print()
     cpd = rcpe_results.get("cross_phase_delta", {})
     if cpd:
@@ -559,7 +577,11 @@ def _run_on_the_fly(
     if drift.get("n_chains"):
         print(f"  Temporal drift ({drift['n_chains']} chains):")
         print(f"    mean rot drift:   {drift['mean_drift_rot_deg']:.1f}°")
-        print(f"    mean trans drift: {drift['mean_drift_trans_m']*100:.1f} cm")
+        trans_drift = drift.get("mean_drift_trans_m")
+        if trans_drift is not None:
+            print(f"    mean trans drift: {trans_drift*100:.1f} cm")
+        else:
+            print("    mean trans drift: n/a (up-to-scale)")
 
     artefacts: dict = {
         "json": json_path, "markdown": md_path,
@@ -630,7 +652,7 @@ def main() -> None:
         default="manifest",
         help="'manifest' (default): load from --pairs-manifest or canonical HF path. "
         "'on_the_fly': use PosePairGenerator for deterministic stratified pairs "
-        "(rotation bins + cross-phase + temporal chains).",
+        "(exact-gap intra-phase pairs + temporal chains).",
     )
     ap.add_argument(
         "--pairs-manifest",
@@ -644,9 +666,8 @@ def main() -> None:
         "(only with --pairs-source on_the_fly)",
     )
     ap.add_argument(
-        "--cross-pairs-per-bin", type=int, default=30,
-        help="cross-phase pairs per rotation bin per scene "
-        "(only with --pairs-source on_the_fly)",
+        "--cross-pairs-per-bin", type=int, default=0,
+        help="deprecated; must remain 0 because captures have unrelated T265 worlds",
     )
     ap.add_argument(
         "--skip-flops",
@@ -667,6 +688,12 @@ def main() -> None:
         help="Box folder id (default: team's RPX-Outputs).",
     )
     args = ap.parse_args()
+
+    if args.cross_pairs_per_bin != 0:
+        ap.error(
+            "--cross-pairs-per-bin must be 0: phases 0 and 2 are separate "
+            "captures with unrelated T265 local world frames"
+        )
 
     placeholder, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
     name = placeholder.name

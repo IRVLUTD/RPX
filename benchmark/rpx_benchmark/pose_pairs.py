@@ -1,8 +1,9 @@
 """On-the-fly deterministic pose-pair generation for RPX-RCPE.
 
-Generates ~60K pairs across three complementary types — intra-phase,
-cross-phase (Clutter↔Clean), and temporal chains — without writing
-anything to disk.  Given the same seed and config the output is
+Generates exact-gap intra-phase pairs and temporal chains without writing
+anything to disk. Phase 0 and phase 2 are evaluated independently because
+each capture has its own T265 local world frame; cross-phase relative-pose
+ground truth is therefore undefined. Given the same seed and config the output is
 bit-identical, so results are fully reproducible.
 
 The generator produces lightweight sample dicts (frame indices + paths)
@@ -165,8 +166,8 @@ class PairConfig:
     min_rotation_deg: float = 0.0
     min_translation_m: float = 0.0
 
-    # Cross-phase (Clutter ↔ Clean)
-    cross_pairs_per_bin: int = 30
+    # Cross-phase is locked off: separate captures have unrelated T265 worlds.
+    cross_pairs_per_bin: int = 0
     cross_max_candidates: int = 5000
 
     # Temporal chains
@@ -208,7 +209,7 @@ class PosePairGenerator:
         ``"easy"`` | ``"medium"`` | ``"hard"``.
     config : PairConfig, optional
         Generation parameters.  Defaults are the standard benchmark
-        settings (~60K pairs at full dataset scale).
+        settings (exact t→t+5 pairs plus stride-5 temporal chains).
     snapshot_root : Path, optional
         HF snapshot root (parent of ``manifest/`` and tar shards).
         When provided, cam_pose files are auto-extracted from tars
@@ -228,6 +229,11 @@ class PosePairGenerator:
         self.root = Path(extracted_root)
         self.split = split
         self.cfg = config or PairConfig()
+        if self.cfg.cross_pairs_per_bin != 0:
+            raise ValueError(
+                "cross-phase RCPE pairs are invalid because each phase has an "
+                "unrelated T265 local world frame; cross_pairs_per_bin must be 0"
+            )
         self._snapshot_root = Path(snapshot_root) if snapshot_root else None
         self._repo_id = repo_id
 
@@ -288,14 +294,9 @@ class PosePairGenerator:
                 frame_idxs=frame_idxs, rotations=rots, translations=trans,
             )
 
-        # Scenes that have BOTH phase 0 and phase 2 (for cross-phase pairs)
-        scenes_0 = {s for (s, p) in self._sequences if p == 0}
-        scenes_2 = {s for (s, p) in self._sequences if p == 2}
-        self._cross_scenes = sorted(scenes_0 & scenes_2)
-
         log.info(
-            "loaded poses: %d sequences, %d cross-phase scenes, split=%s",
-            len(self._sequences), len(self._cross_scenes), self.split,
+            "loaded poses: %d sequences, split=%s",
+            len(self._sequences), self.split,
         )
 
     # ── tar extraction ─────────────────────────────────────────────────────
@@ -613,11 +614,6 @@ class PosePairGenerator:
                 p["difficulty"] = self.split
                 yield p
 
-        for scene in self._cross_scenes:
-            for p in self._cross_pairs(scene, rng):
-                p["difficulty"] = self.split
-                yield p
-
         for key in sorted(self._sequences):
             seq = self._sequences[key]
             for p in self._temporal_chains(seq, rng):
@@ -648,7 +644,8 @@ class PosePairGenerator:
                 "valid_phases": list(VALID_PHASES),
                 "seed": self.cfg.seed,
                 "intra_pairs_per_bin": self.cfg.intra_pairs_per_bin,
-                "cross_pairs_per_bin": self.cfg.cross_pairs_per_bin,
+                "cross_pairs_per_bin": 0,
+                "cross_phase_status": "excluded_unrelated_t265_world_frames",
                 "chain_count": self.cfg.chain_count,
                 "chain_length": self.cfg.chain_length,
                 "chain_stride": self.cfg.chain_stride,

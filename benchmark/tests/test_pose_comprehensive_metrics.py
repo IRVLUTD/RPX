@@ -122,7 +122,9 @@ def test_compute_run_reads_published_npy_pose_manifest(tmp_path: Path):
     pose_dir = tmp_path / "scenes" / "scene004" / "0" / "cam_pose"
     pose_dir.mkdir(parents=True)
     np.save(pose_dir / "00000.npy", np.array([0, 0, 0, 0, 0, 0, 1.0]))
-    np.save(pose_dir / "00005.npy", np.array([1, 0, 0, 0, 0, 0, 1.0]))
+    # Raw T265 +Y/+Z are OpenCV -Y/-Z. The prediction below is expressed in
+    # OpenCV coordinates and must compare exactly after the fixed basis change.
+    np.save(pose_dir / "00005.npy", np.array([1, -2, -3, 0, 0, 0, 1.0]))
 
     manifest = {
         "root": str(tmp_path),
@@ -160,7 +162,7 @@ def test_compute_run_reads_published_npy_pose_manifest(tmp_path: Path):
             "R00": 1, "R01": 0, "R02": 0,
             "R10": 0, "R11": 1, "R12": 0,
             "R20": 0, "R21": 0, "R22": 1,
-            "tx": 1, "ty": 0, "tz": 0,
+            "tx": 1, "ty": 2, "tz": 3,
         })
 
     result = compute_run(predictions_path, manifest_path)
