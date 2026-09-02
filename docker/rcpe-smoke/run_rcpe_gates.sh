@@ -35,6 +35,16 @@ done
 mkdir -p "$HF_CACHE" "$RCPE_OUTPUT/logs"
 docker pull "$image"
 
+mount_args=(-v "$HF_CACHE:/cache/huggingface")
+dataset_repo="$HF_CACHE/datasets--IRVLUTD--RPX"
+if [[ -d "$dataset_repo/snapshots/$RPX_REVISION" ]]; then
+  # Preserve the snapshot's ../../blobs symlink targets while exposing the
+  # direct-layout shared cache at the standard HF_HOME/hub location.
+  mount_args+=(
+    -v "$dataset_repo:/cache/huggingface/hub/datasets--IRVLUTD--RPX:ro"
+  )
+fi
+
 gates=(smoke micro acceptance)
 [[ "$gate" == all ]] || gates=("$gate")
 for current_gate in "${gates[@]}"; do
@@ -44,7 +54,7 @@ for current_gate in "${gates[@]}"; do
     --shm-size=32g \
     -e HF_TOKEN \
     -e HF_HOME=/cache/huggingface \
-    -v "$HF_CACHE:/cache/huggingface" \
+    "${mount_args[@]}" \
     -v "$RCPE_OUTPUT:/outputs" \
     "$image" \
     "$python_path" /opt/rpx/benchmark/scripts/run_relative_pose_gate.py \
