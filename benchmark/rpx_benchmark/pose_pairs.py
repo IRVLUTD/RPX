@@ -232,6 +232,7 @@ class PosePairGenerator:
         self._repo_id = repo_id
 
         self._sequences: Dict[Tuple[str, int], _SeqPoses] = {}
+        self._frame_filenames: Dict[Tuple[str, int, int], str] = {}
         self._cross_scenes: List[str] = []
         self._load_poses(Path(parquet_path))
 
@@ -267,15 +268,18 @@ class PosePairGenerator:
             self._ensure_cam_pose_extracted(scene, phase, grp)
 
             for _, row in grp.iterrows():
-                stem = str(row["frame_filename"]).rsplit(".", 1)[0]
+                frame_filename = str(row["frame_filename"])
+                stem = frame_filename.rsplit(".", 1)[0]
                 pose_dir = self.root / "scenes" / scene / str(phase) / "cam_pose"
                 npy_path = pose_dir / f"{stem}.npy"
                 npz_path = pose_dir / f"{stem}.npz"
                 pose_path = npy_path if npy_path.exists() else npz_path
                 rotation, translation = _load_pose_file(pose_path)
-                frame_idxs.append(int(row["frame_idx"]))
+                frame_idx = int(row["frame_idx"])
+                frame_idxs.append(frame_idx)
                 rots.append(rotation)
                 trans.append(translation)
+                self._frame_filenames[(str(scene), phase, frame_idx)] = frame_filename
 
             self._sequences[(scene, phase)] = _SeqPoses(
                 scene=scene, phase=phase,
@@ -536,15 +540,23 @@ class PosePairGenerator:
 
     # ── entry builder ─────────────────────────────────────────────────────
 
-    @staticmethod
     def _make_entry(
+        self,
         scene: str,
         phase_a: int, frame_a: int,
         phase_b: int, frame_b: int,
         rot_deg: float, t_m: float,
         pair_type: str, rotation_bin: Optional[str],
     ) -> Dict[str, Any]:
-        sa, sb = f"{frame_a:05d}", f"{frame_b:05d}"
+        frame_filenames = getattr(self, "_frame_filenames", {})
+        filename_a = frame_filenames.get(
+            (str(scene), phase_a, frame_a), f"{frame_a:05d}.png"
+        )
+        filename_b = frame_filenames.get(
+            (str(scene), phase_b, frame_b), f"{frame_b:05d}.png"
+        )
+        sa = Path(filename_a).stem
+        sb = Path(filename_b).stem
         if pair_type == "cross_phase":
             pair_id = f"{scene}__cross__0_{sa}__2_{sb}"
         elif pair_type == "temporal_chain":
@@ -573,11 +585,19 @@ class PosePairGenerator:
                 "rotation_deg_gt": rot_deg,
                 "translation_m_gt": t_m,
             },
-            "rgb": f"scenes/{scene}/{phase_a}/rgb/{sa}.png",
-            "rgb_b": f"scenes/{scene}/{phase_b}/rgb/{sb}.png",
-            "pose_a": f"scenes/{scene}/{phase_a}/cam_pose/{sa}.npy",
-            "pose_b": f"scenes/{scene}/{phase_b}/cam_pose/{sb}.npy",
+            "rgb": f"scenes/{scene}/{phase_a}/rgb/{filename_a}",
+            "rgb_b": f"scenes/{scene}/{phase_b}/rgb/{filename_b}",
+            "pose_a": self._pose_relative_path(scene, phase_a, sa),
+            "pose_b": self._pose_relative_path(scene, phase_b, sb),
         }
+
+    def _pose_relative_path(self, scene: str, phase: int, stem: str) -> str:
+        """Return the published NPY path, retaining legacy NPZ compatibility."""
+        relative_dir = Path("scenes") / scene / str(phase) / "cam_pose"
+        root = getattr(self, "root", None)
+        if root is not None and (root / relative_dir / f"{stem}.npz").exists():
+            return str(relative_dir / f"{stem}.npz")
+        return str(relative_dir / f"{stem}.npy")
 
     # ── public API ────────────────────────────────────────────────────────
 

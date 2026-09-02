@@ -50,6 +50,23 @@ def test_compact_hf_pose_vector_is_loaded_in_xyz_xyzw_order(tmp_path) -> None:
     assert np.allclose(translation, [1.0, 2.0, 3.0])
 
 
+def test_pair_paths_preserve_parquet_webp_filenames(tmp_path) -> None:
+    generator = PosePairGenerator.__new__(PosePairGenerator)
+    generator.root = tmp_path
+    generator._frame_filenames = {
+        ("scene004", 0, 209): "00209.webp",
+        ("scene004", 0, 214): "00214.webp",
+    }
+
+    pair = generator._make_entry(
+        "scene004", 0, 209, 0, 214, 1.0, 0.1, "intra_phase", "easy"
+    )
+
+    assert pair["rgb"].endswith("/00209.webp")
+    assert pair["rgb_b"].endswith("/00214.webp")
+    assert pair["pose_a"].endswith("/00209.npy")
+
+
 def test_intra_phase_pairs_are_exactly_five_frames_apart() -> None:
     generator = PosePairGenerator.__new__(PosePairGenerator)
     generator.cfg = PairConfig(intra_pairs_per_bin=1000, frame_gap=5)
