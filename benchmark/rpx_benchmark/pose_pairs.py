@@ -124,6 +124,26 @@ def _quat_xyzw_to_rot(q: np.ndarray) -> np.ndarray:
     ], dtype=np.float64)
 
 
+def _load_pose_file(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load an RPX camera pose as ``(rotation, translation)``.
+
+    Published RPX snapshots store compact ``.npy`` vectors as
+    ``[x, y, z, qx, qy, qz, qw]``.  Legacy extracted trees may still contain
+    ``.npz`` files with named ``position`` and ``orientation`` arrays.
+    """
+    data = np.load(path)
+    if path.suffix.lower() == ".npy":
+        values = np.asarray(data, dtype=np.float64)
+        if values.shape != (7,):
+            raise ValueError(f"camera pose {path} must have shape (7,), got {values.shape}")
+        translation = values[:3]
+        quaternion = values[3:]
+    else:
+        translation = np.asarray(data["position"], dtype=np.float64).reshape(3)
+        quaternion = np.asarray(data["orientation"], dtype=np.float64).reshape(4)
+    return _quat_xyzw_to_rot(quaternion), translation
+
+
 def _rotation_deg(R_a: np.ndarray, R_b: np.ndarray) -> float:
     cos_t = (np.trace(R_a.T @ R_b) - 1.0) * 0.5
     return float(np.degrees(np.arccos(np.clip(cos_t, -1.0, 1.0))))
@@ -248,14 +268,14 @@ class PosePairGenerator:
 
             for _, row in grp.iterrows():
                 stem = str(row["frame_filename"]).rsplit(".", 1)[0]
-                npz = np.load(
-                    self.root / "scenes" / scene / str(phase) / "cam_pose" / f"{stem}.npz"
-                )
-                q = npz["orientation"].astype(np.float64).reshape(4)
-                t = npz["position"].astype(np.float64).reshape(3)
+                pose_dir = self.root / "scenes" / scene / str(phase) / "cam_pose"
+                npy_path = pose_dir / f"{stem}.npy"
+                npz_path = pose_dir / f"{stem}.npz"
+                pose_path = npy_path if npy_path.exists() else npz_path
+                rotation, translation = _load_pose_file(pose_path)
                 frame_idxs.append(int(row["frame_idx"]))
-                rots.append(_quat_xyzw_to_rot(q))
-                trans.append(t)
+                rots.append(rotation)
+                trans.append(translation)
 
             self._sequences[(scene, phase)] = _SeqPoses(
                 scene=scene, phase=phase,
@@ -289,11 +309,12 @@ class PosePairGenerator:
 
         for _, row in grp.iterrows():
             stem = str(row["frame_filename"]).rsplit(".", 1)[0]
-            out_path = (
+            pose_dir = (
                 self.root / "scenes" / scene / str(phase)
-                / "cam_pose" / f"{stem}.npz"
+                / "cam_pose"
             )
-            if out_path.exists():
+            out_path = pose_dir / f"{stem}.npy"
+            if out_path.exists() or (pose_dir / f"{stem}.npz").exists():
                 continue
             shard_rel = str(row["shard_cam_pose"])
             tar_path = self._snapshot_root / shard_rel
@@ -303,7 +324,7 @@ class PosePairGenerator:
                     raise FileNotFoundError(
                         f"cam_pose shard not found and download failed: {shard_rel}"
                     )
-            member = f"cam_pose/{stem}.npz"
+            member = f"cam_pose/{stem}.npy"
             _extract_from_tar(tar_path, member, out_path)
 
     def _download_shard(self, shard_rel: str) -> Optional[Path]:
@@ -554,8 +575,8 @@ class PosePairGenerator:
             },
             "rgb": f"scenes/{scene}/{phase_a}/rgb/{sa}.png",
             "rgb_b": f"scenes/{scene}/{phase_b}/rgb/{sb}.png",
-            "pose_a": f"scenes/{scene}/{phase_a}/cam_pose/{sa}.npz",
-            "pose_b": f"scenes/{scene}/{phase_b}/cam_pose/{sb}.npz",
+            "pose_a": f"scenes/{scene}/{phase_a}/cam_pose/{sa}.npy",
+            "pose_b": f"scenes/{scene}/{phase_b}/cam_pose/{sb}.npy",
         }
 
     # ── public API ────────────────────────────────────────────────────────

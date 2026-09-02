@@ -6,6 +6,7 @@ from rpx_benchmark.pose_pairs import (
     VALID_PHASES,
     PairConfig,
     PosePairGenerator,
+    _load_pose_file,
     _mode_split,
     _SeqPoses,
 )
@@ -37,6 +38,16 @@ def test_scene_split_ignores_null_rows_and_all_null_scenes() -> None:
 
     assert _mode_split(pd.Series([None, "easy", "easy", "medium"])) == "easy"
     assert _mode_split(pd.Series([None, None])) is None
+
+
+def test_compact_hf_pose_vector_is_loaded_in_xyz_xyzw_order(tmp_path) -> None:
+    path = tmp_path / "00000.npy"
+    np.save(path, np.array([1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 1.0]))
+
+    rotation, translation = _load_pose_file(path)
+
+    assert np.allclose(rotation, np.eye(3))
+    assert np.allclose(translation, [1.0, 2.0, 3.0])
 
 
 def test_intra_phase_pairs_are_exactly_five_frames_apart() -> None:
