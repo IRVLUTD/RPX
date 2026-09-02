@@ -7,6 +7,8 @@ the AUC normalisation.
 
 from __future__ import annotations
 
+import csv
+import json
 import sys
 from pathlib import Path
 
@@ -18,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from pose_comprehensive_metrics import (  # noqa: E402
     auc_pose_error,
+    compute_run,
     rotation_error_deg,
     translation_angular_deg,
     translation_l2,
@@ -111,3 +114,53 @@ def test_auc_monotone_in_threshold():
     auc = auc_pose_error(errors, thresholds=(5.0, 10.0, 20.0))
     assert auc["auc_5deg"] <= auc["auc_10deg"] + 1e-9
     assert auc["auc_10deg"] <= auc["auc_20deg"] + 1e-9
+
+
+def test_compute_run_reads_published_npy_pose_manifest(tmp_path: Path):
+    pose_dir = tmp_path / "scenes" / "scene004" / "0" / "cam_pose"
+    pose_dir.mkdir(parents=True)
+    np.save(pose_dir / "00000.npy", np.array([0, 0, 0, 0, 0, 0, 1.0]))
+    np.save(pose_dir / "00005.npy", np.array([1, 0, 0, 0, 0, 0, 1.0]))
+
+    manifest = {
+        "root": str(tmp_path),
+        "samples": [{
+            "id": "scene004__0__00000__00005",
+            "scene_id": "scene004",
+            "phase": 0,
+            "pose_a": "scenes/scene004/0/cam_pose/00000.npy",
+            "pose_b": "scenes/scene004/0/cam_pose/00005.npy",
+            "metadata": {
+                "frame": "00000",
+                "frame_b": "00005",
+                "pair_stride": 5,
+                "pair_type": "intra_phase",
+            },
+        }],
+    }
+    manifest_path = tmp_path / "pairs_manifest.json"
+    manifest_path.write_text(json.dumps(manifest))
+
+    predictions_path = tmp_path / "predictions.csv"
+    fieldnames = [
+        "scene_id", "phase", "frame_a", "frame_b",
+        "R00", "R01", "R02", "R10", "R11", "R12",
+        "R20", "R21", "R22", "tx", "ty", "tz",
+    ]
+    with predictions_path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerow({
+            "scene_id": "scene004", "phase": "0",
+            "frame_a": "00000", "frame_b": "00005",
+            "R00": 1, "R01": 0, "R02": 0,
+            "R10": 0, "R11": 1, "R12": 0,
+            "R20": 0, "R21": 0, "R22": 1,
+            "tx": 1, "ty": 0, "tz": 0,
+        })
+
+    result = compute_run(predictions_path, manifest_path)
+
+    assert len(result["per_pair"]) == 1
+    assert result["per_pair"][0]["rotation_error_deg"] == pytest.approx(0.0)
+    assert result["per_pair"][0]["translation_l2"] == pytest.approx(0.0)

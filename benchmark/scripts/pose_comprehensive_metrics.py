@@ -211,24 +211,15 @@ def _read_predictions_csv(
 
 
 def _load_pose_npz(path: Path) -> np.ndarray:
-    """Load a 4×4 SE(3) from a cam_pose .npz file.
+    """Load a 4×4 SE(3) from a published NPY or legacy NPZ pose.
 
-    The on-disk convention (matches loader._load_pose) is:
-        position    : [x, y, z] in metres (float64)
-        orientation : [x, y, z, w] quaternion
+    Published RPX snapshots use a ``(7,)`` NPY vector ordered as
+    ``[x, y, z, qx, qy, qz, qw]``. Legacy trees store the same values in
+    named NPZ arrays. Keep this wrapper name for compatibility with callers.
     """
-    data = np.load(path)
-    pos = np.asarray(data["position"], dtype=np.float64).reshape(3)
-    quat = np.asarray(data["orientation"], dtype=np.float64).reshape(4)
-    x, y, z, w = quat
-    R = np.array(
-        [
-            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
-            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
-            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
-        ],
-        dtype=np.float64,
-    )
+    from rpx_benchmark.pose_pairs import _load_pose_file
+
+    R, pos = _load_pose_file(path)
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = R
     T[:3, 3] = pos

@@ -240,6 +240,8 @@ class PosePairGenerator:
 
     def _load_poses(self, parquet_path: Path) -> None:
         df = pd.read_parquet(parquet_path)
+        if "scene_type" in df.columns:
+            df = df[df["scene_type"].astype(str) == "multi_object"].copy()
         self._df_cache = df  # kept for ensure_pairs_extracted
 
         # Scene-wise split assignment
