@@ -30,20 +30,12 @@ RUN test -n "${RPX_GIT_SHA}" && \
     git -C /opt/rpx-models/cut3r checkout --detach FETCH_HEAD && \
     sed -i \
       's/torch.load(model_path, map_location="cpu")/torch.load(model_path, map_location="cpu", weights_only=False)/' \
-      /opt/rpx-models/cut3r/src/dust3r/model.py && \
-    sed -i \
-      's/all_cuda_archs = cuda.get_gencode_flags().replace("compute=", "arch=").split()/all_cuda_archs = ["-gencode", "arch=compute_89,code=sm_89"]/' \
-      /opt/rpx-models/cut3r/src/croco/models/curope/setup.py
+      /opt/rpx-models/cut3r/src/dust3r/model.py
 
 RUN python -m venv --system-site-packages /opt/rpx-envs/cut3r && \
     /opt/rpx-envs/cut3r/bin/python -m pip install --upgrade pip==25.3 && \
     /opt/rpx-envs/cut3r/bin/python -m pip install \
       -r /tmp/requirements-cut3r.lock
-
-RUN test -x /usr/local/cuda/bin/nvcc && \
-    cd /opt/rpx-models/cut3r/src/croco/models/curope && \
-    TORCH_CUDA_ARCH_LIST=8.9 \
-      /opt/rpx-envs/cut3r/bin/python setup.py build_ext --inplace
 
 RUN /opt/rpx-envs/cut3r/bin/gdown \
       --id "${CUT3R_CHECKPOINT_ID}" \
@@ -55,11 +47,11 @@ COPY benchmark /opt/rpx/benchmark
 RUN /opt/rpx-envs/cut3r/bin/python -m pip install \
       --no-deps --force-reinstall /opt/rpx/benchmark && \
     /opt/rpx-envs/cut3r/bin/python -c \
-      "import numpy,pandas,pyarrow,torch; from models.curope import cuRoPE2D; from dust3r.model import ARCroco3DStereo; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'cut3r' in MODEL_REGISTRY; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__})')" && \
+      "import numpy,pandas,pyarrow,torch; from models.pos_embed import RoPE2D; from dust3r.model import ARCroco3DStereo; from pose_models import MODEL_REGISTRY; assert RoPE2D is not None; assert numpy.__version__ == '1.26.4'; assert 'cut3r' in MODEL_REGISTRY; print(f'CUT3R RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__}, rope={RoPE2D.__name__})')" && \
     /opt/rpx-envs/cut3r/bin/python -m pip freeze \
       > /opt/rpx-envs/cut3r/rpx-pip-freeze.txt && \
     /opt/rpx-envs/cut3r/bin/python -c \
-      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/cut3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'cut3r', 'checkpoint': 'cut3r_512_dpt_4_64.pth', 'checkpoint_revision': 'gdrive-${CUT3R_CHECKPOINT_ID}', 'prompt': 'ordered-image-pair', 'translation_scale': 'metric', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${CUT3R_GIT_SHA}'}, indent=2)+'\\n')"
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/cut3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'cut3r', 'checkpoint': 'cut3r_512_dpt_4_64.pth', 'checkpoint_revision': 'gdrive-${CUT3R_CHECKPOINT_ID}', 'prompt': 'ordered-image-pair', 'translation_scale': 'metric', 'rope_backend': 'pytorch-fallback', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${CUT3R_GIT_SHA}'}, indent=2)+'\\n')"
 
 WORKDIR /opt/rpx/benchmark
 VOLUME ["/cache/huggingface", "/outputs"]

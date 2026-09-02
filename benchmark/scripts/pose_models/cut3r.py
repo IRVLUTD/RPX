@@ -42,7 +42,7 @@ class CUT3R:
             from dust3r.model import ARCroco3DStereo
         except ImportError as exc:
             raise ImportError(
-                "CUT3R requires the official CUT3R source tree and compiled cuRoPE"
+                "CUT3R requires the official CUT3R source tree"
             ) from exc
 
         checkpoint_path = Path(checkpoint)
