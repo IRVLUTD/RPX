@@ -356,6 +356,9 @@ class PosePairGenerator:
                 repo_id=repo_id,
                 filename=shard_rel,
                 repo_type="dataset",
+                # Never mix files from the Hub's default branch into a
+                # benchmark pinned to a specific RPX snapshot.
+                revision=(self._snapshot_root.name if self._snapshot_root else None),
             )
             return Path(local)
         except Exception as e:  # noqa: BLE001

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+from types import SimpleNamespace
+
 import numpy as np
 
 from rpx_benchmark.pose_pairs import (
@@ -96,3 +99,34 @@ def test_temporal_chain_edges_are_exact_five_frame_hops() -> None:
             previous["frame_idx_b"] == current["frame_idx"]
             for previous, current in zip(ordered, ordered[1:], strict=False)
         )
+
+
+def test_missing_shard_download_is_pinned_to_snapshot_revision(
+    tmp_path, monkeypatch
+) -> None:
+    calls = []
+    downloaded = tmp_path / "downloaded.tar"
+    downloaded.touch()
+
+    def fake_download(**kwargs):
+        calls.append(kwargs)
+        return str(downloaded)
+
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(hf_hub_download=fake_download),
+    )
+    generator = PosePairGenerator.__new__(PosePairGenerator)
+    generator._repo_id = "IRVLUTD/RPX"
+    generator._snapshot_root = tmp_path / "snapshots" / "pinned-revision"
+
+    assert generator._download_shard("scenes/scene001/0/labels/cam_pose/v1.tar") == downloaded
+    assert calls == [
+        {
+            "repo_id": "IRVLUTD/RPX",
+            "filename": "scenes/scene001/0/labels/cam_pose/v1.tar",
+            "repo_type": "dataset",
+            "revision": "pinned-revision",
+        }
+    ]

@@ -41,7 +41,7 @@ if [[ -d "$dataset_repo/snapshots/$RPX_REVISION" ]]; then
   # Preserve the snapshot's ../../blobs symlink targets while exposing the
   # direct-layout shared cache at the standard HF_HOME/hub location.
   mount_args+=(
-    -v "$dataset_repo:/cache/huggingface/hub/datasets--IRVLUTD--RPX:ro"
+    -v "$dataset_repo:/cache/huggingface/hub/datasets--IRVLUTD--RPX"
   )
 fi
 
