@@ -79,8 +79,9 @@ def gen_attribute_questions(scene_name, kind, phase, fid, mask_path, mapping,
     so left uncapped they'd dominate any per-frame sample. None = no cap,
     keep every unique-answer question found. Other types are already
     naturally small (attr_count, attr_synonym, attr_absent, attr_odd_one_out)
-    and are not capped here."""
-    """mapping: {mask_id: {"name": str, "oid": fewsol_id str}}. lookup:
+    and are not capped here.
+
+    mapping: {mask_id: {"name": str, "oid": fewsol_id str}}. lookup:
     fewsol_id -> SOS folder path. sos_catalog_names: full list of catalog
     object folder names, for attr_absent's distractor pool."""
     mask = np.array(Image.open(mask_path))
@@ -96,7 +97,9 @@ def gen_attribute_questions(scene_name, kind, phase, fid, mask_path, mapping,
     if len(attrs) < 2:
         return []
 
-    base = {"scene_id": scene_name, "kind": kind, "phase": phase, "frame": fid, "mask_path": mask_path}
+    img_h, img_w = mask.shape[:2]
+    base = {"scene_id": scene_name, "kind": kind, "phase": phase, "frame": fid, "mask_path": mask_path,
+            "img_w": int(img_w), "img_h": int(img_h)}
     items = []
 
     def bbox(oid):

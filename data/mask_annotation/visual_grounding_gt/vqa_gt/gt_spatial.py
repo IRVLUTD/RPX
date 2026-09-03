@@ -95,7 +95,8 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
         return []
 
     _add_position_proxies(instances, W, H)
-    base = {"scene_id": scene_name, "kind": "mos", "phase": phase, "frame": fid, "mask_path": mask_path}
+    base = {"scene_id": scene_name, "kind": "mos", "phase": phase, "frame": fid, "mask_path": mask_path,
+            "img_w": int(W), "img_h": int(H)}
     items = []
 
     # ---- left/right binary. Dedupe to unordered pairs first (a,b) and
