@@ -93,6 +93,13 @@ def _build_must3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return MUSt3R(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_monst3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """MonST3R — dynamic-scene DUSt3R with two-view PairViewer recovery."""
+    from .monst3r import MonST3R
+
+    return MonST3R(device=device, batch_size=batch_size, **kwargs)
+
+
 def _build_far(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """FAR (CVPR 2024) — hybrid regression + matching."""
     from .far import FAR
@@ -154,6 +161,7 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "dust3r": _build_dust3r,
     "mast3r": _build_mast3r,
     "must3r": _build_must3r,
+    "monst3r": _build_monst3r,
     "far": _build_far,
     "srpose": _build_srpose,
     "nope_sac": _build_nope_sac,
@@ -177,6 +185,7 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "dust3r": "DUSt3R-ViTL-512",
     "mast3r": "MASt3R-ViTL-512",
     "must3r": "MUSt3R-512",
+    "monst3r": "MonST3R-ViTL-512",
     "far": "FAR",
     "srpose": "SRPose",
     "nope_sac": "NOPE-SAC",

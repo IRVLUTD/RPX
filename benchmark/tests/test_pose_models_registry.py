@@ -46,6 +46,7 @@ EXPECTED_KEYS = {
     "dust3r",
     "mast3r",
     "must3r",
+    "monst3r",
     "far",
     "srpose",
     "nope_sac",
@@ -231,6 +232,18 @@ def test_must3r_camera_to_world_conversion_matches_rpx_convention():
     c2w_a[:3, 3] = [-1.0, 2.0, 0.0]
     c2w_b = np.eye(4)
     c2w_b[:3, 3] = [2.0, 2.0, 4.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_monst3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.monst3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [1.5, -2.0, 0.25]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [4.0, 1.0, 2.0]
     relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
 
     np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)

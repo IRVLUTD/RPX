@@ -1,0 +1,66 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG MONST3R_GIT_SHA=574cc77ad278bad582f470e5382624e01f8769a7
+ARG CROCO_GIT_SHA=bd6f4e07d5c4f13ae5388efc052dadf142aff754
+ARG MONST3R_HF_REVISION=1ea2a9eade23a10898ec73be3fd44b5aa4ea0255
+ARG MONST3R_CONFIG_SHA256=fccd9c31cacd66a9a7a511e1debf8ddc43525d252b2378ffdff584ac8e237071
+ARG MONST3R_WEIGHTS_SHA256=53089f3bf16ef8d546d9c00232474f2b42490ce359986a1795795c6dc07a3e57
+ARG MONST3R_WEIGHTS_BYTES=2284790056
+
+COPY docker/rcpe-smoke/requirements-monst3r.lock /tmp/requirements-monst3r.lock
+COPY docker/rcpe-smoke/monst3r-two-view-inference.patch /tmp/monst3r-two-view-inference.patch
+
+RUN test -n "${MONST3R_GIT_SHA}" && \
+    mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/monst3r && \
+    git -C /opt/rpx-models/monst3r remote add origin https://github.com/Junyi42/monst3r.git && \
+    git -C /opt/rpx-models/monst3r fetch --depth 1 origin "${MONST3R_GIT_SHA}" && \
+    git -C /opt/rpx-models/monst3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-models/monst3r submodule update --init --depth 1 croco && \
+    test "$(git -C /opt/rpx-models/monst3r/croco rev-parse HEAD)" = "${CROCO_GIT_SHA}" && \
+    git -C /opt/rpx-models/monst3r apply --ignore-space-change --check /tmp/monst3r-two-view-inference.patch && \
+    git -C /opt/rpx-models/monst3r apply --ignore-space-change /tmp/monst3r-two-view-inference.patch && \
+    test -f /opt/rpx-models/monst3r/dust3r/model.py
+
+# Keep the prior cumulative model runtimes intact while giving MonST3R an
+# independently addressable interpreter with the released inference stack.
+RUN cp -a /opt/rpx-envs/fast3r /opt/rpx-envs/monst3r && \
+    /opt/rpx-envs/monst3r/bin/python -m pip install -r /tmp/requirements-monst3r.lock
+
+RUN mkdir -p /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/resolve/${MONST3R_HF_REVISION}/config.json" \
+      --output /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/config.json && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "https://huggingface.co/Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/resolve/${MONST3R_HF_REVISION}/model.safetensors" \
+      --output /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/model.safetensors && \
+    echo "${MONST3R_CONFIG_SHA256}  /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/config.json" | sha256sum --check --strict && \
+    echo "${MONST3R_WEIGHTS_SHA256}  /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/model.safetensors" | sha256sum --check --strict && \
+    test "$(stat -c %s /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt/model.safetensors)" -eq "${MONST3R_WEIGHTS_BYTES}"
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime through MonST3R" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    /opt/rpx-envs/monst3r/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx-models/monst3r:/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/monst3r/bin/python -c \
+      "import cv2,einops,huggingface_hub,numpy,pandas,pyarrow,roma,safetensors,scipy,torch,torchvision; from dust3r.model import AsymmetricCroCo3DStereo; from dust3r.cloud_opt.pair_viewer import PairViewer; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert torch.__version__.startswith('2.5.1'); assert torchvision.__version__.startswith('0.20.1'); assert 'monst3r' in MODEL_REGISTRY; model=AsymmetricCroCo3DStereo.from_pretrained('/opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt'); assert model is not None; del model; print(f'MonST3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__})')" && \
+    /opt/rpx-envs/monst3r/bin/python -m pip freeze > /opt/rpx-envs/monst3r/rpx-pip-freeze.txt && \
+    /opt/rpx-envs/monst3r/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/monst3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'monst3r', 'checkpoint': 'Junyi42/MonST3R_PO-TA-S-W_ViTLarge_BaseDecoder_512_dpt', 'checkpoint_revision': '${MONST3R_HF_REVISION}', 'checkpoint_sha256': '${MONST3R_WEIGHTS_SHA256}', 'translation_scale': 'unit', 'native_pose': 'opencv-camera-to-world-via-pairviewer-pnp', 'native_precision': 'fp32', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${MONST3R_GIT_SHA}', 'croco_revision': '${CROCO_GIT_SHA}'}, indent=2)+'\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]
