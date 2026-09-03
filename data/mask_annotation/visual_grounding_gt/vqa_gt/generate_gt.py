@@ -57,7 +57,7 @@ def get_scene_list(tier: str) -> list[str]:
 
 
 def gen_for_mos_phase(scene, phase, root, mapping, frames_per_phase, lookup,
-                       sos_catalog_names, rng):
+                       sos_catalog_names, rng, max_per_type):
     mask_dir = os.path.join(root, "sam2", "masks")
     fids = sorted(os.path.splitext(os.path.basename(p))[0]
                   for p in glob.glob(os.path.join(mask_dir, "*.png")))
@@ -69,19 +69,19 @@ def gen_for_mos_phase(scene, phase, root, mapping, frames_per_phase, lookup,
         depth_path = os.path.join(root, "depth", f"{fid}.png")
 
         items += gen_attribute_questions(scene, "mos", phase, fid, mask_path, mapping,
-                                          lookup, sos_catalog_names, rng)
+                                          lookup, sos_catalog_names, rng, max_per_type)
 
         if os.path.exists(depth_path):
             mask = imread_mask(mask_path)
             depth = imread_depth(depth_path)
             instances = compute_instances(mask, mapping, depth)
             H, W = mask.shape
-            items += gen_spatial_questions(scene, phase, fid, mask_path, instances, W, H, rng)
+            items += gen_spatial_questions(scene, phase, fid, mask_path, instances, W, H, rng, max_per_type)
 
     return items, len(selected)
 
 
-def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalog_names, rng):
+def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalog_names, rng, max_per_type):
     """Attribute VQA only -- ego has no depth, and the two spatial tasks
     both depend on it (see gt_spatial.py)."""
     mask_dir = os.path.join(root, "sam2", "masks")
@@ -93,12 +93,12 @@ def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalo
     for fid in selected:
         mask_path = os.path.join(mask_dir, f"{fid}.png")
         items += gen_attribute_questions(scene, "ego", None, fid, mask_path, mapping,
-                                          lookup, sos_catalog_names, rng)
+                                          lookup, sos_catalog_names, rng, max_per_type)
     return items, len(selected)
 
 
 def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: int,
-        seed: int, out_path: Path):
+        seed: int, out_path: Path, max_per_type: int | None = 5):
     lookup = load_fewsol_lookup(sos_root)
     sos_catalog_names = sorted(p.name for p in sos_root.iterdir() if (p / "questionnaire.txt").is_file())
     rng = random.Random(seed)
@@ -117,7 +117,7 @@ def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: 
                 continue
             mapping = load_mapping(str(root / "sam2" / "mask_to_object.json"))
             items, n = gen_for_mos_phase(scene, phase, str(root), mapping, frames_per_phase,
-                                          lookup, sos_catalog_names, rng)
+                                          lookup, sos_catalog_names, rng, max_per_type)
             all_items += items
             print(f"  mos phase {phase}: {n} frames -> {len(items)} items")
 
@@ -125,7 +125,7 @@ def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: 
         if (ego_root / "sam2" / "masks").is_dir():
             mapping = load_mapping(str(ego_root / "sam2" / "mask_to_object.json"))
             items, n = gen_for_ego_phase(scene, str(ego_root), mapping, frames_per_phase,
-                                         lookup, sos_catalog_names, rng)
+                                         lookup, sos_catalog_names, rng, max_per_type)
             all_items += items
             print(f"  ego: {n} frames -> {len(items)} items")
 
@@ -152,12 +152,17 @@ def main():
                               help="pull the scene list for this tier from splits/scene_splits.json")
     ap.add_argument("--frames-per-phase", type=int, default=30)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--max-per-type", type=int, default=5,
+                     help="cap on spatial_lr_binary/spatial_ud_binary/spatial_farthest "
+                          "and each attr_single_*/attr_composition field, per frame. "
+                          "Pass 0 or a negative number for no cap (keep the full pool).")
     ap.add_argument("--out", required=True, type=Path)
     args = ap.parse_args()
 
     scenes = args.scenes if args.scenes else get_scene_list(args.tier)
     print(f"scenes to process: {len(scenes)}")
-    run(args.staged_root, args.sos_root, scenes, args.frames_per_phase, args.seed, args.out)
+    max_per_type = args.max_per_type if args.max_per_type and args.max_per_type > 0 else None
+    run(args.staged_root, args.sos_root, scenes, args.frames_per_phase, args.seed, args.out, max_per_type)
 
 
 if __name__ == "__main__":

@@ -50,6 +50,12 @@ ALL_TYPES = (
 
 def bbox_of(mask: np.ndarray, oid: int):
     ys, xs = np.where(mask == oid)
+    assert len(xs) > 0, (
+        f"object id {oid} has no mask pixels in this frame -- a question is about "
+        "to reference an object that isn't actually visible here. This should be "
+        "unreachable: every oid a question can answer with is drawn from this "
+        "exact frame's present_ids, computed from this exact mask array."
+    )
     return [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
 
 
@@ -59,8 +65,21 @@ def _all_names(a: dict) -> set:
     return {n.lower() for n in a.get("name", [])}
 
 
+def _cap(candidates, max_per_type, rng):
+    if max_per_type is None or len(candidates) <= max_per_type:
+        return candidates
+    return rng.sample(candidates, max_per_type)
+
+
 def gen_attribute_questions(scene_name, kind, phase, fid, mask_path, mapping,
-                             lookup, sos_catalog_names, rng):
+                             lookup, sos_catalog_names, rng, max_per_type=5):
+    """max_per_type: cap on attr_single_* and attr_composition items per
+    frame (each field/pair counted separately) -- these are the two types
+    whose candidate count grows fast (material x function combinations),
+    so left uncapped they'd dominate any per-frame sample. None = no cap,
+    keep every unique-answer question found. Other types are already
+    naturally small (attr_count, attr_synonym, attr_absent, attr_odd_one_out)
+    and are not capped here."""
     """mapping: {mask_id: {"name": str, "oid": fewsol_id str}}. lookup:
     fewsol_id -> SOS folder path. sos_catalog_names: full list of catalog
     object folder names, for attr_absent's distractor pool."""
@@ -88,15 +107,15 @@ def gen_attribute_questions(scene_name, kind, phase, fid, mask_path, mapping,
 
     # ---- single-attribute grounding: color, material, function.
     # Guard: only kept when exactly one visible object has this value.
+    # Capped to max_per_type per field -- random sample of the unique-owner
+    # matches, not the first N found, so it's not biased by dict order.
     for field, verb in [("color", "is"), ("material", "made of"), ("function", "used for")]:
         owners = {}
         for oid, a in attrs.items():
             for val in a[field]:
                 owners.setdefault(val, []).append(oid)
-        for val, ov in owners.items():
-            if len(ov) != 1:
-                continue
-            oid = ov[0]
+        unique_matches = [(val, ov[0]) for val, ov in owners.items() if len(ov) == 1]
+        for val, oid in _cap(unique_matches, max_per_type, rng):
             q = (f"Which object is {val}?" if field == "color"
                  else f"Which object is {verb} {val}?")
             items.append({**base, "type": f"attr_single_{field}", "question": q,
@@ -104,16 +123,16 @@ def gen_attribute_questions(scene_name, kind, phase, fid, mask_path, mapping,
                           "attr_value": val, "target_oid": mapping[oid]["oid"]})
 
     # ---- composition (material + function). Guard: the (material,
-    # function) pair must belong to exactly one visible object.
+    # function) pair must belong to exactly one visible object. Capped the
+    # same way -- this is the highest-volume type by far (cross product of
+    # every material x every function), so it needs it most.
     pair_owners = {}
     for oid, a in attrs.items():
         for m in a["material"]:
             for f in a["function"]:
                 pair_owners.setdefault((m, f), []).append(oid)
-    for (m, f), ov in pair_owners.items():
-        if len(ov) != 1:
-            continue
-        oid = ov[0]
+    unique_pairs = [(m, f, ov[0]) for (m, f), ov in pair_owners.items() if len(ov) == 1]
+    for m, f, oid in _cap(unique_pairs, max_per_type, rng):
         items.append({**base, "type": "attr_composition",
                       "question": f"What is the object made of {m} that is used for {f}?",
                       "answer": obj_name(oid), "answer_bbox": bbox(oid),

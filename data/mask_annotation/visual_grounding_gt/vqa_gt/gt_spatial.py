@@ -64,12 +64,32 @@ def _to_3d(cx, cy, z_mm):
 
 def _bbox_of_instance(inst):
     ys, xs = np.nonzero(inst["mask"])
+    assert len(xs) > 0, (
+        f"instance {inst.get('name')!r} has no mask pixels in this frame -- a "
+        "question is about to reference an object that isn't actually visible "
+        "here. Should be unreachable: every instance in instances came from "
+        "compute_instances() iterating this exact frame's mask array."
+    )
     return [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
 
 
-def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rng):
+def _cap(candidates, max_per_type, rng):
+    if max_per_type is None or len(candidates) <= max_per_type:
+        return candidates
+    return rng.sample(candidates, max_per_type)
+
+
+def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rng, max_per_type=5):
     """instances: compute_instances() output for this frame, WITH depth
-    (i.e. only ever called for mos frames -- see generate_gt.py)."""
+    (i.e. only ever called for mos frames -- see generate_gt.py).
+
+    max_per_type caps spatial_lr_binary, spatial_ud_binary, and
+    spatial_farthest (each capped independently, at most one question per
+    distinct object pair / reference object). spatial_lr_extreme always
+    produces both directions (leftmost and rightmost) unconditionally --
+    there are only ever two, so there's nothing to cap. depth_closest is a
+    single scene-global question (closest to the *camera*, not to another
+    object), so it stays at one. None = no cap."""
     inst_list = list(instances.values())
     if len(inst_list) < 2:
         return []
@@ -78,14 +98,22 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
     base = {"scene_id": scene_name, "kind": "mos", "phase": phase, "frame": fid, "mask_path": mask_path}
     items = []
 
-    # ---- left/right binary
-    lr_candidates = [
-        (a, b) for a in inst_list for b in inst_list
-        if a["mask_id"] != b["mask_id"] and a["dx_proxy"] is not None and b["dx_proxy"] is not None
-        and abs(a["dx_proxy"] - b["dx_proxy"]) / max(a["median_depth"], b["median_depth"]) >= MIN_SEP_FRAC * W
-    ]
-    if lr_candidates:
-        a, b = rng.choice(lr_candidates)
+    # ---- left/right binary. Dedupe to unordered pairs first (a,b) and
+    # (b,a) ask about the same real-world relationship, so sampling the cap
+    # from ordered pairs would waste slots on near-duplicates -- the
+    # question's left/right phrasing direction is picked per selected pair.
+    lr_pairs = {}
+    for a in inst_list:
+        for b in inst_list:
+            if a["mask_id"] == b["mask_id"] or a["dx_proxy"] is None or b["dx_proxy"] is None:
+                continue
+            if abs(a["dx_proxy"] - b["dx_proxy"]) / max(a["median_depth"], b["median_depth"]) < MIN_SEP_FRAC * W:
+                continue
+            key = frozenset((a["mask_id"], b["mask_id"]))
+            lr_pairs.setdefault(key, (a, b))
+    for a, b in _cap(list(lr_pairs.values()), max_per_type, rng):
+        if rng.random() < 0.5:
+            a, b = b, a
         items.append({
             **base, "type": "spatial_lr_binary",
             "question": f"Is the {a['name']} to the left of the {b['name']}?",
@@ -94,14 +122,19 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
                          "name_b": b["name"], "dx_proxy_b": round(b["dx_proxy"], 1)},
         })
 
-    # ---- above/below binary
-    ud_candidates = [
-        (a, b) for a in inst_list for b in inst_list
-        if a["mask_id"] != b["mask_id"] and a["dy_proxy"] is not None and b["dy_proxy"] is not None
-        and abs(a["dy_proxy"] - b["dy_proxy"]) / max(a["median_depth"], b["median_depth"]) >= MIN_SEP_FRAC * H
-    ]
-    if ud_candidates:
-        a, b = rng.choice(ud_candidates)
+    # ---- above/below binary, same dedupe-then-cap approach.
+    ud_pairs = {}
+    for a in inst_list:
+        for b in inst_list:
+            if a["mask_id"] == b["mask_id"] or a["dy_proxy"] is None or b["dy_proxy"] is None:
+                continue
+            if abs(a["dy_proxy"] - b["dy_proxy"]) / max(a["median_depth"], b["median_depth"]) < MIN_SEP_FRAC * H:
+                continue
+            key = frozenset((a["mask_id"], b["mask_id"]))
+            ud_pairs.setdefault(key, (a, b))
+    for a, b in _cap(list(ud_pairs.values()), max_per_type, rng):
+        if rng.random() < 0.5:
+            a, b = b, a
         items.append({
             **base, "type": "spatial_ud_binary",
             "question": f"Is the {a['name']} above the {b['name']}?",
@@ -110,19 +143,21 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
                          "name_b": b["name"], "dy_proxy_b": round(b["dy_proxy"], 1)},
         })
 
-    # ---- leftmost / rightmost (bbox task)
+    # ---- leftmost AND rightmost (bbox task) -- both directions, always.
     proxy_candidates = [i for i in inst_list if i["dx_proxy"] is not None]
     if proxy_candidates:
-        direction = rng.choice(["left", "right"])
-        extreme = (min if direction == "left" else max)(proxy_candidates, key=lambda i: i["dx_proxy"])
-        items.append({
-            **base, "type": "spatial_lr_extreme",
-            "question": f"Which object is furthest to the {direction}?",
-            "answer": extreme["name"], "answer_bbox": _bbox_of_instance(extreme),
-            "evidence": {i["name"]: round(i["dx_proxy"], 1) for i in proxy_candidates},
-        })
+        for direction in ("left", "right"):
+            extreme = (min if direction == "left" else max)(proxy_candidates, key=lambda i: i["dx_proxy"])
+            items.append({
+                **base, "type": "spatial_lr_extreme",
+                "question": f"Which object is furthest to the {direction}?",
+                "answer": extreme["name"], "answer_bbox": _bbox_of_instance(extreme),
+                "evidence": {i["name"]: round(i["dx_proxy"], 1) for i in proxy_candidates},
+            })
 
-    # ---- closest to camera (bbox task) -- pure depth ordering
+    # ---- closest to camera (bbox task) -- pure depth ordering, single
+    # scene-global question (the reference is the camera, not another
+    # object, so there's nothing to vary this by).
     depth_vals = [(i["median_depth"], i) for i in inst_list if i["median_depth"] is not None]
     if depth_vals:
         closest = min(depth_vals, key=lambda x: x[0])[1]
@@ -133,10 +168,12 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
             "evidence": {i["name"]: round(d, 1) for d, i in depth_vals},
         })
 
-    # ---- farthest from a named reference object (bbox task) -- kept only
-    # when the depth-based 3D ranking agrees with the 2D pixel-distance
-    # ranking, so this never publishes a perspective illusion as GT.
+    # ---- farthest from a named reference object (bbox task) -- one
+    # candidate per reference object, capped; kept only when the
+    # depth-based 3D ranking agrees with the 2D pixel-distance ranking, so
+    # this never publishes a perspective illusion as GT.
     if len(inst_list) >= 3 and depth_vals:
+        farthest_candidates = []
         for ref in inst_list:
             if ref["median_depth"] is None:
                 continue
@@ -151,7 +188,9 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
             ranked_3d = sorted(others, key=lambda o: -d3d[o["mask_id"]])
             if ranked_2d[0]["mask_id"] != ranked_3d[0]["mask_id"]:
                 continue  # 2D and 3D disagree on which object is farthest -- drop
-            top = ranked_2d[0]
+            farthest_candidates.append((ref, ranked_2d[0], d2d, others))
+
+        for ref, top, d2d, others in _cap(farthest_candidates, max_per_type, rng):
             items.append({
                 **base, "type": "spatial_farthest",
                 "question": f"Which object is farthest from the {ref['name']}?",
