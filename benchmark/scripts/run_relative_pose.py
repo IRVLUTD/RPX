@@ -737,11 +737,15 @@ def main() -> None:
         from pose_comprehensive_metrics import compute_run
 
         snap = _hf_snapshot_root(args.repo, revision=args.revision)
-        manifest_path = (
-            Path(args.pairs_manifest)
-            if args.pairs_manifest is not None
-            else snap / "manifests" / "relative_pose" / f"{args.split}.json"
-        )
+        if args.pairs_source == "on_the_fly":
+            # The generated manifest is the exact evaluated sample set.  The
+            # canonical HF manifest is neither required nor necessarily
+            # published for on-the-fly RCPE runs.
+            manifest_path = paths["pairs_manifest"]
+        elif args.pairs_manifest is not None:
+            manifest_path = Path(args.pairs_manifest)
+        else:
+            manifest_path = snap / "manifests" / "relative_pose" / f"{args.split}.json"
         csv_path = paths["predictions_csv"]
         print(f"\n=== comprehensive pose metrics ===")
         extras = compute_run(csv_path, manifest_path, snapshot_root=snap)
