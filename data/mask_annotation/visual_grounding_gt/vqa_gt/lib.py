@@ -56,11 +56,26 @@ def _parse_questionnaire(text: str):
     return fields
 
 
+_ATTRS_CACHE: dict = {}
+
+
 def object_attrs(fewsol_id: str, lookup: dict):
+    """Cached: a catalog object's questionnaire never changes within one
+    run, but this gets called for the same ~220 catalog objects repeatedly
+    -- every present object in every frame, plus up to distractor_scan
+    catalog scans per frame for attr_synonym's "no" case and attr_absent.
+    Without caching that's thousands of redundant file reads + regex
+    parses of the same static files per scene."""
+    if fewsol_id in _ATTRS_CACHE:
+        return _ATTRS_CACHE[fewsol_id]
     folder = lookup.get(fewsol_id)
     if not folder:
+        _ATTRS_CACHE[fewsol_id] = None
         return None
     q = Path(folder) / "questionnaire.txt"
     if not q.exists():
+        _ATTRS_CACHE[fewsol_id] = None
         return None
-    return _parse_questionnaire(q.read_text())
+    result = _parse_questionnaire(q.read_text())
+    _ATTRS_CACHE[fewsol_id] = result
+    return result

@@ -41,9 +41,27 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE.parent))
 
 from lib import load_fewsol_lookup  # noqa: E402
-from gt_attributes import gen_attribute_questions  # noqa: E402
+from gt_attributes import collect_candidates, build_folder_to_fewsol  # noqa: E402
 from gt_spatial import gen_spatial_questions  # noqa: E402
 from generate_spatial_gt import compute_instances, imread_depth, imread_mask, load_mapping, select_frames  # noqa: E402
+import dedup  # noqa: E402
+
+# attr_synonym_yes/no are capped at 1 each regardless of max_per_type (see
+# gt_attributes.py's CANDIDATE_BUCKETS comment) -- a balanced yes/no split
+# per frame matters more here than volume. attr_count and attr_odd_one_out
+# are left uncapped: their real pools are already small and dedup.distribute
+# spreads them fairly on its own, no artificial cap needed.
+UNCAPPED_ATTR_TYPES = {"attr_count", "attr_odd_one_out"}
+SYNONYM_CAP = 1
+
+
+def _attr_type_caps(max_per_type):
+    caps = {t: max_per_type for t in
+            ("attr_single_color", "attr_single_material", "attr_single_function", "attr_composition")}
+    caps.update({t: None for t in UNCAPPED_ATTR_TYPES})
+    caps["attr_synonym_yes"] = SYNONYM_CAP
+    caps["attr_synonym_no"] = SYNONYM_CAP
+    return caps
 
 
 def get_scene_list(tier: str) -> list[str]:
@@ -56,21 +74,46 @@ def get_scene_list(tier: str) -> list[str]:
     return sorted(splits[tier])
 
 
+def _gen_attributes_for_phase(scene, kind, phase, mask_dir, selected, mapping,
+                               lookup, sos_catalog_names, folder_to_fewsol, rng, max_per_type):
+    """Two-pass, phase-wide: collect every frame's full candidate pool
+    first, then distribute fairly across the frames each fact is valid in
+    (dedup.py) -- object-intrinsic facts don't change with camera viewpoint
+    within a phase (confirmed), so independent per-frame sampling wastes
+    most of its budget on repeats. See gt_attributes.py's module docstring."""
+    frame_candidates = {}
+    for fid in selected:
+        mask_path = os.path.join(mask_dir, f"{fid}.png")
+        frame_candidates[fid] = collect_candidates(
+            scene, kind, phase, fid, mask_path, mapping, lookup,
+            sos_catalog_names, folder_to_fewsol, rng)
+
+    assigned = dedup.distribute(frame_candidates, _attr_type_caps(max_per_type), rng)
+    items = []
+    for fid in selected:
+        items += assigned[fid]
+    return items
+
+
 def gen_for_mos_phase(scene, phase, root, mapping, frames_per_phase, lookup,
-                       sos_catalog_names, rng, max_per_type):
+                       sos_catalog_names, folder_to_fewsol, rng, max_per_type):
     mask_dir = os.path.join(root, "sam2", "masks")
     fids = sorted(os.path.splitext(os.path.basename(p))[0]
                   for p in glob.glob(os.path.join(mask_dir, "*.png")))
     selected = select_frames(fids, frames_per_phase)
 
-    items = []
+    items = _gen_attributes_for_phase(scene, "mos", phase, mask_dir, selected, mapping,
+                                       lookup, sos_catalog_names, folder_to_fewsol, rng, max_per_type)
+
+    # Spatial tasks are deliberately NOT deduped across frames: left/right,
+    # closest, and farthest genuinely change with camera viewpoint within a
+    # phase (confirmed: 90% of object pairs flipped spatial_lr_binary's
+    # answer at least once across one phase) -- these are image-relative
+    # questions, not object-intrinsic facts, so repeating them across frames
+    # is a legitimate viewpoint-robustness test, not redundancy.
     for fid in selected:
         mask_path = os.path.join(mask_dir, f"{fid}.png")
         depth_path = os.path.join(root, "depth", f"{fid}.png")
-
-        items += gen_attribute_questions(scene, "mos", phase, fid, mask_path, mapping,
-                                          lookup, sos_catalog_names, rng, max_per_type)
-
         if os.path.exists(depth_path):
             mask = imread_mask(mask_path)
             depth = imread_depth(depth_path)
@@ -81,7 +124,8 @@ def gen_for_mos_phase(scene, phase, root, mapping, frames_per_phase, lookup,
     return items, len(selected)
 
 
-def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalog_names, rng, max_per_type):
+def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalog_names,
+                       folder_to_fewsol, rng, max_per_type):
     """Attribute VQA only -- ego has no depth, and the two spatial tasks
     both depend on it (see gt_spatial.py)."""
     mask_dir = os.path.join(root, "sam2", "masks")
@@ -89,11 +133,8 @@ def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalo
                   for p in glob.glob(os.path.join(mask_dir, "*.png")))
     selected = select_frames(fids, frames_per_phase)
 
-    items = []
-    for fid in selected:
-        mask_path = os.path.join(mask_dir, f"{fid}.png")
-        items += gen_attribute_questions(scene, "ego", None, fid, mask_path, mapping,
-                                          lookup, sos_catalog_names, rng, max_per_type)
+    items = _gen_attributes_for_phase(scene, "ego", None, mask_dir, selected, mapping,
+                                       lookup, sos_catalog_names, folder_to_fewsol, rng, max_per_type)
     return items, len(selected)
 
 
@@ -101,6 +142,7 @@ def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: 
         seed: int, out_path: Path, max_per_type: int | None = 5):
     lookup = load_fewsol_lookup(sos_root)
     sos_catalog_names = sorted(p.name for p in sos_root.iterdir() if (p / "questionnaire.txt").is_file())
+    folder_to_fewsol = build_folder_to_fewsol(lookup)  # built once, not per-frame
     rng = random.Random(seed)
 
     all_items = []
@@ -117,7 +159,7 @@ def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: 
                 continue
             mapping = load_mapping(str(root / "sam2" / "mask_to_object.json"))
             items, n = gen_for_mos_phase(scene, phase, str(root), mapping, frames_per_phase,
-                                          lookup, sos_catalog_names, rng, max_per_type)
+                                          lookup, sos_catalog_names, folder_to_fewsol, rng, max_per_type)
             all_items += items
             print(f"  mos phase {phase}: {n} frames -> {len(items)} items")
 
@@ -125,7 +167,7 @@ def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: 
         if (ego_root / "sam2" / "masks").is_dir():
             mapping = load_mapping(str(ego_root / "sam2" / "mask_to_object.json"))
             items, n = gen_for_ego_phase(scene, str(ego_root), mapping, frames_per_phase,
-                                         lookup, sos_catalog_names, rng, max_per_type)
+                                         lookup, sos_catalog_names, folder_to_fewsol, rng, max_per_type)
             all_items += items
             print(f"  ego: {n} frames -> {len(items)} items")
 

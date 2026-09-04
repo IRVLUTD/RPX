@@ -66,17 +66,28 @@ def load_mapping(path):
     return mp
 
 
+# A handful of mask fragments in this dataset are 1-2 pixels -- segmentation
+# noise (an object mostly occluded/off-frame with one stray labeled pixel
+# left), not a meaningfully visible object. Confirmed on a 460k-item GT run:
+# exactly 3 (frame, object) pairs this size existed, producing 10 degenerate
+# zero-area bounding boxes downstream. Below this floor, an object doesn't
+# count as "present" for question generation.
+MIN_MASK_AREA_PX = 100
+
+
 def compute_instances(mask, mapping, depth=None):
     """One entry per labeled object visible in this frame: mask_id, name,
     oid, pixel area, pixel centroid (cx, cy), and median depth in mm (None
-    if no depth map was given, or the object has no valid depth pixels)."""
+    if no depth map was given, or the object has no valid depth pixels).
+    Objects with fewer than MIN_MASK_AREA_PX mask pixels are excluded --
+    see the comment above."""
     instances = {}
     for mid in np.unique(mask).tolist():
         if mid == 0 or mid not in mapping:
             continue
         m = mask == mid
         ys, xs = np.nonzero(m)
-        if len(xs) == 0:
+        if len(xs) < MIN_MASK_AREA_PX:
             continue
         inst = {
             "mask_id": mid,
