@@ -19,7 +19,12 @@ python generate_gt.py \
 
 `--staged-root` must already contain the standard per-scene layout (`<scene>/<0|1|2>/sam2/...`, `<scene>/<0|1|2>/depth/...`, `<scene>/ego/sam2/...`) -- this script does not download scenes itself. `--tier` pulls the real scene list for that difficulty tier from the dataset's `splits/scene_splits.json` on Hugging Face; use `--scenes scene001 scene002 ...` instead to name scenes explicitly. Any named scene not present under `--staged-root` is skipped with a warning, not an error.
 
-Output is one JSON object per line, one question per line. By default each of `attr_single_color`, `attr_single_material`, `attr_single_function`, `attr_composition`, `spatial_lr_binary`, `spatial_ud_binary`, and `spatial_farthest` is capped at **5 questions per frame** (random sample of the valid, unique-answer candidates when more than 5 exist -- see `--max-per-type`). Left uncapped, a single busy frame can produce dozens of valid `attr_composition` questions alone (material x function combinations grow fast), which would dominate any downstream sample. Pass `--max-per-type 0` for no cap and the full candidate pool. `spatial_lr_extreme` always produces exactly 2 (leftmost and rightmost, unconditionally -- there are only ever two, so there's nothing to cap or sample). `depth_closest` always produces exactly 1 (a single scene-global question -- "closest to the *camera*" has no reference object to vary it by).
+Output is one JSON object per line, one question per line. `--max-per-type` (default **5**) caps `attr_single_color`, `attr_single_material`, `attr_single_function`, `attr_composition`, `spatial_lr_binary`, `spatial_ud_binary`, and `spatial_farthest` at 5 questions per frame. `attr_synonym` is always capped at 1 yes + 1 no per frame regardless of `--max-per-type` (a balanced split matters more here than volume). `attr_count` and `attr_odd_one_out` are never capped -- their real per-phase pools are already small. `spatial_lr_extreme` always produces exactly 2 (leftmost and rightmost, unconditionally). `depth_closest` always produces exactly 1 (a single scene-global question). Pass `--max-per-type 0` for no cap anywhere the cap normally applies.
+
+**How the cap is applied differs by task, and this matters:**
+
+- **Attribute VQA is deduped phase-wide, not per-frame.** A phase is a camera sweep around one static object arrangement, so an attribute fact (e.g. "the doll is red") stays true in every frame of that phase -- sampling it independently per frame just repeats the same fact (measured up to 96.7% repeat rate on `attr_count` before this fix). `generate_gt.py`'s `_gen_attributes_for_phase()` collects every candidate fact across all selected frames of a phase first, then `dedup.py`'s `distribute()` places each distinct fact once, in whichever of its valid frames currently has the lightest load, before anything repeats -- so `--max-per-type` here caps *distinct facts per frame*, spread fairly across the whole phase, not a per-frame independent sample.
+- **Spatial tasks (`gt_spatial.py`) are deliberately per-frame, un-deduped.** "Is A left of B" is a property of the current camera viewpoint, not the object arrangement -- confirmed on real data: 90% of object pairs flipped `spatial_lr_binary`'s answer at least once across a single phase. Repeating a spatial question across frames of the same phase is a legitimate viewpoint-robustness test, not redundancy, so `--max-per-type` here is a plain per-frame cap (`gt_spatial.py`'s `_cap()`), independently resampled every frame.
 
 ## Task 1: Attribute VQA
 
@@ -30,6 +35,12 @@ Types: `attr_single_color`, `attr_single_material`, `attr_single_function`, `att
 `attr_count` and `attr_absent` aren't identity questions, so uniqueness doesn't apply the same way -- their answers are unambiguous by construction instead (a count is just `len()` of a real set; an absence probe uses a color value checked against everything actually present).
 
 `attr_synonym` asks "Is there a {name} in the scene?" and now has a **real yes/no split**: the yes case uses a genuine secondary name recorded for a visible object (guarded so that name doesn't also belong to some other visible object), and the no case uses a real name from the wider catalog that matches no visible object at all. An earlier version of this generator only ever produced "yes" -- every model's accuracy on it was mathematically identical to how often it said yes, regardless of whether it recognized anything. Don't regress this.
+
+`attr_absent` ("Is there a {color} object in the scene?", always "no") uses the same standard: a real color value pulled from the wider catalog, confirmed genuinely absent from this frame -- never a made-up trap value.
+
+Objects are only considered "present" if their mask covers at least `MIN_MASK_AREA_PX` (100px, in `../generate_spatial_gt.py`) -- a 1-2 pixel mask fragment is segmentation noise, not a meaningfully visible object, and was previously producing degenerate zero-area bounding boxes.
+
+`collect_candidates()` (`gt_attributes.py`) returns the full, uncapped candidate pool for one frame, keyed by whatever fact each candidate actually depends on (e.g. a color value, or a `(material, function)` pair) -- not by which catalog object/folder it came from. Two different catalog entries can share the same color or name and would otherwise be treated as different "facts" and both get placed into the same frame, producing literal duplicate questions (measured: 1,111 such rows before this fix).
 
 ## Task 2 & 3: spatial (left-right/up-down yes-no, and bbox)
 
@@ -47,18 +58,21 @@ Comparing raw pixel position to decide "which object is more left" or "closer" b
 
 ## Output schema
 
-Common fields on every item: `scene_id`, `kind` (`"mos"`/`"ego"`), `phase` (`0`/`1`/`2`/`null`), `frame`, `mask_path`, `type`, `question`, `answer`.
+Common fields on every item: `scene_id`, `kind` (`"mos"`/`"ego"`), `phase` (`0`/`1`/`2`/`null`), `frame`, `mask_path`, `img_w`, `img_h`, `type`, `question`, `answer`.
 
-Bbox-eligible types (`attr_single_*`, `attr_composition`, `attr_odd_one_out`, `attr_synonym` yes-case, `spatial_lr_extreme`, `depth_closest`, `spatial_farthest`) also carry `answer_bbox` (`[xmin, ymin, xmax, ymax]` in pixel coordinates, computed directly from the real segmentation mask -- not estimated). Yes/no types carry an `evidence` dict recording the real values the answer was derived from, for auditability.
+Bbox-eligible types (`attr_single_*`, `attr_composition`, `attr_odd_one_out`, `attr_synonym` yes-case, `spatial_lr_extreme`, `depth_closest`, `spatial_farthest`) also carry `answer_bbox` (`[xmin, ymin, xmax, ymax]` in pixel coordinates, computed directly from the real segmentation mask -- not estimated). The 4 depth-based spatial types (`spatial_lr_binary`, `spatial_ud_binary`, `spatial_lr_extreme`, `depth_closest`, `spatial_farthest`) carry an `evidence` dict recording the real values (proxies/distances) the answer was derived from, for auditability. `attr_count` carries `answer_oids` (the real `fewsol_id`s counted, not just the count).
+
+`mask_path` is an absolute local path into whatever `--staged-root` this was generated against -- useful for local debugging, not portable, and should be dropped when publishing (`scene_id`+`kind`+`phase`+`frame` already identify the frame).
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `generate_gt.py` | CLI driver -- scene selection, frame sampling, writes output |
-| `gt_attributes.py` | Task 1 generator |
-| `gt_spatial.py` | Tasks 2 & 3 generator |
-| `lib.py` | SOS catalog lookup (`fewsol_id` -> parsed questionnaire attributes) |
+| `gt_attributes.py` | Task 1 generator -- also exposes `collect_candidates()`, the uncapped per-frame candidate pool `dedup.py` distributes |
+| `gt_spatial.py` | Tasks 2 & 3 generator -- per-frame, independently capped (see above) |
+| `dedup.py` | Phase-wide, order-fair candidate distribution used by Task 1 only |
+| `lib.py` | SOS catalog lookup (`fewsol_id` -> parsed questionnaire attributes, cached) |
 | `../generate_spatial_gt.py` | Shared geometry/depth utilities (mask loading, instance extraction, depth loading) |
 
 ## Environment
