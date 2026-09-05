@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Parse model JSONL outputs, score them, and apply mechanical smoke gates."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+from rpx_benchmark.vqa.contract import ATTRIBUTE_TYPES, BBOX_TYPES, load_manifest
+from rpx_benchmark.vqa.metrics import score_predictions
+from rpx_benchmark.vqa.outputs import parse_output
+from rpx_benchmark.vqa.roster import get_model
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--predictions", type=Path, required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--report", type=Path)
+    parser.add_argument("--min-parse-rate", type=float, default=0.95)
+    args = parser.parse_args()
+    model = get_model(args.model)
+    samples = {sample.sample_id: sample for sample in load_manifest(args.manifest)}
+    raw_by_id = {}
+    with args.predictions.open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, 1):
+            row = json.loads(line)
+            sample_id = str(row["sample_id"])
+            if sample_id in raw_by_id:
+                raise SystemExit(f"duplicate prediction at line {line_number}: {sample_id}")
+            raw_by_id[sample_id] = str(row["raw_output"])
+    expected = {
+        sample_id: sample
+        for sample_id, sample in samples.items()
+        if (
+            "bbox"
+            if sample.question_type in BBOX_TYPES
+            else "attribute"
+            if sample.question_type in ATTRIBUTE_TYPES
+            else "binary"
+        )
+        in model.capabilities
+    }
+    missing = sorted(set(expected) - set(raw_by_id))
+    extra = sorted(set(raw_by_id) - set(expected))
+    if missing or extra:
+        raise SystemExit(f"prediction coverage mismatch: missing={missing}, extra={extra}")
+    report = score_predictions(
+        (sample, parse_output(sample, raw_by_id[sample_id], model.key))
+        for sample_id, sample in expected.items()
+    )
+    rendered = json.dumps(report, indent=2, sort_keys=True)
+    print(rendered)
+    if args.report:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(rendered + "\n", encoding="utf-8")
+    if report["parse_rate"] < args.min_parse_rate:
+        raise SystemExit(
+            f"FAIL: parse_rate {report['parse_rate']:.3f} < {args.min_parse_rate:.3f}"
+        )
+
+
+if __name__ == "__main__":
+    main()

@@ -66,7 +66,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
 
 import numpy as np
 
-from .exceptions import DatasetError
+from .exceptions import ConfigTypeError, DatasetError
 from .logging_utils import get_logger
 
 log = get_logger(__name__)
@@ -200,9 +200,10 @@ def cells_from_per_sample(
     elif isinstance(system_card, Mapping):
         sc = system_card
     else:
-        raise TypeError(
+        raise ConfigTypeError(
             f"system_card must be a SystemCard, a dict, or None; "
-            f"got {type(system_card).__name__}"
+            f"got {type(system_card).__name__}",
+            hint="pass SystemCard.auto_detect(), its to_dict() value, or None",
         )
     sc_gpu_name = sc.get("gpu_name") or None
     sc_gpu_mem = sc.get("gpu_memory_gb")

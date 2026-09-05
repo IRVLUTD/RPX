@@ -98,6 +98,10 @@ class ConfigError(RPXError):
     """
 
 
+class ConfigTypeError(ConfigError, TypeError):
+    """Invalid configuration value type, catchable as RPXError or TypeError."""
+
+
 # --------------------------------------------------------------------------- #
 # Dataset-level errors
 # --------------------------------------------------------------------------- #
@@ -200,6 +204,7 @@ class MetricError(RPXError):
 __all__ = [
     "RPXError",
     "ConfigError",
+    "ConfigTypeError",
     "DatasetError",
     "ManifestError",
     "DownloadError",
