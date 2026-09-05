@@ -64,7 +64,7 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
             vals["x1"] * sample.img_w / 1024,
             vals["y1"] * sample.img_h / 1024,
         )
-        label = normalize_label(raw[match.end() :]) or None
+        label = normalize_label(raw[match.end() :].split("<", 1)[0]) or None
         return ParsedOutput(True, label=label, bbox=bbox)
     if sample.question_type in BBOX_TYPES:
         try:

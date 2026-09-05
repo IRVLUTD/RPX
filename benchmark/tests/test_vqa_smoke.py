@@ -79,7 +79,10 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
     assert '"bbox"' in bbox.text and "640 by 480" in bbox.text
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
-    assert paligemma.text.startswith("detect ") and paligemma.output_kind == "paligemma_loc"
+    assert paligemma.text.startswith("answer en ")
+    assert paligemma.output_kind == "paligemma_two_stage"
+    pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
+    assert pali_binary.text.startswith("answer en ")
 
 
 def test_strict_output_parsers() -> None:
@@ -98,10 +101,11 @@ def test_strict_output_parsers() -> None:
     )
     assert parsed_bbox.valid and parsed_bbox.bbox == (100.0, 120.0, 200.0, 220.0)
     parsed_loc = parse_output(
-        bbox, "<loc0256><loc0160><loc0469><loc0320> alarm_clock", "paligemma2-3b"
+        bbox, "<loc0256><loc0160><loc0469><loc0320> alarm_clock<eos>", "paligemma2-3b"
     )
     assert parsed_loc.valid
     assert parsed_loc.bbox == pytest.approx((100, 120, 200, 219.84375))
+    assert parsed_loc.label == "alarm clock"
 
 
 def test_metrics_oracle() -> None:

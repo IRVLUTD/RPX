@@ -23,10 +23,14 @@ def display_question(question: str) -> str:
 def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     question = display_question(sample.question)
     if sample.question_type in BINARY_TYPES:
+        if model_key.startswith("paligemma2-"):
+            return PromptSpec(f"answer en {question}\n", 8, "binary")
         return PromptSpec(
             f"{question}\nAnswer using exactly one lowercase word: yes or no.", 4, "binary"
         )
     if sample.question_type in ATTRIBUTE_TYPES:
+        if model_key.startswith("paligemma2-"):
+            return PromptSpec(f"answer en {question}\n", 24, "attribute")
         return PromptSpec(
             f"{question}\nAnswer with only the object name in lowercase. No explanation.",
             24,
@@ -34,9 +38,10 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
         )
     if sample.question_type in BBOX_TYPES:
         if model_key.startswith("paligemma2-"):
-            # PaliGemma's processor receives the image separately and its native
-            # detection prefix yields <locY0><locX0><locY1><locX1> label.
-            return PromptSpec(f"detect {question.rstrip('?').lower()}\n", 48, "paligemma_loc")
+            # The runner answers the spatial question first, then grounds its
+            # predicted label with PaliGemma's native detect prefix. At no point
+            # does the inference path receive the ground-truth object label.
+            return PromptSpec(f"answer en {question}\n", 24, "paligemma_two_stage")
         return PromptSpec(
             f'{question}\nReturn only JSON: {{"label":"object name","bbox":'
             f"[x_min,y_min,x_max,y_max]}}. Use integer coordinates in the original "
