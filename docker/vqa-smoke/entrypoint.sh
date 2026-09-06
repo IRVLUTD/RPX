@@ -15,7 +15,7 @@ Commands:
   verify                         Check imports and CUDA visibility.
   smoke paligemma2-3b [args]     Run all 36 rows and score the result.
   smoke paligemma2-10b [args]    Same dependency image; use both A5000s.
-  smoke gemma3-12b [args]        Bbox-only RPX smoke on both A5000s.
+  smoke gemma4-12b [args]        Bbox-only RPX smoke on one 48 GB GPU.
   shell                          Open Bash.
 EOF
     ;;
@@ -23,18 +23,18 @@ EOF
     exec python -c "import json,torch,transformers; assert torch.cuda.is_available(), 'CUDA unavailable'; print(json.dumps({'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpus':[torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],'transformers':transformers.__version__},indent=2))"
     ;;
   smoke)
-    model="${1:-gemma3-12b}"
+    model="${1:-gemma4-12b}"
     if [[ $# -gt 0 ]]; then
       shift
     fi
     run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}"
     mkdir -p "${run_dir}"
     manifest="${run_dir}/manifest.jsonl"
-    if [[ "${model}" == gemma3-* ]]; then
+    if [[ "${model}" == gemma4-* ]]; then
       python scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
       python scripts/build_vqa_smoke_sample.py \
         --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
-      python scripts/run_gemma3_smoke.py \
+      python scripts/run_gemma4_smoke.py \
         --model "${model}" --manifest "${manifest}" \
         --image-cache "${RPX_VQA_CACHE}/images" \
         --predictions "${run_dir}/predictions.jsonl" "$@"

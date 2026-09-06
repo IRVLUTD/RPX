@@ -4,13 +4,13 @@
   "models": [
     {"key":"paligemma2-3b","name":"PaliGemma 2 3B","size_b":3,"vram_gb":7,"bbox":"native_loc","tasks":["bbox"]},
     {"key":"qwen2.5-vl-3b","name":"Qwen2.5-VL 3B","size_b":3,"vram_gb":7,"bbox":"native","tasks":["bbox"]},
-    {"key":"gemma3-4b","name":"Gemma 3 4B","size_b":4,"vram_gb":10,"bbox":"prompted","tasks":["bbox"]},
+    {"key":"gemma4-e4b","name":"Gemma 4 E4B","size_b":4.5,"vram_gb":18,"bbox":"prompted","tasks":["bbox"]},
     {"key":"phi-3.5-vision-4b","name":"Phi-3.5-Vision 4.2B","size_b":4.2,"vram_gb":10,"bbox":"prompted","tasks":["bbox"]},
     {"key":"llava-onevision-7b","name":"LLaVA-OneVision 7B","size_b":7,"vram_gb":16,"bbox":"prompted","tasks":["bbox"]},
     {"key":"qwen2.5-vl-7b","name":"Qwen2.5-VL 7B","size_b":7,"vram_gb":15,"bbox":"native","tasks":["bbox"]},
     {"key":"idefics3-8b","name":"Idefics3 8B","size_b":8,"vram_gb":18,"bbox":"prompted","tasks":["bbox"]},
     {"key":"internvl2.5-8b","name":"InternVL 2.5 8B","size_b":8,"vram_gb":17,"bbox":"prompted","tasks":["bbox"]},
     {"key":"paligemma2-10b","name":"PaliGemma 2 10B","size_b":10,"vram_gb":21,"bbox":"native_loc","tasks":["bbox"]},
-    {"key":"gemma3-12b","name":"Gemma 3 12B","size_b":12,"vram_gb":28,"bbox":"prompted","tasks":["bbox"]}
+    {"key":"gemma4-12b","name":"Gemma 4 12B","size_b":12,"vram_gb":28,"bbox":"prompted","tasks":["bbox"]}
   ]
 }

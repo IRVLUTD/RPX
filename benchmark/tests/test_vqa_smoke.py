@@ -75,7 +75,7 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     binary = build_prompt(VQASample.from_dict(row()), "qwen2.5-vl-3b")
     assert "yes or no" in binary.text
     assert "alarm clock" in binary.text and "_" not in binary.text
-    attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma3-12b")
+    attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma4-12b")
     assert '"bbox"' in attribute.text
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
     assert '"bbox"' in bbox.text and "640 by 480" in bbox.text
@@ -92,7 +92,7 @@ def test_strict_output_parsers() -> None:
     assert not parse_output(binary, "yes because it is", "qwen2.5-vl-3b").valid
     attribute = VQASample.from_dict(row("attr_composition"))
     assert normalize_label("Air_Duster_Can.") == "air duster can"
-    parsed_attr = parse_output(attribute, '{"label":"air_duster_can","bbox":[100,120,200,220]}', "gemma3-12b")
+    parsed_attr = parse_output(attribute, '{"label":"air_duster_can","bbox":[100,120,200,220]}', "gemma4-12b")
     assert parsed_attr.label == "air duster can" and parsed_attr.valid
     bbox = VQASample.from_dict(row("depth_closest"))
     parsed_bbox = parse_output(
@@ -132,16 +132,16 @@ def test_roster_matches_rpx_draft() -> None:
     assert [model.display_name for model in MODELS] == [
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
-        "Gemma 3 4B",
+        "Gemma 4 E4B",
         "Phi-3.5-Vision 4.2B",
         "LLaVA-OneVision 7B",
         "Qwen2.5-VL 7B",
         "Idefics3 8B",
         "InternVL 2.5 8B",
         "PaliGemma 2 10B",
-        "Gemma 3 12B",
+        "Gemma 4 12B",
     ]
-    assert get_model("gemma3-12b").capabilities == {"bbox"}
+    assert get_model("gemma4-12b").capabilities == {"bbox"}
 
 
 @pytest.mark.skip(reason="bbox smoke manifest is generated from the pinned Hub revision")

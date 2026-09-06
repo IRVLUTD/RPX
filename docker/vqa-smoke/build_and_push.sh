@@ -6,7 +6,7 @@ repo_root="$(cd "${script_dir}/../.." && pwd)"
 image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short_revision="${revision:0:12}"
-family="${RPX_VQA_FAMILY:-gemma3}"
+family="${RPX_VQA_FAMILY:-gemma4}"
 tag="${RPX_VQA_TAG:-${family}-sha-${short_revision}}"
 
 if [[ -n "$(git -C "${repo_root}" status --porcelain)" ]]; then

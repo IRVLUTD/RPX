@@ -1,17 +1,16 @@
 # VQA smoke images
 
-The RPX draft roster is in `model-matrix.json`. The draft's “Gemma 4” label is
-implemented as Gemma 3 because citation [52] points to the Gemma 3 technical
-report and the listed 4B/12B checkpoints are Gemma 3 sizes. Build environments
-cumulatively by dependency family.
+The RPX roster is in `model-matrix.json`. The Gemma entries use Google's
+official Gemma 4 instruction checkpoints: E4B and 12B Unified. Build
+environments cumulatively by dependency family.
 
-The current bbox-only Gemma 3 stage runs the largest 12B model first. Its
+The current bbox-only Gemma 4 stage runs the largest 12B model first. Its
 14-row smoke manifest covers General bbox in clutter/interaction/clean/ego and
 Spatial bbox in the three currently available MOS phases. In-context and Ego
 Spatial are added only when their parquets are published.
 
 ```bash
-export RPX_VQA_FAMILY=gemma3
+export RPX_VQA_FAMILY=gemma4
 export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
 bash docker/vqa-smoke/build_and_push.sh
 
@@ -20,7 +19,7 @@ docker run --rm --gpus all --ipc=host --shm-size=16g \
   -v /data/narendhiran_rpx/hf-cache:/cache/huggingface \
   -v /data/narendhiran_rpx/vqa-cache:/cache/rpx-vqa \
   -v /data/narendhiran_rpx/vqa-results:/outputs \
-  "$RPX_VQA_IMAGE:gemma3" smoke gemma3-12b
+  "$RPX_VQA_IMAGE:gemma4" smoke gemma4-12b
 ```
 
 Each image must implement the same JSONL request/response contract documented

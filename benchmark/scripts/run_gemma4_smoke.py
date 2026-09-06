@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Gemma 3 bbox inference and save synchronized per-sample latency."""
+"""Run Gemma 4 bbox inference and save synchronized per-sample latency."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 
 import torch
-from vqa_models.gemma3 import CHECKPOINTS, Gemma3Runner
+from vqa_models.gemma4 import CHECKPOINTS, Gemma4Runner
 
 from rpx_benchmark.vqa.contract import load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_rgb
@@ -23,7 +23,7 @@ def synchronize_cuda() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", choices=sorted(CHECKPOINTS), default="gemma3-12b")
+    parser.add_argument("--model", choices=sorted(CHECKPOINTS), default="gemma4-12b")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--image-cache", type=Path, default=Path("/cache/rpx-vqa/images"))
     parser.add_argument("--predictions", type=Path, required=True)
@@ -31,12 +31,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
     if not torch.cuda.is_available():
-        raise SystemExit("CUDA is unavailable; run the container with --gpus all")
+        raise SystemExit("CUDA is unavailable; run the container with --gpus")
     samples = load_manifest(args.manifest)
     if args.limit is not None:
-        samples = samples[:args.limit]
+        samples = samples[: args.limit]
     image_paths = {s.sample_id: fetch_rgb(s, args.image_cache) for s in samples}
-    runner = Gemma3Runner(args.model)
+    runner = Gemma4Runner(args.model)
     for _ in range(args.warmup):
         sample = samples[0]
         spec = build_prompt(sample, args.model)
@@ -50,10 +50,18 @@ def main() -> None:
             raw = runner.predict(image_paths[sample.sample_id], spec.text, spec.max_new_tokens)
             synchronize_cuda()
             latency_ms = (time.perf_counter() - started) * 1000
-            row = {"sample_id": sample.sample_id, "raw_output": raw, "latency_ms": latency_ms, "model": args.model}
+            row = {
+                "sample_id": sample.sample_id,
+                "raw_output": raw,
+                "latency_ms": latency_ms,
+                "model": args.model,
+            }
             handle.write(json.dumps(row, sort_keys=True) + "\n")
             handle.flush()
-            print(f"[{index}/{len(samples)}] {sample.sample_id} {latency_ms:.1f} ms {raw!r}", flush=True)
+            print(
+                f"[{index}/{len(samples)}] {sample.sample_id} {latency_ms:.1f} ms {raw!r}",
+                flush=True,
+            )
 
 
 if __name__ == "__main__":
