@@ -73,10 +73,12 @@ def main() -> None:
         report["samples"].append(
             {
                 "sample_id": sample_id,
+                "question": sample.question,
                 "question_type": sample.question_type,
                 "kind": sample.kind,
                 "phase": sample.phase,
                 "ground_truth_bbox": sample.answer_bbox,
+                "raw_output": raw_by_id[sample_id],
                 "predicted_bbox": parsed.bbox,
                 "valid": parsed.valid,
                 "parse_error": parsed.error,
