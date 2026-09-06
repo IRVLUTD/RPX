@@ -9,6 +9,10 @@ The current bbox-only Gemma 4 stage runs the largest 12B model first. Its
 Spatial bbox in the three currently available MOS phases. In-context and Ego
 Spatial are added only when their parquets are published.
 
+The acceptance gate contains 700 questions: one General bbox question for
+every scene in all four current conditions (400), plus one Spatial bbox
+question for every scene in all three current MOS phases (300).
+
 ```bash
 export RPX_VQA_FAMILY=gemma4
 export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
