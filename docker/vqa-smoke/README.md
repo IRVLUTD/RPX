@@ -1,14 +1,27 @@
 # VQA smoke images
 
-The frozen roster is in `model-matrix.json`. Build environments cumulatively
-by dependency family, not by model size:
+The RPX draft roster is in `model-matrix.json`. The draft's “Gemma 4” label is
+implemented as Gemma 3 because citation [52] points to the Gemma 3 technical
+report and the listed 4B/12B checkpoints are Gemma 3 sizes. Build environments
+cumulatively by dependency family.
 
-1. `grounding`: GroundingDINO + Florence-2-large
-2. `transformers-modern`: PaliGemma 2 + Qwen2.5-VL (both sizes share one image)
-3. `internvl`: InternVL 2.5
-4. `molmo`: Molmo 2
-5. `robopoint`: RoboPoint
-6. `cogvlm2`: CogVLM2
+The current bbox-only Gemma 3 stage runs the largest 12B model first. Its
+14-row smoke manifest covers General bbox in clutter/interaction/clean/ego and
+Spatial bbox in the three currently available MOS phases. In-context and Ego
+Spatial are added only when their parquets are published.
+
+```bash
+export RPX_VQA_FAMILY=gemma3
+export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
+bash docker/vqa-smoke/build_and_push.sh
+
+docker run --rm --gpus all --ipc=host --shm-size=16g \
+  -e HF_TOKEN \
+  -v /data/narendhiran_rpx/hf-cache:/cache/huggingface \
+  -v /data/narendhiran_rpx/vqa-cache:/cache/rpx-vqa \
+  -v /data/narendhiran_rpx/vqa-results:/outputs \
+  "$RPX_VQA_IMAGE:gemma3" smoke gemma3-12b
+```
 
 Each image must implement the same JSONL request/response contract documented
 in `benchmark/data/vqa_smoke/v1/README.md`. Lockfiles, model revision pins, and

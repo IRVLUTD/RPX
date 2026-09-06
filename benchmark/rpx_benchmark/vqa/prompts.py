@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..exceptions import ConfigError
-from .contract import ATTRIBUTE_TYPES, BBOX_TYPES, BINARY_TYPES, VQASample
+from .contract import BBOX_TYPES, BINARY_TYPES, VQASample
 
 
 @dataclass(frozen=True)
@@ -28,14 +28,6 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
         return PromptSpec(
             f"{question}\nAnswer using exactly one lowercase word: yes or no.", 4, "binary"
         )
-    if sample.question_type in ATTRIBUTE_TYPES:
-        if model_key.startswith("paligemma2-"):
-            return PromptSpec(f"answer en {question}\n", 24, "attribute")
-        return PromptSpec(
-            f"{question}\nAnswer with only the object name in lowercase. No explanation.",
-            24,
-            "attribute",
-        )
     if sample.question_type in BBOX_TYPES:
         if model_key.startswith("paligemma2-"):
             # The runner answers the spatial question first, then grounds its
@@ -45,7 +37,8 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
         return PromptSpec(
             f'{question}\nReturn only JSON: {{"label":"object name","bbox":'
             f"[x_min,y_min,x_max,y_max]}}. Use integer coordinates in the original "
-            f"{sample.img_w} by {sample.img_h} image. No Markdown or explanation.",
+            f"{sample.img_w} by {sample.img_h} image. The bbox must enclose the object "
+            "that answers the question. No Markdown or explanation.",
             64,
             "bbox_json",
         )

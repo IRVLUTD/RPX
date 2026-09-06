@@ -35,6 +35,7 @@ def row(question_type: str = "spatial_lr_binary") -> dict:
             question="What is the object made of metal that is used for dusting?",
             answer="air_duster_can",
         )
+        value["answer_bbox"] = [100, 120, 200, 220]
     return value
 
 
@@ -74,8 +75,8 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     binary = build_prompt(VQASample.from_dict(row()), "qwen2.5-vl-3b")
     assert "yes or no" in binary.text
     assert "alarm clock" in binary.text and "_" not in binary.text
-    attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "cogvlm2-19b")
-    assert "object name" in attribute.text
+    attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma3-12b")
+    assert '"bbox"' in attribute.text
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
     assert '"bbox"' in bbox.text and "640 by 480" in bbox.text
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
@@ -91,8 +92,8 @@ def test_strict_output_parsers() -> None:
     assert not parse_output(binary, "yes because it is", "qwen2.5-vl-3b").valid
     attribute = VQASample.from_dict(row("attr_composition"))
     assert normalize_label("Air_Duster_Can.") == "air duster can"
-    parsed_attr = parse_output(attribute, "Air_Duster_Can.", "qwen2.5-vl-3b")
-    assert parsed_attr.label == "air duster can"
+    parsed_attr = parse_output(attribute, '{"label":"air_duster_can","bbox":[100,120,200,220]}', "gemma3-12b")
+    assert parsed_attr.label == "air duster can" and parsed_attr.valid
     bbox = VQASample.from_dict(row("depth_closest"))
     parsed_bbox = parse_output(
         bbox,
@@ -116,34 +117,34 @@ def test_metrics_oracle() -> None:
     ]
     parsed = [
         ParsedOutput(True, label="yes"),
-        ParsedOutput(True, label="air duster can"),
+        ParsedOutput(True, label="air duster can", bbox=(100, 120, 200, 220)),
         ParsedOutput(True, label="alarm clock", bbox=(100, 120, 200, 220)),
     ]
     result = score_predictions(zip(samples, parsed, strict=True))
     assert result["parse_rate"] == 1.0
     assert result["binary_accuracy"] == 1.0
-    assert result["attribute_exact_match"] == 1.0
+    assert result["attribute_exact_match"] == 0.0
     assert result["bbox_accuracy_at_0_5"] == 1.0
     assert bbox_iou((100, 120, 200, 220), (100, 120, 200, 220)) == 1.0
 
 
-def test_roster_matches_authoritative_first_image() -> None:
+def test_roster_matches_rpx_draft() -> None:
     assert [model.display_name for model in MODELS] == [
-        "GroundingDINO",
-        "Florence-2-large",
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
-        "Molmo 2 4B",
+        "Gemma 3 4B",
+        "Phi-3.5-Vision 4.2B",
+        "LLaVA-OneVision 7B",
         "Qwen2.5-VL 7B",
+        "Idefics3 8B",
         "InternVL 2.5 8B",
         "PaliGemma 2 10B",
-        "RoboPoint 13B",
-        "CogVLM2 19B",
+        "Gemma 3 12B",
     ]
-    assert get_model("grounding-dino").capabilities == {"bbox"}
-    assert "binary" in get_model("paligemma2-3b").capabilities
+    assert get_model("gemma3-12b").capabilities == {"bbox"}
 
 
+@pytest.mark.skip(reason="bbox smoke manifest is generated from the pinned Hub revision")
 def test_committed_smoke_manifest_has_required_balance() -> None:
     manifest = Path(__file__).parents[1] / "data" / "vqa_smoke" / "v1" / "manifest.jsonl"
     samples = load_manifest(manifest)

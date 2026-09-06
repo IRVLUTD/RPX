@@ -12,8 +12,14 @@ from ..exceptions import ManifestError
 
 SCHEMA_VERSION = "rpx-vqa-1.0"
 BINARY_TYPES = frozenset({"spatial_lr_binary", "spatial_ud_binary"})
-BBOX_TYPES = frozenset({"spatial_lr_extreme", "depth_closest", "spatial_farthest"})
-ATTRIBUTE_TYPES = frozenset({"attr_composition"})
+GENERAL_BBOX_TYPES = frozenset(
+    {"attr_single_color", "attr_single_material", "attr_single_function", "attr_composition"}
+)
+SPATIAL_BBOX_TYPES = frozenset(
+    {"spatial_lr_extreme", "depth_closest", "spatial_farthest"}
+)
+BBOX_TYPES = GENERAL_BBOX_TYPES | SPATIAL_BBOX_TYPES
+ATTRIBUTE_TYPES = frozenset()
 TASK_TYPES = BINARY_TYPES | BBOX_TYPES | ATTRIBUTE_TYPES
 
 

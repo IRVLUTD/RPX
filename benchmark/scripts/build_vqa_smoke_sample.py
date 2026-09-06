@@ -12,15 +12,13 @@ from pathlib import Path
 from rpx_benchmark.vqa.contract import VQASample, write_manifest
 
 QUOTAS = {
-    "spatial_lr_binary:yes": 4,
-    "spatial_lr_binary:no": 4,
-    "spatial_ud_binary:yes": 4,
-    "spatial_ud_binary:no": 4,
-    "spatial_lr_extreme": 4,
-    "depth_closest": 4,
-    "spatial_farthest": 4,
-    "attr_composition:mos": 4,
-    "attr_composition:ego": 4,
+    "general:mos:0": 2,
+    "general:mos:1": 2,
+    "general:mos:2": 2,
+    "general:ego": 2,
+    "spatial:mos:0": 2,
+    "spatial:mos:1": 2,
+    "spatial:mos:2": 2,
 }
 
 
@@ -30,12 +28,11 @@ def _rank(seed: int, value: object) -> str:
 
 def _stratum(row: dict) -> str | None:
     qtype = row["type"]
-    if qtype in {"spatial_lr_binary", "spatial_ud_binary"}:
-        return f"{qtype}:{row['answer']}"
-    if qtype == "attr_composition":
-        return f"{qtype}:{row['kind']}"
+    if qtype in {"attr_single_color", "attr_single_material", "attr_single_function", "attr_composition"} and row.get("answer_bbox") is not None:
+        suffix = "" if row["kind"] == "ego" else f":{int(row['phase'])}"
+        return f"general:{row['kind']}{suffix}"
     if qtype in {"spatial_lr_extreme", "depth_closest", "spatial_farthest"}:
-        return qtype
+        return f"spatial:{row['kind']}:{int(row['phase'])}"
     return None
 
 
@@ -60,23 +57,35 @@ def read_candidates(parquet_dir: Path) -> list[dict]:
         raise SystemExit("install the hub extra: pip install -e '.[hub]'") from exc
 
     rows: list[dict] = []
-    for filename in ("spatial_binary.parquet", "spatial_bbox.parquet", "attribute.parquet"):
+    retained = defaultdict(int)
+    candidates_per_stratum = 64
+    for filename in ("spatial_bbox.parquet", "attribute.parquet"):
         path = parquet_dir / filename
         if not path.is_file():
             raise SystemExit(f"missing input: {path}")
-        for row in pq.read_table(path).to_pylist():
-            stratum = _stratum(row)
-            if stratum not in QUOTAS or row["frame"] != "00000":
-                continue
-            if row["type"] in {
-                "spatial_lr_extreme",
-                "depth_closest",
-                "spatial_farthest",
-            } and not _unambiguous_bbox(row):
-                continue
-            row["_source"] = filename
-            row["_stratum"] = stratum
-            rows.append(row)
+        parquet = pq.ParquetFile(path)
+        for batch in parquet.iter_batches(batch_size=8192):
+            for row in batch.to_pylist():
+                stratum = _stratum(row)
+                if stratum not in QUOTAS or retained[stratum] >= candidates_per_stratum:
+                    continue
+                x0, y0, x1, y1 = row["answer_bbox"]
+                cx = (x0 + x1) / (2 * row["img_w"])
+                cy = (y0 + y1) / (2 * row["img_h"])
+                if not (0.25 <= cx <= 0.75 and 0.25 <= cy <= 0.75):
+                    continue
+                if row["type"] in {
+                    "spatial_lr_extreme",
+                    "depth_closest",
+                    "spatial_farthest",
+                } and not _unambiguous_bbox(row):
+                    continue
+                row["_source"] = filename
+                row["_stratum"] = stratum
+                rows.append(row)
+                retained[stratum] += 1
+            if all(retained[key] >= candidates_per_stratum for key in QUOTAS):
+                break
     return rows
 
 

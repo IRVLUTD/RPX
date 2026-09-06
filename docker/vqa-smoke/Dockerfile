@@ -52,3 +52,28 @@ WORKDIR /opt/rpx/benchmark
 VOLUME ["/cache/huggingface", "/cache/rpx-vqa", "/outputs"]
 ENTRYPOINT ["/usr/local/bin/rpx-vqa-smoke"]
 CMD ["help"]
+
+
+FROM vqa_base AS vqa_gemma3
+
+COPY docker/vqa-smoke/requirements-paligemma.lock /tmp/requirements-vqa.lock
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip==25.3 && \
+    python -m pip install \
+      --index-url https://download.pytorch.org/whl/cu128 \
+      torch==2.10.0+cu128 && \
+    python -m pip install -r /tmp/requirements-vqa.lock pyarrow==21.0.0
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --no-deps /opt/rpx/benchmark && \
+    python -c "import pyarrow,torch,transformers; from transformers import Gemma3ForConditionalGeneration; print('Gemma 3 runtime imports ready')"
+
+COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/cache/rpx-vqa", "/outputs"]
+ENTRYPOINT ["/usr/local/bin/rpx-vqa-smoke"]
+CMD ["help"]

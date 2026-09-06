@@ -49,9 +49,11 @@ def score_predictions(
         elif parsed.valid and sample.question_type in ATTRIBUTE_TYPES:
             score = float(parsed.label == normalize_label(sample.answer))
             attribute.append(score)
-        elif parsed.valid and sample.question_type in BBOX_TYPES:
-            assert parsed.bbox is not None and sample.answer_bbox is not None
-            iou = bbox_iou(parsed.bbox, sample.answer_bbox)
+        elif sample.question_type in BBOX_TYPES:
+            assert sample.answer_bbox is not None
+            iou = 0.0
+            if parsed.valid and parsed.bbox is not None:
+                iou = bbox_iou(parsed.bbox, sample.answer_bbox)
             ious.append(iou)
             score = float(iou >= iou_threshold)
             bbox_hits.append(score)

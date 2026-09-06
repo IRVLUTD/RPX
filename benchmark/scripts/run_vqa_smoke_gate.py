@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import statistics
 from pathlib import Path
 
 from rpx_benchmark.vqa.contract import ATTRIBUTE_TYPES, BBOX_TYPES, load_manifest
-from rpx_benchmark.vqa.metrics import score_predictions
+from rpx_benchmark.vqa.metrics import bbox_iou, score_predictions
 from rpx_benchmark.vqa.outputs import parse_output
 from rpx_benchmark.vqa.roster import get_model
 
@@ -24,6 +25,7 @@ def main() -> None:
     model = get_model(args.model)
     samples = {sample.sample_id: sample for sample in load_manifest(args.manifest)}
     raw_by_id = {}
+    latency_by_id = {}
     with args.predictions.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, 1):
             row = json.loads(line)
@@ -31,6 +33,7 @@ def main() -> None:
             if sample_id in raw_by_id:
                 raise SystemExit(f"duplicate prediction at line {line_number}: {sample_id}")
             raw_by_id[sample_id] = str(row["raw_output"])
+            latency_by_id[sample_id] = float(row["latency_ms"])
     expected = {
         sample_id: sample
         for sample_id, sample in samples.items()
@@ -47,10 +50,40 @@ def main() -> None:
     extra = sorted(set(raw_by_id) - set(expected))
     if missing or extra:
         raise SystemExit(f"prediction coverage mismatch: missing={missing}, extra={extra}")
-    report = score_predictions(
-        (sample, parse_output(sample, raw_by_id[sample_id], model.key))
+    parsed_by_id = {
+        sample_id: parse_output(sample, raw_by_id[sample_id], model.key)
         for sample_id, sample in expected.items()
+    }
+    report = score_predictions(
+        (sample, parsed_by_id[sample_id]) for sample_id, sample in expected.items()
     )
+    latencies = [latency_by_id[sample_id] for sample_id in expected]
+    report["latency_ms"] = {
+        "mean": statistics.fmean(latencies),
+        "median": statistics.median(latencies),
+        "min": min(latencies),
+        "max": max(latencies),
+    }
+    report["samples"] = []
+    for sample_id, sample in expected.items():
+        parsed = parsed_by_id[sample_id]
+        iou = 0.0
+        if parsed.valid and parsed.bbox is not None and sample.answer_bbox is not None:
+            iou = bbox_iou(parsed.bbox, sample.answer_bbox)
+        report["samples"].append(
+            {
+                "sample_id": sample_id,
+                "question_type": sample.question_type,
+                "kind": sample.kind,
+                "phase": sample.phase,
+                "ground_truth_bbox": sample.answer_bbox,
+                "predicted_bbox": parsed.bbox,
+                "valid": parsed.valid,
+                "parse_error": parsed.error,
+                "iou": iou,
+                "latency_ms": latency_by_id[sample_id],
+            }
+        )
     rendered = json.dumps(report, indent=2, sort_keys=True)
     print(rendered)
     if args.report:

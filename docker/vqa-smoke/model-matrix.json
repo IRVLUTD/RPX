@@ -2,15 +2,15 @@
   "schema_version": 1,
   "single_image_only": true,
   "models": [
-    {"key":"grounding-dino","name":"GroundingDINO","size_b":0.3,"vram_gb":2,"bbox":"native","tasks":["bbox"]},
-    {"key":"florence-2-large","name":"Florence-2-large","size_b":0.8,"vram_gb":3,"bbox":"native","tasks":["bbox"]},
-    {"key":"paligemma2-3b","name":"PaliGemma 2 3B","size_b":3,"vram_gb":7,"bbox":"native_loc","tasks":["binary","attribute","bbox"]},
-    {"key":"qwen2.5-vl-3b","name":"Qwen2.5-VL 3B","size_b":3,"vram_gb":7,"bbox":"native","tasks":["binary","attribute","bbox"]},
-    {"key":"molmo-2-4b","name":"Molmo 2 4B","size_b":4,"vram_gb":9,"bbox":"native_point","tasks":["binary","attribute","bbox"]},
-    {"key":"qwen2.5-vl-7b","name":"Qwen2.5-VL 7B","size_b":7,"vram_gb":15,"bbox":"native","tasks":["binary","attribute","bbox"]},
-    {"key":"internvl2.5-8b","name":"InternVL 2.5 8B","size_b":8,"vram_gb":17,"bbox":"prompted","tasks":["binary","attribute","bbox"]},
-    {"key":"paligemma2-10b","name":"PaliGemma 2 10B","size_b":10,"vram_gb":21,"bbox":"native_loc","tasks":["binary","attribute","bbox"]},
-    {"key":"robopoint-13b","name":"RoboPoint 13B","size_b":13,"vram_gb":27,"bbox":"native_point","tasks":["bbox"]},
-    {"key":"cogvlm2-19b","name":"CogVLM2 19B","size_b":19,"vram_gb":38,"bbox":"native","tasks":["binary","attribute","bbox"]}
+    {"key":"paligemma2-3b","name":"PaliGemma 2 3B","size_b":3,"vram_gb":7,"bbox":"native_loc","tasks":["bbox"]},
+    {"key":"qwen2.5-vl-3b","name":"Qwen2.5-VL 3B","size_b":3,"vram_gb":7,"bbox":"native","tasks":["bbox"]},
+    {"key":"gemma3-4b","name":"Gemma 3 4B","size_b":4,"vram_gb":10,"bbox":"prompted","tasks":["bbox"]},
+    {"key":"phi-3.5-vision-4b","name":"Phi-3.5-Vision 4.2B","size_b":4.2,"vram_gb":10,"bbox":"prompted","tasks":["bbox"]},
+    {"key":"llava-onevision-7b","name":"LLaVA-OneVision 7B","size_b":7,"vram_gb":16,"bbox":"prompted","tasks":["bbox"]},
+    {"key":"qwen2.5-vl-7b","name":"Qwen2.5-VL 7B","size_b":7,"vram_gb":15,"bbox":"native","tasks":["bbox"]},
+    {"key":"idefics3-8b","name":"Idefics3 8B","size_b":8,"vram_gb":18,"bbox":"prompted","tasks":["bbox"]},
+    {"key":"internvl2.5-8b","name":"InternVL 2.5 8B","size_b":8,"vram_gb":17,"bbox":"prompted","tasks":["bbox"]},
+    {"key":"paligemma2-10b","name":"PaliGemma 2 10B","size_b":10,"vram_gb":21,"bbox":"native_loc","tasks":["bbox"]},
+    {"key":"gemma3-12b","name":"Gemma 3 12B","size_b":12,"vram_gb":28,"bbox":"prompted","tasks":["bbox"]}
   ]
 }
