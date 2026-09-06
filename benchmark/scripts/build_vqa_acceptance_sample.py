@@ -27,15 +27,6 @@ def rank(row: dict) -> str:
     return hashlib.sha256(f"20260907:{identity}".encode()).hexdigest()
 
 
-def cell(row: dict) -> tuple[str, str, int | None, str] | None:
-    if row["type"] in GENERAL_TYPES and row.get("answer_bbox") is not None:
-        phase = None if row["kind"] == "ego" else int(row["phase"])
-        return ("general", row["kind"], phase, row["scene_id"])
-    if row["type"] in SPATIAL_TYPES and row.get("answer_bbox") is not None:
-        return ("spatial", row["kind"], int(row["phase"]), row["scene_id"])
-    return None
-
-
 def centered(row: dict) -> bool:
     x0, y0, x1, y1 = row["answer_bbox"]
     cx = (x0 + x1) / (2 * row["img_w"])
@@ -53,27 +44,61 @@ def main() -> None:
     except ImportError as exc:
         raise SystemExit("pyarrow is required") from exc
 
-    chosen: dict[tuple[str, str, int | None, str], tuple[str, dict]] = {}
-    for filename in ("spatial_bbox.parquet", "attribute.parquet"):
-        parquet = pq.ParquetFile(args.parquet_dir / filename)
-        for batch in parquet.iter_batches(batch_size=8192):
-            for row in batch.to_pylist():
-                key = cell(row)
-                if key is None or not centered(row):
-                    continue
-                score = rank(row)
-                if key not in chosen or score < chosen[key][0]:
-                    chosen[key] = (score, row)
+    spatial_by_frame: dict[tuple[str, int, str], tuple[str, dict]] = {}
+    parquet = pq.ParquetFile(args.parquet_dir / "spatial_bbox.parquet")
+    for batch in parquet.iter_batches(batch_size=8192):
+        for row in batch.to_pylist():
+            if row["type"] not in SPATIAL_TYPES or not centered(row):
+                continue
+            key = (row["scene_id"], int(row["phase"]), row["frame"])
+            score = rank(row)
+            if key not in spatial_by_frame or score < spatial_by_frame[key][0]:
+                spatial_by_frame[key] = (score, row)
 
-    counts = {"general": 0, "spatial": 0}
-    for task, _, _, _ in chosen:
-        counts[task] += 1
+    paired: dict[tuple[str, int], tuple[tuple[str, str], dict, dict]] = {}
+    ego: dict[str, tuple[str, dict]] = {}
+    parquet = pq.ParquetFile(args.parquet_dir / "attribute.parquet")
+    for batch in parquet.iter_batches(batch_size=8192):
+        for row in batch.to_pylist():
+            if (
+                row["type"] not in GENERAL_TYPES
+                or row.get("answer_bbox") is None
+                or not centered(row)
+            ):
+                continue
+            if row["kind"] == "ego":
+                key = row["scene_id"]
+                score = rank(row)
+                if key not in ego or score < ego[key][0]:
+                    ego[key] = (score, row)
+                continue
+            frame_key = (row["scene_id"], int(row["phase"]), row["frame"])
+            if frame_key not in spatial_by_frame:
+                continue
+            cell_key = (row["scene_id"], int(row["phase"]))
+            pair_score = (
+                hashlib.sha256(f"20260907:{frame_key}".encode()).hexdigest(),
+                rank(row),
+            )
+            if cell_key not in paired or pair_score < paired[cell_key][0]:
+                paired[cell_key] = (pair_score, row, spatial_by_frame[frame_key][1])
+
+    counts = {"general": len(paired) + len(ego), "spatial": len(paired)}
     if counts != {"general": 400, "spatial": 300}:
         raise SystemExit(f"incomplete acceptance coverage: {counts}")
-    rows = [value[1] for _, value in sorted(chosen.items())]
+    rows = []
+    for _, (_, general_row, spatial_row) in sorted(paired.items()):
+        rows.extend((general_row, spatial_row))
+    rows.extend(value[1] for _, value in sorted(ego.items()))
     samples = [VQASample.from_dict(row) for row in rows]
     write_manifest(samples, args.out)
-    print(f"wrote {len(samples)} acceptance rows: {json.dumps(counts, sort_keys=True)}")
+    image_count = len({json.dumps(sample.image, sort_keys=True) for sample in samples})
+    if image_count != 400:
+        raise SystemExit(f"acceptance image reuse invariant failed: {image_count}")
+    print(
+        f"wrote {len(samples)} acceptance rows over {image_count} images: "
+        f"{json.dumps(counts, sort_keys=True)}"
+    )
 
 
 if __name__ == "__main__":
