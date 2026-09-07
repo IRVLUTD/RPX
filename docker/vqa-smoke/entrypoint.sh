@@ -20,10 +20,10 @@ Commands:
 EOF
     ;;
   verify)
-    exec python -c "import json,torch,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backend':'vllm','vllm':vllm.__version__,'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    exec python3 -c "import json,torch,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backend':'vllm','vllm':vllm.__version__,'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
     ;;
   list-models)
-    exec env PYTHONPATH=scripts python -c "from vqa_models.vllm_backend import CHECKPOINTS; print('\n'.join(f'{key}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
+    exec env PYTHONPATH=scripts python3 -c "from vqa_models.vllm_backend import CHECKPOINTS; print('\n'.join(f'{key}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
     ;;
   smoke|acceptance)
     gate="${command_name}"
@@ -34,20 +34,20 @@ EOF
     run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/${gate}"
     mkdir -p "${run_dir}"
     manifest="${run_dir}/manifest.jsonl"
-    python scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
+    python3 scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
     if [[ "${gate}" == "smoke" ]]; then
-      python scripts/build_vqa_smoke_sample.py \
+      python3 scripts/build_vqa_smoke_sample.py \
         --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
     else
-      python scripts/build_vqa_acceptance_sample.py \
+      python3 scripts/build_vqa_acceptance_sample.py \
         --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
     fi
-    python scripts/run_vllm_vqa.py \
+    python3 scripts/run_vllm_vqa.py \
       --model "${model}" --manifest "${manifest}" \
       --image-cache "${RPX_VQA_CACHE}/images" \
       --predictions "${run_dir}/predictions.jsonl" \
       --resume "$@"
-    exec python scripts/run_vqa_smoke_gate.py \
+    exec python3 scripts/run_vqa_smoke_gate.py \
       --manifest "${manifest}" \
       --model "${model}" \
       --predictions "${run_dir}/predictions.jsonl" \
