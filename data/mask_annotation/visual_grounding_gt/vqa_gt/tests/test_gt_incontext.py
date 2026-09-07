@@ -225,3 +225,87 @@ def test_sample_id_deterministic_and_distinguishes_facts():
     assert s1 == s2
     s3 = gi._sample_id("inctx_attr_single_color", "scene001", "mos", 0, "00000", "1", "5", "color:blue")
     assert s1 != s3
+
+
+# ---------------------------------------------------------------- correction round: Q1/Q3 fixes
+
+
+def test_reference_rejected_if_independently_visible_in_frame():
+    # object 4 is NOT the target and NOT the answer -- it's a third object
+    # that happens to be the exact catalog identity of an otherwise-valid
+    # reference candidate. The candidate must be rejected even though it
+    # passes every other check.
+    attrs = {
+        1: {"name": [], "category": [], "material": [], "function": [], "color": ["red"]},
+        2: {"name": [], "category": [], "material": [], "function": [], "color": ["blue"]},
+        4: {"name": [], "category": [], "material": [], "function": [], "color": ["green"]},
+    }
+    target_identity = _identity(1, "1", "mug")
+    candidate = _cat_obj(999, "sneaky_thing", "4", "sneaky_thing", color=["red"])  # scid "4" == local obj 4's oid
+    catalog = {"sneaky_thing": candidate}
+    identity_only, _ = gi._find_single_field_references(
+        "color", "red", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="mug",
+        frame_identities=frozenset({"4"}))
+    assert identity_only == []
+
+
+def test_reference_allowed_when_not_in_frame_identities():
+    attrs = {
+        1: {"name": [], "category": [], "material": [], "function": [], "color": ["red"]},
+        2: {"name": [], "category": [], "material": [], "function": [], "color": ["blue"]},
+    }
+    target_identity = _identity(1, "1", "mug")
+    candidate = _cat_obj(999, "fine_thing", "77", "fine_thing", color=["red"])
+    catalog = {"fine_thing": candidate}
+    identity_only, _ = gi._find_single_field_references(
+        "color", "red", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="mug",
+        frame_identities=frozenset({"4"}))  # "77" not in this set -- unaffected
+    assert identity_only == [candidate]
+
+
+def test_gray_grey_canonicalized_for_reference_matching():
+    attrs = {
+        1: {"name": [], "category": [], "material": [], "function": [], "color": ["grey"]},
+        2: {"name": [], "category": [], "material": [], "function": [], "color": ["blue"]},
+    }
+    target_identity = _identity(1, "1", "mug")
+    gray_ref = _cat_obj(999, "gray_thing", "77", "gray_thing", color=["gray"])
+    catalog = {"gray_thing": gray_ref}
+    identity_only, _ = gi._find_single_field_references(
+        "color", "grey", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="mug")
+    assert identity_only == [gray_ref]
+
+
+def test_compound_material_reference_rejected_when_atom_conflicts():
+    # target uniquely owns the compound "plastic/metal"; a DIFFERENT frame
+    # object plainly owns "metal" -- the conservative atomic rule must
+    # reject any reference sharing the "plastic/metal" compound, since a
+    # model could read it as "metal" and match the other object instead.
+    attrs = {
+        1: {"name": [], "category": [], "material": ["plastic/metal"], "function": [], "color": []},
+        2: {"name": [], "category": [], "material": ["metal"], "function": [], "color": []},
+    }
+    target_identity = _identity(1, "1", "gadget")
+    candidate = _cat_obj(999, "compound_thing", "77", "compound_thing", material=["plastic/metal"])
+    catalog = {"compound_thing": candidate}
+    identity_only, _ = gi._find_single_field_references(
+        "material", "plastic/metal", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="gadget")
+    assert identity_only == []
+
+
+def test_compound_material_reference_allowed_when_no_atom_conflict():
+    attrs = {
+        1: {"name": [], "category": [], "material": ["plastic/metal"], "function": [], "color": []},
+        2: {"name": [], "category": [], "material": ["wood"], "function": [], "color": []},
+    }
+    target_identity = _identity(1, "1", "gadget")
+    candidate = _cat_obj(999, "compound_thing", "77", "compound_thing", material=["plastic/metal"])
+    catalog = {"compound_thing": candidate}
+    identity_only, _ = gi._find_single_field_references(
+        "material", "plastic/metal", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="gadget")
+    assert identity_only == [candidate]

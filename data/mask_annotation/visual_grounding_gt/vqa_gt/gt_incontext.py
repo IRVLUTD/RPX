@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -167,7 +168,64 @@ def _mat_owners(attrs: dict) -> dict:
 
 # ---------------------------------------------------------------- identity / selection
 
-def _identity_ok(candidate, target_identity: Identity, target_local_name: str, require_diff_category: bool) -> bool:
+# Q6 (correction round): "gray"/"grey" are the same color under any
+# reasonable reading, but normalize_value() deliberately does not merge
+# spelling variants (see its own docstring) -- normalize_value() stays
+# untouched (it also governs the published-fact ELIGIBILITY computation,
+# which must keep matching gt_attributes.py's real semantics exactly, since
+# row-pairing's whole point is fidelity to already-published facts). This
+# alias is applied ONLY inside reference *selection* (matching a candidate
+# against the intended color, and the ambiguity gate), never to eligibility.
+_COLOR_ALIASES = {"gray": "grey"}
+
+
+def _canon_color(v: str) -> str:
+    return _COLOR_ALIASES.get(v, v)
+
+
+# Q11/Q5 (correction round): a conservative ambiguity rule for compound
+# ("slash/ampersand") material strings. Measured (7-scene sample, see
+# report): splitting a compound like "plastic/metal" into its atoms and
+# treating each atom as a real material makes ~99.8% of the facts that use
+# it ambiguous -- i.e. almost every scene with a "plastic/metal" object also
+# separately has a plain "metal" or "plastic" object, and a model shown
+# "plastic/metal" in Image 1 could reasonably read either atom as "the"
+# shared material. The CONSERVATIVE choice is therefore to decompose
+# compounds into atoms for the ambiguity CHECK (rejecting more candidates,
+# never fewer) while leaving eligibility (which facts exist at all) on the
+# original atomic-opaque-string semantics that match the published
+# generator exactly.
+def _material_atoms(raw_value: str) -> set:
+    return {normalize_value(t) for t in re.split(r"[/&]", raw_value) if t.strip()}
+
+
+def _atomic_material_owners(attrs: dict) -> dict:
+    """atom -> set(local_mask_id) -- every frame object's material list,
+    decomposed into atoms (a plain, non-compound material is its own single
+    atom, so this is a strict refinement of _norm_owners for material, never
+    a narrowing)."""
+    owners: dict = {}
+    for oid, a in attrs.items():
+        for v in a["material"]:
+            for atom in _material_atoms(v):
+                owners.setdefault(atom, set()).add(oid)
+    return owners
+
+
+def _material_values_conflict(values: list, target_local_id: int, atomic_owners: dict) -> bool:
+    """True if ANY atom of ANY of `values` (raw or normalized material
+    strings, possibly compound) is owned by a frame object other than the
+    target -- the atom-aware, conservative replacement for a plain
+    normalize_value() dict lookup."""
+    for v in values:
+        for atom in _material_atoms(v):
+            if atomic_owners.get(atom, set()) - {target_local_id}:
+                return True
+    return False
+
+
+def _identity_ok(candidate, target_identity: Identity, target_local_name: str, require_diff_category: bool,
+                  frame_identities: frozenset = frozenset()) -> bool:
     """The MANDATORY rule (always enforced, first two checks below):
     reference_global_object_id != target_global_object_id (plus a
     source_catalog_id cross-check as a redundant safety net).
@@ -184,11 +242,25 @@ def _identity_ok(candidate, target_identity: Identity, target_local_name: str, r
     `boot.2`), which the mandatory global_object_id rule alone would not
     catch. Measured to cost zero additional coverage loss (see README's
     in-context section) -- kept on unconditionally for that reason, not
-    because it's a genuine category check."""
+    because it's a genuine category check.
+
+    frame_identities (correction round, Q1): the source_catalog_id of every
+    OTHER object visible in this exact frame (never includes the target).
+    Rejects a candidate that is itself independently visible in Image 2 as
+    a different object -- found as a real bug specific to
+    _find_odd_one_out_references (its ambiguity gate checks for conflicting
+    ANSWERS, not value-ownership overlap, so unlike the other three
+    _find_* functions it never caught "candidate is itself in the frame" as
+    an incidental side effect). Applied here, uniformly, to all four
+    reference finders rather than only patching the one that manifested a
+    violation -- the other three already passed this by construction, so
+    this is a zero-cost, defensive strengthening for them."""
     if target_identity.global_object_id is not None and candidate.global_object_id == target_identity.global_object_id:
         return False
     if candidate.source_catalog_id == target_identity.source_catalog_id:
         return False  # redundant safety net if global_object_id somehow didn't catch it
+    if candidate.source_catalog_id in frame_identities:
+        return False
     if require_diff_category:
         if normalize_value(candidate.object_name) == normalize_value(target_local_name):
             return False
@@ -215,84 +287,136 @@ def _sample_id(*parts) -> str:
 # ---------------------------------------------------------------- general (attribute-transfer) families
 
 def _find_single_field_references(field: str, value: str, target_local_id: int, attrs: dict,
-                                   catalog: dict, target_identity: Identity, target_local_name: str):
+                                   catalog: dict, target_identity: Identity, target_local_name: str,
+                                   frame_identities: frozenset = frozenset()):
     """Returns (candidates_identity_only, candidates_diff_category) -- both
-    already passed the cross-modal ambiguity gate (§5 of the spec)."""
+    already passed the cross-modal ambiguity gate (§5 of the spec).
+
+    field=="color": gray/grey are canonicalized to the same value for
+    matching/ambiguity purposes only (see _canon_color).
+    field=="material": compound (slash/ampersand) values are decomposed
+    into atoms for the ambiguity check only (see _material_atoms) -- the
+    conservative rule from the correction round."""
     norm_val = normalize_value(value)
-    norm_owners = _norm_owners(attrs, field)
+    if field == "material":
+        atomic_owners = _atomic_material_owners(attrs)
+    else:
+        norm_owners = _norm_owners(attrs, field)
+        if field == "color":
+            norm_owners = {_canon_color(v): s for v, s in norm_owners.items()}
+            norm_val = _canon_color(norm_val)
+
     identity_only, diff_category = [], []
     for obj in catalog.values():
-        if norm_val not in obj.attrs_norm[field]:
+        cand_values = obj.attrs_norm[field]
+        if field == "color":
+            if norm_val not in {_canon_color(v) for v in cand_values}:
+                continue
+        else:
+            if norm_val not in cand_values:
+                continue
+        if not _identity_ok(obj, target_identity, target_local_name, require_diff_category=False,
+                             frame_identities=frame_identities):
             continue
-        if not _identity_ok(obj, target_identity, target_local_name, require_diff_category=False):
-            continue
-        # ambiguity gate: EVERY value this candidate owns in this field must,
-        # in this exact frame, be owned only by the target (or by no one).
-        ambiguous = False
-        for v in obj.attrs_norm[field]:
-            owners_of_v = norm_owners.get(v, set())
-            if owners_of_v - {target_local_id}:
-                ambiguous = True
-                break
+        if field == "material":
+            ambiguous = _material_values_conflict(cand_values, target_local_id, atomic_owners)
+        else:
+            ambiguous = False
+            for v in cand_values:
+                v_key = _canon_color(v) if field == "color" else v
+                owners_of_v = norm_owners.get(v_key, set())
+                if owners_of_v - {target_local_id}:
+                    ambiguous = True
+                    break
         if ambiguous:
             continue
         identity_only.append(obj)
-        if _identity_ok(obj, target_identity, target_local_name, require_diff_category=True):
+        if _identity_ok(obj, target_identity, target_local_name, require_diff_category=True,
+                         frame_identities=frame_identities):
             diff_category.append(obj)
     return identity_only, diff_category
 
 
 def _find_composition_references(m: str, f: str, target_local_id: int, attrs: dict,
-                                  catalog: dict, target_identity: Identity, target_local_name: str):
-    norm_pair = (normalize_value(m), normalize_value(f))
-    norm_pair_owners = _norm_pair_owners(attrs)
+                                  catalog: dict, target_identity: Identity, target_local_name: str,
+                                  frame_identities: frozenset = frozenset()):
+    """The function component matches by exact normalized string (functions
+    aren't subject to the compound-material rule). The material component
+    uses the same atomic-decomposition ambiguity check as
+    _find_single_field_references -- a candidate whose compound material
+    shares an atom with some OTHER frame object's material is rejected even
+    if the exact compound STRING is unique to the candidate."""
+    norm_m, norm_f = normalize_value(m), normalize_value(f)
+    norm_pair_owners = _norm_pair_owners(attrs)  # exact-string pair ownership, for the function-exact / non-material-atom check
+    atomic_owners = _atomic_material_owners(attrs)
     identity_only, diff_category = [], []
     for obj in catalog.values():
         cand_pairs = {(normalize_value(mm), normalize_value(ff))
                       for mm in obj.attrs_raw["material"] for ff in obj.attrs_raw["function"]}
-        if norm_pair not in cand_pairs:
+        if (norm_m, norm_f) not in cand_pairs:
             continue
-        if not _identity_ok(obj, target_identity, target_local_name, require_diff_category=False):
+        if not _identity_ok(obj, target_identity, target_local_name, require_diff_category=False,
+                             frame_identities=frame_identities):
             continue
         ambiguous = False
-        for pair in cand_pairs:
-            owners_of_pair = norm_pair_owners.get(pair, set())
-            if owners_of_pair - {target_local_id}:
+        for pair_m, pair_f in cand_pairs:
+            # exact-pair ownership (catches a different object with the
+            # SAME literal (material,function) pair, compound or not)
+            if norm_pair_owners.get((pair_m, pair_f), set()) - {target_local_id}:
+                ambiguous = True
+                break
+            # atomic material overlap: some OTHER frame object need only
+            # share a MATERIAL ATOM with this pair's material (not the
+            # whole pair) to be a plausible confusable "same material and
+            # purpose" answer, when the reference's material is a compound
+            if _material_values_conflict([pair_m], target_local_id, atomic_owners):
                 ambiguous = True
                 break
         if ambiguous:
             continue
         identity_only.append(obj)
-        if _identity_ok(obj, target_identity, target_local_name, require_diff_category=True):
+        if _identity_ok(obj, target_identity, target_local_name, require_diff_category=True,
+                         frame_identities=frame_identities):
             diff_category.append(obj)
     return identity_only, diff_category
 
 
 def _find_odd_one_out_references(majority_material: str, target_local_id: int, attrs: dict,
-                                  mat_owners: dict, catalog: dict, target_identity: Identity, target_local_name: str):
+                                  mat_owners: dict, catalog: dict, target_identity: Identity, target_local_name: str,
+                                  frame_identities: frozenset = frozenset()):
     """target_local_id here is the MINORITY (answer) object -- the reference
-    must possess majority_material and must never be the answer object."""
-    norm_owners = _norm_owners(attrs, "material")
-    norm_majority = normalize_value(majority_material)
+    must possess majority_material and must never be the answer object (nor
+    independently visible elsewhere in the frame -- frame_identities, the
+    Q1 fix).
+
+    Compound-material rule (unified, not a bolted-on second check): the
+    original ambiguity condition is "does this candidate material produce a
+    DIFFERENT well-defined odd-one-out answer in this frame" -- evaluated
+    per EXACT material string. The conservative extension evaluates the
+    exact same condition per ATOM instead (a plain material is its own
+    single atom, so this is a strict generalization, never a behavior
+    change for non-compound materials -- verified against both existing
+    unit tests, including one where the intended majority material's own
+    atom legitimately overlaps the majority group and must NOT be flagged).
+    A first version of this fix used a separate raw-ownership-overlap check
+    that did not understand "this atom IS the intended majority material,
+    so overlapping with the majority group is correct" -- it incorrectly
+    rejected the exact majority-material case. Fixed by generalizing the
+    ORIGINAL missing-object-conflict logic to run over atoms, once."""
+    atomic_owners = _atomic_material_owners(attrs)
     identity_only, diff_category = [], []
     for obj in catalog.values():
-        if norm_majority not in obj.attrs_norm["material"]:
+        if normalize_value(majority_material) not in obj.attrs_norm["material"]:
             continue
-        if not _identity_ok(obj, target_identity, target_local_name, require_diff_category=False):
+        if not _identity_ok(obj, target_identity, target_local_name, require_diff_category=False,
+                             frame_identities=frame_identities):
             continue
-        # every applicable material of this candidate must yield the SAME
-        # odd-one-out answer (or no well-defined odd-one-out at all) -- see
-        # module docstring.
         ambiguous = False
-        for cand_m_norm in obj.attrs_norm["material"]:
-            # find the raw material string(s) in THIS frame matching this
-            # normalized value, to look up mat_owners (raw-keyed, matching
-            # gt_attributes.py's own eligibility exactly)
-            raw_ms = [m for m in mat_owners if normalize_value(m) == cand_m_norm]
-            for raw_m in raw_ms:
-                ov = mat_owners[raw_m]
-                missing = [oid for oid in attrs if oid not in ov]
-                if len(missing) == 1 and len(ov) >= 2 and missing[0] != target_local_id:
+        for cand_m_raw in obj.attrs_raw["material"]:
+            for atom in _material_atoms(cand_m_raw):
+                owners_of_atom = atomic_owners.get(atom, set())
+                missing = [oid for oid in attrs if oid not in owners_of_atom]
+                if len(missing) == 1 and len(owners_of_atom) >= 2 and missing[0] != target_local_id:
                     ambiguous = True
                     break
             if ambiguous:
@@ -300,7 +424,8 @@ def _find_odd_one_out_references(majority_material: str, target_local_id: int, a
         if ambiguous:
             continue
         identity_only.append(obj)
-        if _identity_ok(obj, target_identity, target_local_name, require_diff_category=True):
+        if _identity_ok(obj, target_identity, target_local_name, require_diff_category=True,
+                         frame_identities=frame_identities):
             diff_category.append(obj)
     return identity_only, diff_category
 
@@ -320,6 +445,11 @@ def gen_incontext_general_for_frame(scene_id, kind, phase, fid, mask, mapping, l
         return items, drops
 
     img_h, img_w = mask.shape[:2]
+    # Q1 fix: every visible object's source_catalog_id in this exact frame
+    # -- a reference candidate matching any of these (other than the
+    # target's own identity, which _identity_ok checks separately) is
+    # itself independently visible in Image 2 and must be rejected.
+    all_frame_identities = frozenset(mapping[oid]["oid"] for oid in attrs)
 
     def emit(type_, target_local_id, fact_key, source_q, identity_only, diff_category,
               attribute_kind, attribute_value=None, attribute_material=None, attribute_function=None):
@@ -362,7 +492,8 @@ def gen_incontext_general_for_frame(scene_id, kind, phase, fid, mask, mapping, l
             target_identity_for_check = join_scene_mask(mapping, target_local_id, catalog_by_scid)
             identity_only, diff_category = _find_single_field_references(
                 field, value, target_local_id, attrs, catalog,
-                target_identity_for_check, mapping[target_local_id]["name"])
+                target_identity_for_check, mapping[target_local_id]["name"],
+                frame_identities=all_frame_identities - {mapping[target_local_id]["oid"]})
             emit(type_, target_local_id, f"{field}:{normalize_value(value)}",
                  SOURCE_QUESTION[type_](value), identity_only, diff_category,
                  attribute_kind=field, attribute_value=value)
@@ -373,7 +504,8 @@ def gen_incontext_general_for_frame(scene_id, kind, phase, fid, mask, mapping, l
         target_local_id = ov[0]
         target_identity_for_check = join_scene_mask(mapping, target_local_id, catalog_by_scid)
         identity_only, diff_category = _find_composition_references(
-            m, f, target_local_id, attrs, catalog, target_identity_for_check, mapping[target_local_id]["name"])
+            m, f, target_local_id, attrs, catalog, target_identity_for_check, mapping[target_local_id]["name"],
+            frame_identities=all_frame_identities - {mapping[target_local_id]["oid"]})
         emit("inctx_attr_composition", target_local_id, f"composition:{normalize_value(m)}|{normalize_value(f)}",
              SOURCE_QUESTION["inctx_attr_composition"]((m, f)), identity_only, diff_category,
              attribute_kind="composition", attribute_material=m, attribute_function=f)
@@ -386,7 +518,8 @@ def gen_incontext_general_for_frame(scene_id, kind, phase, fid, mask, mapping, l
         target_local_id = missing[0]  # the minority/answer object
         target_identity_for_check = join_scene_mask(mapping, target_local_id, catalog_by_scid)
         identity_only, diff_category = _find_odd_one_out_references(
-            m, target_local_id, attrs, mat_owners, catalog, target_identity_for_check, mapping[target_local_id]["name"])
+            m, target_local_id, attrs, mat_owners, catalog, target_identity_for_check, mapping[target_local_id]["name"],
+            frame_identities=all_frame_identities - {mapping[target_local_id]["oid"]})
         emit("inctx_attr_odd_one_out", target_local_id, f"odd_one_out:{normalize_value(m)}",
              SOURCE_QUESTION["inctx_attr_odd_one_out"](m), identity_only, diff_category,
              attribute_kind="material", attribute_material=m)
