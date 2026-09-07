@@ -9,19 +9,21 @@ fi
 case "${command_name}" in
   help)
     cat <<'EOF'
-RPX VQA cumulative smoke image
+RPX VQA vLLM-only smoke and acceptance image
 
 Commands:
-  verify                         Check imports and CUDA visibility.
-  smoke gemma4-12b [args]        Run the 14-row bbox smoke gate.
-  acceptance gemma4-12b [args]   Run 700 bbox rows covering every current cell.
-  smoke paligemma2-10b [args]    Run the same smoke with native loc output.
-  acceptance paligemma2-10b      Run the same acceptance with native loc output.
+  verify                         Check vLLM, CUDA and single-GPU visibility.
+  list-models                    Print the frozen ten-model vLLM roster.
+  smoke MODEL [args]             Run the 14-row bbox smoke gate.
+  acceptance MODEL [args]        Run the 700-row current-data acceptance gate.
   shell                          Open Bash.
 EOF
     ;;
   verify)
-    exec python -c "import json,torch,transformers; assert torch.cuda.is_available(), 'CUDA unavailable'; print(json.dumps({'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpus':[torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())],'transformers':transformers.__version__},indent=2))"
+    exec python -c "import json,torch,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backend':'vllm','vllm':vllm.__version__,'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    ;;
+  list-models)
+    exec env PYTHONPATH=scripts python -c "from vqa_models.vllm_backend import CHECKPOINTS; print('\n'.join(f'{key}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
     ;;
   smoke|acceptance)
     gate="${command_name}"
@@ -40,17 +42,11 @@ EOF
       python scripts/build_vqa_acceptance_sample.py \
         --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
     fi
-    if [[ "${model}" == gemma4-* ]]; then
-      python scripts/run_gemma4_smoke.py \
-        --model "${model}" --manifest "${manifest}" \
-        --image-cache "${RPX_VQA_CACHE}/images" \
-        --predictions "${run_dir}/predictions.jsonl" "$@"
-    else
-      python scripts/run_paligemma2_smoke.py \
-        --model "${model}" --manifest "${manifest}" \
-        --image-cache "${RPX_VQA_CACHE}/images" \
-        --predictions "${run_dir}/predictions.jsonl" "$@"
-    fi
+    python scripts/run_vllm_vqa.py \
+      --model "${model}" --manifest "${manifest}" \
+      --image-cache "${RPX_VQA_CACHE}/images" \
+      --predictions "${run_dir}/predictions.jsonl" \
+      --resume "$@"
     exec python scripts/run_vqa_smoke_gate.py \
       --manifest "${manifest}" \
       --model "${model}" \

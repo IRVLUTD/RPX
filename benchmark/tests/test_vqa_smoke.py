@@ -175,7 +175,21 @@ def test_docker_matrix_matches_python_roster() -> None:
     path = Path(__file__).parents[2] / "docker" / "vqa-smoke" / "model-matrix.json"
     matrix = json.loads(path.read_text())
     assert matrix["single_image_only"] is True
+    assert matrix["inference_backend"] == "vllm"
+    assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]
     assert [set(model["tasks"]) for model in matrix["models"]] == [
         set(model.capabilities) for model in MODELS
     ]
+
+
+def test_vqa_docker_has_no_transformers_inference_fallback() -> None:
+    root = Path(__file__).parents[2]
+    dockerfile = (root / "docker" / "vqa-smoke" / "Dockerfile").read_text()
+    entrypoint = (root / "docker" / "vqa-smoke" / "entrypoint.sh").read_text()
+    runner = (root / "benchmark" / "scripts" / "run_vllm_vqa.py").read_text()
+    assert " AS vqa_vllm" in dockerfile
+    assert "run_vllm_vqa.py" in entrypoint
+    assert '"backend": "vllm"' in runner
+    assert "run_gemma4_smoke.py" not in entrypoint
+    assert "run_paligemma2_smoke.py" not in entrypoint

@@ -1,70 +1,104 @@
-# VQA smoke images
+# RPX VQA: vLLM-only smoke and acceptance gates
 
-The RPX roster is in `model-matrix.json`. The Gemma entries use Google's
-official Gemma 4 instruction checkpoints: E4B and 12B Unified. Build
-environments cumulatively by dependency family.
+One pinned runtime image serves the complete ten-model, single-image VQA
+roster. There is no Transformers inference fallback. Each prediction records
+the backend, vLLM version, Hub repository, and immutable model revision; the
+gate rejects results whose backend is not `vllm`.
 
-The current bbox-only Gemma 4 stage runs the largest 12B model first. Its
-14-row smoke manifest covers General bbox in clutter/interaction/clean/ego and
-Spatial bbox in the three currently available MOS phases. In-context and Ego
-Spatial are added only when their parquets are published.
+The current smoke manifest has 14 bbox questions over four RGB frames:
 
-The acceptance gate contains 700 questions: one General bbox question for
-every scene in all four current conditions (400), plus one Spatial bbox
-question for every scene in all three current MOS phases (300).
+- two General bbox questions for each of CLU, INT, CLN, and EGO;
+- two Spatial bbox questions for each of CLU, INT, and CLN.
 
-The PaliGemma 2 stage uses the same manifests. It first answers each question,
-then grounds its own predicted object label with PaliGemma's native `<loc>`
-tokens. Latency includes both model calls and never uses the ground-truth label.
+The current acceptance manifest has 700 questions over exactly 400 RGB frames:
 
-```bash
-export RPX_VQA_FAMILY=gemma4
-export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
-bash docker/vqa-smoke/build_and_push.sh
+- paired General + Spatial questions on 300 MOS frames (100 scenes x 3 phases);
+- one General question on 100 EGO frames.
 
-docker run --rm --gpus all --ipc=host --shm-size=16g \
-  -e HF_TOKEN \
-  -v /data/narendhiran_rpx/hf-cache:/cache/huggingface \
-  -v /data/narendhiran_rpx/vqa-cache:/cache/rpx-vqa \
-  -v /data/narendhiran_rpx/vqa-results:/outputs \
-  "$RPX_VQA_IMAGE:gemma4" smoke gemma4-12b
-```
+EGO Spatial and the two in-context types remain excluded until their source
+parquets are published. Both samplers require the answer bbox centroid to lie
+in the middle 50% of the image in both axes.
 
-Each image must implement the same JSONL request/response contract documented
-in `benchmark/data/vqa_smoke/v1/README.md`. Lockfiles, model revision pins, and
-GPU-tested Dockerfiles are added one family at a time; the shared benchmark
-contract must not acquire model-specific scoring behavior.
+## Runtime contract
 
-## Current stage: PaliGemma 2
+- Base runtime: pinned `vllm/vllm-openai` 0.28.0 image digest.
+- Exactly one visible GPU per model engine (`tensor_parallel_size=1`).
+- One unmeasured warm-up question precedes timed inference.
+- Timings synchronize CUDA immediately before and after each question.
+- PaliGemma 2 answers the question, then grounds its own predicted label; the
+  recorded latency includes both vLLM calls and never uses the ground truth.
+- Interrupted runs resume from validated JSONL rows.
+- Reports retain every question, raw output, parsed bbox, ground-truth bbox,
+  IoU, parse error, and latency, plus aggregate parse rate, mean IoU, Acc@0.5,
+  and latency statistics.
 
-`vqa_paligemma` is the first cumulative stage and serves both the 3B and 10B
-mix-448 checkpoints. Validate 3B before running 10B. Model weights are fetched
-at runtime into a mounted Hugging Face cache and are never baked into the
-image. The checkpoints are pinned to immutable Hub revisions.
+## Build once
 
-PaliGemma is license-gated. Accept the terms for both model repositories in a
-browser and pass `HF_TOKEN` only at container runtime.
+Run inside the repository, from a clean committed tree:
 
 ```bash
 export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
-bash docker/vqa-smoke/build_and_push.sh
-
-docker run --rm --gpus '"device=0"' \
-  "$RPX_VQA_IMAGE:paligemma" verify
-
-docker run --rm --gpus '"device=0"' --ipc=host --shm-size=8g \
-  -e HF_TOKEN \
-  -v /home/rpx/.cache/huggingface:/cache/huggingface \
-  -v /home/rpx/.cache/rpx-vqa:/cache/rpx-vqa \
-  -v /home/rpx/RPX_vqa_outputs:/outputs \
-  "$RPX_VQA_IMAGE:paligemma" smoke paligemma2-3b
+bash docker/vqa-smoke/build_and_push.sh --push
 ```
 
-Only after the data-backed smoke succeeds, publish both the immutable SHA tag
-and the family convenience tag:
+This creates immutable `vllm-sha-<git-sha>` and convenience `vllm` tags. Model
+weights are downloaded at runtime into the mounted Hugging Face cache, not
+baked into the image.
+
+## Run gates
+
+Set the writable server runtime once:
 
 ```bash
-revision="$(git rev-parse HEAD)"
-docker push "$RPX_VQA_IMAGE:paligemma-sha-${revision:0:12}"
-docker push "$RPX_VQA_IMAGE:paligemma"
+export RPX_VQA_RUNTIME=/data/narendhiran_rpx/src/vqa-runtime
+export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
+read -rsp "HF token: " HF_TOKEN; echo
+export HF_TOKEN
 ```
+
+Verify the common image and print the roster:
+
+```bash
+docker run --rm --gpus 'device=0' "$RPX_VQA_IMAGE:vllm" verify
+docker run --rm "$RPX_VQA_IMAGE:vllm" list-models
+```
+
+Run each smoke first; run acceptance only if its smoke passes:
+
+```bash
+bash docker/vqa-smoke/run_gate.sh smoke gemma4-12b 0
+bash docker/vqa-smoke/run_gate.sh acceptance gemma4-12b 0
+```
+
+The frozen keys, in high-latency-first execution order, are:
+
+```text
+gemma4-12b
+paligemma2-10b
+internvl2.5-8b
+idefics3-8b
+qwen2.5-vl-7b
+llava-onevision-7b
+gemma4-e4b
+phi-3.5-vision-4b
+paligemma2-3b
+qwen2.5-vl-3b
+```
+
+Reports are under:
+
+```text
+$RPX_VQA_RUNTIME/outputs/<model>/sha-<rpx-git-sha>/<gate>/report.json
+```
+
+Inspect the aggregate metrics and per-sample predictions with `jq`:
+
+```bash
+report="$(find "$RPX_VQA_RUNTIME/outputs/gemma4-12b" -path '*/smoke/report.json' -print | sort | tail -1)"
+jq 'del(.samples)' "$report"
+jq '.samples[] | {question,raw_output,predicted_bbox,ground_truth_bbox,iou,latency_ms,valid,parse_error}' "$report"
+```
+
+The smoke/acceptance gate is mechanical: complete coverage and at least 95%
+parseable bbox outputs. Accuracy is reported but no paper-score threshold is
+invented before baseline validation.

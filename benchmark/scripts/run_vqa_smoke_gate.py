@@ -26,14 +26,27 @@ def main() -> None:
     samples = {sample.sample_id: sample for sample in load_manifest(args.manifest)}
     raw_by_id = {}
     latency_by_id = {}
+    provenance_by_id = {}
     with args.predictions.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, 1):
             row = json.loads(line)
             sample_id = str(row["sample_id"])
             if sample_id in raw_by_id:
                 raise SystemExit(f"duplicate prediction at line {line_number}: {sample_id}")
+            if row.get("backend") != "vllm":
+                raise SystemExit(
+                    f"non-vLLM prediction at line {line_number}: {row.get('backend')!r}"
+                )
+            if row.get("model") != model.key:
+                raise SystemExit(
+                    f"model mismatch at line {line_number}: {row.get('model')!r}"
+                )
             raw_by_id[sample_id] = str(row["raw_output"])
             latency_by_id[sample_id] = float(row["latency_ms"])
+            provenance_by_id[sample_id] = {
+                key: row.get(key)
+                for key in ("backend", "vllm_version", "checkpoint", "revision")
+            }
     expected = {
         sample_id: sample
         for sample_id, sample in samples.items()
@@ -57,6 +70,10 @@ def main() -> None:
     report = score_predictions(
         (sample, parsed_by_id[sample_id]) for sample_id, sample in expected.items()
     )
+    provenance_values = {json.dumps(value, sort_keys=True) for value in provenance_by_id.values()}
+    if len(provenance_values) != 1:
+        raise SystemExit("prediction provenance changed within one run")
+    report["inference"] = next(iter(provenance_by_id.values()))
     latencies = [latency_by_id[sample_id] for sample_id in expected]
     report["latency_ms"] = {
         "mean": statistics.fmean(latencies),

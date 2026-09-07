@@ -1,1 +1,1 @@
-"""Model-family runners for the RPX VQA smoke matrix."""
+"""vLLM-only model runners for the RPX VQA smoke matrix."""

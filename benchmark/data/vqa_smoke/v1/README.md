@@ -1,19 +1,16 @@
 # RPX VQA smoke fixture v1
 
-This is a deterministic **single-image** mechanical smoke sample, not a paper
-score subset. It is generated from the three `vqa_parquet_30frame_v2` files
-with `scripts/build_vqa_smoke_sample.py` and contains 36 questions over five
-real RPX RGB frames:
+This is a deterministic **single-image, bbox-only** mechanical smoke sample,
+not a paper score subset. It is generated from the benchmark VQA parquets with
+`scripts/build_vqa_smoke_sample.py` and contains 14 questions over four real
+RPX RGB frames: two General bbox questions in each of CLU, INT, CLN, and EGO,
+plus two Spatial bbox questions in each of CLU, INT, and CLN.
 
-- 4 yes + 4 no for each binary relation (`spatial_lr_binary`,
-  `spatial_ud_binary`)
-- 4 each for `spatial_lr_extreme`, `depth_closest`, and `spatial_farthest`
-- 4 MOS + 4 ego questions for `attr_composition`
-
-All three MOS phases occur. Bbox rows with exact or near ties in the serialized
-evidence are excluded. Every row has a stable ID, explicit inclusive-pixel
-`xyxy` convention, original image dimensions, and a portable Hub tar-member
-locator. RGB data is not duplicated in git.
+Every answer object has its bbox centroid in the middle 50% of both image axes.
+Spatial rows with exact or near ties in their serialized evidence are excluded.
+Every row has a stable ID, explicit inclusive-pixel `xyxy` convention, original
+image dimensions, and a portable Hub tar-member locator. RGB data is not
+duplicated in git.
 
 Rebuild from the raw parquets:
 
@@ -34,9 +31,10 @@ PYTHONPATH=. python scripts/prepare_vqa_smoke.py \
   --out .rpx_cache/vqa-smoke-v1/paligemma2-3b.requests.jsonl
 ```
 
-Each container reads a request row and writes
-`{"sample_id":"...","raw_output":"..."}`. Score that result without any
-model-specific normalization hidden in the evaluator:
+The shared container runs every roster checkpoint through vLLM and writes the
+raw output, latency, model key, backend, vLLM version, checkpoint, and immutable
+revision for each sample. Score that result without any model-specific
+normalization hidden in the evaluator:
 
 ```bash
 PYTHONPATH=. python scripts/run_vqa_smoke_gate.py \

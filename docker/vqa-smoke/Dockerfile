@@ -1,75 +1,33 @@
 # syntax=docker/dockerfile:1.7
 
-FROM python:3.11-slim-bookworm@sha256:961f57b66f6aee85ae11272cca9219123a860ab20e2a09a1238f57e0df495825 AS vqa_base
+FROM vllm/vllm-openai@sha256:2286e8533ca8b6bc777594bae30524f1426ba46ca21797524e06df6a94b06635 AS vqa_vllm
 
 ARG RPX_GIT_SHA
 
-LABEL org.opencontainers.image.title="RPX VQA smoke runtime" \
-      org.opencontainers.image.description="Cumulative single-image VQA smoke environment" \
+LABEL org.opencontainers.image.title="RPX VQA vLLM runtime" \
+      org.opencontainers.image.description="vLLM-only bbox VQA runtime for the RPX ten-model roster" \
       org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1 \
     HF_HOME=/cache/huggingface \
     HF_HUB_DISABLE_XET=1 \
     RPX_VQA_CACHE=/cache/rpx-vqa \
     RPX_VQA_OUTPUTS=/outputs \
     RPX_GIT_SHA=${RPX_GIT_SHA} \
+    VLLM_WORKER_MULTIPROC_METHOD=spawn \
     NVIDIA_VISIBLE_DEVICES=all \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 RUN test -n "${RPX_GIT_SHA}" && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends bash ca-certificates git libgomp1 && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /opt/rpx
-
-
-FROM vqa_base AS vqa_paligemma
-
-COPY docker/vqa-smoke/requirements-paligemma.lock /tmp/requirements-paligemma.lock
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --upgrade pip==25.3 && \
-    python -m pip install \
-      --index-url https://download.pytorch.org/whl/cu128 \
-      torch==2.10.0+cu128 && \
-    python -m pip install -r /tmp/requirements-paligemma.lock
+    python -m pip install --no-cache-dir pyarrow==21.0.0
 
 COPY benchmark /opt/rpx/benchmark
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --no-deps /opt/rpx/benchmark && \
-    python -c "import accelerate,torch,transformers; from transformers import PaliGemmaForConditionalGeneration; assert torch.__version__ == '2.10.0+cu128'; assert transformers.__version__ == '4.57.6'; print('PaliGemma 2 runtime imports ready')"
-
-COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
-
-WORKDIR /opt/rpx/benchmark
-VOLUME ["/cache/huggingface", "/cache/rpx-vqa", "/outputs"]
-ENTRYPOINT ["/usr/local/bin/rpx-vqa-smoke"]
-CMD ["help"]
-
-
-FROM vqa_base AS vqa_gemma4
-
-COPY docker/vqa-smoke/requirements-gemma4.lock /tmp/requirements-vqa.lock
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --upgrade pip==25.3 && \
-    python -m pip install \
-      --index-url https://download.pytorch.org/whl/cu128 \
-      torch==2.10.0+cu128 torchvision==0.25.0+cu128 && \
-    python -m pip install -r /tmp/requirements-vqa.lock
-
-COPY benchmark /opt/rpx/benchmark
-
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --no-deps /opt/rpx/benchmark && \
-    python -c "import pyarrow,torch,transformers; from transformers import AutoModelForMultimodalLM; assert transformers.__version__ == '5.16.1'; print('Gemma 4 runtime imports ready')"
+RUN python -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
+    python -c "import pyarrow,vllm; assert vllm.__version__ == '0.28.0'; print('RPX vLLM runtime ready')"
 
 COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
 
