@@ -168,6 +168,23 @@ def _mat_owners(attrs: dict) -> dict:
 # ---------------------------------------------------------------- identity / selection
 
 def _identity_ok(candidate, target_identity: Identity, target_local_name: str, require_diff_category: bool) -> bool:
+    """The MANDATORY rule (always enforced, first two checks below):
+    reference_global_object_id != target_global_object_id (plus a
+    source_catalog_id cross-check as a redundant safety net).
+
+    require_diff_category adds a LEXICAL same-name check on top -- NOT a
+    taxonomic/semantic category filter, despite the name kept here for
+    output-schema continuity (the already-generated `different_category`
+    column name predates this clarification). It does not consult the
+    catalog's `category` questionnaire field at all, and checking both
+    `object_name` and `class_name` is checking the same string twice:
+    verified 0/70 published catalog objects have class_name != object_name.
+    What it actually excludes is a reference that is a *different physical
+    instance of the same named thing* as the target (e.g. `boot` vs
+    `boot.2`), which the mandatory global_object_id rule alone would not
+    catch. Measured to cost zero additional coverage loss (see README's
+    in-context section) -- kept on unconditionally for that reason, not
+    because it's a genuine category check."""
     if target_identity.global_object_id is not None and candidate.global_object_id == target_identity.global_object_id:
         return False
     if candidate.source_catalog_id == target_identity.source_catalog_id:

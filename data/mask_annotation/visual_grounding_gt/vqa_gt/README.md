@@ -68,13 +68,29 @@ Bbox-eligible types (`attr_single_*`, `attr_composition`, `attr_odd_one_out`, `a
 
 | File | Purpose |
 |---|---|
-| `generate_gt.py` | CLI driver -- scene selection, frame sampling, writes output |
+| `generate_gt.py` | CLI driver -- scene selection, frame sampling, writes output; also exposes `gen_incontext_for_mos_phase`/`gen_incontext_for_ego_phase` (see below) |
 | `gt_attributes.py` | Task 1 generator -- also exposes `collect_candidates()`, the uncapped per-frame candidate pool `dedup.py` distributes |
-| `gt_spatial.py` | Tasks 2 & 3 generator -- per-frame, independently capped (see above) |
-| `dedup.py` | Phase-wide, order-fair candidate distribution used by Task 1 only |
-| `lib.py` | SOS catalog lookup (`fewsol_id` -> parsed questionnaire attributes, cached) |
+| `gt_spatial.py` | Tasks 2 & 3 generator -- per-frame, independently capped (see above); also exposes `compute_farthest_candidates()`, reused verbatim by the in-context spatial task |
+| `dedup.py` | Phase-wide, order-fair candidate distribution used by Task 1 and the in-context general family |
+| `lib.py` | SOS catalog lookup (`fewsol_id` -> parsed questionnaire attributes, cached) -- the LOCAL, wider (220-object) catalog; not used for in-context reference selection, see `sos_catalog.py` |
+| `sos_catalog.py` | The OFFICIAL, published 70-object SOS catalog (`manifest/object_catalog_v1.json` + `objects_meta/*/questionnaire.json` on Hugging Face) and the scene-mask identity join (`source_catalog_id` -> `object_id`/`global_object_id`) -- the only valid reference-image pool for in-context tasks |
+| `sos_reference.py` | Deterministic SOS reference-crop builder (frame selection, quality gate, padding, caching) |
+| `gt_incontext.py` | In-context (two-image) generator -- attribute-transfer general family + spatial-anchor family, the cross-modal ambiguity gate, deterministic reference selection |
 | `../generate_spatial_gt.py` | Shared geometry/depth utilities (mask loading, instance extraction, depth loading) |
+| `tests/` | Unit + integration tests (regression-checked against already-published ground truth where possible) |
+
+## In-context (two-image) VQA
+
+Three additional tasks reuse the five retained attribute families (`attr_single_color/material/function`, `attr_composition`, `attr_odd_one_out`) and `spatial_farthest`, but replace the text-only question with a two-image one: Image 1 is a deterministic SOS reference crop, Image 2 is the same MOS/Ego target frame as the single-image task, and the answer is always exactly one bbox in Image 2.
+
+**General family (attribute transfer, Option B):** Image 1 shows a DIFFERENT SOS object that shares the intended color/material/function/composition-pair/majority-material with the real answer object -- never the answer object itself (that would let a model solve it by instance re-identification instead of attribute reasoning; see `sos_catalog.py`'s and `gt_incontext.py`'s module docstrings for the full analysis, including why odd-one-out's reference must hold the *majority* material and can never be the minority answer). Because the in-context question never names the specific value ("same color", not "same red"), a reference with more than one value in the relevant field can create a second textually-valid answer if some OTHER visible object owns that other value -- `gt_incontext.py` rejects any such candidate (the "multi-attribute ambiguity gate"; composition checks the full material x function cross product, odd-one-out requires every applicable material to agree on the same answer). The reference pool is restricted to the 70 *officially published* SOS objects (`sos_catalog.py`) -- the wider 220-object local catalog `lib.py` scans has no HF-published rgb/mask assets for 150 of those objects, so they cannot serve as an Image-1 source.
+
+**The mandatory rule, always enforced:** `reference_global_object_id != target_global_object_id` (`gt_incontext.py::_identity_ok`, checked first, unconditionally). On top of that, an additional "stricter" check is applied by default (`require_diff_category=True`): the reference's catalog `object_name` must also differ (case/whitespace-insensitively) from the target's local scene name. This is a **lexical same-name check, not a taxonomic/semantic category check** -- despite the name, it does not consult the questionnaire's `category` field at all, and `class_name` is redundant with `object_name` (verified: 0/70 catalog objects have `class_name != object_name`, so checking both is checking the same string twice). What it actually catches is a reference that is a *different physical instance of the same named thing* (e.g. `boot` vs `boot.2`), which the mandatory `global_object_id` rule alone would not exclude. Measured (7-scene sample): this additional check costs **zero** observed coverage loss beyond the mandatory rule -- every candidate that clears the identity check also clears it in practice -- so it's applied unconditionally, but it should not be read as a real category/taxonomy filter.
+
+**Spatial family (Option A, intentionally different):** Image 1 shows the EXACT SOS identity of the existing `spatial_farthest` anchor object -- there's no attribute-transfer shortcut risk here since the answer is never the anchor, and finding the anchor in Image 2's real geometry is a legitimate part of the task.
+
+Types: `inctx_attr_single_color`, `inctx_attr_single_material`, `inctx_attr_single_function`, `inctx_attr_composition`, `inctx_attr_odd_one_out`, `inctx_spatial_farthest`. Dedup semantics mirror the single-image tasks exactly: the general family is phase-wide deduped (`gen_incontext_general_for_phase`, same `dedup.py`), the spatial family is per-frame and uncapped (full density -- unlike the single-image `spatial_farthest`, which applies a `max_per_type` cap).
 
 ## Environment
 
-`--sos-root` (or the `RPX_SOS_ROOT` environment variable) must point at a local checkout of the SOS catalog (`single_objects/sos_wrapped/<object>/questionnaire.txt` layout) -- there's no safe machine-independent default. Everything else resolves relative to `--staged-root` or Hugging Face.
+`--sos-root` (or the `RPX_SOS_ROOT` environment variable) must point at a local checkout of the SOS catalog (`single_objects/sos_wrapped/<object>/questionnaire.txt` layout) -- there's no safe machine-independent default. Everything else resolves relative to `--staged-root` or Hugging Face. The in-context tasks additionally reach Hugging Face directly (`sos_catalog.py`, `sos_reference.py`) for the official 70-object catalog and its published rgb/mask tars -- there is no local-only path for these two modules.
