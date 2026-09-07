@@ -77,6 +77,8 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     assert "alarm clock" in binary.text and "_" not in binary.text
     attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma4-12b")
     assert '"bbox"' in attribute.text
+    assert "0 to 1000" in attribute.text
+    assert attribute.output_kind == "bbox_json_normalized_1000"
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
     assert '"bbox"' in bbox.text and "640 by 480" in bbox.text
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
@@ -94,6 +96,7 @@ def test_strict_output_parsers() -> None:
     assert normalize_label("Air_Duster_Can.") == "air duster can"
     parsed_attr = parse_output(attribute, '{"label":"air_duster_can","bbox":[100,120,200,220]}', "gemma4-12b")
     assert parsed_attr.label == "air duster can" and parsed_attr.valid
+    assert parsed_attr.bbox == pytest.approx((63.9, 57.48, 127.8, 105.38))
     bbox = VQASample.from_dict(row("depth_closest"))
     parsed_bbox = parse_output(
         bbox,

@@ -77,6 +77,18 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
             bbox = tuple(float(v) for v in raw_bbox)
             if not all(float("-inf") < value < float("inf") for value in bbox):
                 raise AdapterError("bbox contains a non-finite number", hint="return finite pixels")
+            if model_key.startswith("gemma4-"):
+                if not all(0 <= coordinate <= 1000 for coordinate in bbox):
+                    raise AdapterError(
+                        "Gemma 4 bbox is outside normalized 0-1000 coordinates",
+                        hint="return normalized xyxy coordinates",
+                    )
+                bbox = (
+                    bbox[0] * (sample.img_w - 1) / 1000,
+                    bbox[1] * (sample.img_h - 1) / 1000,
+                    bbox[2] * (sample.img_w - 1) / 1000,
+                    bbox[3] * (sample.img_h - 1) / 1000,
+                )
             x0, y0, x1, y1 = bbox
             if not (0 <= x0 <= x1 < sample.img_w and 0 <= y0 <= y1 < sample.img_h):
                 raise AdapterError(
