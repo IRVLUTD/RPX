@@ -15,6 +15,8 @@ Commands:
   verify                         Check imports and CUDA visibility.
   smoke gemma4-12b [args]        Run the 14-row bbox smoke gate.
   acceptance gemma4-12b [args]   Run 700 bbox rows covering every current cell.
+  smoke paligemma2-10b [args]    Run the same smoke with native loc output.
+  acceptance paligemma2-10b      Run the same acceptance with native loc output.
   shell                          Open Bash.
 EOF
     ;;
@@ -30,23 +32,23 @@ EOF
     run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/${gate}"
     mkdir -p "${run_dir}"
     manifest="${run_dir}/manifest.jsonl"
+    python scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
+    if [[ "${gate}" == "smoke" ]]; then
+      python scripts/build_vqa_smoke_sample.py \
+        --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
+    else
+      python scripts/build_vqa_acceptance_sample.py \
+        --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
+    fi
     if [[ "${model}" == gemma4-* ]]; then
-      python scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
-      if [[ "${gate}" == "smoke" ]]; then
-        python scripts/build_vqa_smoke_sample.py \
-          --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
-      else
-        python scripts/build_vqa_acceptance_sample.py \
-          --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
-      fi
       python scripts/run_gemma4_smoke.py \
         --model "${model}" --manifest "${manifest}" \
         --image-cache "${RPX_VQA_CACHE}/images" \
         --predictions "${run_dir}/predictions.jsonl" "$@"
     else
-      manifest="data/vqa_smoke/v1/manifest.jsonl"
       python scripts/run_paligemma2_smoke.py \
-        --model "${model}" --image-cache "${RPX_VQA_CACHE}/images" \
+        --model "${model}" --manifest "${manifest}" \
+        --image-cache "${RPX_VQA_CACHE}/images" \
         --predictions "${run_dir}/predictions.jsonl" "$@"
     fi
     exec python scripts/run_vqa_smoke_gate.py \

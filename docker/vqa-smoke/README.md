@@ -13,6 +13,10 @@ The acceptance gate contains 700 questions: one General bbox question for
 every scene in all four current conditions (400), plus one Spatial bbox
 question for every scene in all three current MOS phases (300).
 
+The PaliGemma 2 stage uses the same manifests. It first answers each question,
+then grounds its own predicted object label with PaliGemma's native `<loc>`
+tokens. Latency includes both model calls and never uses the ground-truth label.
+
 ```bash
 export RPX_VQA_FAMILY=gemma4
 export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke

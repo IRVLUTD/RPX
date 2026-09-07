@@ -17,6 +17,11 @@ from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import get_model
 
 
+def synchronize_cuda() -> None:
+    for device_index in range(torch.cuda.device_count()):
+        torch.cuda.synchronize(device_index)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=sorted(CHECKPOINTS), default="paligemma2-3b")
@@ -25,6 +30,7 @@ def main() -> None:
     )
     parser.add_argument("--image-cache", type=Path, default=Path("/cache/rpx-vqa/images"))
     parser.add_argument("--predictions", type=Path, required=True)
+    parser.add_argument("--warmup", type=int, default=1)
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()
     get_model(args.model)
@@ -36,10 +42,20 @@ def main() -> None:
         samples = samples[: args.limit]
     image_paths = {sample.sample_id: fetch_rgb(sample, args.image_cache) for sample in samples}
     runner = PaliGemma2Runner(args.model)
+    for _ in range(args.warmup):
+        sample = samples[0]
+        prompt = build_prompt(sample, args.model)
+        runner.predict(
+            image_paths[sample.sample_id],
+            prompt.text,
+            prompt.max_new_tokens,
+            prompt.output_kind,
+        )
     args.predictions.parent.mkdir(parents=True, exist_ok=True)
     with args.predictions.open("w", encoding="utf-8") as handle:
         for index, sample in enumerate(samples, 1):
             prompt = build_prompt(sample, args.model)
+            synchronize_cuda()
             started = time.perf_counter()
             raw_output = runner.predict(
                 image_paths[sample.sample_id],
@@ -47,6 +63,7 @@ def main() -> None:
                 prompt.max_new_tokens,
                 prompt.output_kind,
             )
+            synchronize_cuda()
             elapsed_ms = (time.perf_counter() - started) * 1000
             row = {
                 "sample_id": sample.sample_id,
