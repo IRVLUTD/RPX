@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import time
 from pathlib import Path
 
-import torch
 import vllm
 from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
 
@@ -16,6 +16,9 @@ from rpx_benchmark.vqa.contract import load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_rgb
 from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import get_model
+
+# vLLM must install CUDA compatibility paths before torch initializes CUDA.
+torch = importlib.import_module("torch")
 
 
 def synchronize_cuda() -> None:

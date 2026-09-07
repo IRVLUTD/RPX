@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM vllm/vllm-openai@sha256:2286e8533ca8b6bc777594bae30524f1426ba46ca21797524e06df6a94b06635 AS vqa_vllm
+FROM vllm/vllm-openai@sha256:50509e700235cea487715cedeb501d20a1cd15fa6a54ce93688284bd0d96995d AS vqa_vllm
 
 ARG RPX_GIT_SHA
 

@@ -30,12 +30,20 @@ tag="${RPX_VQA_TAG:-vllm}"
 mkdir -p "${runtime}/hf-cache" "${runtime}/cache" "${runtime}/outputs" "${runtime}/logs"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 log="${runtime}/logs/${gate}-${model}-${timestamp}.log"
+compat_args=()
+if [[ "${RPX_VQA_CUDA_COMPAT:-0}" == "1" ]]; then
+  compat_args+=(
+    -e NVIDIA_DISABLE_REQUIRE=true
+    -e VLLM_ENABLE_CUDA_COMPATIBILITY=1
+  )
+fi
 
 echo "backend=vllm image=${image}:${tag} gate=${gate} model=${model} gpu=${gpu}"
 docker run --rm \
   --gpus "device=${gpu}" \
   --ipc=host \
   --shm-size=16g \
+  "${compat_args[@]}" \
   -e HF_TOKEN \
   -v "${runtime}/hf-cache:/cache/huggingface" \
   -v "${runtime}/cache:/cache/rpx-vqa" \

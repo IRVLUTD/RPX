@@ -21,7 +21,7 @@ in the middle 50% of the image in both axes.
 
 ## Runtime contract
 
-- Base runtime: pinned `vllm/vllm-openai` 0.28.0 image digest.
+- Base runtime: pinned `vllm/vllm-openai` 0.28.0 CUDA 12.9 image digest.
 - Exactly one visible GPU per model engine (`tensor_parallel_size=1`).
 - One unmeasured warm-up question precedes timed inference.
 - Timings synchronize CUDA immediately before and after each question.
@@ -55,6 +55,10 @@ export RPX_VQA_IMAGE=vndhiran123/rpx-vqa-smoke
 read -rsp "HF token: " HF_TOKEN; echo
 export HF_TOKEN
 ```
+
+On professional/datacenter GPUs with an older compatible NVIDIA driver, also
+set `RPX_VQA_CUDA_COMPAT=1`. The gate wrapper then enables vLLM's bundled CUDA
+forward-compatibility libraries and bypasses the base image's version guard.
 
 Verify the common image and print the roster:
 
