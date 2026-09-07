@@ -341,7 +341,7 @@ def main():
 
         if "reference_object_id" in df.columns and df["reference_object_id"].notna().any():
             cat_violations = check_category_violations(df, catalog)
-            print(f"different-category violations: {len(cat_violations)}")
+            print(f"lexical same-name ('different-category' policy) violations: {len(cat_violations)}")
 
         dup_sample_ids = df["sample_id"].duplicated().sum()
         print(f"duplicate sample_ids: {dup_sample_ids}")
