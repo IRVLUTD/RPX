@@ -79,6 +79,42 @@ def _cap(candidates, max_per_type, rng):
     return rng.sample(candidates, max_per_type)
 
 
+def compute_farthest_candidates(inst_list, depth_vals):
+    """Extracted, unchanged, from gen_spatial_questions()'s inline
+    spatial_farthest loop so gt_incontext.py's inctx_spatial_farthest can
+    reuse the exact same reference-object eligibility and 2D/3D agreement
+    check without duplicating it (and risking the two drifting apart).
+    Pure extraction -- gen_spatial_questions() below calls this same
+    function now instead of the loop that used to be inline here; verified
+    byte-identical output on the existing fixture (see
+    vqa_gt/tests/test_gt_spatial_regression.py).
+
+    Returns [(ref_inst, farthest_inst, d2d_by_mask_id, others), ...] -- one
+    entry per reference object that has >=2 other depth-valid objects AND
+    whose 2D pixel-distance ranking agrees with the depth-corrected 3D
+    ranking on which object is farthest (see module docstring for why that
+    agreement matters)."""
+    farthest_candidates = []
+    if len(inst_list) < 3 or not depth_vals:
+        return farthest_candidates
+    for ref in inst_list:
+        if ref["median_depth"] is None:
+            continue
+        others = [o for o in inst_list if o["mask_id"] != ref["mask_id"] and o["median_depth"] is not None]
+        if len(others) < 2:
+            continue
+        d2d = {o["mask_id"]: float(np.hypot(o["cx"] - ref["cx"], o["cy"] - ref["cy"])) for o in others}
+        ranked_2d = sorted(others, key=lambda o: -d2d[o["mask_id"]])
+        ref3d = _to_3d(ref["cx"], ref["cy"], ref["median_depth"])
+        d3d = {o["mask_id"]: float(np.linalg.norm(_to_3d(o["cx"], o["cy"], o["median_depth"]) - ref3d))
+               for o in others}
+        ranked_3d = sorted(others, key=lambda o: -d3d[o["mask_id"]])
+        if ranked_2d[0]["mask_id"] != ranked_3d[0]["mask_id"]:
+            continue  # 2D and 3D disagree on which object is farthest -- drop
+        farthest_candidates.append((ref, ranked_2d[0], d2d, others))
+    return farthest_candidates
+
+
 def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rng, max_per_type=5):
     """instances: compute_instances() output for this frame, WITH depth
     (i.e. only ever called for mos frames -- see generate_gt.py).
@@ -173,24 +209,8 @@ def gen_spatial_questions(scene_name, phase, fid, mask_path, instances, W, H, rn
     # candidate per reference object, capped; kept only when the
     # depth-based 3D ranking agrees with the 2D pixel-distance ranking, so
     # this never publishes a perspective illusion as GT.
-    if len(inst_list) >= 3 and depth_vals:
-        farthest_candidates = []
-        for ref in inst_list:
-            if ref["median_depth"] is None:
-                continue
-            others = [o for o in inst_list if o["mask_id"] != ref["mask_id"] and o["median_depth"] is not None]
-            if len(others) < 2:
-                continue
-            d2d = {o["mask_id"]: float(np.hypot(o["cx"] - ref["cx"], o["cy"] - ref["cy"])) for o in others}
-            ranked_2d = sorted(others, key=lambda o: -d2d[o["mask_id"]])
-            ref3d = _to_3d(ref["cx"], ref["cy"], ref["median_depth"])
-            d3d = {o["mask_id"]: float(np.linalg.norm(_to_3d(o["cx"], o["cy"], o["median_depth"]) - ref3d))
-                   for o in others}
-            ranked_3d = sorted(others, key=lambda o: -d3d[o["mask_id"]])
-            if ranked_2d[0]["mask_id"] != ranked_3d[0]["mask_id"]:
-                continue  # 2D and 3D disagree on which object is farthest -- drop
-            farthest_candidates.append((ref, ranked_2d[0], d2d, others))
-
+    farthest_candidates = compute_farthest_candidates(inst_list, depth_vals)
+    if farthest_candidates:
         for ref, top, d2d, others in _cap(farthest_candidates, max_per_type, rng):
             items.append({
                 **base, "type": "spatial_farthest",

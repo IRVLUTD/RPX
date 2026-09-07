@@ -138,6 +138,62 @@ def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalo
     return items, len(selected)
 
 
+# ---------------------------------------------------------------------------
+# In-context (two-image) tasks -- additive only, does not touch anything
+# above this line. Lazy-imports gt_incontext/sos_catalog (which reach HF for
+# the 70-object catalog) so plain single-image CLI usage above never needs
+# network access. catalog/catalog_by_scid/ref_crops are loaded ONCE by the
+# caller (see pilot/run_incontext_gt.py) and threaded through -- reloading
+# the 70-object catalog or re-scanning the reference-crop manifest per scene
+# would be pure waste, they're invariant across the whole run.
+
+def gen_incontext_for_mos_phase(scene, phase, root, mapping, frames_per_phase, lookup,
+                                 catalog, catalog_by_scid, ref_crops, rng, seed, revision,
+                                 require_diff_category=True, max_per_type=None):
+    from gt_incontext import gen_incontext_general_for_phase, gen_incontext_spatial_for_frame
+    from generate_spatial_gt import imread_mask as _imread_mask, imread_depth as _imread_depth
+
+    mask_dir = os.path.join(root, "sam2", "masks")
+    fids = sorted(os.path.splitext(os.path.basename(p))[0]
+                  for p in glob.glob(os.path.join(mask_dir, "*.png")))
+    selected = select_frames(fids, frames_per_phase)
+
+    items, drops = gen_incontext_general_for_phase(
+        scene, "mos", phase, selected, mask_dir, mapping, lookup, catalog, catalog_by_scid,
+        ref_crops, seed, revision, rng, max_per_type=max_per_type, require_diff_category=require_diff_category)
+
+    for fid in selected:
+        depth_path = os.path.join(root, "depth", f"{fid}.png")
+        if not os.path.exists(depth_path):
+            continue
+        mask = _imread_mask(os.path.join(mask_dir, f"{fid}.png"))
+        depth = _imread_depth(depth_path)
+        sp_items, sp_drops = gen_incontext_spatial_for_frame(
+            scene, phase, fid, mask, depth, mapping, catalog_by_scid, ref_crops, revision)
+        items += sp_items
+        drops += sp_drops
+
+    return items, drops, len(selected)
+
+
+def gen_incontext_for_ego_phase(scene, root, mapping, frames_per_phase, lookup,
+                                 catalog, catalog_by_scid, ref_crops, rng, seed, revision,
+                                 require_diff_category=True, max_per_type=None):
+    """General-family only -- ego has no depth, and inctx_spatial_farthest
+    depends on it exactly like the existing spatial_farthest does."""
+    from gt_incontext import gen_incontext_general_for_phase
+
+    mask_dir = os.path.join(root, "sam2", "masks")
+    fids = sorted(os.path.splitext(os.path.basename(p))[0]
+                  for p in glob.glob(os.path.join(mask_dir, "*.png")))
+    selected = select_frames(fids, frames_per_phase)
+
+    items, drops = gen_incontext_general_for_phase(
+        scene, "ego", None, selected, mask_dir, mapping, lookup, catalog, catalog_by_scid,
+        ref_crops, seed, revision, rng, max_per_type=max_per_type, require_diff_category=require_diff_category)
+    return items, drops, len(selected)
+
+
 def run(staged_root: Path, sos_root: Path, scenes: list[str], frames_per_phase: int,
         seed: int, out_path: Path, max_per_type: int | None = 5):
     lookup = load_fewsol_lookup(sos_root)
