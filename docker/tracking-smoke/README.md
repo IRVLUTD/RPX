@@ -29,7 +29,9 @@ docker/tracking-smoke/build_text_rpx.sh sam3.1 --push
 
 Then run `smoke`, `micro`, and `acceptance` independently for MOS and Ego. The
 launcher requires the SHA-pinned vocabulary parquet and keeps model/data caches
-and outputs under `RPX_TRACKING_RUNTIME`:
+and outputs under `RPX_TRACKING_RUNTIME`. Existing caches and output roots can
+be selected with `RPX_HF_CACHE`, `RPX_TRACKING_DATA_CACHE`, and
+`RPX_TRACKING_OUTPUT`:
 
 ```bash
 docker/tracking-smoke/run_text_gate.sh grounded-sam2 smoke mos 0 "$VOCAB"
