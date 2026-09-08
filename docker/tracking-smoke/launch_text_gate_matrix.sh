@@ -52,4 +52,4 @@ done
 
 echo "Launched ${gate} on four GPUs in tmux session ${session}."
 echo "Attach: tmux attach -t ${session}"
-echo "Status: tmux list-panes -t ${session} -a -F '#{window_name} dead=#{pane_dead} exit=#{pane_dead_status}'"
+echo "Status: tmux list-panes -s -t ${session} -F '#{window_name} dead=#{pane_dead} exit=#{pane_dead_status}'"
