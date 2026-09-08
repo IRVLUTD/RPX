@@ -150,7 +150,7 @@ def gen_for_ego_phase(scene, root, mapping, frames_per_phase, lookup, sos_catalo
 def gen_incontext_for_mos_phase(scene, phase, root, mapping, frames_per_phase, lookup,
                                  catalog, catalog_by_scid, ref_crops, rng, seed, revision,
                                  require_diff_category=True, max_per_type=None):
-    from gt_incontext import gen_incontext_general_for_phase, gen_incontext_spatial_for_frame
+    from gt_incontext import gen_incontext_general_for_phase, gen_incontext_spatial_for_frame, gen_incontext_identify_for_frame
     from generate_spatial_gt import imread_mask as _imread_mask, imread_depth as _imread_depth
 
     mask_dir = os.path.join(root, "sam2", "masks")
@@ -163,10 +163,16 @@ def gen_incontext_for_mos_phase(scene, phase, root, mapping, frames_per_phase, l
         ref_crops, seed, revision, rng, max_per_type=max_per_type, require_diff_category=require_diff_category)
 
     for fid in selected:
+        mask = _imread_mask(os.path.join(mask_dir, f"{fid}.png"))
+
+        id_items, id_drops = gen_incontext_identify_for_frame(
+            scene, "mos", phase, fid, mask, mapping, catalog_by_scid, ref_crops, revision)
+        items += id_items
+        drops += id_drops
+
         depth_path = os.path.join(root, "depth", f"{fid}.png")
         if not os.path.exists(depth_path):
             continue
-        mask = _imread_mask(os.path.join(mask_dir, f"{fid}.png"))
         depth = _imread_depth(depth_path)
         sp_items, sp_drops = gen_incontext_spatial_for_frame(
             scene, phase, fid, mask, depth, mapping, catalog_by_scid, ref_crops, revision)
@@ -179,9 +185,12 @@ def gen_incontext_for_mos_phase(scene, phase, root, mapping, frames_per_phase, l
 def gen_incontext_for_ego_phase(scene, root, mapping, frames_per_phase, lookup,
                                  catalog, catalog_by_scid, ref_crops, rng, seed, revision,
                                  require_diff_category=True, max_per_type=None):
-    """General-family only -- ego has no depth, and inctx_spatial_farthest
-    depends on it exactly like the existing spatial_farthest does."""
-    from gt_incontext import gen_incontext_general_for_phase
+    """General + identify families only -- ego has no depth, and
+    inctx_spatial_farthest depends on it exactly like the existing
+    spatial_farthest does. inctx_identify needs no depth, so it runs for
+    ego same as mos."""
+    from gt_incontext import gen_incontext_general_for_phase, gen_incontext_identify_for_frame
+    from generate_spatial_gt import imread_mask as _imread_mask
 
     mask_dir = os.path.join(root, "sam2", "masks")
     fids = sorted(os.path.splitext(os.path.basename(p))[0]
@@ -191,6 +200,14 @@ def gen_incontext_for_ego_phase(scene, root, mapping, frames_per_phase, lookup,
     items, drops = gen_incontext_general_for_phase(
         scene, "ego", None, selected, mask_dir, mapping, lookup, catalog, catalog_by_scid,
         ref_crops, seed, revision, rng, max_per_type=max_per_type, require_diff_category=require_diff_category)
+
+    for fid in selected:
+        mask = _imread_mask(os.path.join(mask_dir, f"{fid}.png"))
+        id_items, id_drops = gen_incontext_identify_for_frame(
+            scene, "ego", None, fid, mask, mapping, catalog_by_scid, ref_crops, revision)
+        items += id_items
+        drops += id_drops
+
     return items, drops, len(selected)
 
 

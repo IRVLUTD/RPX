@@ -79,6 +79,8 @@ TEMPLATES = {
                               "shown in Image 1? What is its bounding box in Image 2?",
     "inctx_spatial_farthest": "Which object in Image 2 is farthest from the object shown in Image 1? "
                               "What is its bounding box in Image 2?",
+    "inctx_identify": "Where is the object shown in Image 1 located in Image 2? "
+                       "What is its bounding box in Image 2?",
 }
 
 SOURCE_QUESTION = {
@@ -88,6 +90,8 @@ SOURCE_QUESTION = {
     "inctx_attr_composition": lambda mf: f"What is the object made of {mf[0]} that is used for {mf[1]}?",
     "inctx_attr_odd_one_out": lambda v: f"Which object is NOT made of {v}?",
     "inctx_spatial_farthest": lambda v: f"Which object is farthest from the {v}?",
+    "inctx_identify": lambda v: None,  # no single-image predecessor task -- this type is new, not a two-image
+                                        # transform of an existing published question (see module docstring)
 }
 
 
@@ -584,6 +588,78 @@ class _CatalogObjLike:
         self.object_id = identity.object_id
         self.global_object_id = identity.global_object_id
         self.source_catalog_id = identity.source_catalog_id
+
+
+# ---------------------------------------------------------------- identification (Option A, intentional)
+
+def gen_incontext_identify_for_frame(scene_id, kind, phase, fid, mask, mapping, catalog_by_scid,
+                                      ref_crops, revision):
+    """A different kind of two-image task from the five attribute-transfer
+    families above: Image 1 is the EXACT SAME object as the answer, not a
+    different one sharing an attribute. This is intentional, not the
+    "identity-matching shortcut" the attribute-transfer families were
+    designed to avoid (see the module docstring's Option A/B analysis) --
+    re-identifying a specific object across two images IS the entire skill
+    this task measures, the same way inctx_spatial_farthest's anchor is
+    intentionally Option A. There is no published single-image predecessor
+    question for this ("Where is this object?" doesn't exist as a
+    single-image task, since a single-image version would have nothing to
+    point at) -- source_question is always None.
+
+    No attribute uniqueness or ambiguity gate applies: the object is
+    identified by ITS OWN catalog identity (via its own SOS crop), not by a
+    shared value another object could also match, so there is nothing for
+    an ambiguity gate to check. The only requirements are: the object is
+    really visible in this frame (MIN_MASK_AREA_PX, same floor as
+    everywhere else), it resolves to one of the 70 officially published SOS
+    objects (needed to have a real Image-1 crop at all), and -- defensively
+    -- no OTHER visible object in this exact frame shares that same
+    identity (would make "this object" ambiguous; not expected to occur
+    given each MOS/Ego scene places physically distinct catalog objects,
+    but checked rather than assumed)."""
+    items, drops = [], []
+    present_ids = [int(v) for v in np.unique(mask) if v != 0 and int(v) in mapping
+                   and int((mask == v).sum()) >= MIN_MASK_AREA_PX]
+    if not present_ids:
+        return items, drops
+    img_h, img_w = mask.shape[:2]
+
+    identities = {oid: join_scene_mask(mapping, oid, catalog_by_scid) for oid in present_ids}
+    scid_counts: dict = {}
+    for ident in identities.values():
+        scid_counts[ident.source_catalog_id] = scid_counts.get(ident.source_catalog_id, 0) + 1
+
+    for oid in present_ids:
+        identity = identities[oid]
+        if identity.object_id is None:
+            drops.append(Drop("inctx_identify", "not_in_published_catalog", identity.source_catalog_id))
+            continue
+        if scid_counts[identity.source_catalog_id] > 1:
+            drops.append(Drop("inctx_identify", "duplicate_identity_in_frame", identity.source_catalog_id))
+            continue
+        crop = ref_crops.get(identity.object_id)
+        if crop is None:
+            drops.append(Drop("inctx_identify", "missing_reference_crop", identity.object_id))
+            continue
+        bbox = bbox_of(mask, oid)
+        if not (0 <= bbox[0] <= bbox[2] < img_w and 0 <= bbox[1] <= bbox[3] < img_h):
+            drops.append(Drop("inctx_identify", DropReason.TARGET_BBOX_INVALID, str(bbox)))
+            continue
+        cx = ((bbox[0] + bbox[2]) / 2.0) / img_w
+        cy = ((bbox[1] + bbox[3]) / 2.0) / img_h
+        ref_obj = _CatalogObjLike(identity, crop)
+        items.append(_build_row(
+            scene_id=scene_id, kind=kind, phase=phase, frame=fid, img_w=img_w, img_h=img_h,
+            type_="inctx_identify", question=TEMPLATES["inctx_identify"], answer=mapping[oid]["name"],
+            answer_bbox=bbox, evidence=None, revision=revision,
+            source_type="identify", source_question=None,
+            target_identity=identity, ref_obj=ref_obj, ref_crop=crop,
+            attribute_kind=None, attribute_value=None, attribute_material=None, attribute_function=None,
+            center_x_norm=cx, center_y_norm=cy, different_category=None,  # N/A -- Option A by design, not a check that can pass/fail
+            target_local_mask_id=oid, target_frame_locator_scene=scene_id,
+            fact_key=f"identify:{identity.source_catalog_id}",
+        ))
+    return items, drops
 
 
 # ---------------------------------------------------------------- row assembly

@@ -5,6 +5,7 @@ ambiguity gate (test 11) is the one from the spec's own worked example."""
 import pytest
 
 import gt_incontext as gi
+import sos_reference as sr
 from sos_catalog import CatalogObject, Identity, normalize_value
 
 
@@ -309,3 +310,75 @@ def test_compound_material_reference_allowed_when_no_atom_conflict():
         "material", "plastic/metal", target_local_id=1, attrs=attrs, catalog=catalog,
         target_identity=target_identity, target_local_name="gadget")
     assert identity_only == [candidate]
+
+
+# ---------------------------------------------------------------- inctx_identify (Option A, intentional)
+
+def _mask_with_two_objects():
+    # regions must clear MIN_MASK_AREA_PX (100px) -- 15x15=225 each
+    import numpy as np
+    mask = np.zeros((40, 40), dtype=np.int32)
+    mask[2:17, 2:17] = 1
+    mask[20:35, 20:35] = 2
+    return mask
+
+
+def test_identify_emits_one_row_per_published_visible_object():
+    mapping = {1: {"name": "mug", "oid": "1"}, 2: {"name": "hammer", "oid": "2"}}
+    catalog_by_scid = {
+        "1": _identity_obj_stub("mug_obj", "1", 10),
+        "2": _identity_obj_stub("hammer_obj", "2", 11),
+    }
+    ref_crops = {"mug_obj": _crop_stub(), "hammer_obj": _crop_stub()}
+    mask = _mask_with_two_objects()
+    items, drops = gi.gen_incontext_identify_for_frame(
+        "scene001", "mos", 0, "00000", mask, mapping, catalog_by_scid, ref_crops, "main")
+    assert len(items) == 2
+    assert {it["target_object_id"] for it in items} == {"mug_obj", "hammer_obj"}
+    for it in items:
+        # Option A: reference IS the target's own identity
+        assert it["reference_object_id"] == it["target_object_id"]
+        assert it["question"] == gi.TEMPLATES["inctx_identify"]
+        assert it["source_question"] is None
+
+
+def test_identify_drops_object_not_in_published_catalog():
+    mapping = {1: {"name": "mystery", "oid": "999999"}}
+    catalog_by_scid = {}  # "999999" not in the 70-object catalog
+    ref_crops = {}
+    mask = _mask_with_two_objects()
+    mask[mask == 2] = 0  # keep only object 1
+    items, drops = gi.gen_incontext_identify_for_frame(
+        "scene001", "mos", 0, "00000", mask, mapping, catalog_by_scid, ref_crops, "main")
+    assert items == []
+    assert len(drops) == 1 and drops[0].reason == "not_in_published_catalog"
+
+
+def test_identify_drops_duplicate_identity_in_frame():
+    # two DIFFERENT local mask ids resolving to the SAME catalog identity --
+    # "this object" would be ambiguous, must be dropped for both.
+    mapping = {1: {"name": "mug", "oid": "1"}, 2: {"name": "mug_again", "oid": "1"}}
+    catalog_by_scid = {"1": _identity_obj_stub("mug_obj", "1", 10)}
+    ref_crops = {"mug_obj": _crop_stub()}
+    mask = _mask_with_two_objects()
+    items, drops = gi.gen_incontext_identify_for_frame(
+        "scene001", "mos", 0, "00000", mask, mapping, catalog_by_scid, ref_crops, "main")
+    assert items == []
+    assert all(d.reason == "duplicate_identity_in_frame" for d in drops)
+    assert len(drops) == 2
+
+
+def _identity_obj_stub(object_id, scid, goid):
+    # catalog_by_scid values must be CatalogObject-like (join_scene_mask
+    # reads .object_id/.global_object_id off them), not an Identity itself.
+    return _cat_obj(goid, object_id, scid, object_id)
+
+
+def _crop_stub():
+    return sr.ReferenceCrop(
+        object_id="x", rgb_shard="objects/x/0/rgb.tar", rgb_member="rgb/00000.webp",
+        mask_shard="objects/x/0/labels/masks/v1.tar", mask_member="sam2/masks/00000.png",
+        frame_id="00000", mask_bbox=[0, 0, 10, 10], crop_bbox=[0, 0, 12, 12],
+        crop_w=12, crop_h=12, mask_area_px=100, mask_area_frac=0.1, edge_distance_px=5,
+        center_dist_norm=0.1, sharpness=100.0, crop_path="/tmp/x.png", crop_sha256="0" * 64,
+    )
