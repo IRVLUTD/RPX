@@ -12,7 +12,13 @@ test -n "${HF_TOKEN:-}" || { echo "HF_TOKEN is not exported" >&2; exit 2; }
 mkdir -p "${runtime}"/{hf-cache,cache,outputs,logs}
 
 if docker ps --format '{{.Names}}' | grep -Fxq "${name}"; then
-  echo "${name} is already running"
+  running_image="$(docker inspect --format '{{.Config.Image}}' "${name}")"
+  if [[ "${running_image}" != "${image}:${tag}" ]]; then
+    echo "${name} is running the stale image ${running_image}; expected ${image}:${tag}" >&2
+    echo "stop and remove that exact container before starting this revision" >&2
+    exit 1
+  fi
+  echo "${name} is already running the requested image"
   exit 0
 fi
 if docker ps -a --format '{{.Names}}' | grep -Fxq "${name}"; then
