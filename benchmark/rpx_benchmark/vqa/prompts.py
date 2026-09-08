@@ -34,9 +34,15 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             # predicted label with PaliGemma's native detect prefix. At no point
             # does the inference path receive the ground-truth object label.
             return PromptSpec(f"answer en {question}\n", 24, "paligemma_two_stage")
+        grounding_requirement = (
+            "The answer object is guaranteed to be present in the target image "
+            "(Image 2 for a two-image input, otherwise the only image). Always select "
+            "the best matching visible object and return exactly one bbox; never abstain. "
+        )
         if model_key.startswith("gemma4-"):
             return PromptSpec(
-                f'{question}\nReturn only JSON: {{"label":"object name","bbox":'
+                f"{question}\n{grounding_requirement}"
+                'Return only JSON: {"label":"object name","bbox":'
                 "[x_min,y_min,x_max,y_max]}. Normalize every bbox coordinate to an "
                 "integer from 0 to 1000, where x is relative to image width and y is "
                 "relative to image height. The bbox must enclose the object that "
@@ -45,7 +51,8 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
                 "bbox_json_normalized_1000",
             )
         return PromptSpec(
-            f'{question}\nReturn only JSON: {{"label":"object name","bbox":'
+            f"{question}\n{grounding_requirement}"
+            'Return only JSON: {"label":"object name","bbox":'
             f"[x_min,y_min,x_max,y_max]}}. Use integer coordinates in the original "
             f"{sample.img_w} by {sample.img_h} image. The bbox must enclose the object "
             "that answers the question. No Markdown or explanation.",

@@ -78,9 +78,11 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma4-12b")
     assert '"bbox"' in attribute.text
     assert "0 to 1000" in attribute.text
+    assert "never abstain" in attribute.text
     assert attribute.output_kind == "bbox_json_normalized_1000"
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
     assert '"bbox"' in bbox.text and "640 by 480" in bbox.text
+    assert "never abstain" in bbox.text
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     assert paligemma.text.startswith("answer en ")
     assert paligemma.output_kind == "paligemma_two_stage"
