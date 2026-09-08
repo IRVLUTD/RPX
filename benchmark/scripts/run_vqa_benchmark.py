@@ -207,7 +207,12 @@ def main() -> None:
         chunk = remaining[start : start + args.batch_size]
         specs = {sample.sample_id: build_prompt(sample, args.model) for sample in chunk}
         requests = [
-            (image_paths[sample.sample_id], specs[sample.sample_id].text, specs[sample.sample_id].max_new_tokens)
+            (
+                image_paths[sample.sample_id],
+                specs[sample.sample_id].text,
+                specs[sample.sample_id].max_new_tokens,
+                specs[sample.sample_id].output_kind,
+            )
             for sample in chunk
         ]
         synchronize_cuda()

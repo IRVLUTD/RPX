@@ -27,6 +27,7 @@ class ParsedOutput:
     label: str | None = None
     bbox: tuple[float, float, float, float] | None = None
     error: str | None = None
+    coordinate_format: str | None = None
 
 
 def _json_object(raw: str) -> dict:
@@ -70,9 +71,18 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
         try:
             value = _json_object(raw)
             raw_bbox = value["bbox"]
+            # Some otherwise-correct VLM responses add one redundant list
+            # dimension.  Unwrap exactly one singleton; do not guess any more
+            # complicated structure.
+            if (
+                isinstance(raw_bbox, list)
+                and len(raw_bbox) == 1
+                and isinstance(raw_bbox[0], list)
+            ):
+                raw_bbox = raw_bbox[0]
             if not isinstance(raw_bbox, list) or len(raw_bbox) != 4:
                 raise AdapterError(
-                    "bbox must contain four numbers", hint="return original-image xyxy coordinates"
+                    "bbox must contain four numbers", hint="return normalized xyxy coordinates"
                 )
             bbox = tuple(float(v) for v in raw_bbox)
             if not all(float("-inf") < value < float("inf") for value in bbox):
@@ -82,11 +92,21 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
                     "bbox is outside normalized 0-1000 coordinates",
                     hint="return normalized xyxy coordinates",
                 )
+            # Decode the two widespread normalized conventions without using
+            # model identity. Values containing a genuine fraction and entirely
+            # within [0,1] are unit-normalized; everything else follows the
+            # requested [0,1000] protocol. This fixes the previous silent bug
+            # where [0.5,...] became a sub-pixel box at the top-left.
+            unit_normalized = all(0 <= coordinate <= 1 for coordinate in bbox) and any(
+                coordinate not in {0.0, 1.0} for coordinate in bbox
+            )
+            denominator = 1 if unit_normalized else 1000
+            coordinate_format = "normalized_0_1" if unit_normalized else "normalized_0_1000"
             bbox = (
-                bbox[0] * (sample.img_w - 1) / 1000,
-                bbox[1] * (sample.img_h - 1) / 1000,
-                bbox[2] * (sample.img_w - 1) / 1000,
-                bbox[3] * (sample.img_h - 1) / 1000,
+                bbox[0] * (sample.img_w - 1) / denominator,
+                bbox[1] * (sample.img_h - 1) / denominator,
+                bbox[2] * (sample.img_w - 1) / denominator,
+                bbox[3] * (sample.img_h - 1) / denominator,
             )
             x0, y0, x1, y1 = bbox
             if not (0 <= x0 <= x1 < sample.img_w and 0 <= y0 <= y1 < sample.img_h):
@@ -94,7 +114,9 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
                     "bbox is outside the original image", hint="undo processor resizing first"
                 )
             label = normalize_label(str(value.get("label", ""))) or None
-            return ParsedOutput(True, label=label, bbox=bbox)
+            return ParsedOutput(
+                True, label=label, bbox=bbox, coordinate_format=coordinate_format
+            )
         except (KeyError, TypeError, ValueError, json.JSONDecodeError, RPXError) as exc:
             return ParsedOutput(False, error=str(exc))
     return ParsedOutput(False, error="unsupported task")

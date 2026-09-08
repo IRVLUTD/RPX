@@ -108,6 +108,7 @@ def main() -> None:
                 "predicted_bbox": parsed.bbox,
                 "valid": parsed.valid,
                 "parse_error": parsed.error,
+                "coordinate_format": parsed.coordinate_format,
                 "iou": iou,
                 "latency_ms": latency_by_id[sample_id],
                 "adapter_metadata": adapter_metadata_by_id[sample_id],

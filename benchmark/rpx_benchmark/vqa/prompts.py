@@ -21,17 +21,19 @@ def display_question(question: str) -> str:
 
 
 def _bbox_instruction(question: str) -> str:
-    """One frozen bbox instruction for every JSON-capable VLM."""
+    """Stage-one instruction shared by every JSON-capable VLM.
+
+    Separating semantic question answering from target-image grounding keeps a
+    model from trying to solve both jobs in one short structured response.  The
+    adapter never receives the ground-truth label: stage two is conditioned only
+    on the label predicted here.
+    """
     return (
         f"{question}\n"
-        "The answer object is guaranteed to be present in the target image "
-        "(Image 2 for a two-image input, otherwise the only image). Always select "
-        "the best matching visible object and return exactly one bbox; never abstain. "
-        'Return only JSON: {"label":"object name","bbox":'
-        "[x_min,y_min,x_max,y_max]}. Normalize every bbox coordinate to an "
-        "integer from 0 to 1000, where x is relative to target-image width and y is "
-        "relative to target-image height. The bbox must enclose the object that "
-        "answers the question. No Markdown or explanation."
+        "Identify the one visible object that answers the question. For a relational "
+        "question, answer with the result object, not the reference object named in "
+        "the question. Return only its shortest common object name, with no sentence, "
+        "JSON, coordinates, Markdown, or explanation."
     )
 
 
@@ -51,8 +53,8 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             return PromptSpec(f"answer en {question}\n", 24, "paligemma_two_stage")
         return PromptSpec(
             _bbox_instruction(question),
-            64,
-            "bbox_json_normalized_1000",
+            32,
+            "two_stage_bbox_json_normalized_1000",
         )
     raise ConfigError(
         f"unsupported VQA question type: {sample.question_type}",

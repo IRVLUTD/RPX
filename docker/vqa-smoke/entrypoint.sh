@@ -17,6 +17,8 @@ Commands:
   list-models                              Print the frozen ten-model vLLM roster.
   smoke MODEL [args]                       Run the 14-row bbox smoke gate.
   acceptance MODEL [args]                  Run the 104-row normal+in-context acceptance gate.
+  serve MODEL [args]                       Keep one model resident on localhost:8000.
+  acceptance-remote MODEL [args]           Run acceptance through the resident engine.
   benchmark MODEL MANIFEST SHARD_INDEX SHARD_COUNT [args]
                                             Run one shard of the full benchmark plan
                                             (see build_vqa_benchmark_plan.py), batched.
@@ -29,8 +31,20 @@ EOF
   list-models)
     exec env PYTHONPATH=scripts python3 -c "from vqa_models.vllm_backend import CHECKPOINTS; print('\n'.join(f'{key}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
     ;;
-  smoke|acceptance)
+  serve)
+    model="${1:?serve requires MODEL}"
+    shift
+    exec python3 scripts/serve_vllm_vqa.py \
+      --model "${model}" --image-cache "${RPX_VQA_CACHE}/images" "$@"
+    ;;
+  smoke|acceptance|acceptance-remote)
     gate="${command_name}"
+    if [[ "${gate}" == "acceptance-remote" ]]; then
+      gate="acceptance"
+      remote_args=(--server-url http://127.0.0.1:8000)
+    else
+      remote_args=()
+    fi
     model="${1:-gemma4-12b}"
     if [[ $# -gt 0 ]]; then
       shift
@@ -50,7 +64,7 @@ EOF
       --model "${model}" --manifest "${manifest}" \
       --image-cache "${RPX_VQA_CACHE}/images" \
       --predictions "${run_dir}/predictions.jsonl" \
-      --resume "$@"
+      --resume "${remote_args[@]}" "$@"
     exec python3 scripts/run_vqa_smoke_gate.py \
       --manifest "${manifest}" \
       --model "${model}" \

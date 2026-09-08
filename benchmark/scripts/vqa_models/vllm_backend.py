@@ -54,7 +54,9 @@ CHECKPOINTS = {
         max_model_len=8192,
         engine_kwargs={
             "enforce_eager": True,
-            "mm_processor_kwargs": {"size": {"longest_edge": 3 * 364}},
+            # Use the checkpoint's recommended/default visual resolution.  The
+            # earlier 3*364 override discarded detail from RPX's small objects.
+            "mm_processor_kwargs": {"size": {"longest_edge": 4 * 364}},
         },
     ),
     "internvl2.5-8b": VLLMCheckpoint(
@@ -185,6 +187,75 @@ class VLLMVQARunner:
         )
         return self._text(self.llm.generate(request, params, use_tqdm=False))
 
+    @staticmethod
+    def _predicted_label(raw: str) -> str:
+        """Take one concise stage-one label without inventing a label."""
+        lines = [line.strip() for line in raw.splitlines() if line.strip()]
+        if not lines:
+            return ""
+        label = lines[0].strip("` \t\"'")
+        return label[:160]
+
+    @staticmethod
+    def _grounding_prompt(label: str) -> str:
+        return (
+            f'Locate the visible object named "{label}" in the target image. '
+            "Return only JSON: {\"label\":\"object name\",\"bbox\":"
+            "[x_min,y_min,x_max,y_max]}. Normalize each bbox coordinate from 0 "
+            "to 1000 relative to the target-image width and height. Use XYXY "
+            "corner order and enclose the entire object. No Markdown or explanation."
+        )
+
+    def _chat_generate(
+        self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
+    ) -> str:
+        from vllm import SamplingParams
+
+        content: list[dict[str, Any]] = [
+            {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
+            for path in image_paths
+        ]
+        content.append({"type": "text", "text": prompt})
+        messages = [{"role": "user", "content": content}]
+        params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
+        chat_template_kwargs = (
+            {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None
+        )
+        return self._text(
+            self.llm.chat(
+                messages,
+                params,
+                use_tqdm=False,
+                chat_template_kwargs=chat_template_kwargs,
+            )
+        )
+
+    def _predict_json_two_stage(
+        self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
+    ) -> str:
+        stage1 = self._chat_generate(image_paths, prompt, max_tokens)
+        label = self._predicted_label(stage1)
+        if not label:
+            self._last_adapter_metadata = {
+                "adapter": "json_two_stage",
+                "stage1_raw_output": stage1,
+                "stage1_label": None,
+                "stage2_raw_output": None,
+                "stage2_skipped_reason": "empty_stage1_label",
+            }
+            return ""
+        stage2 = self._chat_generate(
+            [image_paths[-1]], self._grounding_prompt(label), 64
+        )
+        self._last_adapter_metadata = {
+            "adapter": "json_two_stage",
+            "stage1_raw_output": stage1,
+            "stage1_label": label,
+            "stage2_raw_output": stage2,
+            "stage2_skipped_reason": None,
+        }
+        return stage2
+
     def _predict_paligemma(
         self, images: Sequence[Image.Image], prompt: str, max_tokens: int
     ) -> str:
@@ -195,8 +266,7 @@ class VLLMVQARunner:
         predicted_label = self._generate_paligemma(
             stage1_image, prompt, max_tokens, keep_special=False
         )
-        lines = predicted_label.splitlines()
-        label = lines[0].strip() if lines else ""
+        label = self._predicted_label(predicted_label)
         if not label:
             self._last_adapter_metadata = {
                 "adapter": "paligemma_two_stage",
@@ -247,33 +317,15 @@ class VLLMVQARunner:
             images = [image.convert("RGB") for image in opened]
             if self.checkpoint.paligemma:
                 return self._predict_paligemma(images, prompt, max_tokens)
-
-            from vllm import SamplingParams
-
-            content: list[dict[str, Any]] = [
-                {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
-                for path in image_paths
-            ]
-            content.append({"type": "text", "text": prompt})
-            messages = [{"role": "user", "content": content}]
-            params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
-            chat_template_kwargs = (
-                {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None
-            )
-            return self._text(
-                self.llm.chat(
-                    messages,
-                    params,
-                    use_tqdm=False,
-                    chat_template_kwargs=chat_template_kwargs,
-                )
-            )
+            if output_kind == "two_stage_bbox_json_normalized_1000":
+                return self._predict_json_two_stage(image_paths, prompt, max_tokens)
+            return self._chat_generate(image_paths, prompt, max_tokens)
         finally:
             for image in opened:
                 image.close()
 
     def predict_batch(
-        self, requests: Sequence[tuple[Sequence[str | Path], str, int]]
+        self, requests: Sequence[tuple[Sequence[str | Path], str, int, str]]
     ) -> list[str]:
         """Submit an entire batch to vLLM in one call so rows are actually
         scheduled together (subject to max_num_seqs), not serialized one at a
@@ -284,7 +336,7 @@ class VLLMVQARunner:
         what the acceptance/smoke gates use for that)."""
         opened_by_row = [
             [Image.open(path) for path in ((paths,) if isinstance(paths, (str, Path)) else paths)]
-            for paths, _prompt, _max_tokens in requests
+            for paths, _prompt, _max_tokens, _output_kind in requests
         ]
         try:
             self._last_batch_adapter_metadata = []
@@ -298,13 +350,15 @@ class VLLMVQARunner:
                             "image": images[0] if len(images) == 1 else self._side_by_side(images)
                         },
                     }
-                    for images, (_paths, prompt, _max_tokens) in zip(
+                    for images, (_paths, prompt, _max_tokens, _output_kind) in zip(
                         images_by_row, requests, strict=True
                     )
                 ]
                 from vllm import SamplingParams
 
-                max_tokens_1 = max(max_tokens for _paths, _prompt, max_tokens in requests)
+                max_tokens_1 = max(
+                    max_tokens for _paths, _prompt, max_tokens, _output_kind in requests
+                )
                 params1 = SamplingParams(temperature=0.0, max_tokens=max_tokens_1, skip_special_tokens=True)
                 stage1_outputs = self.llm.generate(stage1_requests, params1, use_tqdm=False)
                 stage1_raw = [self._text([output]) for output in stage1_outputs]
@@ -353,7 +407,7 @@ class VLLMVQARunner:
             from vllm import SamplingParams
 
             messages_batch = []
-            for _images, (paths, prompt, _max_tokens) in zip(
+            for _images, (paths, prompt, _max_tokens, _output_kind) in zip(
                 images_by_row, requests, strict=True
             ):
                 path_list = (paths,) if isinstance(paths, (str, Path)) else paths
@@ -363,7 +417,9 @@ class VLLMVQARunner:
                 ]
                 content.append({"type": "text", "text": prompt})
                 messages_batch.append([{"role": "user", "content": content}])
-            max_tokens = max(max_tokens for _paths, _prompt, max_tokens in requests)
+            max_tokens = max(
+                max_tokens for _paths, _prompt, max_tokens, _output_kind in requests
+            )
             params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
             chat_template_kwargs = (
                 {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None
@@ -371,8 +427,68 @@ class VLLMVQARunner:
             outputs = self.llm.chat(
                 messages_batch, params, use_tqdm=False, chat_template_kwargs=chat_template_kwargs
             )
-            values = [self._text([output]) for output in outputs]
-            self._last_batch_adapter_metadata = [{} for _ in values]
+            stage1_values = [self._text([output]) for output in outputs]
+
+            # Bbox tasks use the same answer-then-ground decomposition as the
+            # isolated acceptance path. Binary rows remain single-stage.
+            values = list(stage1_values)
+            metadata: list[dict[str, Any]] = [{} for _ in values]
+            bbox_indices = [
+                index
+                for index, request in enumerate(requests)
+                if request[3] == "two_stage_bbox_json_normalized_1000"
+            ]
+            if bbox_indices:
+                labels = {
+                    index: self._predicted_label(stage1_values[index])
+                    for index in bbox_indices
+                }
+                stage2_indices = [index for index in bbox_indices if labels[index]]
+                if stage2_indices:
+                    stage2_messages = []
+                    for index in stage2_indices:
+                        paths = requests[index][0]
+                        path_list = (paths,) if isinstance(paths, (str, Path)) else paths
+                        target_path = path_list[-1]
+                        stage2_messages.append(
+                            [
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "image_url",
+                                            "image_url": {
+                                                "url": Path(target_path).resolve().as_uri()
+                                            },
+                                        },
+                                        {
+                                            "type": "text",
+                                            "text": self._grounding_prompt(labels[index]),
+                                        },
+                                    ],
+                                }
+                            ]
+                        )
+                    stage2_outputs = self.llm.chat(
+                        stage2_messages,
+                        SamplingParams(temperature=0.0, max_tokens=64),
+                        use_tqdm=False,
+                        chat_template_kwargs=chat_template_kwargs,
+                    )
+                    for index, output in zip(stage2_indices, stage2_outputs, strict=True):
+                        values[index] = self._text([output])
+                for index in bbox_indices:
+                    label = labels[index]
+                    metadata[index] = {
+                        "adapter": "json_two_stage",
+                        "stage1_raw_output": stage1_values[index],
+                        "stage1_label": label or None,
+                        "stage2_raw_output": values[index] if label else None,
+                        "stage2_skipped_reason": None if label else "empty_stage1_label",
+                    }
+                    if not label:
+                        values[index] = ""
+            self._last_batch_adapter_metadata = metadata
             return values
         finally:
             for row in opened_by_row:

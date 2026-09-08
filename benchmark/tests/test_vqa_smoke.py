@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -13,6 +14,9 @@ from rpx_benchmark.vqa.metrics import bbox_iou, score_predictions
 from rpx_benchmark.vqa.outputs import ParsedOutput, normalize_label, parse_output
 from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import MODELS, get_model
+
+sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
+from vqa_models.vllm_backend import VLLMVQARunner  # noqa: E402
 
 
 def row(question_type: str = "spatial_lr_binary") -> dict:
@@ -76,18 +80,16 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     assert "yes or no" in binary.text
     assert "alarm clock" in binary.text and "_" not in binary.text
     attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma4-12b")
-    assert '"bbox"' in attribute.text
-    assert "0 to 1000" in attribute.text
-    assert "never abstain" in attribute.text
-    assert attribute.output_kind == "bbox_json_normalized_1000"
+    assert "shortest common object name" in attribute.text
+    assert "reference object" in attribute.text
+    assert attribute.output_kind == "two_stage_bbox_json_normalized_1000"
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
-    assert '"bbox"' in bbox.text and "0 to 1000" in bbox.text
-    assert "never abstain" in bbox.text
+    assert "shortest common object name" in bbox.text
     assert bbox.text == attribute.text.replace(
         "What is the object made of metal that is used for dusting?",
         "Which object is furthest to the left?",
     )
-    assert bbox.output_kind == "bbox_json_normalized_1000"
+    assert bbox.output_kind == "two_stage_bbox_json_normalized_1000"
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     assert paligemma.text.startswith("answer en ")
     assert paligemma.output_kind == "paligemma_two_stage"
@@ -108,8 +110,17 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
     prompts = [build_prompt(sample, key) for key in keys]
     assert len({prompt.text for prompt in prompts}) == 1
     assert {prompt.output_kind for prompt in prompts} == {
-        "bbox_json_normalized_1000"
+        "two_stage_bbox_json_normalized_1000"
     }
+
+
+def test_two_stage_adapter_label_and_grounding_prompt_are_model_independent() -> None:
+    assert VLLMVQARunner._predicted_label("  shoe\nextra text") == "shoe"
+    assert VLLMVQARunner._predicted_label("") == ""
+    prompt = VLLMVQARunner._grounding_prompt("shoe")
+    assert '"shoe"' in prompt
+    assert "0 to 1000" in prompt
+    assert "XYXY" in prompt
 
 
 def test_strict_output_parsers() -> None:
@@ -129,6 +140,21 @@ def test_strict_output_parsers() -> None:
     )
     assert parsed_bbox.valid
     assert parsed_bbox.bbox == pytest.approx((63.9, 57.48, 127.8, 105.38))
+    unit_bbox = parse_output(
+        bbox,
+        '{"label":"alarm_clock","bbox":[0.1,0.2,0.3,0.4]}',
+        "internvl2.5-8b",
+    )
+    assert unit_bbox.valid
+    assert unit_bbox.coordinate_format == "normalized_0_1"
+    assert unit_bbox.bbox == pytest.approx((63.9, 95.8, 191.7, 191.6))
+    nested_bbox = parse_output(
+        bbox,
+        '{"label":"alarm_clock","bbox":[[100,120,200,220]]}',
+        "internvl2.5-8b",
+    )
+    assert nested_bbox.valid
+    assert nested_bbox.coordinate_format == "normalized_0_1000"
     parsed_loc = parse_output(
         bbox, "<loc0256><loc0160><loc0469><loc0320> alarm_clock<eos>", "paligemma2-3b"
     )

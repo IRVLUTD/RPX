@@ -7,6 +7,7 @@ import argparse
 import importlib
 import json
 import time
+import urllib.request
 from pathlib import Path
 
 import vllm
@@ -26,6 +27,41 @@ def synchronize_cuda() -> None:
         torch.cuda.synchronize(device_index)
 
 
+class RemoteRunner:
+    """Thin client for a model kept resident by serve_vllm_vqa.py."""
+
+    def __init__(self, server_url: str) -> None:
+        self.server_url = server_url.rstrip("/")
+        self._metadata: dict = {}
+
+    def health(self) -> dict:
+        with urllib.request.urlopen(f"{self.server_url}/health", timeout=30) as response:
+            return json.load(response)
+
+    def predict(self, image_paths, prompt: str, max_tokens: int, output_kind: str) -> str:
+        payload = json.dumps(
+            {
+                "image_paths": [str(path) for path in image_paths],
+                "prompt": prompt,
+                "max_tokens": max_tokens,
+                "output_kind": output_kind,
+            }
+        ).encode()
+        request = urllib.request.Request(
+            f"{self.server_url}/predict",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=600) as response:
+            result = json.load(response)
+        self._metadata = result.get("adapter_metadata") or {}
+        self.latency_ms = float(result["latency_ms"])
+        return str(result["raw_output"])
+
+    def prediction_metadata(self) -> dict:
+        return dict(self._metadata)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=tuple(CHECKPOINTS), required=True)
@@ -35,6 +71,10 @@ def main() -> None:
     parser.add_argument("--warmup", type=int, default=1)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
     parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--server-url",
+        help="reuse a resident serve_vllm_vqa.py engine instead of loading another model",
+    )
     parser.add_argument(
         "--resume", action="store_true", help="append after validated completed rows"
     )
@@ -53,11 +93,22 @@ def main() -> None:
     # order, for in-context rows -- reference_crop_sha256 is verified as
     # part of this call, raising DownloadError on any mismatch).
     image_paths = fetch_images_many(samples, args.image_cache)
-    runner = VLLMVQARunner(
-        args.model,
-        args.image_cache,
-        gpu_memory_utilization=args.gpu_memory_utilization,
-    )
+    if args.server_url:
+        runner = RemoteRunner(args.server_url)
+        health = runner.health()
+        checkpoint = CHECKPOINTS[args.model]
+        if (
+            health.get("model") != args.model
+            or health.get("checkpoint") != checkpoint.repo_id
+            or health.get("revision") != checkpoint.revision
+        ):
+            raise SystemExit(f"resident engine provenance mismatch: {health}")
+    else:
+        runner = VLLMVQARunner(
+            args.model,
+            args.image_cache,
+            gpu_memory_utilization=args.gpu_memory_utilization,
+        )
     for _ in range(args.warmup):
         sample = samples[0]
         spec = build_prompt(sample, args.model)
@@ -97,7 +148,8 @@ def main() -> None:
                 print(f"[{index}/{len(samples)}] {sample.sample_id} already complete", flush=True)
                 continue
             spec = build_prompt(sample, args.model)
-            synchronize_cuda()
+            if not args.server_url:
+                synchronize_cuda()
             started = time.perf_counter()
             raw = runner.predict(
                 image_paths[sample.sample_id],
@@ -105,8 +157,13 @@ def main() -> None:
                 spec.max_new_tokens,
                 spec.output_kind,
             )
-            synchronize_cuda()
-            latency_ms = (time.perf_counter() - started) * 1000
+            if not args.server_url:
+                synchronize_cuda()
+            latency_ms = (
+                runner.latency_ms
+                if args.server_url
+                else (time.perf_counter() - started) * 1000
+            )
             row = {
                 "sample_id": sample.sample_id,
                 "raw_output": raw,

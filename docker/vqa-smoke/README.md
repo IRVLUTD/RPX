@@ -42,6 +42,9 @@ never fabricated inference rows.
   2's own coordinates.
 - One unmeasured warm-up question precedes timed inference.
 - Timings synchronize CUDA immediately before and after each question.
+- Every bbox model uses an answer-then-ground adapter: stage 1 answers the
+  semantic question using all provided images, and stage 2 grounds only that
+  model-predicted label in the target image. No stage receives the GT label.
 - PaliGemma 2 answers the question first (both images, composited side by
   side for in-context rows -- see the runbook's "PaliGemma two-stage
   behavior"), then grounds its own predicted label in Image 2 ALONE, never
@@ -60,10 +63,12 @@ never fabricated inference rows.
 - Reports retain every question, raw output, parsed bbox, ground-truth bbox,
   IoU, parse error, and latency, plus aggregate parse rate, mean IoU, Acc@0.5,
   and latency statistics.
-- Every JSON-capable model receives the same bbox instruction and emits XYXY
-  coordinates normalized to 0--1000; the parser performs the one documented
-  conversion back to target-image pixels. It does not repair invalid JSON,
-  reversed boxes, refusals, or missing boxes.
+- Every JSON-capable model receives identical stage-1 and stage-2 semantic
+  instructions and is asked for XYXY coordinates normalized to 0--1000. The
+  model-independent decoder also recognizes the common fractional 0--1
+  convention and one redundant singleton bbox list; the selected coordinate
+  convention is recorded per row. It does not guess reversed XYXY/XYWH boxes,
+  invent labels, or replace refusals/missing boxes.
 - PaliGemma necessarily uses its published `answer en` then `detect` interface.
   Its stage-1 label and stage-2 native-location output are both retained in
   `adapter_metadata`; an empty stage-1 answer remains an invalid model result.
@@ -103,11 +108,23 @@ docker run --rm --gpus 'device=0' "$RPX_VQA_IMAGE:vllm" verify
 docker run --rm "$RPX_VQA_IMAGE:vllm" list-models
 ```
 
-Run smoke before acceptance:
+To run acceptance without unloading the model afterward, start one resident
+engine per GPU and execute acceptance inside it:
 
 ```bash
-bash docker/vqa-smoke/run_gate.sh smoke gemma4-12b 0
-bash docker/vqa-smoke/run_gate.sh acceptance gemma4-12b 0
+bash docker/vqa-smoke/start_persistent_engine.sh gemma4-12b 0
+bash docker/vqa-smoke/run_persistent_acceptance.sh gemma4-12b
+
+# The model is still resident after the report is written.
+docker ps --filter name=rpx-vqa-gemma4-12b
+docker logs --tail 30 rpx-vqa-gemma4-12b
+```
+
+Stop it explicitly only when that GPU is needed for another model:
+
+```bash
+docker stop rpx-vqa-gemma4-12b
+docker rm rpx-vqa-gemma4-12b
 ```
 
 Build a visual audit gallery for an acceptance run (Image 1 + Image 2 for
