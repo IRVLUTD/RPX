@@ -38,15 +38,15 @@ PUBLISHED = "out/vqa_parquet/attribute.parquet"
 # corrected composition-pair parser -- written under a NEW name, the v1
 # files (built with the composition-pair bug, then post-hoc deduplicated)
 # are left untouched as a historical record, not overwritten.
-OUT_PATH = Path("out/incontext_paired/gt_incontext_general_rowpaired_v3.jsonl")
-DROPS_PATH = Path("out/incontext_paired/rowpaired_drops_v3.jsonl")
+OUT_PATH = Path("out/incontext_paired/gt_incontext_general_rowpaired_v4.jsonl")
+DROPS_PATH = Path("out/incontext_paired/rowpaired_drops_v4.jsonl")
 SEED = 42
 # Q8 (correction round): pinned to the immutable commit SHA "main" resolved
 # to at the time of this build (HfApi.repo_info('IRVLUTD/RPX').sha), not the
 # mutable branch name -- a future push to main can never silently change
 # what these locators resolve to.
 REVISION = "93e31d378f1f98eca18a7aa01a2279c9f332440c"
-LEDGER_PATH = Path("out/incontext_paired/row_transition_ledger_v3.json")
+LEDGER_PATH = Path("out/incontext_paired/row_transition_ledger_v4.json")
 RETAINED_TYPES = {
     "attr_single_color": ("inctx_attr_single_color", "color"),
     "attr_single_material": ("inctx_attr_single_material", "material"),
