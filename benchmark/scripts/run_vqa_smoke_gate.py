@@ -20,13 +20,21 @@ def main() -> None:
     parser.add_argument("--predictions", type=Path, required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--report", type=Path)
-    parser.add_argument("--min-parse-rate", type=float, default=0.95)
+    parser.add_argument(
+        "--min-parse-rate",
+        type=float,
+        help=(
+            "Optional diagnostic threshold. By default parse failures are retained "
+            "and scored as model failures, not treated as infrastructure failures."
+        ),
+    )
     args = parser.parse_args()
     model = get_model(args.model)
     samples = {sample.sample_id: sample for sample in load_manifest(args.manifest)}
     raw_by_id = {}
     latency_by_id = {}
     provenance_by_id = {}
+    adapter_metadata_by_id = {}
     with args.predictions.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, 1):
             row = json.loads(line)
@@ -47,6 +55,7 @@ def main() -> None:
                 key: row.get(key)
                 for key in ("backend", "vllm_version", "checkpoint", "revision")
             }
+            adapter_metadata_by_id[sample_id] = row.get("adapter_metadata") or {}
     expected = {
         sample_id: sample
         for sample_id, sample in samples.items()
@@ -101,6 +110,7 @@ def main() -> None:
                 "parse_error": parsed.error,
                 "iou": iou,
                 "latency_ms": latency_by_id[sample_id],
+                "adapter_metadata": adapter_metadata_by_id[sample_id],
             }
         )
     rendered = json.dumps(report, indent=2, sort_keys=True)
@@ -108,10 +118,14 @@ def main() -> None:
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(rendered + "\n", encoding="utf-8")
-    if report["parse_rate"] < args.min_parse_rate:
+    if args.min_parse_rate is not None and report["parse_rate"] < args.min_parse_rate:
         raise SystemExit(
             f"FAIL: parse_rate {report['parse_rate']:.3f} < {args.min_parse_rate:.3f}"
         )
+    print(
+        "PASS: complete prediction coverage; "
+        f"parse_rate={report['parse_rate']:.3f} (reported as model performance)"
+    )
 
 
 if __name__ == "__main__":

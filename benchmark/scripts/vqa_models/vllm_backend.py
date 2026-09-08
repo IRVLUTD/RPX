@@ -127,6 +127,8 @@ class VLLMVQARunner:
         checkpoint = CHECKPOINTS[model_key]
         self.model_key = model_key
         self.checkpoint = checkpoint
+        self._last_adapter_metadata: dict[str, Any] = {}
+        self._last_batch_adapter_metadata: list[dict[str, Any]] = []
         self.llm = LLM(
             model=checkpoint.repo_id,
             revision=checkpoint.revision,
@@ -193,14 +195,38 @@ class VLLMVQARunner:
         predicted_label = self._generate_paligemma(
             stage1_image, prompt, max_tokens, keep_special=False
         )
-        label = predicted_label.splitlines()[0].strip()
+        lines = predicted_label.splitlines()
+        label = lines[0].strip() if lines else ""
         if not label:
+            self._last_adapter_metadata = {
+                "adapter": "paligemma_two_stage",
+                "stage1_raw_output": predicted_label,
+                "stage1_label": None,
+                "stage2_raw_output": None,
+                "stage2_skipped_reason": "empty_stage1_label",
+            }
             return ""
         # Stage 2: ground the predicted label in Image 2 (the target) ONLY.
         # images[-1] is always the target: images[0] for normal rows,
         # images[1] for in-context rows -- never Image 1 (the reference).
         target_image = images[-1]
-        return self._generate_paligemma(target_image, f"detect {label}\n", 64, keep_special=True)
+        grounded = self._generate_paligemma(
+            target_image, f"detect {label}\n", 64, keep_special=True
+        )
+        self._last_adapter_metadata = {
+            "adapter": "paligemma_two_stage",
+            "stage1_raw_output": predicted_label,
+            "stage1_label": label,
+            "stage2_raw_output": grounded,
+            "stage2_skipped_reason": None,
+        }
+        return grounded
+
+    def prediction_metadata(self) -> dict[str, Any]:
+        return dict(self._last_adapter_metadata)
+
+    def batch_prediction_metadata(self) -> list[dict[str, Any]]:
+        return [dict(value) for value in self._last_batch_adapter_metadata]
 
     def predict(
         self,
@@ -217,6 +243,7 @@ class VLLMVQARunner:
             image_paths = [image_paths]
         opened = [Image.open(path) for path in image_paths]
         try:
+            self._last_adapter_metadata = {}
             images = [image.convert("RGB") for image in opened]
             if self.checkpoint.paligemma:
                 return self._predict_paligemma(images, prompt, max_tokens)
@@ -260,6 +287,7 @@ class VLLMVQARunner:
             for paths, _prompt, _max_tokens in requests
         ]
         try:
+            self._last_batch_adapter_metadata = []
             images_by_row = [[image.convert("RGB") for image in row] for row in opened_by_row]
             if self.checkpoint.paligemma:
                 # Stage 1 (batched): predict a label for every row at once.
@@ -270,34 +298,64 @@ class VLLMVQARunner:
                             "image": images[0] if len(images) == 1 else self._side_by_side(images)
                         },
                     }
-                    for images, (_paths, prompt, _max_tokens) in zip(images_by_row, requests)
+                    for images, (_paths, prompt, _max_tokens) in zip(
+                        images_by_row, requests, strict=True
+                    )
                 ]
                 from vllm import SamplingParams
 
                 max_tokens_1 = max(max_tokens for _paths, _prompt, max_tokens in requests)
                 params1 = SamplingParams(temperature=0.0, max_tokens=max_tokens_1, skip_special_tokens=True)
                 stage1_outputs = self.llm.generate(stage1_requests, params1, use_tqdm=False)
+                stage1_raw = [self._text([output]) for output in stage1_outputs]
                 labels = [
-                    self._text([output]).splitlines()[0].strip() if self._text([output]) else ""
-                    for output in stage1_outputs
+                    raw.splitlines()[0].strip() if raw.splitlines() else ""
+                    for raw in stage1_raw
                 ]
                 # Stage 2 (batched): ground every predicted label in its own
                 # Image 2 (the target -- images[-1] for every row) at once.
-                stage2_requests = [
-                    {"prompt": f"detect {label}\n", "multi_modal_data": {"image": images[-1]}}
-                    for images, label in zip(images_by_row, labels)
+                grounded = ["" for _ in labels]
+                stage2_indices = [index for index, label in enumerate(labels) if label]
+                if stage2_indices:
+                    stage2_requests = [
+                        {
+                            "prompt": f"detect {labels[index]}\n",
+                            "multi_modal_data": {"image": images_by_row[index][-1]},
+                        }
+                        for index in stage2_indices
+                    ]
+                    params2 = SamplingParams(
+                        temperature=0.0,
+                        max_tokens=64,
+                        skip_special_tokens=False,
+                    )
+                    stage2_outputs = self.llm.generate(
+                        stage2_requests, params2, use_tqdm=False
+                    )
+                    for index, output in zip(
+                        stage2_indices, stage2_outputs, strict=True
+                    ):
+                        grounded[index] = self._text([output])
+                self._last_batch_adapter_metadata = [
+                    {
+                        "adapter": "paligemma_two_stage",
+                        "stage1_raw_output": stage1,
+                        "stage1_label": label or None,
+                        "stage2_raw_output": stage2 if label else None,
+                        "stage2_skipped_reason": None if label else "empty_stage1_label",
+                    }
+                    for stage1, label, stage2 in zip(
+                        stage1_raw, labels, grounded, strict=True
+                    )
                 ]
-                params2 = SamplingParams(temperature=0.0, max_tokens=64, skip_special_tokens=False)
-                stage2_outputs = self.llm.generate(stage2_requests, params2, use_tqdm=False)
-                return [
-                    self._text([output]) if label else ""
-                    for output, label in zip(stage2_outputs, labels)
-                ]
+                return grounded
 
             from vllm import SamplingParams
 
             messages_batch = []
-            for images, (paths, prompt, _max_tokens) in zip(images_by_row, requests):
+            for _images, (paths, prompt, _max_tokens) in zip(
+                images_by_row, requests, strict=True
+            ):
                 path_list = (paths,) if isinstance(paths, (str, Path)) else paths
                 content: list[dict[str, Any]] = [
                     {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
@@ -313,7 +371,9 @@ class VLLMVQARunner:
             outputs = self.llm.chat(
                 messages_batch, params, use_tqdm=False, chat_template_kwargs=chat_template_kwargs
             )
-            return [self._text([output]) for output in outputs]
+            values = [self._text([output]) for output in outputs]
+            self._last_batch_adapter_metadata = [{} for _ in values]
+            return values
         finally:
             for row in opened_by_row:
                 for image in row:

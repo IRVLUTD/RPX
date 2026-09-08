@@ -81,13 +81,35 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     assert "never abstain" in attribute.text
     assert attribute.output_kind == "bbox_json_normalized_1000"
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
-    assert '"bbox"' in bbox.text and "640 by 480" in bbox.text
+    assert '"bbox"' in bbox.text and "0 to 1000" in bbox.text
     assert "never abstain" in bbox.text
+    assert bbox.text == attribute.text.replace(
+        "What is the object made of metal that is used for dusting?",
+        "Which object is furthest to the left?",
+    )
+    assert bbox.output_kind == "bbox_json_normalized_1000"
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     assert paligemma.text.startswith("answer en ")
     assert paligemma.output_kind == "paligemma_two_stage"
     pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
     assert pali_binary.text.startswith("answer en ")
+
+
+def test_json_bbox_instruction_is_identical_across_models() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    keys = (
+        "gemma4-12b",
+        "internvl2.5-8b",
+        "idefics3-8b",
+        "qwen2.5-vl-7b",
+        "llava-onevision-7b",
+        "phi-3.5-vision-4b",
+    )
+    prompts = [build_prompt(sample, key) for key in keys]
+    assert len({prompt.text for prompt in prompts}) == 1
+    assert {prompt.output_kind for prompt in prompts} == {
+        "bbox_json_normalized_1000"
+    }
 
 
 def test_strict_output_parsers() -> None:
@@ -105,7 +127,8 @@ def test_strict_output_parsers() -> None:
         '```json\n{"label":"alarm_clock","bbox":[100,120,200,220]}\n```',
         "qwen2.5-vl-3b",
     )
-    assert parsed_bbox.valid and parsed_bbox.bbox == (100.0, 120.0, 200.0, 220.0)
+    assert parsed_bbox.valid
+    assert parsed_bbox.bbox == pytest.approx((63.9, 57.48, 127.8, 105.38))
     parsed_loc = parse_output(
         bbox, "<loc0256><loc0160><loc0469><loc0320> alarm_clock<eos>", "paligemma2-3b"
     )

@@ -118,6 +118,9 @@ def main() -> None:
                 "revision": checkpoint.revision,
                 "in_context": sample.is_in_context,
                 "num_images": len(image_paths[sample.sample_id]),
+                "prompt_text": spec.text,
+                "output_kind": spec.output_kind,
+                "adapter_metadata": runner.prediction_metadata(),
             }
             handle.write(json.dumps(row, sort_keys=True) + "\n")
             handle.flush()

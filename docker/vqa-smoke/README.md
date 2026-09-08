@@ -60,6 +60,13 @@ never fabricated inference rows.
 - Reports retain every question, raw output, parsed bbox, ground-truth bbox,
   IoU, parse error, and latency, plus aggregate parse rate, mean IoU, Acc@0.5,
   and latency statistics.
+- Every JSON-capable model receives the same bbox instruction and emits XYXY
+  coordinates normalized to 0--1000; the parser performs the one documented
+  conversion back to target-image pixels. It does not repair invalid JSON,
+  reversed boxes, refusals, or missing boxes.
+- PaliGemma necessarily uses its published `answer en` then `detect` interface.
+  Its stage-1 label and stage-2 native-location output are both retained in
+  `adapter_metadata`; an empty stage-1 answer remains an invalid model result.
 
 ## Build once
 
@@ -96,7 +103,7 @@ docker run --rm --gpus 'device=0' "$RPX_VQA_IMAGE:vllm" verify
 docker run --rm "$RPX_VQA_IMAGE:vllm" list-models
 ```
 
-Run each smoke first; run acceptance only if its smoke passes:
+Run smoke before acceptance:
 
 ```bash
 bash docker/vqa-smoke/run_gate.sh smoke gemma4-12b 0
@@ -166,6 +173,8 @@ jq 'del(.samples)' "$report"
 jq '.samples[] | {question,raw_output,predicted_bbox,ground_truth_bbox,iou,latency_ms,valid,parse_error}' "$report"
 ```
 
-The smoke/acceptance gate is mechanical: complete coverage and at least 95%
-parseable bbox outputs. Accuracy is reported but no paper-score threshold is
-invented before baseline validation.
+The smoke/acceptance gate is operational: it requires complete request and
+prediction coverage. Parse failures, refusals, invalid boxes, and low accuracy
+remain in the report and score as model failures; they do not masquerade as an
+infrastructure crash. An optional `--min-parse-rate` diagnostic can still be
+requested explicitly, but no capability threshold is imposed by default.

@@ -201,23 +201,21 @@ def test_reference_cache_name_changes_with_crop_bbox():
 
 def test_incontext_bbox_out_of_bounds_rejected_like_normal_samples():
     sample = VQASample.from_dict(incontext_row())
-    # A "processor resized" bbox that overshoots Image 2's own dimensions
-    # must be rejected exactly as it always was for normal samples -- the
-    # two-image extension must not have loosened this check.
+    # A bbox outside the frozen normalized range must be rejected for Image 2.
     parsed = parse_output(
         sample,
         '{"label":"lion","bbox":[300,200,9999,9999]}',
         "qwen2.5-vl-3b",
     )
     assert not parsed.valid
-    assert "outside the original image" in parsed.error
+    assert "outside normalized 0-1000" in parsed.error
 
 
 def test_incontext_valid_bbox_within_target_dims_accepted():
     sample = VQASample.from_dict(incontext_row())
     parsed = parse_output(sample, '{"label":"lion","bbox":[308,226,400,377]}', "qwen2.5-vl-3b")
     assert parsed.valid
-    assert parsed.bbox == (308.0, 226.0, 400.0, 377.0)
+    assert parsed.bbox == pytest.approx((196.812, 108.254, 255.6, 180.583))
 
 
 # ── canonicalization ─────────────────────────────────────────────────────────
@@ -317,3 +315,30 @@ def test_paligemma_side_by_side_composite_shape():
     composite = VLLMVQARunner._side_by_side([left, right])
     assert composite.height == 80
     assert composite.width > left.width + right.width - 40  # scaled + gap, not naive sum
+
+
+def test_paligemma_empty_stage1_is_retained_as_model_output(monkeypatch):
+    runner = object.__new__(VLLMVQARunner)
+    runner._last_adapter_metadata = {}
+    monkeypatch.setattr(runner, "_generate_paligemma", lambda *args, **kwargs: "")
+    image = Image.new("RGB", (32, 32))
+    assert runner._predict_paligemma([image], "answer en Which object?\n", 24) == ""
+    assert runner.prediction_metadata() == {
+        "adapter": "paligemma_two_stage",
+        "stage1_raw_output": "",
+        "stage1_label": None,
+        "stage2_raw_output": None,
+        "stage2_skipped_reason": "empty_stage1_label",
+    }
+
+
+def test_paligemma_both_stages_are_retained(monkeypatch):
+    runner = object.__new__(VLLMVQARunner)
+    runner._last_adapter_metadata = {}
+    outputs = iter(["shoe", "<loc0001><loc0002><loc0003><loc0004> shoe"])
+    monkeypatch.setattr(runner, "_generate_paligemma", lambda *args, **kwargs: next(outputs))
+    image = Image.new("RGB", (32, 32))
+    raw = runner._predict_paligemma([image], "answer en Which object?\n", 24)
+    assert raw.startswith("<loc0001>")
+    assert runner.prediction_metadata()["stage1_label"] == "shoe"
+    assert runner.prediction_metadata()["stage2_raw_output"] == raw

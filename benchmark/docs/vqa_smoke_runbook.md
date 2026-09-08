@@ -91,7 +91,8 @@ rows -- see `build_vqa_benchmark_plan.py`'s module docstring.
   are pinned to their own immutable revision
   (`93e31d378f1f98eca18a7aa01a2279c9f332440c`) and are used verbatim from the
   in-context Parquet, never recomputed the way normal locators are.
-- Coordinates are `[xmin,ymin,xmax,ymax]`, inclusive, in the original image.
+- JSON-capable models receive `[xmin,ymin,xmax,ymax]` in normalized 0--1000
+  target-image coordinates. The parser rescales once to the original image.
 - The model never sees scene ID, phase, evidence, target IDs, or answers.
 - Object underscores are displayed as spaces and normalized back only during
   scoring.
@@ -106,5 +107,5 @@ Use greedy decoding (`do_sample=false`, `num_beams=1`), pin model and dataset
 revisions, record package/container digests, and save the exact request and raw
 response for every sample. PaliGemma bboxes are decoded from normalized
 `<loc>` tokens in `yxyx` token order. Other generative models return strict
-JSON in original-image `xyxy` coordinates; an adapter is responsible for
-undoing any processor resize before writing its raw benchmark response.
+JSON in normalized 0--1000 `xyxy` coordinates. Invalid JSON, reversed boxes,
+refusals, and missing boxes remain model failures rather than being repaired.

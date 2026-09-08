@@ -156,7 +156,15 @@ def main() -> None:
     pred_handle = args.predictions.open("a" if completed else "w", encoding="utf-8")
     fail_handle = args.failures.open("a" if failed else "w", encoding="utf-8")
 
-    def _record_success(sample, raw: str, amortized_ms: float, batch_size: int, throughput_qps: float) -> None:
+    def _record_success(
+        sample,
+        raw: str,
+        amortized_ms: float,
+        batch_size: int,
+        throughput_qps: float,
+        adapter_metadata: dict | None = None,
+    ) -> None:
+        spec = build_prompt(sample, args.model)
         row = {
             "sample_id": sample.sample_id,
             "raw_output": raw,
@@ -170,6 +178,9 @@ def main() -> None:
             "revision": checkpoint.revision,
             "in_context": sample.is_in_context,
             "num_images": len(image_paths[sample.sample_id]),
+            "prompt_text": spec.text,
+            "output_kind": spec.output_kind,
+            "adapter_metadata": adapter_metadata or {},
         }
         pred_handle.write(json.dumps(row, sort_keys=True) + "\n")
         pred_handle.flush()
@@ -203,12 +214,19 @@ def main() -> None:
         started = time.perf_counter()
         try:
             outputs = runner.predict_batch(requests)
+            adapter_metadata = runner.batch_prediction_metadata()
+            if len(adapter_metadata) != len(outputs):
+                raise RuntimeError("adapter metadata coverage mismatch")
             synchronize_cuda()
             wall_ms = (time.perf_counter() - started) * 1000
             amortized = wall_ms / len(chunk)
             throughput = len(chunk) / (wall_ms / 1000) if wall_ms > 0 else float("inf")
-            for sample, raw in zip(chunk, outputs):
-                _record_success(sample, raw, amortized, len(chunk), throughput)
+            for sample, raw, metadata in zip(
+                chunk, outputs, adapter_metadata, strict=True
+            ):
+                _record_success(
+                    sample, raw, amortized, len(chunk), throughput, metadata
+                )
         except Exception:  # noqa: BLE001 -- isolate the batch, then retry per-row
             for sample in chunk:
                 spec = specs[sample.sample_id]
@@ -219,7 +237,14 @@ def main() -> None:
                     raw = runner.predict(one_request[0], one_request[1], one_request[2], "")
                     synchronize_cuda()
                     row_ms = (time.perf_counter() - row_started) * 1000
-                    _record_success(sample, raw, row_ms, 1, 1000 / row_ms if row_ms > 0 else float("inf"))
+                    _record_success(
+                        sample,
+                        raw,
+                        row_ms,
+                        1,
+                        1000 / row_ms if row_ms > 0 else float("inf"),
+                        runner.prediction_metadata(),
+                    )
                 except Exception as row_error:  # noqa: BLE001
                     _record_failure(sample, row_error)
         processed += len(chunk)
