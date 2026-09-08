@@ -97,9 +97,7 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
             # within [0,1] are unit-normalized; everything else follows the
             # requested [0,1000] protocol. This fixes the previous silent bug
             # where [0.5,...] became a sub-pixel box at the top-left.
-            unit_normalized = all(0 <= coordinate <= 1 for coordinate in bbox) and any(
-                coordinate not in {0.0, 1.0} for coordinate in bbox
-            )
+            unit_normalized = all(0 <= coordinate <= 1 for coordinate in bbox)
             denominator = 1 if unit_normalized else 1000
             coordinate_format = "normalized_0_1" if unit_normalized else "normalized_0_1000"
             bbox = (

@@ -148,6 +148,13 @@ def test_strict_output_parsers() -> None:
     assert unit_bbox.valid
     assert unit_bbox.coordinate_format == "normalized_0_1"
     assert unit_bbox.bbox == pytest.approx((63.9, 95.8, 191.7, 191.6))
+    full_unit_bbox = parse_output(
+        bbox,
+        '{"label":"scene","bbox":[0,0,1,1]}',
+        "internvl2.5-8b",
+    )
+    assert full_unit_bbox.coordinate_format == "normalized_0_1"
+    assert full_unit_bbox.bbox == pytest.approx((0, 0, 639, 479))
     nested_bbox = parse_output(
         bbox,
         '{"label":"alarm_clock","bbox":[[100,120,200,220]]}',
