@@ -25,7 +25,7 @@ import vllm
 from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
 
 from rpx_benchmark.vqa.contract import load_manifest
-from rpx_benchmark.vqa.hub_rgb import fetch_images
+from rpx_benchmark.vqa.hub_rgb import fetch_images_many
 from rpx_benchmark.vqa.metrics import score_predictions
 from rpx_benchmark.vqa.outputs import parse_output
 from rpx_benchmark.vqa.prompts import build_prompt
@@ -128,7 +128,7 @@ def main() -> None:
         flush=True,
     )
 
-    image_paths = {sample.sample_id: fetch_images(sample, args.image_cache) for sample in remaining}
+    image_paths = fetch_images_many(remaining, args.image_cache)
     runner = VLLMVQARunner(
         args.model,
         args.image_cache,

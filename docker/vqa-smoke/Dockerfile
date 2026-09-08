@@ -22,12 +22,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 RUN test -n "${RPX_GIT_SHA}" && \
-    python3 -m pip install --no-cache-dir pyarrow==21.0.0
+    python3 -m pip install --no-cache-dir \
+      pyarrow==21.0.0 \
+      sentencepiece==0.2.1
 
 COPY benchmark /opt/rpx/benchmark
 
 RUN python3 -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
-    python3 -c "import pyarrow,vllm; assert vllm.__version__ == '0.28.0'; print('RPX vLLM runtime ready')"
+    python3 -c "import pyarrow,sentencepiece,vllm; assert vllm.__version__ == '0.28.0'; assert sentencepiece.__version__ == '0.2.1'; print('RPX vLLM runtime ready')"
 
 COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
 

@@ -13,7 +13,7 @@ import vllm
 from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
 
 from rpx_benchmark.vqa.contract import load_manifest
-from rpx_benchmark.vqa.hub_rgb import fetch_images
+from rpx_benchmark.vqa.hub_rgb import fetch_images_many
 from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import get_model
 
@@ -52,7 +52,7 @@ def main() -> None:
     # needs (target only for normal rows; reference then target, in that
     # order, for in-context rows -- reference_crop_sha256 is verified as
     # part of this call, raising DownloadError on any mismatch).
-    image_paths = {sample.sample_id: fetch_images(sample, args.image_cache) for sample in samples}
+    image_paths = fetch_images_many(samples, args.image_cache)
     runner = VLLMVQARunner(
         args.model,
         args.image_cache,
