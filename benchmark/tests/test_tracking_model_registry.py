@@ -22,6 +22,8 @@ from tracking_models import (  # noqa: E402
     SAM2PlusTracker,
     SAM2Tracker,
     XMemTracker,
+    GroundedSAM2Tracker,
+    SAM31Tracker,
 )
 from tracking_models.masa_tracker import MASATracker  # noqa: E402
 from tracking_models.motip_tracker import MOTIPTracker  # noqa: E402
@@ -38,6 +40,8 @@ def test_tracking_registry_contains_production_adapters() -> None:
         "sam2-plus": SAM2PlusTracker,
         "sam2long": SAM2LongTracker,
         "xmem": XMemTracker,
+        "grounded-sam2": GroundedSAM2Tracker,
+        "sam3.1": SAM31Tracker,
     }
 
 
@@ -52,6 +56,8 @@ def test_tracking_registry_declares_initialization_protocols() -> None:
         "sam2-plus": "box",
         "sam2long": "mask",
         "xmem": "mask",
+        "grounded-sam2": "text",
+        "sam3.1": "text",
     }
 
 

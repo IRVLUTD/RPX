@@ -67,6 +67,11 @@ def _rpx_git_sha() -> str:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracking_models import TRACKER_CLASSES  # noqa: E402
+from tracking_text_runtime import (  # noqa: E402
+    TEXT_VOCAB_REVISION,
+    TEXT_VOCAB_SHA256,
+    TrackingTextVocabulary,
+)
 
 from rpx_benchmark import TaskType, download_split  # noqa: E402
 from rpx_benchmark.exceptions import ConfigError, DatasetError  # noqa: E402
@@ -92,8 +97,8 @@ class Clip:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "RPX D3: initialize a tracker with the GT first-frame mask and "
-            "evaluate complete scene-phase clips with official TrackEval."
+            "RPX D3: run each tracker's declared mask, box, detector, or text "
+            "initialization protocol and evaluate with official TrackEval."
         )
     )
     parser.add_argument("--model", choices=sorted(TRACKER_CLASSES), default="sam2")
@@ -112,6 +117,13 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--manifest-path")
+    parser.add_argument(
+        "--text-vocab",
+        help=(
+            "Pinned scene_condition_vocab.parquet. Required by text-prompted "
+            "trackers and rejected if its SHA-256 differs from text-initialization v1."
+        ),
+    )
     parser.add_argument("--device", choices=["cuda"], default="cuda")
     parser.add_argument("--save-predictions", action="store_true")
     parser.add_argument("--resume-predictions", action="store_true")
@@ -392,8 +404,12 @@ def main() -> None:
     previous_cells = _previous_cells(output_dir)
     tracker_class = TRACKER_CLASSES[args.model]
     expected_shape = EXPECTED_SHAPES[args.dataset_protocol]
+    text_initialized = tracker_class.prompt_type == "text"
     detector_initialized = tracker_class.prompt_type == "detector"
-    score_start = 0 if detector_initialized else 1
+    score_start = 0 if (detector_initialized or text_initialized) else 1
+    if text_initialized and not args.text_vocab:
+        raise ConfigError(f"{args.model} requires --text-vocab.")
+    vocabulary = TrackingTextVocabulary(args.text_vocab) if text_initialized else None
     if args.manifest_path:
         manifest_path = Path(args.manifest_path)
     else:
@@ -458,18 +474,30 @@ def main() -> None:
         else:
             if tracker is None:
                 tracker = tracker_class(device=args.device)
-            first_mask = _load_mask_file(
-                _resolve(str(samples[0]["mask"]), clip.root), expected_shape
-            )
             video_dir = _stage_video(clip, samples, scratch_root / clip.key)
             try:
                 torch.cuda.reset_peak_memory_stats()
                 clip_started = time.perf_counter()
-                predictions, latencies = tracker.track(
-                    video_dir=video_dir,
-                    first_frame_mask=first_mask,
-                    frame_count=len(samples),
-                )
+                if text_initialized:
+                    assert vocabulary is not None
+                    text_prompts = vocabulary.prompts_for(
+                        clip.scene, args.dataset_protocol, clip.phase
+                    )
+                    predictions, latencies = tracker.track(
+                        video_dir=video_dir,
+                        frame_shape=expected_shape,
+                        frame_count=len(samples),
+                        text_prompts=text_prompts,
+                    )
+                else:
+                    first_mask = _load_mask_file(
+                        _resolve(str(samples[0]["mask"]), clip.root), expected_shape
+                    )
+                    predictions, latencies = tracker.track(
+                        video_dir=video_dir,
+                        first_frame_mask=first_mask,
+                        frame_count=len(samples),
+                    )
                 torch.cuda.synchronize()
                 clip_wall_time_s = time.perf_counter() - clip_started
                 peak_allocated_mb = torch.cuda.max_memory_allocated() / (1024**2)
@@ -507,9 +535,9 @@ def main() -> None:
             )
             for sample in samples
         ]
-        # Prompt-initialized trackers receive GT information on frame 0, so it
-        # is excluded. Detector-driven trackers receive no RPX prompt and are
-        # therefore evaluated on every frame, including frame 0.
+        # Mask/box-prompted trackers receive GT spatial information on frame 0,
+        # so it is excluded. Detector- and text-driven trackers receive no GT
+        # spatial prompt and are evaluated on every frame, including frame 0.
         metrics = paper_tracking_metrics(
             pred_masks=predictions[score_start:],
             gt_masks=gt_masks[score_start:],
@@ -567,13 +595,16 @@ def main() -> None:
         "split": args.split,
         "protocol": {
             "initialization": (
+                "fixed_scene_text_vocabulary_primary_color_plus_canonical_name"
+                if text_initialized
+                else
                 "detector_every_frame_no_rpx_prompt"
                 if detector_initialized
                 else f"ground_truth_first_frame_{tracker_class.prompt_type}"
             ),
             "scored_frames": (
                 "0_to_end (all frames)"
-                if detector_initialized
+                if (detector_initialized or text_initialized)
                 else "1_to_end (initialization frame excluded)"
             ),
             "association_representation": "tight_boxes_derived_from_instance_masks",
@@ -585,6 +616,12 @@ def main() -> None:
             ),
             "vocabulary": getattr(tracker_class, "vocabulary_name", None),
             "vocabulary_size": getattr(tracker_class, "vocabulary_size", None),
+            "text_vocabulary_revision": (
+                TEXT_VOCAB_REVISION if text_initialized else None
+            ),
+            "text_vocabulary_sha256": (
+                TEXT_VOCAB_SHA256 if text_initialized else None
+            ),
         },
         "dataset": {
             "repo": args.repo,

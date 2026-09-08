@@ -15,7 +15,7 @@
       "id": "sam3.1",
       "target": "tracking_all_sam3_1",
       "env": "sam3_1",
-      "prompt": "mask",
+      "prompt": "text",
       "source": "https://github.com/facebookresearch/sam3.git",
       "source_revision": "6dbb02bd38288df755dfa1378000a861e65b84f6",
       "checkpoint_repo": "facebook/sam3.1",

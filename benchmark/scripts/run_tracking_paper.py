@@ -28,6 +28,7 @@ def main() -> None:
     parser.add_argument("--repo", default="IRVLUTD/RPX")
     parser.add_argument("--revision")
     parser.add_argument("--jedi-bounds")
+    parser.add_argument("--text-vocab")
     args = parser.parse_args()
     expected_revision = str(TRACKING_DATASETS[args.dataset_protocol]["revision"])
     if args.revision is None:
@@ -69,6 +70,8 @@ def main() -> None:
             "--save-predictions",
             "--resume-predictions",
         ]
+        if args.text_vocab:
+            command.extend(["--text-vocab", args.text_vocab])
         print("+", " ".join(command), flush=True)
         subprocess.run(command, check=True, env=os.environ.copy())
         cells.append(str(output_dir / "cells.parquet"))

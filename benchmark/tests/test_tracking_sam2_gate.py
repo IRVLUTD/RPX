@@ -31,6 +31,8 @@ def test_gate_budgets_are_bounded_and_sequential() -> None:
         "cutie",
         "sam2long",
         "xmem",
+        "grounded-sam2",
+        "sam3.1",
     }
 
 

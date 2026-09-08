@@ -25,7 +25,7 @@ def test_paper_tracking_matrix_is_complete_and_ordered():
         "grounded-sam2",
     ]
     assert [model["prompt"] for model in models] == [
-        "mask",
+        "text",
         "mask",
         "box",
         "mask",

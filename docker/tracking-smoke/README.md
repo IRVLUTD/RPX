@@ -11,6 +11,36 @@ The paper matrix is source-pinned and dependency-locked. It does **not** claim
 that an environment has passed RPX inference merely because it builds: the
 checkpoint and GPU smoke gate is a separate, later acceptance step.
 
+## Text-initialized tracking: Grounded-SAM2 and SAM 3.1
+
+These two adapters use the released RPX scene-condition vocabulary
+(`primary_color + canonical object name`) and never receive a ground-truth mask
+or box. Grounded-SAM2 detects every vocabulary prompt in frame zero with pinned
+GroundingDINO and initializes pinned SAM 2.1 from the predicted boxes. SAM 3.1
+uses each prompt through its native semantic-video API. Because neither method
+receives GT spatial initialization, both are scored from frame zero.
+
+Build the thin RPX overlays on the previously published model environments:
+
+```bash
+docker/tracking-smoke/build_text_rpx.sh grounded-sam2 --push
+docker/tracking-smoke/build_text_rpx.sh sam3.1 --push
+```
+
+Then run `smoke`, `micro`, and `acceptance` independently for MOS and Ego. The
+launcher requires the SHA-pinned vocabulary parquet and keeps model/data caches
+and outputs under `RPX_TRACKING_RUNTIME`:
+
+```bash
+docker/tracking-smoke/run_text_gate.sh grounded-sam2 smoke mos 0 "$VOCAB"
+docker/tracking-smoke/run_text_gate.sh sam3.1 smoke ego 1 "$VOCAB"
+```
+
+The SAM 3.1 checkpoint repository is gated; `HF_TOKEN` must belong to an account
+that has accepted its license. An Ego vocabulary row may be absent for an
+upstream identity-map gap documented in the released vocabulary metadata; RPX
+does not invent an object prompt for such an occurrence.
+
 `Dockerfile.rpx-adapter` is the thin code overlay used after a model-specific
 RPX adapter is implemented. It updates the benchmark package without rebuilding
 or duplicating the cumulative upstream environments and does not add weights.

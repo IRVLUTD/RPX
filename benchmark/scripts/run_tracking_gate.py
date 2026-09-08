@@ -23,6 +23,11 @@ from tracking_models.edgetam_tracker import (
     EDGETAM_MODEL_ID,
     EDGETAM_MODEL_REVISION,
 )
+from tracking_models.grounded_sam2_tracker import (
+    GROUNDED_SAM2_SOURCE_REVISION,
+    GROUNDING_MODEL_ID,
+    GROUNDING_MODEL_REVISION,
+)
 from tracking_models.mits_tracker import (
     MITS_MODEL_ID,
     MITS_MODEL_REVISION,
@@ -41,6 +46,11 @@ from tracking_models.sam2_tracker import SAM2_MODEL_ID, SAM2_MODEL_REVISION
 from tracking_models.sam2long_tracker import (
     SAM2LONG_MODEL_ID,
     SAM2LONG_MODEL_REVISION,
+)
+from tracking_models.sam3_1_tracker import (
+    SAM31_MODEL_ID,
+    SAM31_MODEL_REVISION,
+    SAM31_SOURCE_REVISION,
 )
 from tracking_models.xmem_tracker import (
     XMEM_MODEL_ID,
@@ -95,6 +105,16 @@ MODEL_PROVENANCE = {
         "checkpoint_repo": OVTR_MODEL_ID,
         "checkpoint_revision": OVTR_MODEL_REVISION,
     },
+    "grounded-sam2": {
+        "source_revision": GROUNDED_SAM2_SOURCE_REVISION,
+        "checkpoint_repo": GROUNDING_MODEL_ID,
+        "checkpoint_revision": GROUNDING_MODEL_REVISION,
+    },
+    "sam3.1": {
+        "source_revision": SAM31_SOURCE_REVISION,
+        "checkpoint_repo": SAM31_MODEL_ID,
+        "checkpoint_revision": SAM31_MODEL_REVISION,
+    },
 }
 
 
@@ -112,6 +132,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--repo", default=DEFAULT_DATASET_REPO)
     parser.add_argument("--revision")
     parser.add_argument("--manifest-path")
+    parser.add_argument("--text-vocab")
     parser.add_argument("--dataset-workers", type=int, default=8)
     return parser.parse_args()
 
@@ -191,6 +212,8 @@ def main() -> None:
     ]
     if args.manifest_path:
         common.extend(["--manifest-path", args.manifest_path])
+    if args.text_vocab:
+        common.extend(["--text-vocab", args.text_vocab])
 
     # The first pass always performs inference, even when this gate was run before.
     subprocess.run(common, check=True)
