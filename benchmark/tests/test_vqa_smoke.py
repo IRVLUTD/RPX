@@ -177,7 +177,8 @@ def test_committed_smoke_manifest_has_required_balance() -> None:
 def test_docker_matrix_matches_python_roster() -> None:
     path = Path(__file__).parents[2] / "docker" / "vqa-smoke" / "model-matrix.json"
     matrix = json.loads(path.read_text())
-    assert matrix["single_image_only"] is True
+    assert matrix["single_image_only"] is False
+    assert matrix["max_images_per_prompt"] == 2
     assert matrix["inference_backend"] == "vllm"
     assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]

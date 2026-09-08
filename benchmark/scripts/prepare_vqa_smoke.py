@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 from rpx_benchmark.vqa.contract import ATTRIBUTE_TYPES, BBOX_TYPES, load_manifest
-from rpx_benchmark.vqa.hub_rgb import fetch_rgb, image_cache_name
+from rpx_benchmark.vqa.hub_rgb import fetch_images, image_cache_name, reference_cache_name
 from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import get_model
 
@@ -35,13 +35,18 @@ def main() -> None:
             )
             if task not in model.capabilities:
                 continue
-            image_path = args.image_cache / image_cache_name(sample)
-            if not args.no_fetch:
-                image_path = fetch_rgb(sample, args.image_cache)
+            if args.no_fetch:
+                image_paths = (
+                    [args.image_cache / reference_cache_name(sample), args.image_cache / image_cache_name(sample)]
+                    if sample.is_in_context
+                    else [args.image_cache / image_cache_name(sample)]
+                )
+            else:
+                image_paths = list(fetch_images(sample, args.image_cache))
             prompt = build_prompt(sample, model.key)
             request = {
                 "sample_id": sample.sample_id,
-                "image_path": str(image_path.resolve()),
+                "image_paths": [str(path.resolve()) for path in image_paths],
                 "prompt": prompt.text,
                 "max_new_tokens": prompt.max_new_tokens,
                 "output_kind": prompt.output_kind,

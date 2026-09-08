@@ -13,7 +13,7 @@ import vllm
 from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
 
 from rpx_benchmark.vqa.contract import load_manifest
-from rpx_benchmark.vqa.hub_rgb import fetch_rgb
+from rpx_benchmark.vqa.hub_rgb import fetch_images
 from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import get_model
 
@@ -48,7 +48,11 @@ def main() -> None:
     samples = load_manifest(args.manifest)
     if args.limit is not None:
         samples = samples[: args.limit]
-    image_paths = {sample.sample_id: fetch_rgb(sample, args.image_cache) for sample in samples}
+    # fetch_images independently fetches+verifies every locator a sample
+    # needs (target only for normal rows; reference then target, in that
+    # order, for in-context rows -- reference_crop_sha256 is verified as
+    # part of this call, raising DownloadError on any mismatch).
+    image_paths = {sample.sample_id: fetch_images(sample, args.image_cache) for sample in samples}
     runner = VLLMVQARunner(
         args.model,
         args.image_cache,
@@ -112,6 +116,8 @@ def main() -> None:
                 "vllm_version": vllm.__version__,
                 "checkpoint": checkpoint.repo_id,
                 "revision": checkpoint.revision,
+                "in_context": sample.is_in_context,
+                "num_images": len(image_paths[sample.sample_id]),
             }
             handle.write(json.dumps(row, sort_keys=True) + "\n")
             handle.flush()

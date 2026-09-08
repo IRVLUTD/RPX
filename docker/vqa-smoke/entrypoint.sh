@@ -9,14 +9,18 @@ fi
 case "${command_name}" in
   help)
     cat <<'EOF'
-RPX VQA vLLM-only smoke and acceptance image
+RPX VQA vLLM-only smoke, acceptance and benchmark image. Normal (one-image)
+and in-context (two-image) tasks are both supported; see model-matrix.json.
 
 Commands:
-  verify                         Check vLLM, CUDA and single-GPU visibility.
-  list-models                    Print the frozen ten-model vLLM roster.
-  smoke MODEL [args]             Run the 14-row bbox smoke gate.
-  acceptance MODEL [args]        Run the 700-row current-data acceptance gate.
-  shell                          Open Bash.
+  verify                                   Check vLLM, CUDA and single-GPU visibility.
+  list-models                              Print the frozen ten-model vLLM roster.
+  smoke MODEL [args]                       Run the 14-row bbox smoke gate.
+  acceptance MODEL [args]                  Run the 104-row normal+in-context acceptance gate.
+  benchmark MODEL MANIFEST SHARD_INDEX SHARD_COUNT [args]
+                                            Run one shard of the full benchmark plan
+                                            (see build_vqa_benchmark_plan.py), batched.
+  shell                                    Open Bash.
 EOF
     ;;
   verify)
@@ -52,6 +56,24 @@ EOF
       --model "${model}" \
       --predictions "${run_dir}/predictions.jsonl" \
       --report "${run_dir}/report.json"
+    ;;
+  benchmark)
+    model="${1:?benchmark requires MODEL}"
+    manifest="${2:?benchmark requires MANIFEST}"
+    shard_index="${3:?benchmark requires SHARD_INDEX}"
+    shard_count="${4:?benchmark requires SHARD_COUNT}"
+    shift 4
+    run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/benchmark/shard-${shard_index}-of-${shard_count}"
+    mkdir -p "${run_dir}"
+    exec python3 scripts/run_vqa_benchmark.py \
+      --model "${model}" --manifest "${manifest}" \
+      --shard-index "${shard_index}" --shard-count "${shard_count}" \
+      --image-cache "${RPX_VQA_CACHE}/images" \
+      --predictions "${run_dir}/predictions.jsonl" \
+      --failures "${run_dir}/failures.jsonl" \
+      --report "${run_dir}/report.json" \
+      --run-config-out "${run_dir}/run_config.json" \
+      --resume "$@"
     ;;
   shell)
     exec bash "$@"

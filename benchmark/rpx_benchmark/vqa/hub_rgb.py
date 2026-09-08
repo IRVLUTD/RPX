@@ -1,4 +1,11 @@
-"""Fetch one member from RPX's uncompressed RGB tar shards via HTTP ranges."""
+"""Fetch one or two members from RPX's uncompressed RGB tar shards via HTTP
+ranges. Normal (single-image) samples fetch only the target image, exactly
+as before. In-context (two-image) samples independently fetch the target
+image AND the reference image, then reconstruct Image 1 by cropping the
+fetched reference frame with the sample's own reference_crop_bbox and
+verifying the result against reference_crop_sha256 -- the same deterministic
+crop+PNG-encode convention data/mask_annotation/visual_grounding_gt/vqa_gt/
+sos_reference.py used when the hash was originally recorded."""
 
 from __future__ import annotations
 
@@ -12,13 +19,27 @@ from pathlib import Path
 from PIL import Image
 
 from ..exceptions import DownloadError
-from .contract import VQASample
+from .contract import VQASample, normalize_shard
 
 
 def image_cache_name(sample: VQASample) -> str:
     identity = json.dumps(sample.image, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(identity.encode()).hexdigest()[:20]
     return f"rgb_{digest}{Path(sample.image['member']).suffix}"
+
+
+def reference_cache_name(sample: VQASample) -> str:
+    """Cache key for the reconstructed (cropped) reference image -- distinct
+    from image_cache_name because the crop_bbox, not just the raw locator,
+    determines the resulting bytes."""
+    assert sample.reference_image is not None and sample.reference_crop_bbox is not None
+    identity = json.dumps(
+        {"locator": sample.reference_image, "crop_bbox": list(sample.reference_crop_bbox)},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    digest = hashlib.sha256(identity.encode()).hexdigest()[:20]
+    return f"ref_{digest}.png"
 
 
 class HTTPRangeReader(io.RawIOBase):
@@ -96,32 +117,35 @@ class HTTPRangeReader(io.RawIOBase):
         return bytes(output)
 
 
-def hub_url(sample: VQASample) -> str:
-    image = sample.image
+def hub_url(image: VQASample | dict[str, str]) -> str:
+    locator = image.image if isinstance(image, VQASample) else image
+    shard = normalize_shard(str(locator["shard"]))
     return (
-        f"https://huggingface.co/datasets/{image['repo_id']}/resolve/"
-        f"{image['revision']}/{image['shard']}"
+        f"https://huggingface.co/datasets/{locator['repo_id']}/resolve/"
+        f"{locator['revision']}/{shard}"
     )
 
 
+def _fetch_tar_member(locator: dict[str, str]) -> bytes:
+    reader = HTTPRangeReader(hub_url(locator))
+    with tarfile.open(fileobj=reader, mode="r:") as archive:
+        member = next((entry for entry in archive if entry.name == locator["member"]), None)
+        if member is None:
+            raise FileNotFoundError(locator["member"])
+        extracted = archive.extractfile(member)
+        if extracted is None:
+            raise FileNotFoundError(locator["member"])
+        return extracted.read()
+
+
 def fetch_rgb(sample: VQASample, output_root: str | Path) -> Path:
-    """Fetch, dimension-check, and cache the exact image used by a VQA row."""
+    """Fetch, dimension-check, and cache the exact TARGET image used by a VQA
+    row (Image 2 for in-context rows, the only image for normal rows)."""
     target = Path(output_root) / image_cache_name(sample)
     if target.is_file():
         return target
     target.parent.mkdir(parents=True, exist_ok=True)
-    reader = HTTPRangeReader(hub_url(sample))
-    with tarfile.open(fileobj=reader, mode="r:") as archive:
-        member = next(
-            (entry for entry in archive if entry.name == sample.image["member"]),
-            None,
-        )
-        if member is None:
-            raise FileNotFoundError(sample.image["member"])
-        extracted = archive.extractfile(member)
-        if extracted is None:
-            raise FileNotFoundError(sample.image["member"])
-        payload = extracted.read()
+    payload = _fetch_tar_member(sample.image)
     with Image.open(io.BytesIO(payload)) as image:
         if image.size != (sample.img_w, sample.img_h):
             raise DownloadError(
@@ -131,3 +155,57 @@ def fetch_rgb(sample: VQASample, output_root: str | Path) -> Path:
         image.verify()
     target.write_bytes(payload)
     return target
+
+
+def fetch_reference_crop(sample: VQASample, output_root: str | Path) -> Path:
+    """Fetch the RAW reference (SOS) frame, crop it with the sample's own
+    reference_crop_bbox (inclusive-pixel xyxy, same convention as
+    answer_bbox), and verify the PNG-encoded result against
+    reference_crop_sha256. Raises DownloadError on any hash mismatch --
+    never silently serves an unverified Image 1."""
+    if sample.reference_image is None or sample.reference_crop_bbox is None:
+        raise DownloadError(
+            f"{sample.sample_id}: not an in-context sample", hint="only call this for in-context rows"
+        )
+    target = Path(output_root) / reference_cache_name(sample)
+    if target.is_file():
+        return target
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = _fetch_tar_member(sample.reference_image)
+    x0, y0, x1, y1 = sample.reference_crop_bbox
+    with Image.open(io.BytesIO(payload)) as raw:
+        raw.verify()
+    with Image.open(io.BytesIO(payload)) as raw:
+        raw = raw.convert("RGB")
+        if not (0 <= x0 <= x1 < raw.width and 0 <= y0 <= y1 < raw.height):
+            raise DownloadError(
+                f"{sample.sample_id}: reference_crop_bbox {sample.reference_crop_bbox} "
+                f"is outside the fetched reference frame {raw.size}",
+                hint="check that the manifest and pinned Hub revision were generated together",
+            )
+        cropped = raw.crop((x0, y0, x1 + 1, y1 + 1))
+        buffer = io.BytesIO()
+        cropped.save(buffer, format="PNG", compress_level=6)
+        crop_bytes = buffer.getvalue()
+    digest = hashlib.sha256(crop_bytes).hexdigest()
+    if digest != sample.reference_crop_sha256:
+        raise DownloadError(
+            f"{sample.sample_id}: reference crop sha256 mismatch: got {digest}, "
+            f"expected {sample.reference_crop_sha256}",
+            hint=(
+                "the reconstructed Image 1 does not match the hash recorded at generation "
+                "time -- check Pillow version compatibility with sos_reference.py's PNG "
+                "encoder before assuming data corruption"
+            ),
+        )
+    target.write_bytes(crop_bytes)
+    return target
+
+
+def fetch_images(sample: VQASample, output_root: str | Path) -> tuple[Path, ...]:
+    """Fetch every image a model call needs, in the same [reference, target]
+    order as sample.images: independently fetches and verifies each locator
+    (item 3) rather than assuming one implies the other."""
+    if sample.is_in_context:
+        return (fetch_reference_crop(sample, output_root), fetch_rgb(sample, output_root))
+    return (fetch_rgb(sample, output_root),)

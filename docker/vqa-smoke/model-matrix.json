@@ -1,6 +1,7 @@
 {
-  "schema_version": 1,
-  "single_image_only": true,
+  "schema_version": 2,
+  "single_image_only": false,
+  "max_images_per_prompt": 2,
   "inference_backend": "vllm",
   "vllm_version": "0.28.0",
   "models": [
