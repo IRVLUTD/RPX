@@ -2,6 +2,7 @@
 set -euo pipefail
 
 model="${1:?usage: run_persistent_acceptance.sh MODEL}"
+shift
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
 name="rpx-vqa-${model//[^a-zA-Z0-9_.-]/-}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
