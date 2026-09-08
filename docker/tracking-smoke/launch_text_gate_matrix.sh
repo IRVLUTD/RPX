@@ -17,6 +17,17 @@ if tmux has-session -t "${session}" 2>/dev/null; then
   exit 1
 fi
 
+# A long-lived tmux server does not automatically inherit arbitrary variables
+# from the invoking shell. Copy only the runtime variables these panes need;
+# this also avoids placing the HF token in pane command lines.
+for name in \
+  HF_TOKEN RPX_TRACKING_IMAGE RPX_TRACKING_RUNTIME RPX_HF_CACHE \
+  RPX_TRACKING_DATA_CACHE RPX_TRACKING_OUTPUT RPX_TRACKING_TEXT_VOCAB; do
+  if [[ -v "${name}" ]]; then
+    tmux set-environment -g "${name}" "${!name}"
+  fi
+done
+
 jobs=(
   "grounded-mos grounded-sam2 mos 0"
   "grounded-ego grounded-sam2 ego 1"
