@@ -280,6 +280,55 @@ def test_gray_grey_canonicalized_for_reference_matching():
     assert identity_only == [gray_ref]
 
 
+def test_function_infinitive_variant_canonicalized_for_reference_matching():
+    # target's unique function fact is "drink"; a candidate whose OWN
+    # function is phrased "to drink" (genuinely identical meaning) must
+    # still match -- mirrors the gray/grey color test.
+    attrs = {
+        1: {"name": [], "category": [], "material": [], "function": ["drink"], "color": []},
+        2: {"name": [], "category": [], "material": [], "function": ["clean"], "color": []},
+    }
+    target_identity = _identity(1, "1", "cup")
+    to_drink_ref = _cat_obj(999, "to_drink_thing", "77", "to_drink_thing", function=["to drink"])
+    catalog = {"to_drink_thing": to_drink_ref}
+    identity_only, _ = gi._find_single_field_references(
+        "function", "drink", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="cup")
+    assert identity_only == [to_drink_ref]
+
+
+def test_function_infinitive_variant_creates_ambiguity_when_both_sides_present():
+    # target's unique fact is "drink"; a DIFFERENT visible object's function
+    # is "to drink" -- genuinely the same meaning, so a reference sharing
+    # either spelling must be rejected as ambiguous (mirrors the compound-
+    # material atom-conflict test).
+    attrs = {
+        1: {"name": [], "category": [], "material": [], "function": ["drink"], "color": []},
+        2: {"name": [], "category": [], "material": [], "function": ["to drink"], "color": []},
+    }
+    target_identity = _identity(1, "1", "cup")
+    ref = _cat_obj(999, "drink_thing", "77", "drink_thing", function=["drink"])
+    catalog = {"drink_thing": ref}
+    identity_only, _ = gi._find_single_field_references(
+        "function", "drink", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="cup")
+    assert identity_only == []
+
+
+def test_function_infinitive_variant_canonicalized_in_composition():
+    attrs = {
+        1: {"name": [], "category": [], "material": ["metal"], "function": ["eat"], "color": []},
+        2: {"name": [], "category": [], "material": ["plastic"], "function": ["clean"], "color": []},
+    }
+    target_identity = _identity(1, "1", "fork")
+    ref = _cat_obj(999, "to_eat_thing", "77", "to_eat_thing", material=["metal"], function=["to eat"])
+    catalog = {"to_eat_thing": ref}
+    identity_only, _ = gi._find_composition_references(
+        "metal", "eat", target_local_id=1, attrs=attrs, catalog=catalog,
+        target_identity=target_identity, target_local_name="fork")
+    assert identity_only == [ref]
+
+
 def test_compound_material_reference_rejected_when_atom_conflicts():
     # target uniquely owns the compound "plastic/metal"; a DIFFERENT frame
     # object plainly owns "metal" -- the conservative atomic rule must

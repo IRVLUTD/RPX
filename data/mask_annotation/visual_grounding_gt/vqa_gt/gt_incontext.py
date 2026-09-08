@@ -182,9 +182,33 @@ def _mat_owners(attrs: dict) -> dict:
 # against the intended color, and the ambiguity gate), never to eligibility.
 _COLOR_ALIASES = {"gray": "grey"}
 
+# Final release pass: three trivial "to X" / "X" infinitive variants,
+# confirmed via FUNCTION_ALIAS_DECISION.md's audit to be genuinely identical
+# meaning (not shared-token false positives -- of 704 cross-object
+# candidate pairs, only these 3 are true synonyms, and they affected
+# 14.83% of function-relevant canonical rows before this fix). Same rule as
+# gray/grey: applied ONLY inside reference selection/ambiguity checking,
+# never to fact eligibility -- the published question text and source fact
+# are preserved verbatim (attribute_value/attribute_function/source_question
+# always carry the original, un-canonicalized string).
+_FUNCTION_ALIASES = {"to drink": "drink", "to eat": "eat", "to snack": "snack"}
+
+_FIELD_ALIASES = {"color": _COLOR_ALIASES, "function": _FUNCTION_ALIASES}
+
 
 def _canon_color(v: str) -> str:
     return _COLOR_ALIASES.get(v, v)
+
+
+def _canon_function(v: str) -> str:
+    return _FUNCTION_ALIASES.get(v, v)
+
+
+def _canon(field: str, v: str) -> str:
+    """Dispatch to the right field's alias map, if any -- material and
+    category/name are never canonicalized here (material has its own,
+    different, atomic-decomposition rule below, not a fixed alias map)."""
+    return _FIELD_ALIASES.get(field, {}).get(v, v)
 
 
 # Q11/Q5 (correction round): a conservative ambiguity rule for compound
@@ -298,6 +322,8 @@ def _find_single_field_references(field: str, value: str, target_local_id: int, 
 
     field=="color": gray/grey are canonicalized to the same value for
     matching/ambiguity purposes only (see _canon_color).
+    field=="function": "to X"/"X" infinitive variants (drink/eat/snack) are
+    canonicalized the same way (see _canon_function / _FUNCTION_ALIASES).
     field=="material": compound (slash/ampersand) values are decomposed
     into atoms for the ambiguity check only (see _material_atoms) -- the
     conservative rule from the correction round."""
@@ -306,15 +332,15 @@ def _find_single_field_references(field: str, value: str, target_local_id: int, 
         atomic_owners = _atomic_material_owners(attrs)
     else:
         norm_owners = _norm_owners(attrs, field)
-        if field == "color":
-            norm_owners = {_canon_color(v): s for v, s in norm_owners.items()}
-            norm_val = _canon_color(norm_val)
+        if field in _FIELD_ALIASES:
+            norm_owners = {_canon(field, v): s for v, s in norm_owners.items()}
+            norm_val = _canon(field, norm_val)
 
     identity_only, diff_category = [], []
     for obj in catalog.values():
         cand_values = obj.attrs_norm[field]
-        if field == "color":
-            if norm_val not in {_canon_color(v) for v in cand_values}:
+        if field in _FIELD_ALIASES:
+            if norm_val not in {_canon(field, v) for v in cand_values}:
                 continue
         else:
             if norm_val not in cand_values:
@@ -327,7 +353,7 @@ def _find_single_field_references(field: str, value: str, target_local_id: int, 
         else:
             ambiguous = False
             for v in cand_values:
-                v_key = _canon_color(v) if field == "color" else v
+                v_key = _canon(field, v) if field in _FIELD_ALIASES else v
                 owners_of_v = norm_owners.get(v_key, set())
                 if owners_of_v - {target_local_id}:
                     ambiguous = True
@@ -344,18 +370,24 @@ def _find_single_field_references(field: str, value: str, target_local_id: int, 
 def _find_composition_references(m: str, f: str, target_local_id: int, attrs: dict,
                                   catalog: dict, target_identity: Identity, target_local_name: str,
                                   frame_identities: frozenset = frozenset()):
-    """The function component matches by exact normalized string (functions
-    aren't subject to the compound-material rule). The material component
-    uses the same atomic-decomposition ambiguity check as
-    _find_single_field_references -- a candidate whose compound material
-    shares an atom with some OTHER frame object's material is rejected even
-    if the exact compound STRING is unique to the candidate."""
-    norm_m, norm_f = normalize_value(m), normalize_value(f)
-    norm_pair_owners = _norm_pair_owners(attrs)  # exact-string pair ownership, for the function-exact / non-material-atom check
+    """The function component of the pair is canonicalized the same way
+    _find_single_field_references canonicalizes a bare function value (see
+    _canon_function) -- both the candidate-matching step and the ambiguity
+    check compare in canonical space, consistently on both sides (mirroring
+    how the color canonicalization keeps norm_owners and the checked value
+    in the same space). The material component uses the same atomic-
+    decomposition ambiguity check as _find_single_field_references -- a
+    candidate whose compound material shares an atom with some OTHER frame
+    object's material is rejected even if the exact compound STRING is
+    unique to the candidate."""
+    norm_m, norm_f = normalize_value(m), _canon("function", normalize_value(f))
+    # canonicalize the function half of every frame pair-ownership key so
+    # lookups below compare like-for-like against norm_f above
+    norm_pair_owners = {(pm, _canon("function", pf)): s for (pm, pf), s in _norm_pair_owners(attrs).items()}
     atomic_owners = _atomic_material_owners(attrs)
     identity_only, diff_category = [], []
     for obj in catalog.values():
-        cand_pairs = {(normalize_value(mm), normalize_value(ff))
+        cand_pairs = {(normalize_value(mm), _canon("function", normalize_value(ff)))
                       for mm in obj.attrs_raw["material"] for ff in obj.attrs_raw["function"]}
         if (norm_m, norm_f) not in cand_pairs:
             continue
@@ -365,7 +397,8 @@ def _find_composition_references(m: str, f: str, target_local_id: int, attrs: di
         ambiguous = False
         for pair_m, pair_f in cand_pairs:
             # exact-pair ownership (catches a different object with the
-            # SAME literal (material,function) pair, compound or not)
+            # SAME literal (material,function) pair, compound or not) --
+            # both sides already canonicalized above
             if norm_pair_owners.get((pair_m, pair_f), set()) - {target_local_id}:
                 ambiguous = True
                 break
