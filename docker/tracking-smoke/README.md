@@ -38,6 +38,16 @@ docker/tracking-smoke/run_text_gate.sh grounded-sam2 smoke mos 0 "$VOCAB"
 docker/tracking-smoke/run_text_gate.sh sam3.1 smoke ego 1 "$VOCAB"
 ```
 
+On a four-GPU host, launch both models on both protocols concurrently:
+
+```bash
+docker/tracking-smoke/launch_text_gate_matrix.sh smoke
+docker/tracking-smoke/launch_text_gate_matrix.sh micro
+docker/tracking-smoke/launch_text_gate_matrix.sh acceptance
+```
+
+Do not start the next level until all four panes show exit status zero.
+
 The SAM 3.1 checkpoint repository is gated; `HF_TOKEN` must belong to an account
 that has accepted its license. An Ego vocabulary row may be absent for an
 upstream identity-map gap documented in the released vocabulary metadata; RPX
