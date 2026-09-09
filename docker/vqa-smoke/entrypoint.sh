@@ -23,6 +23,9 @@ Commands:
   benchmark MODEL MANIFEST SHARD_INDEX SHARD_COUNT [args]
                                             Run one shard of the full benchmark plan
                                             (see build_vqa_benchmark_plan.py), batched.
+  benchmark-remote MODEL MANIFEST SHARD_INDEX SHARD_COUNT [args]
+                                            Run through a resident engine on localhost.
+  benchmark-prefetch MANIFEST                Fetch and verify all benchmark images once.
   shell                                    Open Bash.
 EOF
     ;;
@@ -87,12 +90,18 @@ EOF
       --out "${run_dir}/diagnostic_predictions.jsonl" \
       --server-url http://127.0.0.1:8000 "$@"
     ;;
-  benchmark)
-    model="${1:?benchmark requires MODEL}"
-    manifest="${2:?benchmark requires MANIFEST}"
-    shard_index="${3:?benchmark requires SHARD_INDEX}"
-    shard_count="${4:?benchmark requires SHARD_COUNT}"
+  benchmark|benchmark-remote)
+    mode="${command_name}"
+    model="${1:?${mode} requires MODEL}"
+    manifest="${2:?${mode} requires MANIFEST}"
+    shard_index="${3:?${mode} requires SHARD_INDEX}"
+    shard_count="${4:?${mode} requires SHARD_COUNT}"
     shift 4
+    if [[ "${mode}" == "benchmark-remote" ]]; then
+      remote_args=(--server-url http://127.0.0.1:8000 --batch-size 1)
+    else
+      remote_args=()
+    fi
     run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/benchmark/shard-${shard_index}-of-${shard_count}"
     mkdir -p "${run_dir}"
     exec python3 scripts/run_vqa_benchmark.py \
@@ -103,7 +112,12 @@ EOF
       --failures "${run_dir}/failures.jsonl" \
       --report "${run_dir}/report.json" \
       --run-config-out "${run_dir}/run_config.json" \
-      --resume "$@"
+      --resume "${remote_args[@]}" "$@"
+    ;;
+  benchmark-prefetch)
+    manifest="${1:?benchmark-prefetch requires MANIFEST}"
+    exec python3 scripts/prefetch_vqa_benchmark.py \
+      --manifest "${manifest}" --image-cache "${RPX_VQA_CACHE}/images"
     ;;
   shell)
     exec bash "$@"

@@ -149,9 +149,28 @@ selection rules), then run each model against one or more shards of
 python3 scripts/build_vqa_benchmark_plan.py \
   --parquet-dir "$RPX_VQA_CACHE/parquets" --out-dir benchmark_plan/
 
+# Populate the shared cache once before launching several model clients.
+bash docker/vqa-smoke/prefetch_benchmark.sh \
+  benchmark_plan/benchmark_available_31500.jsonl
+
 bash docker/vqa-smoke/run_benchmark.sh gemma4-12b 0 \
   benchmark_plan/benchmark_available_31500.jsonl 0 4
 ```
+
+If the model already runs under `start_persistent_engine.sh`, reuse it without
+reloading or stopping it:
+
+```bash
+bash docker/vqa-smoke/run_persistent_benchmark.sh gemma4-12b \
+  benchmark_plan/benchmark_available_31500.jsonl 0 1
+```
+
+The resident path deliberately uses sequential requests because resident
+engines are configured with `max_num_seqs=1`; run one different model per GPU
+to obtain four-model concurrency. Each row is retried up to three times before
+becoming a terminal `failures.jsonl` entry. A later invocation with
+`--retry-failures` archives those entries to `failures.jsonl.history` and
+requeues them while retaining every successful row.
 
 `SHARD_INDEX`/`SHARD_COUNT` split the manifest deterministically (sorted by
 `sample_id`, round-robin) so multiple GPUs can run disjoint shards in
@@ -159,6 +178,14 @@ parallel; rerunning the same shard resumes safely. Per-shard outputs
 (`predictions.jsonl`, `failures.jsonl`, `report.json`, `run_config.json`)
 land under
 `$RPX_VQA_RUNTIME/outputs/<model>/sha-<rpx-git-sha>/benchmark/shard-<i>-of-<n>/`.
+
+Spatial reports include mean IoU, Acc@0.25/0.50/0.75, and
+`bbox_mean_accuracy_50_95` (mean single-box success across IoU thresholds
+0.50:0.05:0.95). The latter is intentionally **not called mAP**: this protocol
+emits one box with no confidence score, so conventional ranked detection AP is
+undefined. Text reports include normalized exact match, token F1, and the
+joint exact-label + IoU@0.5 rate. Exact match is a one-reference RPX label
+metric, not conventional multi-annotator VQA soft accuracy.
 
 The frozen keys, in high-latency-first execution order, are:
 

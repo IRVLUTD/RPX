@@ -15,6 +15,7 @@ instead of predictions.jsonl.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import json
 import time
@@ -22,6 +23,7 @@ import traceback
 from pathlib import Path
 
 import vllm
+from run_vllm_vqa import RemoteRunner
 from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
 
 from rpx_benchmark.vqa.contract import load_manifest
@@ -73,6 +75,21 @@ def main() -> None:
     parser.add_argument("--run-config-out", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
+    parser.add_argument(
+        "--server-url",
+        help="reuse a resident serve_vllm_vqa.py engine (safe, sequential requests)",
+    )
+    parser.add_argument(
+        "--max-row-attempts",
+        type=int,
+        default=3,
+        help="retry an individual inference before recording a terminal failure",
+    )
+    parser.add_argument(
+        "--retry-failures",
+        action="store_true",
+        help="on resume, archive and retry rows previously recorded as failed",
+    )
     parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
 
@@ -80,12 +97,15 @@ def main() -> None:
         raise SystemExit(f"shard-index {args.shard_index} out of range for shard-count {args.shard_count}")
     if args.batch_size < 1:
         raise SystemExit("batch-size must be >= 1")
+    if args.max_row_attempts < 1:
+        raise SystemExit("max-row-attempts must be >= 1")
 
     model = get_model(args.model)
-    if not torch.cuda.is_available():
-        raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
-    if torch.cuda.device_count() != 1:
-        raise SystemExit("exactly one visible GPU is required per vLLM VQA engine")
+    if not args.server_url:
+        if not torch.cuda.is_available():
+            raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
+        if torch.cuda.device_count() != 1:
+            raise SystemExit("exactly one visible GPU is required per vLLM VQA engine")
 
     all_samples = load_manifest(args.manifest)
     shard = shard_of(all_samples, args.shard_index, args.shard_count)
@@ -120,6 +140,18 @@ def main() -> None:
                     row.get(key) != value for key, value in expected_provenance.items()
                 ):
                     raise SystemExit(f"cannot resume incompatible prediction/failure: {sample_id}")
+        if args.retry_failures and failed:
+            history_path = args.failures.with_suffix(args.failures.suffix + ".history")
+            with history_path.open("a", encoding="utf-8") as history:
+                for row in failed.values():
+                    history.write(
+                        json.dumps(
+                            {**row, "retry_queued_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())},
+                            sort_keys=True,
+                        )
+                        + "\n"
+                    )
+            failed = {}
 
     remaining = [sample for sample in shard if sample.sample_id not in completed and sample.sample_id not in failed]
     print(
@@ -129,12 +161,22 @@ def main() -> None:
     )
 
     image_paths = fetch_images_many(remaining, args.image_cache)
-    runner = VLLMVQARunner(
-        args.model,
-        args.image_cache,
-        gpu_memory_utilization=args.gpu_memory_utilization,
-        max_num_seqs=max(1, args.batch_size),
-    )
+    if args.server_url:
+        runner = RemoteRunner(args.server_url)
+        health = runner.health()
+        if (
+            health.get("model") != args.model
+            or health.get("checkpoint") != checkpoint.repo_id
+            or health.get("revision") != checkpoint.revision
+        ):
+            raise SystemExit(f"resident engine provenance mismatch: {health}")
+    else:
+        runner = VLLMVQARunner(
+            args.model,
+            args.image_cache,
+            gpu_memory_utilization=args.gpu_memory_utilization,
+            max_num_seqs=max(1, args.batch_size),
+        )
 
     run_config = {
         "model": args.model,
@@ -142,12 +184,17 @@ def main() -> None:
         "checkpoint_revision": checkpoint.revision,
         "vllm_version": vllm.__version__,
         "manifest": str(args.manifest),
+        "manifest_sha256": hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
+        "manifest_rows": len(all_samples),
         "shard_index": args.shard_index,
         "shard_count": args.shard_count,
         "shard_size": len(shard),
         "batch_size": args.batch_size,
         "sampling": {"temperature": 0.0, "do_sample": False, "num_beams": 1},
         "gpu_memory_utilization": args.gpu_memory_utilization,
+        "server_url": args.server_url,
+        "resident_engine": bool(args.server_url),
+        "max_row_attempts": args.max_row_attempts,
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     args.run_config_out.parent.mkdir(parents=True, exist_ok=True)
@@ -155,6 +202,36 @@ def main() -> None:
 
     pred_handle = args.predictions.open("a" if completed else "w", encoding="utf-8")
     fail_handle = args.failures.open("a" if failed else "w", encoding="utf-8")
+
+    def _predict_one(sample, spec):
+        last_error: Exception | None = None
+        for attempt in range(1, args.max_row_attempts + 1):
+            try:
+                started = time.perf_counter()
+                raw = runner.predict(
+                    image_paths[sample.sample_id],
+                    spec.text,
+                    spec.max_new_tokens,
+                    spec.output_kind,
+                )
+                if not args.server_url:
+                    synchronize_cuda()
+                elapsed_ms = (
+                    runner.latency_ms
+                    if args.server_url
+                    else (time.perf_counter() - started) * 1000
+                )
+                return raw, elapsed_ms
+            except Exception as error:  # noqa: BLE001
+                last_error = error
+                print(
+                    f"{sample.sample_id}: attempt {attempt}/{args.max_row_attempts} failed: {error}",
+                    flush=True,
+                )
+                if attempt < args.max_row_attempts:
+                    time.sleep(min(2**attempt, 8))
+        assert last_error is not None
+        raise last_error
 
     def _record_success(
         sample,
@@ -215,6 +292,28 @@ def main() -> None:
             )
             for sample in chunk
         ]
+        if args.server_url:
+            # A resident engine was started with max_num_seqs=1.  Preserve
+            # correctness and real server-side latency by issuing one request
+            # at a time; the four models still run concurrently on four GPUs.
+            for sample in chunk:
+                spec = specs[sample.sample_id]
+                try:
+                    raw, row_ms = _predict_one(sample, spec)
+                    _record_success(
+                        sample,
+                        raw,
+                        row_ms,
+                        1,
+                        1000 / row_ms if row_ms > 0 else float("inf"),
+                        runner.prediction_metadata(),
+                    )
+                except Exception as row_error:  # noqa: BLE001
+                    _record_failure(sample, row_error)
+            processed += len(chunk)
+            print(f"[{processed}/{len(remaining)}] shard progress", flush=True)
+            continue
+
         synchronize_cuda()
         started = time.perf_counter()
         try:
@@ -235,13 +334,9 @@ def main() -> None:
         except Exception:  # noqa: BLE001 -- isolate the batch, then retry per-row
             for sample in chunk:
                 spec = specs[sample.sample_id]
-                one_request = (image_paths[sample.sample_id], spec.text, spec.max_new_tokens)
                 synchronize_cuda()
-                row_started = time.perf_counter()
                 try:
-                    raw = runner.predict(one_request[0], one_request[1], one_request[2], "")
-                    synchronize_cuda()
-                    row_ms = (time.perf_counter() - row_started) * 1000
+                    raw, row_ms = _predict_one(sample, spec)
                     _record_success(
                         sample,
                         raw,
@@ -272,6 +367,18 @@ def main() -> None:
     metrics = score_predictions(
         (scored_samples[sample_id], parsed_by_id[sample_id]) for sample_id in completed
     )
+    metrics_by_context = {}
+    for context_name, in_context in (("regular", False), ("in_context", True)):
+        subset_ids = [
+            sample_id
+            for sample_id, sample in scored_samples.items()
+            if sample.is_in_context is in_context
+        ]
+        if subset_ids:
+            metrics_by_context[context_name] = score_predictions(
+                (scored_samples[sample_id], parsed_by_id[sample_id])
+                for sample_id in subset_ids
+            )
     amortized_values = [row["amortized_latency_ms"] for row in completed.values()]
     report = {
         "shard_index": args.shard_index,
@@ -281,12 +388,14 @@ def main() -> None:
         "failed": len(failed),
         "batch_size": args.batch_size,
         "metrics": metrics,
+        "metrics_by_context": metrics_by_context,
         "amortized_latency_ms": {
             "mean": sum(amortized_values) / len(amortized_values) if amortized_values else None,
             "min": min(amortized_values) if amortized_values else None,
             "max": max(amortized_values) if amortized_values else None,
         },
         "run_config": run_config,
+        "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")

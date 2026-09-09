@@ -10,7 +10,7 @@ import pytest
 from rpx_benchmark.exceptions import ManifestError
 from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
-from rpx_benchmark.vqa.metrics import bbox_iou, score_predictions
+from rpx_benchmark.vqa.metrics import bbox_iou, label_token_f1, score_predictions
 from rpx_benchmark.vqa.outputs import ParsedOutput, normalize_label, parse_output
 from rpx_benchmark.vqa.prompts import (
     build_label_localization_prompt,
@@ -265,7 +265,43 @@ def test_metrics_oracle() -> None:
     assert result["binary_accuracy"] == 1.0
     assert result["attribute_exact_match"] == 0.0
     assert result["bbox_accuracy_at_0_5"] == 1.0
+    assert result["bbox_accuracy_at_0_25"] == 1.0
+    assert result["bbox_accuracy_at_0_75"] == 1.0
+    assert result["bbox_mean_accuracy_50_95"] == 1.0
+    assert result["bbox_label_normalized_exact_match"] == 1.0
+    assert result["bbox_label_token_f1"] == 1.0
+    assert result["bbox_joint_label_exact_and_iou_at_0_5"] == 1.0
     assert bbox_iou((100, 120, 200, 220), (100, 120, 200, 220)) == 1.0
+
+
+def test_label_token_f1_is_lexical_and_missing_labels_score_zero() -> None:
+    assert label_token_f1("coffee can", "caned coffee") == pytest.approx(0.5)
+    assert label_token_f1(None, "coffee can") == 0.0
+
+    sample = VQASample.from_dict(row("depth_closest"))
+    result = score_predictions([(sample, ParsedOutput(False, error="bad JSON"))])
+    assert result["bbox_label_normalized_exact_match"] == 0.0
+    assert result["bbox_label_token_f1"] == 0.0
+
+
+def test_mean_accuracy_50_95_is_not_mislabeled_as_map() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    # An IoU of 0.75 succeeds at .50, .55, .60, .65, .70 and .75: 6/10.
+    parsed = ParsedOutput(True, label="alarm clock", bbox=(100, 120, 175, 220))
+    result = score_predictions([(sample, parsed)])
+    assert result["bbox_mean_accuracy_50_95"] == pytest.approx(0.6)
+    assert "not detection mAP" in result["metric_notes"]["bbox_mean_accuracy_50_95"]
+
+
+def test_batched_chat_content_labels_both_incontext_images() -> None:
+    content = VLLMVQARunner._chat_content(
+        [Path("reference.png"), Path("target.png")], "question"
+    )
+    assert [item.get("text") for item in content if item["type"] == "text"] == [
+        "Image 1 — reference object:",
+        "Image 2 — target scene:",
+        "question",
+    ]
 
 
 def test_roster_matches_rpx_draft() -> None:

@@ -422,11 +422,11 @@ class VLLMVQARunner:
                 images_by_row, requests, strict=True
             ):
                 path_list = (paths,) if isinstance(paths, (str, Path)) else paths
-                content: list[dict[str, Any]] = [
-                    {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
-                    for path in path_list
-                ]
-                content.append({"type": "text", "text": prompt})
+                # Use the exact same labelled Image-1/Image-2 construction as
+                # isolated acceptance.  The previous batched path preserved
+                # order but silently omitted these labels, changing the task
+                # between acceptance and the full benchmark.
+                content = self._chat_content(path_list, prompt)
                 messages_batch.append([{"role": "user", "content": content}])
             max_tokens = max(
                 max_tokens for _paths, _prompt, max_tokens, _output_kind in requests
