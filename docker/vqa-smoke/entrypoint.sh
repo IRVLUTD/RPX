@@ -14,8 +14,9 @@ and in-context (two-image) tasks are both supported; see model-matrix.json.
 
 Commands:
   verify                                   Check vLLM, CUDA and single-GPU visibility.
-  list-models                              Print the frozen ten-model vLLM roster.
+  list-models                              Print the frozen twelve-model vLLM roster.
   smoke MODEL [args]                       Run the 14-row bbox smoke gate.
+  smoke-remote MODEL [args]                Run smoke through the resident engine.
   acceptance MODEL [args]                  Run the 104-row normal+in-context acceptance gate.
   serve MODEL [args]                       Keep one model resident on localhost:8000.
   acceptance-remote MODEL [args]           Run acceptance through the resident engine.
@@ -41,10 +42,10 @@ EOF
     exec python3 scripts/serve_vllm_vqa.py \
       --model "${model}" --image-cache "${RPX_VQA_CACHE}/images" "$@"
     ;;
-  smoke|acceptance|acceptance-remote)
+  smoke|smoke-remote|acceptance|acceptance-remote)
     gate="${command_name}"
-    if [[ "${gate}" == "acceptance-remote" ]]; then
-      gate="acceptance"
+    if [[ "${gate}" == *-remote ]]; then
+      gate="${gate%-remote}"
       remote_args=(--server-url http://127.0.0.1:8000)
     else
       remote_args=()

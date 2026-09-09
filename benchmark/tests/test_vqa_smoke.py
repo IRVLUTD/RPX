@@ -110,6 +110,8 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
         "internvl2.5-8b",
         "idefics3-8b",
         "qwen2.5-vl-7b",
+        "qwen3-vl-8b",
+        "qwen3-vl-2b",
         "llava-onevision-7b",
         "phi-3.5-vision-4b",
     )
@@ -308,10 +310,12 @@ def test_roster_matches_rpx_draft() -> None:
     assert [model.display_name for model in MODELS] == [
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
+        "Qwen3-VL 2B",
         "Gemma 4 E4B",
         "Phi-3.5-Vision 4.2B",
         "LLaVA-OneVision 7B",
         "Qwen2.5-VL 7B",
+        "Qwen3-VL 8B",
         "Idefics3 8B",
         "InternVL 2.5 8B",
         "PaliGemma 2 10B",

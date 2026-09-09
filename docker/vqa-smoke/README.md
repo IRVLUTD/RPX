@@ -1,6 +1,6 @@
 # RPX VQA: vLLM-only smoke, acceptance and benchmark gates
 
-One pinned runtime image serves the complete ten-model VQA roster, covering
+One pinned runtime image serves the complete twelve-model VQA roster, covering
 both one-image ("normal") and two-image ("in-context") tasks. There is no
 Transformers inference fallback. Each prediction records the backend, vLLM
 version, Hub repository, and immutable model revision; the gate rejects
@@ -107,11 +107,12 @@ docker run --rm --gpus 'device=0' "$RPX_VQA_IMAGE:vllm" verify
 docker run --rm "$RPX_VQA_IMAGE:vllm" list-models
 ```
 
-To run acceptance without unloading the model afterward, start one resident
-engine per GPU and execute acceptance inside it:
+To run smoke and acceptance without unloading the model between gates, start
+one resident engine per GPU and execute both gates inside it:
 
 ```bash
 bash docker/vqa-smoke/start_persistent_engine.sh gemma4-12b 0
+bash docker/vqa-smoke/run_persistent_smoke.sh gemma4-12b
 bash docker/vqa-smoke/run_persistent_acceptance.sh gemma4-12b
 
 # The model is still resident after the report is written.
@@ -195,11 +196,13 @@ paligemma2-10b
 internvl2.5-8b
 idefics3-8b
 qwen2.5-vl-7b
+qwen3-vl-8b
 llava-onevision-7b
 gemma4-e4b
 phi-3.5-vision-4b
 paligemma2-3b
 qwen2.5-vl-3b
+qwen3-vl-2b
 ```
 
 Reports are under:

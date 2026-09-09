@@ -5,7 +5,7 @@ FROM vllm/vllm-openai@sha256:50509e700235cea487715cedeb501d20a1cd15fa6a54ce93688
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX VQA vLLM runtime" \
-      org.opencontainers.image.description="vLLM-only bbox VQA runtime for the RPX ten-model roster" \
+      org.opencontainers.image.description="vLLM-only bbox VQA runtime for the RPX twelve-model roster" \
       org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 

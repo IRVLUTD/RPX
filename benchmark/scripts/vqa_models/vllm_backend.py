@@ -74,6 +74,11 @@ CHECKPOINTS = {
             }
         },
     ),
+    "qwen3-vl-8b": VLLMCheckpoint(
+        "Qwen/Qwen3-VL-8B-Instruct",
+        "0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        max_model_len=8192,
+    ),
     "llava-onevision-7b": VLLMCheckpoint(
         "llava-hf/llava-onevision-qwen2-7b-ov-hf",
         "0d50680527681998e456c7b78950205bedd8a068",
@@ -103,6 +108,11 @@ CHECKPOINTS = {
                 "fps": 1,
             }
         },
+    ),
+    "qwen3-vl-2b": VLLMCheckpoint(
+        "Qwen/Qwen3-VL-2B-Instruct",
+        "89644892e4d85e24eaac8bacfd4f463576704203",
+        max_model_len=8192,
     ),
 }
 
