@@ -61,9 +61,27 @@ def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> Promp
 
 def build_oracle_localization_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     """Localize the known GT label in the target image for diagnosis only."""
-    label = display_question(sample.answer)
+    return build_label_localization_prompt(
+        display_question(sample.answer), model_key, oracle=True
+    )
+
+
+def build_label_localization_prompt(
+    label: str, model_key: str, *, oracle: bool = False
+) -> PromptSpec:
+    """Ground a label/referring phrase without canonicalizing its wording.
+
+    The predicted-label diagnostic deliberately passes the model's own answer
+    phrase through unchanged.  Correctness is determined spatially against the
+    target identity, so synonyms and harmless modifiers cannot create a false
+    semantic failure merely because their strings differ from the catalog.
+    """
+    label = display_question(label)
+    output_kind = (
+        "diagnostic_oracle_bbox" if oracle else "diagnostic_predicted_label_bbox"
+    )
     if model_key.startswith("paligemma2-"):
-        return PromptSpec(f"detect {label}\n", 64, "diagnostic_oracle_bbox")
+        return PromptSpec(f"detect {label}\n", 64, output_kind)
     return PromptSpec(
         f'Locate the visible object named "{label}" in the target image. '
         'Return only JSON: {"label":"object name","bbox":'
@@ -71,7 +89,7 @@ def build_oracle_localization_prompt(sample: VQASample, model_key: str) -> Promp
         "to 1000 relative to the target-image width and height. Use XYXY corner "
         "order and enclose the entire object. No Markdown or explanation.",
         96,
-        "diagnostic_oracle_bbox",
+        output_kind,
     )
 
 

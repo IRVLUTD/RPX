@@ -199,17 +199,23 @@ requested explicitly, but no capability threshold is imposed by default.
 ## Decomposed failure diagnostic
 
 After acceptance, separate semantic target-selection errors from localization
-errors without treating either probe as a benchmark result.  The diagnostic
-asks each resident model (1) for the answer label only and (2) to localize the
-disclosed ground-truth label in the target image.  Pass the completed acceptance
-report to reuse its end-to-end outputs rather than generating them again:
+errors without treating these probes as benchmark results.  The diagnostic
+asks each resident model (1) for the answer phrase only, (2) to localize that
+same predicted phrase, and (3) to localize the disclosed ground-truth label in
+the target image. Pass the completed acceptance report to reuse its end-to-end
+outputs rather than generating them again:
 
 ```bash
 bash docker/vqa-smoke/run_persistent_diagnostic.sh MODEL \
   --acceptance-report /outputs/MODEL/sha-ACCEPTANCE_SHA/acceptance/report.json
 ```
 
-The resulting `diagnostic_report.json` contains semantic exact match, oracle
-localization IoU, end-to-end IoU, and their joint failure counts.  Oracle
-localization deliberately discloses the answer label; it is diagnostic leakage
-and must never be reported as benchmark performance.
+The resulting `diagnostic_report.json` grounds the model's own answer phrase and
+the oracle label separately.  Identity selection is judged by whether the
+answer phrase grounds to the GT object bbox, not by literal label equality, so
+aliases and harmless modifiers do not become false reasoning errors.  Literal
+exact match remains informational only.  The diagnostic also records strict
+protocol parsing plus JSON/Python-dict and normalized/pixel bbox hypotheses;
+the best-coordinate measurements use GT to identify convention mistakes and
+are diagnostic leakage.  Oracle and best-coordinate results must never be
+reported as benchmark performance.

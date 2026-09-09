@@ -13,6 +13,7 @@ from rpx_benchmark.vqa.hub_rgb import image_cache_name
 from rpx_benchmark.vqa.metrics import bbox_iou, score_predictions
 from rpx_benchmark.vqa.outputs import ParsedOutput, normalize_label, parse_output
 from rpx_benchmark.vqa.prompts import (
+    build_label_localization_prompt,
     build_oracle_localization_prompt,
     build_prompt,
     build_semantic_diagnostic_prompt,
@@ -129,6 +130,13 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
     assert oracle.output_kind == "diagnostic_oracle_bbox"
     pali_oracle = build_oracle_localization_prompt(sample, "paligemma2-10b")
     assert pali_oracle.text == "detect alarm clock\n"
+    predicted = build_label_localization_prompt("red alarm clock", "gemma4-12b")
+    assert '"red alarm clock"' in predicted.text
+    assert predicted.output_kind == "diagnostic_predicted_label_bbox"
+    pali_predicted = build_label_localization_prompt(
+        "red alarm clock", "paligemma2-10b"
+    )
+    assert pali_predicted.text == "detect red alarm clock\n"
 
 
 def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
@@ -174,6 +182,15 @@ def test_oracle_diagnostic_uses_only_target_image(monkeypatch, tmp_path: Path) -
     )
     assert calls == [([target], "locate alarm clock", 96)]
     assert runner.prediction_metadata()["ground_truth_label_disclosed"] is True
+
+    runner.predict(
+        [reference, target],
+        "locate predicted phrase",
+        96,
+        "diagnostic_predicted_label_bbox",
+    )
+    assert calls[-1] == ([target], "locate predicted phrase", 96)
+    assert runner.prediction_metadata()["ground_truth_label_disclosed"] is False
 
 
 def test_strict_output_parsers() -> None:

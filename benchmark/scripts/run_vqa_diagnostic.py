@@ -4,9 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from rpx_benchmark.vqa.contract import BBOX_TYPES, load_manifest
@@ -14,6 +15,7 @@ from rpx_benchmark.vqa.hub_rgb import fetch_images_many
 from rpx_benchmark.vqa.metrics import bbox_iou
 from rpx_benchmark.vqa.outputs import normalize_label, parse_output
 from rpx_benchmark.vqa.prompts import (
+    build_label_localization_prompt,
     build_oracle_localization_prompt,
     build_prompt,
     build_semantic_diagnostic_prompt,
@@ -26,6 +28,124 @@ def comparable_label(value: str) -> str:
     value = normalize_label(value)
     value = re.sub(r"^(?:the|a|an)\s+", "", value)
     return value
+
+
+def answer_phrase(raw: str) -> str:
+    """Extract a short referring phrase without mapping it to a GT label."""
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE)
+    try:
+        value = json.loads(text)
+        if isinstance(value, dict):
+            for key in ("label", "answer", "object"):
+                if value.get(key):
+                    text = str(value[key])
+                    break
+    except (TypeError, ValueError, json.JSONDecodeError):
+        pass
+    text = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    text = re.sub(
+        r"^(?:the\s+)?(?:answer|object)(?:\s+object)?\s+is\s+",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
+    return text.strip("` \t\"'.,:;!?()[]{}")[:160]
+
+
+def _loose_bbox_object(raw: str) -> dict | None:
+    """Read JSON or a Python-literal dict for diagnostic analysis only."""
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE)
+    start, end = text.find("{"), text.rfind("}")
+    if start < 0 or end < start:
+        return None
+    payload = text[start : end + 1]
+    for loader in (json.loads, ast.literal_eval):
+        try:
+            value = loader(payload)
+        except (SyntaxError, TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def diagnostic_bbox(sample, raw: str, model_key: str) -> dict:
+    """Score protocol-strict and format-tolerant bbox interpretations.
+
+    `best_*` deliberately uses GT to select between known coordinate
+    conventions and is therefore diagnostic-only. The official acceptance
+    report remains untouched and protocol-strict.
+    """
+    strict = parse_output(sample, raw, model_key)
+    hypotheses: dict[str, dict] = {}
+    if strict.valid and strict.bbox is not None:
+        iou = bbox_iou(strict.bbox, sample.answer_bbox)
+        hypotheses[strict.coordinate_format or "native_model_format"] = {
+            "bbox": strict.bbox,
+            "iou": iou,
+        }
+    if not model_key.startswith("paligemma2-"):
+        value = _loose_bbox_object(raw)
+        raw_bbox = None if value is None else value.get("bbox")
+        if (
+            isinstance(raw_bbox, list)
+            and len(raw_bbox) == 1
+            and isinstance(raw_bbox[0], list)
+        ):
+            raw_bbox = raw_bbox[0]
+        try:
+            bbox = tuple(float(v) for v in raw_bbox) if len(raw_bbox) == 4 else None
+        except (TypeError, ValueError):
+            bbox = None
+        if bbox is not None:
+            x0, y0, x1, y1 = bbox
+            if (
+                0 <= x0 <= x1 <= 1000
+                and 0 <= y0 <= y1 <= 1000
+            ):
+                denominator = 1 if all(0 <= v <= 1 for v in bbox) else 1000
+                name = (
+                    "normalized_0_1_loose_syntax"
+                    if denominator == 1
+                    else "normalized_0_1000_loose_syntax"
+                )
+                normalized_bbox = (
+                    x0 * (sample.img_w - 1) / denominator,
+                    y0 * (sample.img_h - 1) / denominator,
+                    x1 * (sample.img_w - 1) / denominator,
+                    y1 * (sample.img_h - 1) / denominator,
+                )
+                hypotheses.setdefault(
+                    name,
+                    {
+                        "bbox": normalized_bbox,
+                        "iou": bbox_iou(normalized_bbox, sample.answer_bbox),
+                    },
+                )
+            if 0 <= x0 <= x1 < sample.img_w and 0 <= y0 <= y1 < sample.img_h:
+                hypotheses["original_pixel_xyxy"] = {
+                    "bbox": bbox,
+                    "iou": bbox_iou(bbox, sample.answer_bbox),
+                }
+    best_format = max(
+        hypotheses, key=lambda key: hypotheses[key]["iou"], default=None
+    )
+    best = hypotheses.get(best_format) if best_format else None
+    return {
+        "strict_valid": strict.valid,
+        "strict_parse_error": strict.error,
+        "strict_bbox": strict.bbox,
+        "strict_coordinate_format": strict.coordinate_format,
+        "hypotheses": hypotheses,
+        "best_coordinate_format": best_format,
+        "best_bbox": None if best is None else best["bbox"],
+        "best_iou": 0.0 if best is None else best["iou"],
+        "best_hit_at_0_5": bool(best is not None and best["iou"] >= 0.5),
+    }
 
 
 def mean(values: list[float]) -> float:
@@ -118,9 +238,27 @@ def main() -> None:
                 semantic_spec.output_kind,
             )
             semantic_ms = runner.latency_ms
-            semantic_prediction = comparable_label(semantic_raw.splitlines()[0] if semantic_raw else "")
+            semantic_prediction = answer_phrase(semantic_raw)
             expected_label = comparable_label(sample.answer)
-            semantic_correct = semantic_prediction == expected_label
+            semantic_exact_match = comparable_label(semantic_prediction) == expected_label
+
+            predicted_grounding = None
+            predicted_ms = 0.0
+            predicted_raw = ""
+            if semantic_prediction:
+                predicted_spec = build_label_localization_prompt(
+                    semantic_prediction, args.model
+                )
+                predicted_raw = runner.predict(
+                    [paths[-1]],
+                    predicted_spec.text,
+                    predicted_spec.max_new_tokens,
+                    predicted_spec.output_kind,
+                )
+                predicted_ms = runner.latency_ms
+                predicted_grounding = diagnostic_bbox(
+                    sample, predicted_raw, args.model
+                )
 
             oracle_spec = build_oracle_localization_prompt(sample, args.model)
             oracle_raw = runner.predict(
@@ -130,14 +268,7 @@ def main() -> None:
                 oracle_spec.output_kind,
             )
             oracle_ms = runner.latency_ms
-            oracle_parsed = parse_output(sample, oracle_raw, args.model)
-            oracle_iou = (
-                bbox_iou(oracle_parsed.bbox, sample.answer_bbox)
-                if oracle_parsed.valid
-                and oracle_parsed.bbox is not None
-                and sample.answer_bbox is not None
-                else 0.0
-            )
+            oracle_grounding = diagnostic_bbox(sample, oracle_raw, args.model)
 
             if acceptance_rows is None:
                 end_spec = build_prompt(sample, args.model)
@@ -169,18 +300,30 @@ def main() -> None:
                     "raw_output": semantic_raw,
                     "normalized_prediction": semantic_prediction,
                     "normalized_ground_truth": expected_label,
-                    "exact_match": semantic_correct,
+                    "exact_match_informational_only": semantic_exact_match,
                     "latency_ms": semantic_ms,
+                },
+                "predicted_label_localization": {
+                    "label_used": semantic_prediction,
+                    "raw_output": predicted_raw,
+                    "latency_ms": predicted_ms,
+                    **(predicted_grounding or {
+                        "strict_valid": False,
+                        "strict_parse_error": "empty semantic answer",
+                        "strict_bbox": None,
+                        "strict_coordinate_format": None,
+                        "hypotheses": {},
+                        "best_coordinate_format": None,
+                        "best_bbox": None,
+                        "best_iou": 0.0,
+                        "best_hit_at_0_5": False,
+                    }),
                 },
                 "oracle_localization": {
                     "raw_output": oracle_raw,
-                    "valid": oracle_parsed.valid,
-                    "parse_error": oracle_parsed.error,
-                    "predicted_bbox": oracle_parsed.bbox,
-                    "iou": oracle_iou,
-                    "hit_at_0_5": oracle_iou >= 0.5,
                     "latency_ms": oracle_ms,
                     "ground_truth_label_disclosed": True,
+                    **oracle_grounding,
                 },
                 "end_to_end": {
                     "source": end_source,
@@ -199,7 +342,9 @@ def main() -> None:
             handle.flush()
             print(
                 f"[{index}/{len(samples)}] {sample.sample_id} "
-                f"semantic={semantic_correct} oracle_iou={oracle_iou:.3f} "
+                f"label={semantic_prediction!r} "
+                f"predicted_label_iou={row['predicted_label_localization']['best_iou']:.3f} "
+                f"oracle_iou={oracle_grounding['best_iou']:.3f} "
                 f"end_iou={end_iou:.3f}",
                 flush=True,
             )
@@ -209,19 +354,60 @@ def main() -> None:
         groups[row["question_type"]].append(row)
 
     def aggregate(values: list[dict]) -> dict:
+        oracle_hits = sum(
+            row["oracle_localization"]["best_hit_at_0_5"] for row in values
+        )
+        joint_hits = sum(
+            row["predicted_label_localization"]["best_hit_at_0_5"]
+            and row["oracle_localization"]["best_hit_at_0_5"]
+            for row in values
+        )
         return {
             "count": len(values),
-            "semantic_exact_match": mean(
-                [float(row["semantic"]["exact_match"]) for row in values]
+            "semantic_exact_match_informational_only": mean(
+                [
+                    float(row["semantic"]["exact_match_informational_only"])
+                    for row in values
+                ]
             ),
             "oracle_parse_rate": mean(
-                [float(row["oracle_localization"]["valid"]) for row in values]
+                [float(row["oracle_localization"]["strict_valid"]) for row in values]
             ),
             "oracle_bbox_mean_iou": mean(
-                [row["oracle_localization"]["iou"] for row in values]
+                [row["oracle_localization"]["best_iou"] for row in values]
             ),
             "oracle_bbox_accuracy_at_0_5": mean(
-                [float(row["oracle_localization"]["hit_at_0_5"]) for row in values]
+                [float(row["oracle_localization"]["best_hit_at_0_5"]) for row in values]
+            ),
+            "predicted_label_bbox_mean_iou": mean(
+                [row["predicted_label_localization"]["best_iou"] for row in values]
+            ),
+            "predicted_label_bbox_accuracy_at_0_5": mean(
+                [
+                    float(row["predicted_label_localization"]["best_hit_at_0_5"])
+                    for row in values
+                ]
+            ),
+            "identity_accuracy_when_oracle_localizable": (
+                joint_hits / oracle_hits if oracle_hits else None
+            ),
+            "oracle_best_coordinate_formats": dict(
+                sorted(
+                    Counter(
+                        row["oracle_localization"]["best_coordinate_format"]
+                        or "unparseable"
+                        for row in values
+                    ).items()
+                )
+            ),
+            "predicted_label_best_coordinate_formats": dict(
+                sorted(
+                    Counter(
+                        row["predicted_label_localization"]["best_coordinate_format"]
+                        or "unparseable"
+                        for row in values
+                    ).items()
+                )
             ),
             "end_to_end_parse_rate": mean(
                 [float(row["end_to_end"]["valid"]) for row in values]
@@ -232,25 +418,25 @@ def main() -> None:
             "end_to_end_bbox_accuracy_at_0_5": mean(
                 [float(row["end_to_end"]["hit_at_0_5"]) for row in values]
             ),
-            "failure_attribution": {
-                "semantic_wrong_oracle_miss": sum(
-                    not row["semantic"]["exact_match"]
-                    and not row["oracle_localization"]["hit_at_0_5"]
+            "identity_attribution": {
+                "identified_and_localizable": sum(
+                    row["predicted_label_localization"]["best_hit_at_0_5"]
+                    and row["oracle_localization"]["best_hit_at_0_5"]
                     for row in values
                 ),
-                "semantic_wrong_oracle_hit": sum(
-                    not row["semantic"]["exact_match"]
-                    and row["oracle_localization"]["hit_at_0_5"]
+                "selection_failed_but_oracle_localizable": sum(
+                    not row["predicted_label_localization"]["best_hit_at_0_5"]
+                    and row["oracle_localization"]["best_hit_at_0_5"]
                     for row in values
                 ),
-                "semantic_right_oracle_miss": sum(
-                    row["semantic"]["exact_match"]
-                    and not row["oracle_localization"]["hit_at_0_5"]
+                "predicted_phrase_hit_despite_oracle_label_miss": sum(
+                    row["predicted_label_localization"]["best_hit_at_0_5"]
+                    and not row["oracle_localization"]["best_hit_at_0_5"]
                     for row in values
                 ),
-                "semantic_right_oracle_hit": sum(
-                    row["semantic"]["exact_match"]
-                    and row["oracle_localization"]["hit_at_0_5"]
+                "both_localizations_missed": sum(
+                    not row["predicted_label_localization"]["best_hit_at_0_5"]
+                    and not row["oracle_localization"]["best_hit_at_0_5"]
                     for row in values
                 ),
             },
@@ -258,7 +444,11 @@ def main() -> None:
 
     report = {
         "diagnostic_only": True,
-        "warning": "Oracle localization discloses the ground-truth label and is not a benchmark score.",
+        "warning": (
+            "All localization hypotheses and oracle results are diagnostic-only. "
+            "Oracle localization discloses the GT label; best-coordinate scoring "
+            "uses GT to compare known conventions. Neither is a benchmark score."
+        ),
         "model": args.model,
         "inference": health,
         "end_to_end_source": (

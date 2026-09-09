@@ -369,7 +369,10 @@ class VLLMVQARunner:
                     "diagnostic_only": True,
                 }
                 return raw
-            if output_kind == "diagnostic_oracle_bbox":
+            if output_kind in {
+                "diagnostic_oracle_bbox",
+                "diagnostic_predicted_label_bbox",
+            }:
                 # Oracle localization intentionally sees only the target image.
                 # The GT label is disclosed in the prompt, so this output must
                 # never be reported as an end-to-end benchmark prediction.
@@ -382,9 +385,11 @@ class VLLMVQARunner:
                         [image_paths[-1]], prompt, max_tokens
                     )
                 self._last_adapter_metadata = {
-                    "adapter": "diagnostic_oracle_bbox",
+                    "adapter": output_kind,
                     "diagnostic_only": True,
-                    "ground_truth_label_disclosed": True,
+                    "ground_truth_label_disclosed": (
+                        output_kind == "diagnostic_oracle_bbox"
+                    ),
                 }
                 return raw
             if self.checkpoint.paligemma:
