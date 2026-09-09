@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import statistics
+from collections import Counter
 from pathlib import Path
 
 from rpx_benchmark.vqa.contract import ATTRIBUTE_TYPES, BBOX_TYPES, load_manifest
@@ -83,6 +84,14 @@ def main() -> None:
     if len(provenance_values) != 1:
         raise SystemExit("prediction provenance changed within one run")
     report["inference"] = next(iter(provenance_by_id.values()))
+    report["adapter_protocol_counts"] = dict(
+        sorted(
+            Counter(
+                str(adapter_metadata_by_id[sample_id].get("adapter") or "single_stage_untyped")
+                for sample_id in expected
+            ).items()
+        )
+    )
     latencies = [latency_by_id[sample_id] for sample_id in expected]
     report["latency_ms"] = {
         "mean": statistics.fmean(latencies),
@@ -123,9 +132,13 @@ def main() -> None:
         raise SystemExit(
             f"FAIL: parse_rate {report['parse_rate']:.3f} < {args.min_parse_rate:.3f}"
         )
+    print("INFRASTRUCTURE PASS: complete prediction coverage and stable provenance")
+    print(f"ADAPTER PROTOCOLS: {json.dumps(report['adapter_protocol_counts'], sort_keys=True)}")
     print(
-        "PASS: complete prediction coverage; "
-        f"parse_rate={report['parse_rate']:.3f} (reported as model performance)"
+        "MODEL METRICS (not an acceptance pass/fail): "
+        f"parse_rate={report['parse_rate']:.3f}; "
+        f"bbox_mean_iou={report.get('bbox_mean_iou', 0.0):.3f}; "
+        f"bbox_accuracy_at_0_5={report.get('bbox_accuracy_at_0_5', 0.0):.3f}"
     )
 
 

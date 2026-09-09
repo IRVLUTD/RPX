@@ -21,19 +21,23 @@ def display_question(question: str) -> str:
 
 
 def _bbox_instruction(question: str) -> str:
-    """Stage-one instruction shared by every JSON-capable VLM.
+    """Direct, model-neutral bbox instruction for every JSON-capable VLM.
 
-    Separating semantic question answering from target-image grounding keeps a
-    model from trying to solve both jobs in one short structured response.  The
-    adapter never receives the ground-truth label: stage two is conditioned only
-    on the label predicted here.
+    The scored path is deliberately one model call: the model sees the original
+    question and every required image while choosing and localizing the answer.
+    Splitting this into answer-then-ground calls compounds two independent model
+    errors and no longer measures the dataset's end-to-end task.
     """
     return (
         f"{question}\n"
-        "Identify the one visible object that answers the question. For a relational "
-        "question, answer with the result object, not the reference object named in "
-        "the question. Return only its shortest common object name, with no sentence, "
-        "JSON, coordinates, Markdown, or explanation."
+        "Identify and localize the one visible object that answers the question. "
+        "For a relational question, localize the result object, not the reference "
+        "object named or shown in the question. The answer object is in the target "
+        "image (Image 2 for a two-image input; otherwise the only image). Return only "
+        'JSON: {"label":"object name","bbox":[x_min,y_min,x_max,y_max]}. '
+        "Normalize every bbox coordinate from 0 to 1000 relative to the target "
+        "image width and height. Use XYXY corner order and enclose the entire object. "
+        "No Markdown or explanation."
     )
 
 
@@ -53,8 +57,8 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             return PromptSpec(f"answer en {question}\n", 24, "paligemma_two_stage")
         return PromptSpec(
             _bbox_instruction(question),
-            32,
-            "two_stage_bbox_json_normalized_1000",
+            96,
+            "bbox_json_normalized_1000",
         )
     raise ConfigError(
         f"unsupported VQA question type: {sample.question_type}",

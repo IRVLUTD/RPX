@@ -156,17 +156,26 @@ class VLLMVQARunner:
         """Composite two images left-to-right for PaliGemma's single-image
         stage-1 call only. Never used for stage-2 grounding, which always
         receives Image 2 alone and unmodified."""
+        # PaliGemma has a single-image interface.  Make the otherwise implicit
+        # left/right convention visible in the pixels instead of expecting the
+        # model to infer which panel the question calls Image 1 and Image 2.
+        from PIL import ImageDraw
+
         gap = 8
+        header = 28
         height = max(image.height for image in images)
         scaled = [
             image.resize((max(1, round(image.width * height / image.height)), height))
             for image in images
         ]
         width = sum(image.width for image in scaled) + gap * (len(scaled) - 1)
-        canvas = Image.new("RGB", (width, height), (0, 0, 0))
+        canvas = Image.new("RGB", (width, height + header), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
         x = 0
-        for image in scaled:
-            canvas.paste(image, (x, 0))
+        for index, image in enumerate(scaled, 1):
+            label = "IMAGE 1: REFERENCE" if index == 1 else "IMAGE 2: TARGET"
+            draw.text((x + 4, 7), label, fill=(0, 0, 0))
+            canvas.paste(image, (x, header))
             x += image.width + gap
         return canvas
 
@@ -206,16 +215,36 @@ class VLLMVQARunner:
             "corner order and enclose the entire object. No Markdown or explanation."
         )
 
+    @staticmethod
+    def _chat_content(
+        image_paths: Sequence[str | Path], prompt: str
+    ) -> list[dict[str, Any]]:
+        """Build an explicitly ordered multimodal message without model tokens."""
+        content: list[dict[str, Any]] = []
+        if len(image_paths) == 2:
+            labels = ("Image 1 — reference object", "Image 2 — target scene")
+            for label, path in zip(labels, image_paths, strict=True):
+                content.append({"type": "text", "text": f"{label}:"})
+                content.append(
+                    {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
+                )
+        else:
+            content.extend(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": Path(path).resolve().as_uri()},
+                }
+                for path in image_paths
+            )
+        content.append({"type": "text", "text": prompt})
+        return content
+
     def _chat_generate(
         self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
     ) -> str:
         from vllm import SamplingParams
 
-        content: list[dict[str, Any]] = [
-            {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
-            for path in image_paths
-        ]
-        content.append({"type": "text", "text": prompt})
+        content = self._chat_content(image_paths, prompt)
         messages = [{"role": "user", "content": content}]
         params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
         chat_template_kwargs = (
@@ -255,6 +284,16 @@ class VLLMVQARunner:
             "stage2_skipped_reason": None,
         }
         return stage2
+
+    def _predict_json_direct(
+        self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
+    ) -> str:
+        raw = self._chat_generate(image_paths, prompt, max_tokens)
+        self._last_adapter_metadata = {
+            "adapter": "direct_bbox_json",
+            "single_scored_model_call": True,
+        }
+        return raw
 
     def _predict_paligemma(
         self, images: Sequence[Image.Image], prompt: str, max_tokens: int
@@ -317,6 +356,8 @@ class VLLMVQARunner:
             images = [image.convert("RGB") for image in opened]
             if self.checkpoint.paligemma:
                 return self._predict_paligemma(images, prompt, max_tokens)
+            if output_kind == "bbox_json_normalized_1000":
+                return self._predict_json_direct(image_paths, prompt, max_tokens)
             if output_kind == "two_stage_bbox_json_normalized_1000":
                 return self._predict_json_two_stage(image_paths, prompt, max_tokens)
             return self._chat_generate(image_paths, prompt, max_tokens)
@@ -429,10 +470,17 @@ class VLLMVQARunner:
             )
             stage1_values = [self._text([output]) for output in outputs]
 
-            # Bbox tasks use the same answer-then-ground decomposition as the
-            # isolated acceptance path. Binary rows remain single-stage.
+            # Direct bbox rows already contain their final response. The legacy
+            # two-stage kind remains readable only for old manifests.
             values = list(stage1_values)
-            metadata: list[dict[str, Any]] = [{} for _ in values]
+            metadata: list[dict[str, Any]] = [
+                (
+                    {"adapter": "direct_bbox_json", "single_scored_model_call": True}
+                    if request[3] == "bbox_json_normalized_1000"
+                    else {}
+                )
+                for request in requests
+            ]
             bbox_indices = [
                 index
                 for index, request in enumerate(requests)

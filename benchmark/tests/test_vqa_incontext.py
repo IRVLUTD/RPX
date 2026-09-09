@@ -313,8 +313,28 @@ def test_paligemma_side_by_side_composite_shape():
     left = Image.new("RGB", (100, 50), (255, 0, 0))
     right = Image.new("RGB", (80, 80), (0, 255, 0))
     composite = VLLMVQARunner._side_by_side([left, right])
-    assert composite.height == 80
+    assert composite.height == 108  # 80-pixel image plus visible panel labels
     assert composite.width > left.width + right.width - 40  # scaled + gap, not naive sum
+    assert composite.getpixel((0, 27)) == (255, 255, 255)
+    assert composite.getpixel((0, 28)) == (255, 0, 0)
+
+
+def test_json_chat_content_explicitly_labels_reference_and_target():
+    content = VLLMVQARunner._chat_content(
+        [Path("reference.png"), Path("target.png")], "question"
+    )
+    assert [item["type"] for item in content] == [
+        "text",
+        "image_url",
+        "text",
+        "image_url",
+        "text",
+    ]
+    assert content[0]["text"] == "Image 1 — reference object:"
+    assert content[2]["text"] == "Image 2 — target scene:"
+    assert content[4]["text"] == "question"
+    assert content[1]["image_url"]["url"].endswith("/reference.png")
+    assert content[3]["image_url"]["url"].endswith("/target.png")
 
 
 def test_paligemma_empty_stage1_is_retained_as_model_output(monkeypatch):

@@ -80,16 +80,16 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     assert "yes or no" in binary.text
     assert "alarm clock" in binary.text and "_" not in binary.text
     attribute = build_prompt(VQASample.from_dict(row("attr_composition")), "gemma4-12b")
-    assert "shortest common object name" in attribute.text
-    assert "reference object" in attribute.text
-    assert attribute.output_kind == "two_stage_bbox_json_normalized_1000"
+    assert "Identify and localize" in attribute.text
+    assert "target image" in attribute.text
+    assert attribute.output_kind == "bbox_json_normalized_1000"
     bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "qwen2.5-vl-3b")
-    assert "shortest common object name" in bbox.text
+    assert "Identify and localize" in bbox.text
     assert bbox.text == attribute.text.replace(
         "What is the object made of metal that is used for dusting?",
         "Which object is furthest to the left?",
     )
-    assert bbox.output_kind == "two_stage_bbox_json_normalized_1000"
+    assert bbox.output_kind == "bbox_json_normalized_1000"
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     assert paligemma.text.startswith("answer en ")
     assert paligemma.output_kind == "paligemma_two_stage"
@@ -110,17 +110,26 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
     prompts = [build_prompt(sample, key) for key in keys]
     assert len({prompt.text for prompt in prompts}) == 1
     assert {prompt.output_kind for prompt in prompts} == {
-        "two_stage_bbox_json_normalized_1000"
+        "bbox_json_normalized_1000"
     }
 
 
-def test_two_stage_adapter_label_and_grounding_prompt_are_model_independent() -> None:
-    assert VLLMVQARunner._predicted_label("  shoe\nextra text") == "shoe"
-    assert VLLMVQARunner._predicted_label("") == ""
-    prompt = VLLMVQARunner._grounding_prompt("shoe")
-    assert '"shoe"' in prompt
-    assert "0 to 1000" in prompt
-    assert "XYXY" in prompt
+def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
+    runner = object.__new__(VLLMVQARunner)
+    runner._last_adapter_metadata = {}
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_chat_generate",
+        lambda paths, prompt, tokens: calls.append((paths, prompt, tokens)) or '{"bbox":[1,2,3,4]}',
+    )
+    paths = [Path("reference.png"), Path("target.png")]
+    assert runner._predict_json_direct(paths, "question", 96) == '{"bbox":[1,2,3,4]}'
+    assert calls == [(paths, "question", 96)]
+    assert runner.prediction_metadata() == {
+        "adapter": "direct_bbox_json",
+        "single_scored_model_call": True,
+    }
 
 
 def test_strict_output_parsers() -> None:

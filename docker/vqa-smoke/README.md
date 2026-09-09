@@ -42,9 +42,9 @@ never fabricated inference rows.
   2's own coordinates.
 - One unmeasured warm-up question precedes timed inference.
 - Timings synchronize CUDA immediately before and after each question.
-- Every bbox model uses an answer-then-ground adapter: stage 1 answers the
-  semantic question using all provided images, and stage 2 grounds only that
-  model-predicted label in the target image. No stage receives the GT label.
+- JSON-capable bbox models answer and localize in one scored call containing
+  the original question and all required images. Two-image requests explicitly
+  label Image 1 as the reference and Image 2 as the target.
 - PaliGemma 2 answers the question first (both images, composited side by
   side for in-context rows -- see the runbook's "PaliGemma two-stage
   behavior"), then grounds its own predicted label in Image 2 ALONE, never
@@ -63,8 +63,8 @@ never fabricated inference rows.
 - Reports retain every question, raw output, parsed bbox, ground-truth bbox,
   IoU, parse error, and latency, plus aggregate parse rate, mean IoU, Acc@0.5,
   and latency statistics.
-- Every JSON-capable model receives identical stage-1 and stage-2 semantic
-  instructions and is asked for XYXY coordinates normalized to 0--1000. The
+- Every JSON-capable model receives the identical direct semantic instruction
+  and is asked for XYXY coordinates normalized to 0--1000. The
   model-independent decoder also recognizes the common fractional 0--1
   convention and one redundant singleton bbox list; the selected coordinate
   convention is recorded per row. It does not guess reversed XYXY/XYWH boxes,
