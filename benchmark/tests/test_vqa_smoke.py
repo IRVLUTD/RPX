@@ -12,11 +12,15 @@ from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, 
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
 from rpx_benchmark.vqa.metrics import bbox_iou, score_predictions
 from rpx_benchmark.vqa.outputs import ParsedOutput, normalize_label, parse_output
-from rpx_benchmark.vqa.prompts import build_prompt
+from rpx_benchmark.vqa.prompts import (
+    build_oracle_localization_prompt,
+    build_prompt,
+    build_semantic_diagnostic_prompt,
+)
 from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
-from vqa_models.vllm_backend import VLLMVQARunner  # noqa: E402
+from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
 
 
 def row(question_type: str = "spatial_lr_binary") -> dict:
@@ -114,6 +118,19 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
     }
 
 
+def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    semantic = build_semantic_diagnostic_prompt(sample, "gemma4-12b")
+    assert sample.answer not in semantic.text
+    assert semantic.output_kind == "diagnostic_semantic_label"
+    oracle = build_oracle_localization_prompt(sample, "gemma4-12b")
+    assert "alarm clock" in oracle.text
+    assert "target image" in oracle.text
+    assert oracle.output_kind == "diagnostic_oracle_bbox"
+    pali_oracle = build_oracle_localization_prompt(sample, "paligemma2-10b")
+    assert pali_oracle.text == "detect alarm clock\n"
+
+
 def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
     runner = object.__new__(VLLMVQARunner)
     runner._last_adapter_metadata = {}
@@ -130,6 +147,33 @@ def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
         "adapter": "direct_bbox_json",
         "single_scored_model_call": True,
     }
+
+
+def test_oracle_diagnostic_uses_only_target_image(monkeypatch, tmp_path: Path) -> None:
+    reference = tmp_path / "reference.png"
+    target = tmp_path / "target.png"
+    from PIL import Image
+
+    Image.new("RGB", (8, 8)).save(reference)
+    Image.new("RGB", (8, 8)).save(target)
+    runner = object.__new__(VLLMVQARunner)
+    runner.checkpoint = VLLMCheckpoint("test/model", "revision")
+    runner._last_adapter_metadata = {}
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_chat_generate",
+        lambda paths, prompt, tokens: calls.append((paths, prompt, tokens))
+        or '{"label":"alarm clock","bbox":[1,2,3,4]}',
+    )
+    runner.predict(
+        [reference, target],
+        "locate alarm clock",
+        96,
+        "diagnostic_oracle_bbox",
+    )
+    assert calls == [([target], "locate alarm clock", 96)]
+    assert runner.prediction_metadata()["ground_truth_label_disclosed"] is True
 
 
 def test_strict_output_parsers() -> None:

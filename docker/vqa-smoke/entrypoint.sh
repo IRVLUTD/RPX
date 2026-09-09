@@ -19,6 +19,7 @@ Commands:
   acceptance MODEL [args]                  Run the 104-row normal+in-context acceptance gate.
   serve MODEL [args]                       Keep one model resident on localhost:8000.
   acceptance-remote MODEL [args]           Run acceptance through the resident engine.
+  diagnostic-remote MODEL [args]           Run semantic/oracle/end-to-end diagnostics.
   benchmark MODEL MANIFEST SHARD_INDEX SHARD_COUNT [args]
                                             Run one shard of the full benchmark plan
                                             (see build_vqa_benchmark_plan.py), batched.
@@ -70,6 +71,21 @@ EOF
       --model "${model}" \
       --predictions "${run_dir}/predictions.jsonl" \
       --report "${run_dir}/report.json"
+    ;;
+  diagnostic-remote)
+    model="${1:?diagnostic-remote requires MODEL}"
+    shift
+    run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/diagnostic"
+    mkdir -p "${run_dir}"
+    manifest="${run_dir}/manifest.jsonl"
+    python3 scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
+    python3 scripts/build_vqa_acceptance_sample.py \
+      --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
+    exec python3 scripts/run_vqa_diagnostic.py \
+      --model "${model}" --manifest "${manifest}" \
+      --image-cache "${RPX_VQA_CACHE}/images" \
+      --out "${run_dir}/diagnostic_predictions.jsonl" \
+      --server-url http://127.0.0.1:8000 "$@"
     ;;
   benchmark)
     model="${1:?benchmark requires MODEL}"

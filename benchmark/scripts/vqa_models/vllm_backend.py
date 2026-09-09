@@ -354,6 +354,39 @@ class VLLMVQARunner:
         try:
             self._last_adapter_metadata = {}
             images = [image.convert("RGB") for image in opened]
+            if output_kind == "diagnostic_semantic_label":
+                if self.checkpoint.paligemma:
+                    diagnostic_image = (
+                        images[0] if len(images) == 1 else self._side_by_side(images)
+                    )
+                    raw = self._generate_paligemma(
+                        diagnostic_image, prompt, max_tokens, keep_special=False
+                    )
+                else:
+                    raw = self._chat_generate(image_paths, prompt, max_tokens)
+                self._last_adapter_metadata = {
+                    "adapter": "diagnostic_semantic_label",
+                    "diagnostic_only": True,
+                }
+                return raw
+            if output_kind == "diagnostic_oracle_bbox":
+                # Oracle localization intentionally sees only the target image.
+                # The GT label is disclosed in the prompt, so this output must
+                # never be reported as an end-to-end benchmark prediction.
+                if self.checkpoint.paligemma:
+                    raw = self._generate_paligemma(
+                        images[-1], prompt, max_tokens, keep_special=True
+                    )
+                else:
+                    raw = self._chat_generate(
+                        [image_paths[-1]], prompt, max_tokens
+                    )
+                self._last_adapter_metadata = {
+                    "adapter": "diagnostic_oracle_bbox",
+                    "diagnostic_only": True,
+                    "ground_truth_label_disclosed": True,
+                }
+                return raw
             if self.checkpoint.paligemma:
                 return self._predict_paligemma(images, prompt, max_tokens)
             if output_kind == "bbox_json_normalized_1000":

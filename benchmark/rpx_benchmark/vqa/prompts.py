@@ -41,6 +41,40 @@ def _bbox_instruction(question: str) -> str:
     )
 
 
+def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> PromptSpec:
+    """Ask for the answer label only, without leaking the ground truth.
+
+    This is deliberately diagnostic rather than a scored benchmark protocol:
+    it separates target selection/reasoning from coordinate prediction.
+    """
+    question = display_question(sample.question)
+    instruction = (
+        f"{question}\nIdentify the one object that answers the question. "
+        "For a relational question, name the result object, not the reference "
+        "object named or shown in the question. Return only its concise object "
+        "name; no sentence, coordinates, Markdown, or explanation."
+    )
+    if model_key.startswith("paligemma2-"):
+        instruction = f"answer en {instruction}\n"
+    return PromptSpec(instruction, 32, "diagnostic_semantic_label")
+
+
+def build_oracle_localization_prompt(sample: VQASample, model_key: str) -> PromptSpec:
+    """Localize the known GT label in the target image for diagnosis only."""
+    label = display_question(sample.answer)
+    if model_key.startswith("paligemma2-"):
+        return PromptSpec(f"detect {label}\n", 64, "diagnostic_oracle_bbox")
+    return PromptSpec(
+        f'Locate the visible object named "{label}" in the target image. '
+        'Return only JSON: {"label":"object name","bbox":'
+        "[x_min,y_min,x_max,y_max]}. Normalize every bbox coordinate from 0 "
+        "to 1000 relative to the target-image width and height. Use XYXY corner "
+        "order and enclose the entire object. No Markdown or explanation.",
+        96,
+        "diagnostic_oracle_bbox",
+    )
+
+
 def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     question = display_question(sample.question)
     if sample.question_type in BINARY_TYPES:
