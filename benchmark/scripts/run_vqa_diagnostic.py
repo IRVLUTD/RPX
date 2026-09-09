@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -33,6 +32,45 @@ def mean(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
+def load_acceptance_rows(
+    path: Path, samples: list, health: dict, model_key: str
+) -> dict[str, dict]:
+    """Load a completed acceptance report for reuse by the diagnostic.
+
+    Reusing these rows avoids spending a third model call on an end-to-end
+    prediction that was already measured.  Fail closed on provenance or sample
+    mismatches so a stale report cannot silently contaminate the attribution.
+    """
+    report = json.loads(path.read_text(encoding="utf-8"))
+    inference = report.get("inference") or {}
+    if inference.get("model") not in (None, model_key):
+        raise SystemExit(
+            "acceptance report provenance mismatch for model: "
+            f"report={inference.get('model')!r}, expected={model_key!r}"
+        )
+    for key in ("backend", "checkpoint", "revision"):
+        if inference.get(key) != health.get(key):
+            raise SystemExit(
+                f"acceptance report provenance mismatch for {key}: "
+                f"report={inference.get(key)!r}, resident={health.get(key)!r}"
+            )
+    rows: dict[str, dict] = {}
+    for row in report.get("samples") or []:
+        sample_id = str(row.get("sample_id") or "")
+        if not sample_id or sample_id in rows:
+            raise SystemExit(f"invalid or duplicate acceptance sample_id: {sample_id!r}")
+        rows[sample_id] = row
+    for sample in samples:
+        row = rows.get(sample.sample_id)
+        if row is None:
+            raise SystemExit(f"acceptance report is missing sample {sample.sample_id}")
+        if row.get("question_type") != sample.question_type:
+            raise SystemExit(f"acceptance question type mismatch for {sample.sample_id}")
+        if row.get("ground_truth_bbox") != list(sample.answer_bbox or []):
+            raise SystemExit(f"acceptance GT bbox mismatch for {sample.sample_id}")
+    return rows
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=tuple(CHECKPOINTS), required=True)
@@ -41,6 +79,11 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--server-url", default="http://127.0.0.1:8000")
     parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--acceptance-report",
+        type=Path,
+        help="reuse completed end-to-end rows instead of running them again",
+    )
     args = parser.parse_args()
 
     samples = [s for s in load_manifest(args.manifest) if s.question_type in BBOX_TYPES]
@@ -56,6 +99,11 @@ def main() -> None:
         or health.get("revision") != checkpoint.revision
     ):
         raise SystemExit(f"resident engine provenance mismatch: {health}")
+    acceptance_rows = (
+        load_acceptance_rows(args.acceptance_report, samples, health, args.model)
+        if args.acceptance_report
+        else None
+    )
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -91,11 +139,18 @@ def main() -> None:
                 else 0.0
             )
 
-            end_spec = build_prompt(sample, args.model)
-            end_raw = runner.predict(
-                paths, end_spec.text, end_spec.max_new_tokens, end_spec.output_kind
-            )
-            end_ms = runner.latency_ms
+            if acceptance_rows is None:
+                end_spec = build_prompt(sample, args.model)
+                end_raw = runner.predict(
+                    paths, end_spec.text, end_spec.max_new_tokens, end_spec.output_kind
+                )
+                end_ms = runner.latency_ms
+                end_source = "new_model_call"
+            else:
+                prior = acceptance_rows[sample.sample_id]
+                end_raw = str(prior.get("raw_output") or "")
+                end_ms = float(prior.get("latency_ms") or 0.0)
+                end_source = str(args.acceptance_report)
             end_parsed = parse_output(sample, end_raw, args.model)
             end_iou = (
                 bbox_iou(end_parsed.bbox, sample.answer_bbox)
@@ -128,6 +183,7 @@ def main() -> None:
                     "ground_truth_label_disclosed": True,
                 },
                 "end_to_end": {
+                    "source": end_source,
                     "raw_output": end_raw,
                     "valid": end_parsed.valid,
                     "parse_error": end_parsed.error,
@@ -205,6 +261,11 @@ def main() -> None:
         "warning": "Oracle localization discloses the ground-truth label and is not a benchmark score.",
         "model": args.model,
         "inference": health,
+        "end_to_end_source": (
+            str(args.acceptance_report)
+            if args.acceptance_report
+            else "new_model_calls"
+        ),
         "overall": aggregate(rows),
         "by_question_type": {
             key: aggregate(values) for key, values in sorted(groups.items())

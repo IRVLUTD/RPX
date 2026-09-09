@@ -195,3 +195,21 @@ prediction coverage. Parse failures, refusals, invalid boxes, and low accuracy
 remain in the report and score as model failures; they do not masquerade as an
 infrastructure crash. An optional `--min-parse-rate` diagnostic can still be
 requested explicitly, but no capability threshold is imposed by default.
+
+## Decomposed failure diagnostic
+
+After acceptance, separate semantic target-selection errors from localization
+errors without treating either probe as a benchmark result.  The diagnostic
+asks each resident model (1) for the answer label only and (2) to localize the
+disclosed ground-truth label in the target image.  Pass the completed acceptance
+report to reuse its end-to-end outputs rather than generating them again:
+
+```bash
+bash docker/vqa-smoke/run_persistent_diagnostic.sh MODEL \
+  --acceptance-report /outputs/MODEL/sha-ACCEPTANCE_SHA/acceptance/report.json
+```
+
+The resulting `diagnostic_report.json` contains semantic exact match, oracle
+localization IoU, end-to-end IoU, and their joint failure counts.  Oracle
+localization deliberately discloses the answer label; it is diagnostic leakage
+and must never be reported as benchmark performance.
