@@ -30,28 +30,57 @@ def comparable_label(value: str) -> str:
     return value
 
 
-def answer_phrase(raw: str) -> str:
-    """Extract a short referring phrase without mapping it to a GT label."""
+def extract_answer_phrase(raw: str) -> dict:
+    """Extract at most five object-name words and audit format compliance."""
     text = raw.strip()
+    format_errors: list[str] = []
     if text.startswith("```"):
+        format_errors.append("markdown_fence")
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE)
     try:
         value = json.loads(text)
         if isinstance(value, dict):
+            format_errors.append("structured_output_instead_of_keywords")
             for key in ("label", "answer", "object"):
                 if value.get(key):
                     text = str(value[key])
                     break
     except (TypeError, ValueError, json.JSONDecodeError):
         pass
-    text = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    text = re.sub(
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        format_errors.append("expected_one_nonempty_line")
+    text = lines[0] if lines else ""
+    stripped = re.sub(
         r"^(?:the\s+)?(?:answer|object)(?:\s+object)?\s+is\s+",
         "",
         text,
         flags=re.IGNORECASE,
     )
-    return text.strip("` \t\"'.,:;!?()[]{}")[:160]
+    stripped = re.sub(
+        r"^(?:it|this)\s+is\s+", "", stripped, flags=re.IGNORECASE
+    )
+    if stripped != text:
+        format_errors.append("sentence_wrapper")
+    phrase = stripped.strip("` \t\"'.,:;!?()[]{}")
+    if phrase != stripped:
+        format_errors.append("surrounding_punctuation")
+    without_article = re.sub(r"^(?:the|a|an)\s+", "", phrase, flags=re.IGNORECASE)
+    if without_article != phrase:
+        format_errors.append("leading_article")
+        phrase = without_article
+    words = phrase.split()
+    if not 1 <= len(words) <= 5:
+        format_errors.append("expected_1_to_5_words")
+        phrase = ""
+    elif not re.fullmatch(r"[\w/&+-]+(?:\s+[\w/&+-]+){0,4}", phrase):
+        format_errors.append("non_keyword_punctuation")
+        phrase = ""
+    return {
+        "phrase": phrase,
+        "format_valid": not format_errors,
+        "format_errors": format_errors,
+    }
 
 
 def _loose_bbox_object(raw: str) -> dict | None:
@@ -80,7 +109,9 @@ def diagnostic_bbox(sample, raw: str, model_key: str) -> dict:
     conventions and is therefore diagnostic-only. The official acceptance
     report remains untouched and protocol-strict.
     """
-    strict = parse_output(sample, raw, model_key)
+    strict = parse_output(
+        sample, raw, model_key, paligemma_target_only=True
+    )
     hypotheses: dict[str, dict] = {}
     if strict.valid and strict.bbox is not None:
         iou = bbox_iou(strict.bbox, sample.answer_bbox)
@@ -188,6 +219,15 @@ def load_acceptance_rows(
             raise SystemExit(f"acceptance question type mismatch for {sample.sample_id}")
         if row.get("ground_truth_bbox") != list(sample.answer_bbox or []):
             raise SystemExit(f"acceptance GT bbox mismatch for {sample.sample_id}")
+        metadata = row.get("adapter_metadata") or {}
+        if (
+            metadata.get("adapter") != "direct_bbox_json"
+            or metadata.get("single_scored_model_call") is not True
+        ):
+            raise SystemExit(
+                f"acceptance row {sample.sample_id} is not a direct single-call "
+                "prediction; rerun acceptance with the current image"
+            )
     return rows
 
 
@@ -238,7 +278,8 @@ def main() -> None:
                 semantic_spec.output_kind,
             )
             semantic_ms = runner.latency_ms
-            semantic_prediction = answer_phrase(semantic_raw)
+            semantic_extraction = extract_answer_phrase(semantic_raw)
+            semantic_prediction = semantic_extraction["phrase"]
             expected_label = comparable_label(sample.answer)
             semantic_exact_match = comparable_label(semantic_prediction) == expected_label
 
@@ -301,6 +342,8 @@ def main() -> None:
                     "normalized_prediction": semantic_prediction,
                     "normalized_ground_truth": expected_label,
                     "exact_match_informational_only": semantic_exact_match,
+                    "keyword_format_valid": semantic_extraction["format_valid"],
+                    "keyword_format_errors": semantic_extraction["format_errors"],
                     "latency_ms": semantic_ms,
                 },
                 "predicted_label_localization": {
@@ -369,6 +412,9 @@ def main() -> None:
                     float(row["semantic"]["exact_match_informational_only"])
                     for row in values
                 ]
+            ),
+            "semantic_keyword_format_rate": mean(
+                [float(row["semantic"]["keyword_format_valid"]) for row in values]
             ),
             "oracle_parse_rate": mean(
                 [float(row["oracle_localization"]["strict_valid"]) for row in values]
@@ -451,6 +497,11 @@ def main() -> None:
         ),
         "model": args.model,
         "inference": health,
+        "scored_path_contract": (
+            "one model generation receives the original question and all required "
+            "images and returns the final label+bbox; diagnostic grounding calls "
+            "are unscored and never replace that prediction"
+        ),
         "end_to_end_source": (
             str(args.acceptance_report)
             if args.acceptance_report

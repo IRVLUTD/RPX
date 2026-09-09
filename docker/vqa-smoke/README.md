@@ -42,14 +42,13 @@ never fabricated inference rows.
   2's own coordinates.
 - One unmeasured warm-up question precedes timed inference.
 - Timings synchronize CUDA immediately before and after each question.
-- JSON-capable bbox models answer and localize in one scored call containing
+- Every bbox model answers and localizes in one scored call containing
   the original question and all required images. Two-image requests explicitly
   label Image 1 as the reference and Image 2 as the target.
-- PaliGemma 2 answers the question first (both images, composited side by
-  side for in-context rows -- see the runbook's "PaliGemma two-stage
-  behavior"), then grounds its own predicted label in Image 2 ALONE, never
-  Image 1; the recorded latency includes both vLLM calls and never uses the
-  ground truth.
+- PaliGemma 2 retains its official `answer en` task prefix and uses a visibly
+  labelled side-by-side composite for two-image rows, but still receives only
+  one scored generation call. Its native `detect <label>` prefix is reserved
+  for the explicitly unscored localization diagnostic.
 - The smoke/acceptance gate (`run_vllm_vqa.py`) measures isolated,
   batch-size-1 per-request latency. The benchmark runner
   (`run_vqa_benchmark.py`) supports configurable batching (default 8) for

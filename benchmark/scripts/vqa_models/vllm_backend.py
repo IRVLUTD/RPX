@@ -9,15 +9,13 @@ PaliGemma is architecturally a single-image model: vLLM's PaliGemma
 implementation has no established multi-image interleaving convention (unlike
 Qwen2.5-VL/Gemma4/Idefics3/InternVL/LLaVA-OneVision, which accept an ordered
 image list through the official chat template). For PaliGemma's in-context
-stage 1 (label prediction, which per the task contract must see BOTH images),
-this backend composites Image 1 and Image 2 side by side into one image and
+call, which per the task contract must see BOTH images, this backend
+composites Image 1 and Image 2 side by side into one image and
 feeds PaliGemma that composite -- a disclosed, model-specific accommodation
-for a real architecture limit, not a hidden hack. This is UNVERIFIED against
-a real GPU/vLLM 0.28.0 run (this backend cannot be exercised without CUDA);
-see the "unresolved model-specific vLLM limitations" note in the final
-report. Stage 2 (grounding) always uses Image 2 alone, unmodified, through
-the exact same single-image call the original single-image backend used --
-per the task contract, PaliGemma must never ground in Image 1.
+for a real architecture limit, not a hidden extra inference stage. Every
+scored PaliGemma row is one generation: question plus image input produces
+the final bbox response. Native `detect <label>` calls exist only in the
+unscored diagnostic that explicitly separates localization from reasoning.
 """
 
 from __future__ import annotations
@@ -154,8 +152,7 @@ class VLLMVQARunner:
     @staticmethod
     def _side_by_side(images: Sequence[Image.Image]) -> Image.Image:
         """Composite two images left-to-right for PaliGemma's single-image
-        stage-1 call only. Never used for stage-2 grounding, which always
-        receives Image 2 alone and unmodified."""
+        scored call. Diagnostic grounding receives Image 2 alone instead."""
         # PaliGemma has a single-image interface.  Make the otherwise implicit
         # left/right convention visible in the pixels instead of expecting the
         # model to infer which panel the question calls Image 1 and Image 2.
@@ -195,25 +192,6 @@ class VLLMVQARunner:
             skip_special_tokens=not keep_special,
         )
         return self._text(self.llm.generate(request, params, use_tqdm=False))
-
-    @staticmethod
-    def _predicted_label(raw: str) -> str:
-        """Take one concise stage-one label without inventing a label."""
-        lines = [line.strip() for line in raw.splitlines() if line.strip()]
-        if not lines:
-            return ""
-        label = lines[0].strip("` \t\"'")
-        return label[:160]
-
-    @staticmethod
-    def _grounding_prompt(label: str) -> str:
-        return (
-            f'Locate the visible object named "{label}" in the target image. '
-            "Return only JSON: {\"label\":\"object name\",\"bbox\":"
-            "[x_min,y_min,x_max,y_max]}. Normalize each bbox coordinate from 0 "
-            "to 1000 relative to the target-image width and height. Use XYXY "
-            "corner order and enclose the entire object. No Markdown or explanation."
-        )
 
     @staticmethod
     def _chat_content(
@@ -259,32 +237,6 @@ class VLLMVQARunner:
             )
         )
 
-    def _predict_json_two_stage(
-        self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
-    ) -> str:
-        stage1 = self._chat_generate(image_paths, prompt, max_tokens)
-        label = self._predicted_label(stage1)
-        if not label:
-            self._last_adapter_metadata = {
-                "adapter": "json_two_stage",
-                "stage1_raw_output": stage1,
-                "stage1_label": None,
-                "stage2_raw_output": None,
-                "stage2_skipped_reason": "empty_stage1_label",
-            }
-            return ""
-        stage2 = self._chat_generate(
-            [image_paths[-1]], self._grounding_prompt(label), 64
-        )
-        self._last_adapter_metadata = {
-            "adapter": "json_two_stage",
-            "stage1_raw_output": stage1,
-            "stage1_label": label,
-            "stage2_raw_output": stage2,
-            "stage2_skipped_reason": None,
-        }
-        return stage2
-
     def _predict_json_direct(
         self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
     ) -> str:
@@ -295,41 +247,22 @@ class VLLMVQARunner:
         }
         return raw
 
-    def _predict_paligemma(
+    def _predict_paligemma_direct(
         self, images: Sequence[Image.Image], prompt: str, max_tokens: int
     ) -> str:
-        # Stage 1: answer the question. In-context rows see BOTH images
-        # (composited, see _side_by_side's docstring); normal rows see the
-        # one image they always had.
-        stage1_image = images[0] if len(images) == 1 else self._side_by_side(images)
-        predicted_label = self._generate_paligemma(
-            stage1_image, prompt, max_tokens, keep_special=False
-        )
-        label = self._predicted_label(predicted_label)
-        if not label:
-            self._last_adapter_metadata = {
-                "adapter": "paligemma_two_stage",
-                "stage1_raw_output": predicted_label,
-                "stage1_label": None,
-                "stage2_raw_output": None,
-                "stage2_skipped_reason": "empty_stage1_label",
-            }
-            return ""
-        # Stage 2: ground the predicted label in Image 2 (the target) ONLY.
-        # images[-1] is always the target: images[0] for normal rows,
-        # images[1] for in-context rows -- never Image 1 (the reference).
-        target_image = images[-1]
-        grounded = self._generate_paligemma(
-            target_image, f"detect {label}\n", 64, keep_special=True
+        """One scored PaliGemma call: question and image(s) in, bbox out."""
+        model_image = images[0] if len(images) == 1 else self._side_by_side(images)
+        raw = self._generate_paligemma(
+            model_image, prompt, max_tokens, keep_special=True
         )
         self._last_adapter_metadata = {
-            "adapter": "paligemma_two_stage",
-            "stage1_raw_output": predicted_label,
-            "stage1_label": label,
-            "stage2_raw_output": grounded,
-            "stage2_skipped_reason": None,
+            "adapter": "direct_bbox_json",
+            "single_scored_model_call": True,
+            "paligemma_multi_image_accommodation": (
+                "none" if len(images) == 1 else "labelled_side_by_side_composite"
+            ),
         }
-        return grounded
+        return raw
 
     def prediction_metadata(self) -> dict[str, Any]:
         return dict(self._last_adapter_metadata)
@@ -393,11 +326,21 @@ class VLLMVQARunner:
                 }
                 return raw
             if self.checkpoint.paligemma:
-                return self._predict_paligemma(images, prompt, max_tokens)
+                if output_kind == "bbox_json_normalized_1000":
+                    return self._predict_paligemma_direct(images, prompt, max_tokens)
+                diagnostic_image = (
+                    images[0] if len(images) == 1 else self._side_by_side(images)
+                )
+                raw = self._generate_paligemma(
+                    diagnostic_image, prompt, max_tokens, keep_special=False
+                )
+                self._last_adapter_metadata = {
+                    "adapter": "paligemma_single_call",
+                    "single_scored_model_call": True,
+                }
+                return raw
             if output_kind == "bbox_json_normalized_1000":
                 return self._predict_json_direct(image_paths, prompt, max_tokens)
-            if output_kind == "two_stage_bbox_json_normalized_1000":
-                return self._predict_json_two_stage(image_paths, prompt, max_tokens)
             return self._chat_generate(image_paths, prompt, max_tokens)
         finally:
             for image in opened:
@@ -421,8 +364,11 @@ class VLLMVQARunner:
             self._last_batch_adapter_metadata = []
             images_by_row = [[image.convert("RGB") for image in row] for row in opened_by_row]
             if self.checkpoint.paligemma:
-                # Stage 1 (batched): predict a label for every row at once.
-                stage1_requests = [
+                # Every scored row is exactly one generation. PaliGemma's
+                # single-image interface receives a labelled composite only
+                # for two-image questions; it is never called a second time
+                # with its own predicted label.
+                direct_requests = [
                     {
                         "prompt": prompt,
                         "multi_modal_data": {
@@ -438,50 +384,36 @@ class VLLMVQARunner:
                 max_tokens_1 = max(
                     max_tokens for _paths, _prompt, max_tokens, _output_kind in requests
                 )
-                params1 = SamplingParams(temperature=0.0, max_tokens=max_tokens_1, skip_special_tokens=True)
-                stage1_outputs = self.llm.generate(stage1_requests, params1, use_tqdm=False)
-                stage1_raw = [self._text([output]) for output in stage1_outputs]
-                labels = [
-                    raw.splitlines()[0].strip() if raw.splitlines() else ""
-                    for raw in stage1_raw
-                ]
-                # Stage 2 (batched): ground every predicted label in its own
-                # Image 2 (the target -- images[-1] for every row) at once.
-                grounded = ["" for _ in labels]
-                stage2_indices = [index for index, label in enumerate(labels) if label]
-                if stage2_indices:
-                    stage2_requests = [
-                        {
-                            "prompt": f"detect {labels[index]}\n",
-                            "multi_modal_data": {"image": images_by_row[index][-1]},
-                        }
-                        for index in stage2_indices
-                    ]
-                    params2 = SamplingParams(
-                        temperature=0.0,
-                        max_tokens=64,
-                        skip_special_tokens=False,
-                    )
-                    stage2_outputs = self.llm.generate(
-                        stage2_requests, params2, use_tqdm=False
-                    )
-                    for index, output in zip(
-                        stage2_indices, stage2_outputs, strict=True
-                    ):
-                        grounded[index] = self._text([output])
+                params1 = SamplingParams(
+                    temperature=0.0,
+                    max_tokens=max_tokens_1,
+                    # Preserve native <loc> outputs if the model chooses its
+                    # trained detection serialization instead of JSON.
+                    skip_special_tokens=False,
+                )
+                direct_outputs = self.llm.generate(
+                    direct_requests, params1, use_tqdm=False
+                )
+                values = [self._text([output]) for output in direct_outputs]
                 self._last_batch_adapter_metadata = [
                     {
-                        "adapter": "paligemma_two_stage",
-                        "stage1_raw_output": stage1,
-                        "stage1_label": label or None,
-                        "stage2_raw_output": stage2 if label else None,
-                        "stage2_skipped_reason": None if label else "empty_stage1_label",
+                        "adapter": (
+                            "direct_bbox_json"
+                            if output_kind == "bbox_json_normalized_1000"
+                            else "paligemma_single_call"
+                        ),
+                        "single_scored_model_call": True,
+                        "paligemma_multi_image_accommodation": (
+                            "none"
+                            if len(images) == 1
+                            else "labelled_side_by_side_composite"
+                        ),
                     }
-                    for stage1, label, stage2 in zip(
-                        stage1_raw, labels, grounded, strict=True
+                    for images, (_paths, _prompt, _max_tokens, output_kind) in zip(
+                        images_by_row, requests, strict=True
                     )
                 ]
-                return grounded
+                return values
 
             from vllm import SamplingParams
 
@@ -508,8 +440,6 @@ class VLLMVQARunner:
             )
             stage1_values = [self._text([output]) for output in outputs]
 
-            # Direct bbox rows already contain their final response. The legacy
-            # two-stage kind remains readable only for old manifests.
             values = list(stage1_values)
             metadata: list[dict[str, Any]] = [
                 (
@@ -519,61 +449,6 @@ class VLLMVQARunner:
                 )
                 for request in requests
             ]
-            bbox_indices = [
-                index
-                for index, request in enumerate(requests)
-                if request[3] == "two_stage_bbox_json_normalized_1000"
-            ]
-            if bbox_indices:
-                labels = {
-                    index: self._predicted_label(stage1_values[index])
-                    for index in bbox_indices
-                }
-                stage2_indices = [index for index in bbox_indices if labels[index]]
-                if stage2_indices:
-                    stage2_messages = []
-                    for index in stage2_indices:
-                        paths = requests[index][0]
-                        path_list = (paths,) if isinstance(paths, (str, Path)) else paths
-                        target_path = path_list[-1]
-                        stage2_messages.append(
-                            [
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {
-                                                "url": Path(target_path).resolve().as_uri()
-                                            },
-                                        },
-                                        {
-                                            "type": "text",
-                                            "text": self._grounding_prompt(labels[index]),
-                                        },
-                                    ],
-                                }
-                            ]
-                        )
-                    stage2_outputs = self.llm.chat(
-                        stage2_messages,
-                        SamplingParams(temperature=0.0, max_tokens=64),
-                        use_tqdm=False,
-                        chat_template_kwargs=chat_template_kwargs,
-                    )
-                    for index, output in zip(stage2_indices, stage2_outputs, strict=True):
-                        values[index] = self._text([output])
-                for index in bbox_indices:
-                    label = labels[index]
-                    metadata[index] = {
-                        "adapter": "json_two_stage",
-                        "stage1_raw_output": stage1_values[index],
-                        "stage1_label": label or None,
-                        "stage2_raw_output": values[index] if label else None,
-                        "stage2_skipped_reason": None if label else "empty_stage1_label",
-                    }
-                    if not label:
-                        values[index] = ""
             self._last_batch_adapter_metadata = metadata
             return values
         finally:

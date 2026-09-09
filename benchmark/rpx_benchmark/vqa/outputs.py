@@ -43,7 +43,13 @@ def _json_object(raw: str) -> dict:
     return value
 
 
-def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
+def parse_output(
+    sample: VQASample,
+    raw: str,
+    model_key: str,
+    *,
+    paligemma_target_only: bool = False,
+) -> ParsedOutput:
     if sample.question_type in BINARY_TYPES:
         token = normalize_label(raw)
         if token not in {"yes", "no"}:
@@ -56,17 +62,30 @@ def parse_output(sample: VQASample, raw: str, model_key: str) -> ParsedOutput:
         return ParsedOutput(True, label=label)
     if sample.question_type in BBOX_TYPES and model_key.startswith("paligemma2-"):
         match = _LOC_RE.search(raw)
-        if not match:
-            return ParsedOutput(False, error="missing PaliGemma loc tokens")
-        vals = {key: int(value) for key, value in match.groupdict().items()}
-        bbox = (
-            vals["x0"] * sample.img_w / 1024,
-            vals["y0"] * sample.img_h / 1024,
-            vals["x1"] * sample.img_w / 1024,
-            vals["y1"] * sample.img_h / 1024,
-        )
-        label = normalize_label(raw[match.end() :].split("<", 1)[0]) or None
-        return ParsedOutput(True, label=label, bbox=bbox)
+        if match:
+            if sample.is_in_context and not paligemma_target_only:
+                return ParsedOutput(
+                    False,
+                    error=(
+                        "native PaliGemma loc tokens are relative to the labelled "
+                        "two-image composite, not Image 2; return target-relative JSON"
+                    ),
+                )
+            vals = {key: int(value) for key, value in match.groupdict().items()}
+            bbox = (
+                vals["x0"] * sample.img_w / 1024,
+                vals["y0"] * sample.img_h / 1024,
+                vals["x1"] * sample.img_w / 1024,
+                vals["y1"] * sample.img_h / 1024,
+            )
+            label = normalize_label(raw[match.end() :].split("<", 1)[0]) or None
+            return ParsedOutput(
+                True, label=label, bbox=bbox, coordinate_format="paligemma_loc_1024"
+            )
+        # The scored single-call prompt requests the same JSON contract used
+        # by the other VLMs. Fall through to that parser when PaliGemma obeys
+        # it; native <loc> remains accepted as an architecture-specific bbox
+        # serialization, but no second model call is made.
     if sample.question_type in BBOX_TYPES:
         try:
             value = _json_object(raw)

@@ -218,6 +218,19 @@ def test_incontext_valid_bbox_within_target_dims_accepted():
     assert parsed.bbox == pytest.approx((196.812, 108.254, 255.6, 180.583))
 
 
+def test_paligemma_composite_loc_is_not_misread_as_target_coordinates():
+    sample = VQASample.from_dict(incontext_row())
+    raw = "<loc0100><loc0200><loc0300><loc0400> lion"
+    scored = parse_output(sample, raw, "paligemma2-10b")
+    assert not scored.valid
+    assert "two-image composite" in scored.error
+    diagnostic = parse_output(
+        sample, raw, "paligemma2-10b", paligemma_target_only=True
+    )
+    assert diagnostic.valid
+    assert diagnostic.coordinate_format == "paligemma_loc_1024"
+
+
 # ── canonicalization ─────────────────────────────────────────────────────────
 
 
@@ -337,28 +350,24 @@ def test_json_chat_content_explicitly_labels_reference_and_target():
     assert content[3]["image_url"]["url"].endswith("/target.png")
 
 
-def test_paligemma_empty_stage1_is_retained_as_model_output(monkeypatch):
+def test_paligemma_scored_bbox_is_one_model_call(monkeypatch):
     runner = object.__new__(VLLMVQARunner)
     runner._last_adapter_metadata = {}
-    monkeypatch.setattr(runner, "_generate_paligemma", lambda *args, **kwargs: "")
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_generate_paligemma",
+        lambda *args, **kwargs: calls.append((args, kwargs))
+        or '<loc0001><loc0002><loc0003><loc0004> shoe',
+    )
     image = Image.new("RGB", (32, 32))
-    assert runner._predict_paligemma([image], "answer en Which object?\n", 24) == ""
-    assert runner.prediction_metadata() == {
-        "adapter": "paligemma_two_stage",
-        "stage1_raw_output": "",
-        "stage1_label": None,
-        "stage2_raw_output": None,
-        "stage2_skipped_reason": "empty_stage1_label",
-    }
-
-
-def test_paligemma_both_stages_are_retained(monkeypatch):
-    runner = object.__new__(VLLMVQARunner)
-    runner._last_adapter_metadata = {}
-    outputs = iter(["shoe", "<loc0001><loc0002><loc0003><loc0004> shoe"])
-    monkeypatch.setattr(runner, "_generate_paligemma", lambda *args, **kwargs: next(outputs))
-    image = Image.new("RGB", (32, 32))
-    raw = runner._predict_paligemma([image], "answer en Which object?\n", 24)
+    raw = runner._predict_paligemma_direct(
+        [image], "answer en Which object and bbox?\n", 96
+    )
     assert raw.startswith("<loc0001>")
-    assert runner.prediction_metadata()["stage1_label"] == "shoe"
-    assert runner.prediction_metadata()["stage2_raw_output"] == raw
+    assert len(calls) == 1
+    assert runner.prediction_metadata() == {
+        "adapter": "direct_bbox_json",
+        "single_scored_model_call": True,
+        "paligemma_multi_image_accommodation": "none",
+    }

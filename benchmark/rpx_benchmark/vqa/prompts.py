@@ -51,8 +51,9 @@ def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> Promp
     instruction = (
         f"{question}\nIdentify the one object that answers the question. "
         "For a relational question, name the result object, not the reference "
-        "object named or shown in the question. Return only its concise object "
-        "name; no sentence, coordinates, Markdown, or explanation."
+        "object named or shown in the question. Return only the shortest common "
+        "noun phrase naming that object: 1 to 5 words, with no sentence, article, "
+        "coordinates, Markdown, punctuation, or explanation."
     )
     if model_key.startswith("paligemma2-"):
         instruction = f"answer en {instruction}\n"
@@ -103,10 +104,14 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
         )
     if sample.question_type in BBOX_TYPES:
         if model_key.startswith("paligemma2-"):
-            # The runner answers the spatial question first, then grounds its
-            # predicted label with PaliGemma's native detect prefix. At no point
-            # does the inference path receive the ground-truth object label.
-            return PromptSpec(f"answer en {question}\n", 24, "paligemma_two_stage")
+            # PaliGemma is prefix-trained rather than conversational, so retain
+            # its official VQA prefix while asking it to solve and localize in
+            # one generation. No predicted-label follow-up is allowed here.
+            return PromptSpec(
+                f"answer en {_bbox_instruction(question)}\n",
+                96,
+                "bbox_json_normalized_1000",
+            )
         return PromptSpec(
             _bbox_instruction(question),
             96,

@@ -29,25 +29,23 @@ count it receives; the benchmark must not hand-build image tokens.
 
 ### Scored inference protocol
 
-JSON-capable models answer bbox tasks in one scored call containing the
+Every model answers bbox tasks in one scored call containing the
 original question and every required image. Two-image messages explicitly
 interleave `Image 1 -- reference object` and `Image 2 -- target scene` labels
-with the corresponding images. The old generic answer-then-ground
-decomposition is retained only for historical-output compatibility and is not
-selected by newly built prompts.
+with the corresponding images. No scored path performs answer-then-ground
+inference.
 
-### PaliGemma native two-stage limitation
+### PaliGemma single-image limitation
 
 PaliGemma has no established multi-image interleaving convention in vLLM.
-For its in-context stage 1 (label prediction, which must see both images),
+For an in-context question, which must see both images,
 `vqa_models.vllm_backend` composites Image 1 and Image 2 side by side into
 one visibly labelled image and feeds PaliGemma that composite -- a disclosed, model-specific
-accommodation for a real architecture limit, not a hidden hack. Stage 2
-(grounding) always receives Image 2 alone, unmodified, exactly like the
-original single-image path; PaliGemma must never ground in Image 1. Latency
-recorded by the runner covers both stages. This is a model-specific
-compatibility path, not the same inference protocol as the direct JSON path;
-its adapter metadata must be retained when results are reported.
+accommodation for a real architecture limit, not a hidden extra inference
+stage. PaliGemma retains its official `answer en` task prefix but must select
+and localize the answer in that one generation. Native `detect <label>` calls
+are made only by the explicitly unscored localization diagnostic. Adapter
+metadata records the composite accommodation and single-call invariant.
 
 ### Known data defect: normalized shard paths
 

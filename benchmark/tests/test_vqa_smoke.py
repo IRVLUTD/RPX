@@ -97,7 +97,8 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     assert bbox.output_kind == "bbox_json_normalized_1000"
     paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     assert paligemma.text.startswith("answer en ")
-    assert paligemma.output_kind == "paligemma_two_stage"
+    assert "Identify and localize" in paligemma.text
+    assert paligemma.output_kind == "bbox_json_normalized_1000"
     pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
     assert pali_binary.text.startswith("answer en ")
 
@@ -238,6 +239,14 @@ def test_strict_output_parsers() -> None:
     assert parsed_loc.valid
     assert parsed_loc.bbox == pytest.approx((100, 120, 200, 219.84375))
     assert parsed_loc.label == "alarm clock"
+    assert parsed_loc.coordinate_format == "paligemma_loc_1024"
+    pali_json = parse_output(
+        bbox,
+        '{"label":"alarm clock","bbox":[156,250,313,500]}',
+        "paligemma2-3b",
+    )
+    assert pali_json.valid
+    assert pali_json.coordinate_format == "normalized_0_1000"
 
 
 def test_metrics_oracle() -> None:
