@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run one shard of the full RPX VQA benchmark plan through vLLM.
+"""Run one shard of the full RPX VQA benchmark plan.
 
 Supports configurable batching for real throughput (default batch size 8;
 the acceptance/smoke gates use run_vllm_vqa.py's batch size 1 for isolated
@@ -22,9 +22,8 @@ import time
 import traceback
 from pathlib import Path
 
-import vllm
 from run_vllm_vqa import RemoteRunner
-from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
+from vqa_models.backend_registry import CHECKPOINTS, create_runner, provenance
 
 from rpx_benchmark.vqa.contract import load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_images_many
@@ -105,7 +104,7 @@ def main() -> None:
         if not torch.cuda.is_available():
             raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
         if torch.cuda.device_count() != 1:
-            raise SystemExit("exactly one visible GPU is required per vLLM VQA engine")
+            raise SystemExit("exactly one visible GPU is required per VQA engine")
 
     all_samples = load_manifest(args.manifest)
     shard = shard_of(all_samples, args.shard_index, args.shard_count)
@@ -114,6 +113,7 @@ def main() -> None:
         raise SystemExit("duplicate sample_id within this shard (should be impossible)")
 
     checkpoint = CHECKPOINTS[args.model]
+    runtime = provenance(args.model)
     args.predictions.parent.mkdir(parents=True, exist_ok=True)
     args.failures.parent.mkdir(parents=True, exist_ok=True)
 
@@ -128,12 +128,7 @@ def main() -> None:
         unknown = (set(completed) | set(failed)) - shard_ids
         if unknown:
             raise SystemExit(f"cannot resume: IDs outside this shard: {sorted(unknown)[:10]}")
-        expected_provenance = {
-            "backend": "vllm",
-            "vllm_version": vllm.__version__,
-            "checkpoint": checkpoint.repo_id,
-            "revision": checkpoint.revision,
-        }
+        expected_provenance = runtime
         for source_rows in (completed, failed):
             for sample_id, row in source_rows.items():
                 if row.get("model") != args.model or any(
@@ -171,7 +166,7 @@ def main() -> None:
         ):
             raise SystemExit(f"resident engine provenance mismatch: {health}")
     else:
-        runner = VLLMVQARunner(
+        runner = create_runner(
             args.model,
             args.image_cache,
             gpu_memory_utilization=args.gpu_memory_utilization,
@@ -182,7 +177,7 @@ def main() -> None:
         "model": args.model,
         "checkpoint": checkpoint.repo_id,
         "checkpoint_revision": checkpoint.revision,
-        "vllm_version": vllm.__version__,
+        **runtime,
         "manifest": str(args.manifest),
         "manifest_sha256": hashlib.sha256(args.manifest.read_bytes()).hexdigest(),
         "manifest_rows": len(all_samples),
@@ -190,7 +185,11 @@ def main() -> None:
         "shard_count": args.shard_count,
         "shard_size": len(shard),
         "batch_size": args.batch_size,
-        "sampling": {"temperature": 0.0, "do_sample": False, "num_beams": 1},
+        "sampling": {
+            "temperature": 0.0,
+            "do_sample": False,
+            "num_beams": 3 if args.model.startswith("florence2-") else 1,
+        },
         "gpu_memory_utilization": args.gpu_memory_utilization,
         "server_url": args.server_url,
         "resident_engine": bool(args.server_url),
@@ -249,8 +248,7 @@ def main() -> None:
             "batch_size": batch_size,
             "batch_throughput_qps": throughput_qps,
             "model": args.model,
-            "backend": "vllm",
-            "vllm_version": vllm.__version__,
+            **runtime,
             "checkpoint": checkpoint.repo_id,
             "revision": checkpoint.revision,
             "in_context": sample.is_in_context,
@@ -270,8 +268,7 @@ def main() -> None:
             "error_type": type(error).__name__,
             "traceback": traceback.format_exc(),
             "model": args.model,
-            "backend": "vllm",
-            "vllm_version": vllm.__version__,
+            **runtime,
             "checkpoint": checkpoint.repo_id,
             "revision": checkpoint.revision,
         }

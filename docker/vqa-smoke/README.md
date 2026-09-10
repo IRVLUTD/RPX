@@ -1,10 +1,26 @@
-# RPX VQA: vLLM-only smoke, acceptance and benchmark gates
+# RPX VQA: smoke, acceptance and benchmark gates
 
-One pinned runtime image serves the complete twelve-model VQA roster, covering
-both one-image ("normal") and two-image ("in-context") tasks. There is no
-Transformers inference fallback. Each prediction records the backend, vLLM
-version, Hub repository, and immutable model revision; the gate rejects
-results whose backend is not `vllm`.
+One pinned runtime image serves the frozen VQA roster, covering both one-image
+("normal") and two-image ("in-context") tasks. Each prediction records its
+explicit backend and version, Hub repository, and immutable model revision.
+Chat-capable models use vLLM; Florence-2 uses its native Transformers task and
+location-token processor.
+
+## Florence-2 native adapter
+
+`florence2-base` and `florence2-large` use their pinned Microsoft checkpoints.
+The adapter prepends the official `<CAPTION_TO_PHRASE_GROUNDING>` control token
+to the same RPX question/instruction used by the JSON-capable models, performs
+exactly one scored generation, and decodes native location tokens with the
+checkpoint processor. Two-image rows are presented as one labelled
+reference/target composite because Florence-2 accepts one image. A result is
+valid only when exactly one decoded region lies in the target panel; ambiguous
+or missing regions remain model failures. The native output and candidate
+counts are retained in `adapter_metadata` for audit.
+
+On two 24 GB GPUs, use one model per GPU for the gates. For a later full
+benchmark, begin with native batch 8 for `florence2-large` and batch 16 for
+`florence2-base`, then tune using measured peak memory.
 
 The current smoke manifest has 14 bbox questions over four RGB frames
 (normal tasks only):

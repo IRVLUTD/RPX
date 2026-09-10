@@ -21,6 +21,7 @@ from rpx_benchmark.vqa.prompts import (
 from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
+from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
 from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
 
 
@@ -114,6 +115,8 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
         "qwen3-vl-2b",
         "llava-onevision-7b",
         "phi-3.5-vision-4b",
+        "florence2-base",
+        "florence2-large",
     )
     prompts = [build_prompt(sample, key) for key in keys]
     assert len({prompt.text for prompt in prompts}) == 1
@@ -308,6 +311,8 @@ def test_batched_chat_content_labels_both_incontext_images() -> None:
 
 def test_roster_matches_rpx_draft() -> None:
     assert [model.display_name for model in MODELS] == [
+        "Florence 2 Base",
+        "Florence 2 Large",
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
         "Qwen3-VL 2B",
@@ -356,7 +361,8 @@ def test_docker_matrix_matches_python_roster() -> None:
     matrix = json.loads(path.read_text())
     assert matrix["single_image_only"] is False
     assert matrix["max_images_per_prompt"] == 2
-    assert matrix["inference_backend"] == "vllm"
+    assert matrix["inference_backend"] == "model-specific"
+    assert matrix["inference_backends"] == ["vllm", "transformers-florence2"]
     assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]
     assert [set(model["tasks"]) for model in matrix["models"]] == [
@@ -364,13 +370,56 @@ def test_docker_matrix_matches_python_roster() -> None:
     ]
 
 
-def test_vqa_docker_has_no_transformers_inference_fallback() -> None:
+def test_vqa_docker_has_explicit_pinned_backends() -> None:
     root = Path(__file__).parents[2]
     dockerfile = (root / "docker" / "vqa-smoke" / "Dockerfile").read_text()
     entrypoint = (root / "docker" / "vqa-smoke" / "entrypoint.sh").read_text()
     runner = (root / "benchmark" / "scripts" / "run_vllm_vqa.py").read_text()
     assert " AS vqa_vllm" in dockerfile
     assert "run_vllm_vqa.py" in entrypoint
-    assert '"backend": "vllm"' in runner
+    assert "provenance(args.model)" in runner
+    assert "transformers-florence2" in entrypoint
     assert "run_gemma4_smoke.py" not in entrypoint
     assert "run_paligemma2_smoke.py" not in entrypoint
+
+
+def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:
+    geometry = ImageGeometry(
+        width=1288,
+        height=508,
+        target_left=648,
+        target_top=28,
+        target_width=640,
+        target_height=480,
+    )
+    assert FlorenceVQARunner._target_bbox([712, 76, 968, 268], geometry) == [
+        100.0,
+        100.0,
+        500.0,
+        500.0,
+    ]
+    assert FlorenceVQARunner._target_bbox([10, 50, 200, 250], geometry) is None
+
+
+def test_florence_decodes_only_unambiguous_target_panel_candidate() -> None:
+    class Processor:
+        @staticmethod
+        def post_process_generation(*_args, **_kwargs):
+            return {
+                "<CAPTION_TO_PHRASE_GROUNDING>": {
+                    "bboxes": [[10, 50, 200, 250], [712, 76, 968, 268]],
+                    "labels": ["reference", "target object"],
+                }
+            }
+
+    runner = object.__new__(FlorenceVQARunner)
+    runner.processor = Processor()
+    geometry = ImageGeometry(1288, 508, 648, 28, 640, 480)
+    raw, metadata = runner._decode_grounding("native loc tokens", geometry)
+    assert json.loads(raw) == {
+        "label": "target object",
+        "bbox": [100.0, 100.0, 500.0, 500.0],
+    }
+    assert metadata["native_candidate_count"] == 2
+    assert metadata["target_candidate_count"] == 1
+    assert metadata["single_scored_model_call"] is True

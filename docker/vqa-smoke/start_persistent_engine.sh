@@ -37,7 +37,7 @@ docker run -d \
   "${image}:${tag}" serve "${model}" >/dev/null
 
 echo "loading ${model} in ${name} on GPU ${gpu}"
-for _ in $(seq 1 180); do
+for _ in $(seq 1 360); do
   if ! docker ps --format '{{.Names}}' | grep -Fxq "${name}"; then
     docker logs "${name}" --tail 100
     exit 1

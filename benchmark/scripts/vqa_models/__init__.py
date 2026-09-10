@@ -1,1 +1,1 @@
-"""vLLM-only model runners for the RPX VQA smoke matrix."""
+"""Pinned model-specific runners for the RPX VQA matrix."""

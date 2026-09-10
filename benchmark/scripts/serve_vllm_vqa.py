@@ -9,8 +9,7 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-import vllm
-from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
+from vqa_models.backend_registry import CHECKPOINTS, create_runner, provenance
 
 
 def main() -> None:
@@ -22,12 +21,13 @@ def main() -> None:
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
     args = parser.parse_args()
 
-    runner = VLLMVQARunner(
+    runner = create_runner(
         args.model,
         args.image_cache,
         gpu_memory_utilization=args.gpu_memory_utilization,
     )
     checkpoint = CHECKPOINTS[args.model]
+    runtime = provenance(args.model)
 
     class Handler(BaseHTTPRequestHandler):
         def _json(self, status: int, payload: dict) -> None:
@@ -47,8 +47,7 @@ def main() -> None:
                 {
                     "status": "ready",
                     "model": args.model,
-                    "backend": "vllm",
-                    "vllm_version": vllm.__version__,
+                    **runtime,
                     "checkpoint": checkpoint.repo_id,
                     "revision": checkpoint.revision,
                 },

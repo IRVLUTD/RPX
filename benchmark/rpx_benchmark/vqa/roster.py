@@ -20,6 +20,8 @@ class ModelSpec:
 ALL_TASKS = frozenset({"bbox"})
 
 MODELS = (
+    ModelSpec("florence2-base", "Florence 2 Base", 0.23, 4, "native_loc", ALL_TASKS),
+    ModelSpec("florence2-large", "Florence 2 Large", 0.77, 6, "native_loc", ALL_TASKS),
     ModelSpec("paligemma2-3b", "PaliGemma 2 3B", 3.0, 7, "native_loc", ALL_TASKS),
     ModelSpec("qwen2.5-vl-3b", "Qwen2.5-VL 3B", 3.0, 7, "native", ALL_TASKS),
     ModelSpec("qwen3-vl-2b", "Qwen3-VL 2B", 2.0, 7, "native", ALL_TASKS),

@@ -42,9 +42,10 @@ def main() -> None:
             sample_id = str(row["sample_id"])
             if sample_id in raw_by_id:
                 raise SystemExit(f"duplicate prediction at line {line_number}: {sample_id}")
-            if row.get("backend") != "vllm":
+            if row.get("backend") not in {"vllm", "transformers-florence2"}:
                 raise SystemExit(
-                    f"non-vLLM prediction at line {line_number}: {row.get('backend')!r}"
+                    f"unknown inference backend at line {line_number}: "
+                    f"{row.get('backend')!r}"
                 )
             if row.get("model") != model.key:
                 raise SystemExit(
@@ -54,7 +55,7 @@ def main() -> None:
             latency_by_id[sample_id] = float(row["latency_ms"])
             provenance_by_id[sample_id] = {
                 key: row.get(key)
-                for key in ("backend", "vllm_version", "checkpoint", "revision")
+                for key in ("backend", "backend_version", "checkpoint", "revision")
             }
             adapter_metadata_by_id[sample_id] = row.get("adapter_metadata") or {}
     expected = {

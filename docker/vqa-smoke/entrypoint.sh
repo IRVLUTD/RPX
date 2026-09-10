@@ -9,12 +9,12 @@ fi
 case "${command_name}" in
   help)
     cat <<'EOF'
-RPX VQA vLLM-only smoke, acceptance and benchmark image. Normal (one-image)
+RPX VQA smoke, acceptance and benchmark image. Normal (one-image)
 and in-context (two-image) tasks are both supported; see model-matrix.json.
 
 Commands:
   verify                                   Check vLLM, CUDA and single-GPU visibility.
-  list-models                              Print the frozen twelve-model vLLM roster.
+  list-models                              Print the frozen model/backend roster.
   smoke MODEL [args]                       Run the 14-row bbox smoke gate.
   smoke-remote MODEL [args]                Run smoke through the resident engine.
   acceptance MODEL [args]                  Run the 104-row normal+in-context acceptance gate.
@@ -31,10 +31,10 @@ Commands:
 EOF
     ;;
   verify)
-    exec python3 -c "import json,vllm,torch; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backend':'vllm','vllm':vllm.__version__,'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backends':['vllm','transformers-florence2'],'vllm':vllm.__version__,'transformers':transformers.__version__,'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
     ;;
   list-models)
-    exec env PYTHONPATH=scripts python3 -c "from vqa_models.vllm_backend import CHECKPOINTS; print('\n'.join(f'{key}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
+    exec env PYTHONPATH=scripts python3 -c "from vqa_models.backend_registry import CHECKPOINTS,backend_name; print('\n'.join(f'{key}\t{backend_name(key)}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
     ;;
   serve)
     model="${1:?serve requires MODEL}"

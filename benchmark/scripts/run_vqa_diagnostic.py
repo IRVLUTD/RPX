@@ -10,6 +10,9 @@ import re
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from run_vllm_vqa import RemoteRunner
+from vqa_models.backend_registry import CHECKPOINTS
+
 from rpx_benchmark.vqa.contract import BBOX_TYPES, load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_images_many
 from rpx_benchmark.vqa.metrics import bbox_iou
@@ -20,8 +23,6 @@ from rpx_benchmark.vqa.prompts import (
     build_prompt,
     build_semantic_diagnostic_prompt,
 )
-from run_vllm_vqa import RemoteRunner
-from vqa_models.vllm_backend import CHECKPOINTS
 
 
 def comparable_label(value: str) -> str:
@@ -221,7 +222,8 @@ def load_acceptance_rows(
             raise SystemExit(f"acceptance GT bbox mismatch for {sample.sample_id}")
         metadata = row.get("adapter_metadata") or {}
         if (
-            metadata.get("adapter") != "direct_bbox_json"
+            metadata.get("adapter")
+            not in {"direct_bbox_json", "florence2_native_phrase_grounding"}
             or metadata.get("single_scored_model_call") is not True
         ):
             raise SystemExit(

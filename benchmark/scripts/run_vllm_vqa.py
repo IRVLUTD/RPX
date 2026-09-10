@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run any RPX VQA model exclusively through vLLM offline inference."""
+"""Run an RPX VQA model through its frozen inference backend."""
 
 from __future__ import annotations
 
@@ -10,15 +10,14 @@ import time
 import urllib.request
 from pathlib import Path
 
-import vllm
-from vqa_models.vllm_backend import CHECKPOINTS, VLLMVQARunner
+from vqa_models.backend_registry import CHECKPOINTS, create_runner, provenance
 
 from rpx_benchmark.vqa.contract import load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_images_many
 from rpx_benchmark.vqa.prompts import build_prompt
 from rpx_benchmark.vqa.roster import get_model
 
-# vLLM must install CUDA compatibility paths before torch initializes CUDA.
+# Import torch only after the selected runtime has installed CUDA compatibility paths.
 torch = importlib.import_module("torch")
 
 
@@ -73,7 +72,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int)
     parser.add_argument(
         "--server-url",
-        help="reuse a resident serve_vllm_vqa.py engine instead of loading another model",
+        help="reuse a resident VQA engine instead of loading another model",
     )
     parser.add_argument(
         "--resume", action="store_true", help="append after validated completed rows"
@@ -83,7 +82,7 @@ def main() -> None:
     if not torch.cuda.is_available():
         raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
     if torch.cuda.device_count() != 1:
-        raise SystemExit("exactly one visible GPU is required per vLLM VQA engine")
+        raise SystemExit("exactly one visible GPU is required per VQA engine")
 
     samples = load_manifest(args.manifest)
     if args.limit is not None:
@@ -104,7 +103,7 @@ def main() -> None:
         ):
             raise SystemExit(f"resident engine provenance mismatch: {health}")
     else:
-        runner = VLLMVQARunner(
+        runner = create_runner(
             args.model,
             args.image_cache,
             gpu_memory_utilization=args.gpu_memory_utilization,
@@ -119,15 +118,12 @@ def main() -> None:
     args.predictions.parent.mkdir(parents=True, exist_ok=True)
     completed: set[str] = set()
     if args.resume and args.predictions.is_file():
-        expected_checkpoint = CHECKPOINTS[args.model]
+        expected = {"model": args.model, **provenance(args.model)}
         with args.predictions.open(encoding="utf-8") as existing:
             for line_number, line in enumerate(existing, 1):
                 row = json.loads(line)
                 if (
-                    row.get("backend") != "vllm"
-                    or row.get("model") != args.model
-                    or row.get("checkpoint") != expected_checkpoint.repo_id
-                    or row.get("revision") != expected_checkpoint.revision
+                    any(row.get(key) != value for key, value in expected.items())
                 ):
                     raise SystemExit(
                         f"cannot resume incompatible prediction at line {line_number}"
@@ -142,6 +138,7 @@ def main() -> None:
 
     mode = "a" if completed else "w"
     checkpoint = CHECKPOINTS[args.model]
+    runtime = provenance(args.model)
     with args.predictions.open(mode, encoding="utf-8") as handle:
         for index, sample in enumerate(samples, 1):
             if sample.sample_id in completed:
@@ -169,8 +166,7 @@ def main() -> None:
                 "raw_output": raw,
                 "latency_ms": latency_ms,
                 "model": args.model,
-                "backend": "vllm",
-                "vllm_version": vllm.__version__,
+                **runtime,
                 "checkpoint": checkpoint.repo_id,
                 "revision": checkpoint.revision,
                 "in_context": sample.is_in_context,

@@ -4,8 +4,8 @@ FROM vllm/vllm-openai@sha256:50509e700235cea487715cedeb501d20a1cd15fa6a54ce93688
 
 ARG RPX_GIT_SHA
 
-LABEL org.opencontainers.image.title="RPX VQA vLLM runtime" \
-      org.opencontainers.image.description="vLLM-only bbox VQA runtime for the RPX twelve-model roster" \
+LABEL org.opencontainers.image.title="RPX VQA runtime" \
+      org.opencontainers.image.description="Pinned vLLM and native Florence-2 bbox VQA runtime" \
       org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
@@ -24,12 +24,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN test -n "${RPX_GIT_SHA}" && \
     python3 -m pip install --no-cache-dir \
       pyarrow==21.0.0 \
-      sentencepiece==0.2.1
+      sentencepiece==0.2.1 \
+      einops==0.8.1 \
+      timm==1.0.22
 
 COPY benchmark /opt/rpx/benchmark
 
 RUN python3 -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
-    python3 -c "import pyarrow,sentencepiece,vllm; assert vllm.__version__ == '0.28.0'; assert sentencepiece.__version__ == '0.2.1'; print('RPX vLLM runtime ready')"
+    python3 -c "import einops,pyarrow,sentencepiece,timm,transformers,vllm; assert vllm.__version__ == '0.28.0'; assert sentencepiece.__version__ == '0.2.1'; print('RPX VQA runtime ready')"
 
 COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
 

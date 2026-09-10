@@ -38,7 +38,7 @@ if [[ "${RPX_VQA_CUDA_COMPAT:-0}" == "1" ]]; then
   )
 fi
 
-echo "backend=vllm image=${image}:${tag} gate=${gate} model=${model} gpu=${gpu}"
+echo "backend=auto image=${image}:${tag} gate=${gate} model=${model} gpu=${gpu}"
 docker run --rm \
   --gpus "device=${gpu}" \
   --ipc=host \
