@@ -81,8 +81,7 @@ def main() -> None:
     model = get_model(args.model)
     if "bbox" not in model.capabilities:
         raise SystemExit(
-            f"{model.key} does not support the scored direct single-call VQA+bbox "
-            "protocol; use diagnostic-remote for native unscored analysis"
+            f"{model.key} does not support the scored direct one-stage bbox protocol"
         )
     if not torch.cuda.is_available():
         raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")

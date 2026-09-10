@@ -51,12 +51,15 @@ def _native_candidates(raw: str | None, pred_row: dict | None) -> list[dict]:
     """Recover rejected native candidates for visual audit only.
 
     They remain invalid predictions: this function never selects or scores a
-    candidate. It simply makes Florence ambiguity visible in the gallery.
+    candidate. It makes Florence/PaliGemma ambiguity visible in the gallery.
     """
     if raw is None or pred_row is None:
         return []
     metadata = pred_row.get("adapter_metadata") or {}
-    if metadata.get("adapter") != "florence2_native_phrase_grounding":
+    if metadata.get("adapter") not in {
+        "florence2_native_phrase_grounding",
+        "direct_native_question_grounding",
+    }:
         return []
     try:
         payload = json.loads(raw)

@@ -26,6 +26,10 @@ from rpx_benchmark.vqa.sampling import DeterministicSelector, is_centered
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from vqa_models.vllm_backend import VLLMVQARunner  # noqa: E402
+from vqa_models.paligemma_backend import (  # noqa: E402
+    ImageGeometry as PaliImageGeometry,
+    PaliGemmaVQARunner,
+)
 
 
 def incontext_row(**overrides) -> dict:
@@ -229,6 +233,27 @@ def test_paligemma_composite_loc_is_not_misread_as_target_coordinates():
     )
     assert diagnostic.valid
     assert diagnostic.coordinate_format == "paligemma_loc_1024"
+
+
+def test_paligemma_direct_composite_detection_remaps_to_target() -> None:
+    geometry = PaliImageGeometry(
+        width=1288,
+        height=508,
+        target_left=648,
+        target_top=28,
+        target_width=640,
+        target_height=480,
+    )
+    # These tokens describe a box wholly inside Image 2 on the composite.
+    raw, metadata = PaliGemmaVQARunner._decode_question_grounding(
+        "<loc0248><loc0566><loc0702><loc0819> answer<eos>", geometry
+    )
+    value = __import__("json").loads(raw)
+    assert value["label"] == "answer"
+    assert len(value["bbox"]) == 4
+    assert all(0 <= coordinate <= 1000 for coordinate in value["bbox"])
+    assert metadata["native_candidate_count"] == 1
+    assert metadata["target_candidate_count"] == 1
 
 
 # ── canonicalization ─────────────────────────────────────────────────────────

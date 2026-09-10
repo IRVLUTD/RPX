@@ -29,23 +29,23 @@ count it receives; the benchmark must not hand-build image tokens.
 
 ### Scored inference protocol
 
-Every model answers bbox tasks in one scored call containing the
-original question and every required image. Two-image messages explicitly
-interleave `Image 1 -- reference object` and `Image 2 -- target scene` labels
-with the corresponding images. No scored path performs answer-then-ground
-inference.
+Every model answers bbox tasks in one scored call containing the original
+question and every required image. The only scored output is the bbox;
+generated labels are informational. Two-image messages explicitly interleave
+`Image 1 -- reference object` and `Image 2 -- target scene` labels with the
+corresponding images. Native single-image models receive the same labels in a
+side-by-side composite. No scored path performs answer-then-ground inference.
 
-### PaliGemma single-image limitation
+### Native Florence/PaliGemma accommodation
 
-PaliGemma has no established multi-image interleaving convention in vLLM.
-For an in-context question, which must see both images,
-`vqa_models.vllm_backend` composites Image 1 and Image 2 side by side into
-one visibly labelled image and feeds PaliGemma that composite -- a disclosed, model-specific
-accommodation for a real architecture limit, not a hidden extra inference
-stage. PaliGemma retains its official `answer en` task prefix but must select
-and localize the answer in that one generation. Native `detect <label>` calls
-are made only by the explicitly unscored localization diagnostic. Adapter
-metadata records the composite accommodation and single-call invariant.
+Florence-2 and PaliGemma 2 run through pinned native Transformers backends.
+Florence uses `<CAPTION_TO_PHRASE_GROUNDING><original question>` and PaliGemma
+uses `detect <original question>` for the one-stage scored call. For an
+in-context question, each backend composites Image 1 and Image 2 side by side
+into one visibly labelled image. Native coordinates are filtered to the target
+panel and mapped back to Image 2. Exactly one target-panel region is required;
+the evaluator never uses GT to choose among candidates. Minimal `<VQA>` /
+`answer en` and `detect <known label>` calls are diagnostic-only.
 
 ### Known data defect: normalized shard paths
 
@@ -60,9 +60,10 @@ and every `reference_image` locator, all of which use a clean integer phase.
 
 ### Unresolved model-specific vLLM limitations
 
-- **PaliGemma multi-image stage 1**: the side-by-side composite is a fallback
-  for a single-image interface. If vLLM's PaliGemma implementation gains
-  native multi-image support, prefer that over the composite.
+- **Native multi-image accommodation**: the labelled side-by-side composite is
+  required by the single-image Florence/PaliGemma processor interfaces. If
+  those interfaces gain native multi-image support, prefer it over composite
+  geometry.
 - **Idefics3 / Phi-3.5-Vision engine kwargs** (`mm_processor_kwargs` sizing)
   were tuned for single-image prompts; whether they need adjustment for a
   two-image prompt's token budget is unverified.

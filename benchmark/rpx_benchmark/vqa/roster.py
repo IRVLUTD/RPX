@@ -23,20 +23,19 @@ FLORENCE_DIAGNOSTICS = frozenset({"semantic_label", "phrase_grounding"})
 PALIGEMMA_DIAGNOSTICS = frozenset({"semantic_label", "object_detection"})
 
 MODELS = (
-    # Florence-2's native phrase-grounding task requires the phrase to be
-    # supplied. It cannot solve an arbitrary RPX question and localize its
-    # answer in the benchmark's required single scored call.
+    # Native localization models receive the original question as their
+    # referring expression and return a bbox in one scored generation.
     ModelSpec(
         "florence2-base", "Florence 2 Base", 0.23, 4, "native_loc",
-        frozenset(), FLORENCE_DIAGNOSTICS,
+        ALL_TASKS, FLORENCE_DIAGNOSTICS,
     ),
     ModelSpec(
         "florence2-large", "Florence 2 Large", 0.77, 6, "native_loc",
-        frozenset(), FLORENCE_DIAGNOSTICS,
+        ALL_TASKS, FLORENCE_DIAGNOSTICS,
     ),
     ModelSpec(
         "paligemma2-3b", "PaliGemma 2 3B", 3.0, 7, "native_loc",
-        frozenset(), PALIGEMMA_DIAGNOSTICS,
+        ALL_TASKS, PALIGEMMA_DIAGNOSTICS,
     ),
     ModelSpec("qwen2.5-vl-3b", "Qwen2.5-VL 3B", 3.0, 7, "native", ALL_TASKS),
     ModelSpec("qwen3-vl-2b", "Qwen3-VL 2B", 2.0, 7, "native", ALL_TASKS),
@@ -49,7 +48,7 @@ MODELS = (
     ModelSpec("internvl2.5-8b", "InternVL 2.5 8B", 8.0, 17, "prompted", ALL_TASKS),
     ModelSpec(
         "paligemma2-10b", "PaliGemma 2 10B", 10.0, 21, "native_loc",
-        frozenset(), PALIGEMMA_DIAGNOSTICS,
+        ALL_TASKS, PALIGEMMA_DIAGNOSTICS,
     ),
     ModelSpec("gemma4-12b", "Gemma 4 12B", 12.0, 28, "prompted", ALL_TASKS),
 )

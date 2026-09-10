@@ -24,8 +24,7 @@ def main() -> None:
     model = get_model(args.model)
     if not model.capabilities:
         raise SystemExit(
-            f"{model.key} has no scored RPX VQA capability. "
-            "Use diagnostic-remote for its native unscored tasks."
+            f"{model.key} has no scored RPX VQA capability in the current roster"
         )
     samples = load_manifest(args.manifest)
     args.out.parent.mkdir(parents=True, exist_ok=True)

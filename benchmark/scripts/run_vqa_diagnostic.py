@@ -251,10 +251,7 @@ def load_acceptance_rows(
         if row.get("ground_truth_bbox") != list(sample.answer_bbox or []):
             raise SystemExit(f"acceptance GT bbox mismatch for {sample.sample_id}")
         metadata = row.get("adapter_metadata") or {}
-        if (
-            metadata.get("adapter") != "direct_bbox_json"
-            or metadata.get("single_scored_model_call") is not True
-        ):
+        if metadata.get("single_scored_model_call") is not True:
             raise SystemExit(
                 f"acceptance row {sample.sample_id} is not a direct single-call "
                 "prediction; rerun acceptance with the current image"
@@ -280,7 +277,7 @@ def main() -> None:
     direct_supported = "bbox" in model.capabilities
     if args.acceptance_report and not direct_supported:
         raise SystemExit(
-            f"{args.model} has no valid direct end-to-end acceptance protocol; "
+            f"{args.model} has no direct one-stage bbox acceptance protocol; "
             "do not reuse its historical acceptance report"
         )
 
@@ -427,7 +424,7 @@ def main() -> None:
                     "raw_output": end_raw,
                     "valid": None if end_parsed is None else end_parsed.valid,
                     "parse_error": (
-                        "unsupported: Florence-2 requires a supplied grounding phrase"
+                        "unsupported by the model adapter"
                         if end_parsed is None
                         else end_parsed.error
                     ),
@@ -562,8 +559,9 @@ def main() -> None:
         "inference": health,
         "scored_path_contract": (
             "one model generation receives the original question and all required "
-            "images and returns the final label+bbox; diagnostic grounding calls "
-            "are unscored and never replace that prediction"
+            "images and returns the final bbox; any generated label is informational, "
+            "and diagnostic answer/oracle calls are unscored and never replace that "
+            "prediction"
         ),
         "scored_path_supported": direct_supported,
         "end_to_end_source": (

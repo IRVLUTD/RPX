@@ -1,10 +1,4 @@
-"""Native, diagnostic-only adapter for the frozen Florence-2 checkpoints.
-
-Florence-2 phrase grounding accepts a phrase, not an arbitrary VQA question.
-The adapter therefore exposes the checkpoint's official VQA and
-caption-to-phrase-grounding tasks for diagnostic decomposition only.  The
-scored RPX single-call VQA+bbox path rejects Florence before inference.
-"""
+"""Native Florence-2 question-grounding and diagnostic adapter."""
 
 from __future__ import annotations
 
@@ -25,12 +19,12 @@ class FlorenceCheckpoint:
 
 CHECKPOINTS = {
     "florence2-base": FlorenceCheckpoint(
-        "microsoft/Florence-2-base",
-        "5ca5edf5bd017b9919c05d08aebef5e4c7ac3bac",
+        "microsoft/Florence-2-base-ft",
+        "f6c1a25888ffc1d945ee8a1a77ac833c7303d46e",
     ),
     "florence2-large": FlorenceCheckpoint(
-        "microsoft/Florence-2-large",
-        "21a599d414c4d928c9032694c424fb94458e3594",
+        "microsoft/Florence-2-large-ft",
+        "4a12a2b54b7016a48a22037fbd62da90cd566f2a",
     ),
 }
 
@@ -54,7 +48,7 @@ class ImageGeometry:
 
 
 class FlorenceVQARunner:
-    """One native Florence-2 model for deterministic diagnostic inference."""
+    """One native Florence-2 model for scored and diagnostic inference."""
 
     TASK = "<CAPTION_TO_PHRASE_GROUNDING>"
     VQA_TASK = "<VQA>"
@@ -148,7 +142,10 @@ class FlorenceVQARunner:
         ]
 
     def _decode_grounding(
-        self, generated_text: str, geometry: ImageGeometry
+        self,
+        generated_text: str,
+        geometry: ImageGeometry,
+        output_kind: str = "diagnostic_predicted_label_bbox",
     ) -> tuple[str, dict[str, Any]]:
         postprocess_error = None
         try:
@@ -173,11 +170,16 @@ class FlorenceVQARunner:
                         "bbox": target_bbox,
                     }
                 )
+        diagnostic = output_kind.startswith("diagnostic_")
         metadata = {
-            "adapter": "florence2_native_phrase_grounding",
+            "adapter": (
+                "florence2_native_phrase_grounding"
+                if diagnostic
+                else "direct_native_question_grounding"
+            ),
             "single_model_call": True,
-            "single_scored_model_call": False,
-            "diagnostic_only": True,
+            "single_scored_model_call": not diagnostic,
+            "diagnostic_only": diagnostic,
             "task_token": self.TASK,
             "native_output": generated_text,
             "native_candidate_count": len(boxes),
@@ -229,10 +231,12 @@ class FlorenceVQARunner:
         output_kinds: list[str] = []
         max_tokens = 1
         for paths, prompt, row_max_tokens, output_kind in requests:
-            if not output_kind.startswith("diagnostic_"):
+            if not (
+                output_kind.startswith("diagnostic_")
+                or output_kind == "bbox_native_question_grounding"
+            ):
                 raise ValueError(
-                    "Florence-2 supports only diagnostic native tasks in RPX; "
-                    "direct scored VQA+bbox requests are unsupported"
+                    f"unsupported Florence-2 output kind: {output_kind}"
                 )
             image, geometry = self._prepare_image(paths)
             images.append(image)
@@ -269,8 +273,8 @@ class FlorenceVQARunner:
             generated, geometries, output_kinds, strict=True
         ):
             if output_kind == "diagnostic_semantic_label":
-                # The base checkpoints have no guaranteed VQA label protocol;
-                # retain their output as-is so diagnostics expose that limit.
+                # Retain native VQA output as-is; it is analysis only and is
+                # never substituted for the one-stage scored grounding result.
                 values.append(text)
                 metadata.append(
                     {
@@ -283,7 +287,9 @@ class FlorenceVQARunner:
                     }
                 )
             else:
-                value, row_metadata = self._decode_grounding(text, geometry)
+                value, row_metadata = self._decode_grounding(
+                    text, geometry, output_kind
+                )
                 if output_kind.startswith("diagnostic_"):
                     row_metadata["ground_truth_label_disclosed"] = (
                         output_kind == "diagnostic_oracle_bbox"

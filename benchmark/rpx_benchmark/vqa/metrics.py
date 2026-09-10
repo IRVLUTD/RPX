@@ -134,6 +134,8 @@ def score_predictions(
         }
     return {
         "count": len(rows),
+        "primary_metric": "bbox_accuracy_at_0_5",
+        "bbox_scoring_uses_generated_label": False,
         "parse_rate": _mean(valid),
         "binary_accuracy": _mean(binary),
         "attribute_exact_match": _mean(attribute),
@@ -158,8 +160,16 @@ def score_predictions(
                 "not detection mAP because predictions have no confidence scores."
             ),
             "bbox_label_normalized_exact_match": (
-                "One-reference normalized exact match; not conventional VQA soft accuracy."
+                "Informational only: one-reference normalized exact match; bbox scoring "
+                "does not depend on the generated label."
             ),
-            "bbox_label_token_f1": "Lexical token overlap; not semantic correctness.",
+            "bbox_label_token_f1": (
+                "Informational only: lexical token overlap; bbox scoring does not depend "
+                "on the generated label."
+            ),
+            "bbox_joint_label_exact_and_iou_at_0_5": (
+                "Informational diagnostic only; the benchmark's bbox result is "
+                "bbox_accuracy_at_0_5."
+            ),
         },
     }

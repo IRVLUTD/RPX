@@ -48,6 +48,16 @@ def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> Promp
     it separates target selection/reasoning from coordinate prediction.
     """
     question = display_question(sample.question)
+    if model_key.startswith("florence2-"):
+        # Florence task tokens are a closed native interface.  Extra formatting
+        # prose is treated as VQA question text and can be echoed by the model.
+        return PromptSpec(question, 32, "diagnostic_semantic_label")
+    if model_key.startswith("paligemma2-"):
+        # Follow the checkpoint's documented `answer {lang} {question}` form
+        # exactly.  Enforce short-answer formatting in the diagnostic parser.
+        return PromptSpec(
+            f"answer en {question}\n", 32, "diagnostic_semantic_label"
+        )
     instruction = (
         f"{question}\nIdentify the one object that answers the question. "
         "For a relational question, name the result object, not the reference "
@@ -55,8 +65,6 @@ def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> Promp
         "noun phrase naming that object: 1 to 5 words, with no sentence, article, "
         "coordinates, Markdown, punctuation, or explanation."
     )
-    if model_key.startswith("paligemma2-"):
-        instruction = f"answer en {instruction}\n"
     return PromptSpec(instruction, 32, "diagnostic_semantic_label")
 
 
@@ -109,20 +117,18 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
         )
     if sample.question_type in BBOX_TYPES:
         if model_key.startswith("florence2-"):
-            raise ConfigError(
-                f"{model_key} cannot run the RPX direct single-call VQA+bbox task",
-                hint=(
-                    "use diagnostic-remote for unscored native semantic and "
-                    "phrase-grounding analysis; do not report it as an end-to-end score"
-                ),
+            # One scored native call: the original question is the referring
+            # expression supplied to caption-to-phrase grounding.  Only the
+            # returned bbox is evaluated; no answer-label call is involved.
+            return PromptSpec(
+                question, 128, "bbox_native_question_grounding"
             )
         if model_key.startswith("paligemma2-"):
-            raise ConfigError(
-                f"{model_key} cannot run the RPX direct single-call VQA+bbox task",
-                hint=(
-                    "use diagnostic-smoke-remote or diagnostic-acceptance-remote; "
-                    "PaliGemma requires answer-en followed by detect"
-                ),
+            # PaliGemma's detector accepts a free-form referring phrase.  Pass
+            # the original question directly so selection and localization are
+            # performed in one generation, without an intermediate answer.
+            return PromptSpec(
+                f"detect {question}\n", 64, "bbox_native_question_grounding"
             )
         return PromptSpec(
             _bbox_instruction(question),

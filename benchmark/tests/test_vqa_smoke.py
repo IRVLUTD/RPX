@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from rpx_benchmark.exceptions import ConfigError, ManifestError
+from rpx_benchmark.exceptions import ManifestError
 from rpx_benchmark.vqa import hub_rgb
 from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
@@ -131,8 +131,11 @@ def test_prompts_are_task_specific_and_single_image() -> None:
         "Which object is furthest to the left?",
     )
     assert bbox.output_kind == "bbox_json_normalized_1000"
-    with pytest.raises(ConfigError, match=r"cannot run.*single-call VQA\+bbox"):
-        build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
+    pali_bbox = build_prompt(
+        VQASample.from_dict(row("depth_closest")), "paligemma2-3b"
+    )
+    assert pali_bbox.text == "detect Which object is furthest to the left?\n"
+    assert pali_bbox.output_kind == "bbox_native_question_grounding"
     pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
     assert pali_binary.text.startswith("answer en ")
 
@@ -157,22 +160,24 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
 
 
 @pytest.mark.parametrize("model_key", ["florence2-base", "florence2-large"])
-def test_florence_rejects_direct_scored_vqa_bbox(model_key: str) -> None:
+def test_florence_uses_direct_scored_question_grounding(model_key: str) -> None:
     sample = VQASample.from_dict(row("depth_closest"))
-    with pytest.raises(ConfigError, match=r"cannot run.*single-call VQA\+bbox"):
-        build_prompt(sample, model_key)
+    prompt = build_prompt(sample, model_key)
+    assert prompt.text == "Which object is furthest to the left?"
+    assert prompt.output_kind == "bbox_native_question_grounding"
     model = get_model(model_key)
-    assert model.capabilities == frozenset()
+    assert model.capabilities == {"bbox"}
     assert model.diagnostic_capabilities == {"semantic_label", "phrase_grounding"}
 
 
 @pytest.mark.parametrize("model_key", ["paligemma2-3b", "paligemma2-10b"])
-def test_paligemma_rejects_direct_scored_vqa_bbox(model_key: str) -> None:
+def test_paligemma_uses_direct_scored_question_grounding(model_key: str) -> None:
     sample = VQASample.from_dict(row("depth_closest"))
-    with pytest.raises(ConfigError, match=r"cannot run.*single-call VQA\+bbox"):
-        build_prompt(sample, model_key)
+    prompt = build_prompt(sample, model_key)
+    assert prompt.text == "detect Which object is furthest to the left?\n"
+    assert prompt.output_kind == "bbox_native_question_grounding"
     model = get_model(model_key)
-    assert model.capabilities == frozenset()
+    assert model.capabilities == {"bbox"}
     assert model.diagnostic_capabilities == {"semantic_label", "object_detection"}
 
 
@@ -187,6 +192,10 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
     assert oracle.output_kind == "diagnostic_oracle_bbox"
     pali_oracle = build_oracle_localization_prompt(sample, "paligemma2-10b")
     assert pali_oracle.text == "detect alarm clock\n"
+    pali_semantic = build_semantic_diagnostic_prompt(sample, "paligemma2-10b")
+    assert pali_semantic.text == "answer en Which object is furthest to the left?\n"
+    florence_semantic = build_semantic_diagnostic_prompt(sample, "florence2-large")
+    assert florence_semantic.text == "Which object is furthest to the left?"
     predicted = build_label_localization_prompt("red alarm clock", "gemma4-12b")
     assert '"red alarm clock"' in predicted.text
     assert predicted.output_kind == "diagnostic_predicted_label_bbox"
@@ -219,6 +228,25 @@ def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
         "adapter": "direct_bbox_json",
         "single_scored_model_call": True,
     }
+
+
+def test_gallery_exposes_rejected_direct_native_candidates() -> None:
+    raw = json.dumps(
+        {
+            "error": "expected exactly one target-region candidate",
+            "candidates": [
+                {"label": "shoe", "bbox": [10, 20, 30, 40]},
+                {"label": "boot", "bbox": [50, 60, 70, 80]},
+            ],
+        }
+    )
+    prediction = {
+        "adapter_metadata": {"adapter": "direct_native_question_grounding"}
+    }
+    assert _native_candidates(raw, prediction) == [
+        {"label": "shoe", "bbox": [10, 20, 30, 40]},
+        {"label": "boot", "bbox": [50, 60, 70, 80]},
+    ]
 
 
 def test_oracle_diagnostic_uses_only_target_image(monkeypatch, tmp_path: Path) -> None:
@@ -324,6 +352,8 @@ def test_metrics_oracle() -> None:
         ParsedOutput(True, label="alarm clock", bbox=(100, 120, 200, 220)),
     ]
     result = score_predictions(zip(samples, parsed, strict=True))
+    assert result["primary_metric"] == "bbox_accuracy_at_0_5"
+    assert result["bbox_scoring_uses_generated_label"] is False
     assert result["parse_rate"] == 1.0
     assert result["binary_accuracy"] == 1.0
     assert result["attribute_exact_match"] == 0.0
@@ -499,6 +529,30 @@ def test_florence_decodes_only_unambiguous_target_panel_candidate() -> None:
     assert metadata["target_candidate_count"] == 1
     assert metadata["single_scored_model_call"] is False
     assert metadata["diagnostic_only"] is True
+
+
+def test_florence_direct_grounding_is_marked_as_one_scored_call() -> None:
+    class Processor:
+        @staticmethod
+        def post_process_generation(*_args, **_kwargs):
+            return {
+                "<CAPTION_TO_PHRASE_GROUNDING>": {
+                    "bboxes": [[100, 120, 200, 220]],
+                    "labels": ["answer"],
+                }
+            }
+
+    runner = object.__new__(FlorenceVQARunner)
+    runner.processor = Processor()
+    raw, metadata = runner._decode_grounding(
+        "native loc tokens",
+        ImageGeometry(640, 480),
+        "bbox_native_question_grounding",
+    )
+    assert "bbox" in json.loads(raw)
+    assert metadata["adapter"] == "direct_native_question_grounding"
+    assert metadata["single_scored_model_call"] is True
+    assert metadata["diagnostic_only"] is False
 
 
 def test_gallery_exposes_rejected_florence_candidates_without_selecting() -> None:
