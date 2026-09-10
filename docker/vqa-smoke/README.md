@@ -3,24 +3,45 @@
 One pinned runtime image serves the frozen VQA roster, covering both one-image
 ("normal") and two-image ("in-context") tasks. Each prediction records its
 explicit backend and version, Hub repository, and immutable model revision.
-Chat-capable models use vLLM; Florence-2 uses its native Transformers task and
-location-token processor.
+Chat-capable models use vLLM. Florence-2 is retained as a native, unscored
+diagnostic because its supported interface does not implement the benchmark's
+single-call question-to-answer-and-box contract.
 
 ## Florence-2 native adapter
 
 `florence2-base` and `florence2-large` use their pinned Microsoft checkpoints.
-The adapter prepends the official `<CAPTION_TO_PHRASE_GROUNDING>` control token
-to the same RPX question/instruction used by the JSON-capable models, performs
-exactly one scored generation, and decodes native location tokens with the
-checkpoint processor. Two-image rows are presented as one labelled
-reference/target composite because Florence-2 accepts one image. A result is
-valid only when exactly one decoded region lies in the target panel; ambiguous
-or missing regions remain model failures. The native output and candidate
-counts are retained in `adapter_metadata` for audit.
+Their official `<CAPTION_TO_PHRASE_GROUNDING>` task requires a supplied phrase;
+it does not answer an arbitrary question and identify the phrase to ground in
+the same generation. Prepending that task token to the generic RPX JSON prompt
+causes Florence to ground nouns from the instructions, which is not a valid
+VQA prediction. Consequently both models have no scored `bbox` capability and
+the smoke, acceptance, and full-benchmark runners fail closed before inference.
 
-On two 24 GB GPUs, use one model per GPU for the gates. For a later full
-benchmark, begin with native batch 8 for `florence2-large` and batch 16 for
-`florence2-base`, then tune using measured peak memory.
+Use `diagnostic-remote` instead. It runs Florence's native `<VQA>` task to
+obtain an answer phrase, localizes that phrase on the target image using the
+literal `<CAPTION_TO_PHRASE_GROUNDING>` interface, and separately localizes the
+ground-truth phrase as an oracle upper-bound diagnostic. These are multiple
+calls and the oracle discloses ground truth, so the report marks them unscored
+and never produces an end-to-end Florence leaderboard score. Two-image rows
+use all images for semantic VQA and only the target image for localization.
+Native candidate counts and outputs remain in `adapter_metadata` for audit.
+The command also writes a self-contained `gallery.html` showing the reference,
+GT, predicted-phrase localization, oracle localization, and every ambiguous
+native candidate side by side.
+
+The container keeps Transformers 4.49.0 in an isolated Florence environment;
+the main environment stays on the newer version required by Qwen3-VL/vLLM.
+
+## PaliGemma 2 native diagnostic
+
+PaliGemma 2 exposes separate prefix-trained tasks: `answer en <question>` for
+VQA and `detect <phrase>` for native location tokens. The mix checkpoints do
+not provide a supported one-generation question-to-answer-and-box interface.
+Both PaliGemma variants therefore have no scored RPX `bbox` capability. Use
+`diagnostic-smoke-remote` for 14 rows and `diagnostic-acceptance-remote` for
+104 rows. Each report and gallery explicitly marks the answer-then-detect
+pipeline, oracle localization, and any GT-selected candidate analysis as
+unscored diagnostics.
 
 The current smoke manifest has 14 bbox questions over four RGB frames
 (normal tasks only):
@@ -58,13 +79,12 @@ never fabricated inference rows.
   2's own coordinates.
 - One unmeasured warm-up question precedes timed inference.
 - Timings synchronize CUDA immediately before and after each question.
-- Every bbox model answers and localizes in one scored call containing
+- Every scored bbox model answers and localizes in one scored call containing
   the original question and all required images. Two-image requests explicitly
   label Image 1 as the reference and Image 2 as the target.
-- PaliGemma 2 retains its official `answer en` task prefix and uses a visibly
-  labelled side-by-side composite for two-image rows, but still receives only
-  one scored generation call. Its native `detect <label>` prefix is reserved
-  for the explicitly unscored localization diagnostic.
+- PaliGemma 2 uses `answer en` and `detect <label>` only in the explicitly
+  unscored decomposition diagnostic. Two-image semantic questions use a
+  visibly labelled composite; localization receives the target image alone.
 - The smoke/acceptance gate (`run_vllm_vqa.py`) measures isolated,
   batch-size-1 per-request latency. The benchmark runner
   (`run_vqa_benchmark.py`) supports configurable batching (default 8) for
@@ -84,9 +104,8 @@ never fabricated inference rows.
   convention and one redundant singleton bbox list; the selected coordinate
   convention is recorded per row. It does not guess reversed XYXY/XYWH boxes,
   invent labels, or replace refusals/missing boxes.
-- PaliGemma necessarily uses its published `answer en` then `detect` interface.
-  Its stage-1 label and stage-2 native-location output are both retained in
-  `adapter_metadata`; an empty stage-1 answer remains an invalid model result.
+- Florence native VQA and phrase-grounding outputs are diagnostic-only and are
+  never merged into the direct scored results.
 
 ## Build once
 

@@ -31,6 +31,11 @@ def main() -> None:
     )
     args = parser.parse_args()
     model = get_model(args.model)
+    if not model.capabilities:
+        raise SystemExit(
+            f"{model.key} has no scored RPX VQA capability; a smoke/acceptance "
+            "report for this model would be misleading"
+        )
     samples = {sample.sample_id: sample for sample in load_manifest(args.manifest)}
     raw_by_id = {}
     latency_by_id = {}

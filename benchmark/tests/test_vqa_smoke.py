@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from rpx_benchmark.exceptions import ManifestError
+from rpx_benchmark.exceptions import ConfigError, ManifestError
 from rpx_benchmark.vqa import hub_rgb
 from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
@@ -24,6 +24,8 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
 from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
+from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
+from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
 
 
 def row(question_type: str = "spatial_lr_binary") -> dict:
@@ -127,10 +129,8 @@ def test_prompts_are_task_specific_and_single_image() -> None:
         "Which object is furthest to the left?",
     )
     assert bbox.output_kind == "bbox_json_normalized_1000"
-    paligemma = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
-    assert paligemma.text.startswith("answer en ")
-    assert "Identify and localize" in paligemma.text
-    assert paligemma.output_kind == "bbox_json_normalized_1000"
+    with pytest.raises(ConfigError, match=r"cannot run.*single-call VQA\+bbox"):
+        build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
     assert pali_binary.text.startswith("answer en ")
 
@@ -146,14 +146,32 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
         "qwen3-vl-2b",
         "llava-onevision-7b",
         "phi-3.5-vision-4b",
-        "florence2-base",
-        "florence2-large",
     )
     prompts = [build_prompt(sample, key) for key in keys]
     assert len({prompt.text for prompt in prompts}) == 1
     assert {prompt.output_kind for prompt in prompts} == {
         "bbox_json_normalized_1000"
     }
+
+
+@pytest.mark.parametrize("model_key", ["florence2-base", "florence2-large"])
+def test_florence_rejects_direct_scored_vqa_bbox(model_key: str) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    with pytest.raises(ConfigError, match=r"cannot run.*single-call VQA\+bbox"):
+        build_prompt(sample, model_key)
+    model = get_model(model_key)
+    assert model.capabilities == frozenset()
+    assert model.diagnostic_capabilities == {"semantic_label", "phrase_grounding"}
+
+
+@pytest.mark.parametrize("model_key", ["paligemma2-3b", "paligemma2-10b"])
+def test_paligemma_rejects_direct_scored_vqa_bbox(model_key: str) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    with pytest.raises(ConfigError, match=r"cannot run.*single-call VQA\+bbox"):
+        build_prompt(sample, model_key)
+    model = get_model(model_key)
+    assert model.capabilities == frozenset()
+    assert model.diagnostic_capabilities == {"semantic_label", "object_detection"}
 
 
 def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> None:
@@ -174,6 +192,13 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
         "red alarm clock", "paligemma2-10b"
     )
     assert pali_predicted.text == "detect red alarm clock\n"
+    florence_oracle = build_oracle_localization_prompt(sample, "florence2-large")
+    assert florence_oracle.text == "alarm clock"
+    assert "JSON" not in florence_oracle.text
+    florence_predicted = build_label_localization_prompt(
+        "red alarm clock", "florence2-base"
+    )
+    assert florence_predicted.text == "red alarm clock"
 
 
 def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
@@ -399,6 +424,10 @@ def test_docker_matrix_matches_python_roster() -> None:
     assert [set(model["tasks"]) for model in matrix["models"]] == [
         set(model.capabilities) for model in MODELS
     ]
+    florence = [model for model in matrix["models"] if model["key"].startswith("florence2-")]
+    assert all(model["diagnostic_tasks"] == ["semantic_label", "phrase_grounding"] for model in florence)
+    paligemma = [model for model in matrix["models"] if model["key"].startswith("paligemma2-")]
+    assert all(model["diagnostic_tasks"] == ["semantic_label", "object_detection"] for model in paligemma)
 
 
 def test_vqa_docker_has_explicit_pinned_backends() -> None:
@@ -410,6 +439,8 @@ def test_vqa_docker_has_explicit_pinned_backends() -> None:
     assert "run_vllm_vqa.py" in entrypoint
     assert "provenance(args.model)" in runner
     assert "transformers-florence2" in entrypoint
+    assert "transformers==4.49.0" in dockerfile
+    assert "/opt/rpx-envs/florence2" in dockerfile
     assert "run_gemma4_smoke.py" not in entrypoint
     assert "run_paligemma2_smoke.py" not in entrypoint
 
@@ -453,4 +484,39 @@ def test_florence_decodes_only_unambiguous_target_panel_candidate() -> None:
     }
     assert metadata["native_candidate_count"] == 2
     assert metadata["target_candidate_count"] == 1
-    assert metadata["single_scored_model_call"] is True
+    assert metadata["single_scored_model_call"] is False
+    assert metadata["diagnostic_only"] is True
+
+
+def test_gallery_exposes_rejected_florence_candidates_without_selecting() -> None:
+    raw = json.dumps(
+        {
+            "error": "expected exactly one target-region candidate",
+            "candidates": [
+                {"label": "cup", "bbox": [10, 20, 30, 40]},
+                {"label": "bottle", "bbox": [100, 200, 300, 400]},
+            ],
+        }
+    )
+    row = {"adapter_metadata": {"adapter": "florence2_native_phrase_grounding"}}
+    assert _native_candidates(raw, row) == [
+        {"label": "cup", "bbox": [10, 20, 30, 40]},
+        {"label": "bottle", "bbox": [100, 200, 300, 400]},
+    ]
+
+
+def test_florence_candidate_best_iou_is_diagnostic_only() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    raw = json.dumps(
+        {
+            "error": "expected exactly one target-region candidate",
+            "candidates": [
+                {"label": "wrong", "bbox": [0, 0, 50, 50]},
+                {"label": "alarm clock", "bbox": [156.5, 250, 313, 459]},
+            ],
+        }
+    )
+    result = diagnostic_bbox(sample, raw, "florence2-large")
+    assert result["strict_valid"] is False
+    assert result["best_coordinate_format"] == "native_candidate_2_gt_selected"
+    assert result["best_iou"] > 0.95

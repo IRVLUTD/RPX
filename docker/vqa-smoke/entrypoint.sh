@@ -6,6 +6,14 @@ if [[ $# -gt 0 ]]; then
   shift
 fi
 
+python_for_model() {
+  if [[ "$1" == florence2-* ]]; then
+    printf '%s\n' /opt/rpx-envs/florence2/bin/python
+  else
+    printf '%s\n' python3
+  fi
+}
+
 case "${command_name}" in
   help)
     cat <<'EOF'
@@ -20,7 +28,10 @@ Commands:
   acceptance MODEL [args]                  Run the 104-row normal+in-context acceptance gate.
   serve MODEL [args]                       Keep one model resident on localhost:8000.
   acceptance-remote MODEL [args]           Run acceptance through the resident engine.
-  diagnostic-remote MODEL [args]           Run semantic/oracle/end-to-end diagnostics.
+  diagnostic-smoke-remote MODEL [args]     Run 14-row unscored native diagnostics and gallery.
+  diagnostic-acceptance-remote MODEL [args]
+                                            Run 104-row unscored native diagnostics and gallery.
+  diagnostic-remote MODEL [args]           Alias for diagnostic-acceptance-remote.
   benchmark MODEL MANIFEST SHARD_INDEX SHARD_COUNT [args]
                                             Run one shard of the full benchmark plan
                                             (see build_vqa_benchmark_plan.py), batched.
@@ -31,7 +42,8 @@ Commands:
 EOF
     ;;
   verify)
-    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backends':['vllm','transformers-florence2'],'vllm':vllm.__version__,'transformers':transformers.__version__,'rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    florence_transformers="$([ -x /opt/rpx-envs/florence2/bin/python ] && /opt/rpx-envs/florence2/bin/python -c 'import transformers; print(transformers.__version__)')"
+    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backends':['vllm','transformers-florence2'],'vllm':vllm.__version__,'transformers':transformers.__version__,'florence_transformers':'${florence_transformers}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
     ;;
   list-models)
     exec env PYTHONPATH=scripts python3 -c "from vqa_models.backend_registry import CHECKPOINTS,backend_name; print('\n'.join(f'{key}\t{backend_name(key)}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
@@ -39,7 +51,8 @@ EOF
   serve)
     model="${1:?serve requires MODEL}"
     shift
-    exec python3 scripts/serve_vllm_vqa.py \
+    python_bin="$(python_for_model "${model}")"
+    exec "${python_bin}" scripts/serve_vllm_vqa.py \
       --model "${model}" --image-cache "${RPX_VQA_CACHE}/images" "$@"
     ;;
   smoke|smoke-remote|acceptance|acceptance-remote)
@@ -54,42 +67,59 @@ EOF
     if [[ $# -gt 0 ]]; then
       shift
     fi
+    python_bin="$(python_for_model "${model}")"
     run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/${gate}"
     mkdir -p "${run_dir}"
     manifest="${run_dir}/manifest.jsonl"
-    python3 scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
+    "${python_bin}" scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
     if [[ "${gate}" == "smoke" ]]; then
-      python3 scripts/build_vqa_smoke_sample.py \
+      "${python_bin}" scripts/build_vqa_smoke_sample.py \
         --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
     else
-      python3 scripts/build_vqa_acceptance_sample.py \
+      "${python_bin}" scripts/build_vqa_acceptance_sample.py \
         --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
     fi
-    python3 scripts/run_vllm_vqa.py \
+    "${python_bin}" scripts/run_vllm_vqa.py \
       --model "${model}" --manifest "${manifest}" \
       --image-cache "${RPX_VQA_CACHE}/images" \
       --predictions "${run_dir}/predictions.jsonl" \
       --resume "${remote_args[@]}" "$@"
-    exec python3 scripts/run_vqa_smoke_gate.py \
+    exec "${python_bin}" scripts/run_vqa_smoke_gate.py \
       --manifest "${manifest}" \
       --model "${model}" \
       --predictions "${run_dir}/predictions.jsonl" \
       --report "${run_dir}/report.json"
     ;;
-  diagnostic-remote)
-    model="${1:?diagnostic-remote requires MODEL}"
+  diagnostic-smoke-remote|diagnostic-acceptance-remote|diagnostic-remote)
+    diagnostic_gate="acceptance"
+    if [[ "${command_name}" == "diagnostic-smoke-remote" ]]; then
+      diagnostic_gate="smoke"
+    fi
+    model="${1:?${command_name} requires MODEL}"
     shift
-    run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/diagnostic"
+    python_bin="$(python_for_model "${model}")"
+    run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/diagnostic-${diagnostic_gate}"
     mkdir -p "${run_dir}"
     manifest="${run_dir}/manifest.jsonl"
-    python3 scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
-    python3 scripts/build_vqa_acceptance_sample.py \
-      --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
-    exec python3 scripts/run_vqa_diagnostic.py \
+    "${python_bin}" scripts/fetch_vqa_smoke_parquets.py --out "${RPX_VQA_CACHE}/parquets"
+    if [[ "${diagnostic_gate}" == "smoke" ]]; then
+      "${python_bin}" scripts/build_vqa_smoke_sample.py \
+        --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
+    else
+      "${python_bin}" scripts/build_vqa_acceptance_sample.py \
+        --parquet-dir "${RPX_VQA_CACHE}/parquets" --out "${manifest}"
+    fi
+    "${python_bin}" scripts/run_vqa_diagnostic.py \
       --model "${model}" --manifest "${manifest}" \
       --image-cache "${RPX_VQA_CACHE}/images" \
       --out "${run_dir}/diagnostic_predictions.jsonl" \
       --server-url http://127.0.0.1:8000 "$@"
+    exec "${python_bin}" scripts/build_vqa_diagnostic_gallery.py \
+      --manifest "${manifest}" \
+      --predictions "${run_dir}/diagnostic_predictions.jsonl" \
+      --image-cache "${RPX_VQA_CACHE}/images" \
+      --model "${model}" \
+      --out "${run_dir}/gallery.html"
     ;;
   benchmark|benchmark-remote)
     mode="${command_name}"
@@ -98,6 +128,7 @@ EOF
     shard_index="${3:?${mode} requires SHARD_INDEX}"
     shard_count="${4:?${mode} requires SHARD_COUNT}"
     shift 4
+    python_bin="$(python_for_model "${model}")"
     if [[ "${mode}" == "benchmark-remote" ]]; then
       remote_args=(--server-url http://127.0.0.1:8000 --batch-size 1)
     else
@@ -105,7 +136,7 @@ EOF
     fi
     run_dir="${RPX_VQA_OUTPUTS}/${model}/sha-${RPX_GIT_SHA:0:12}/benchmark/shard-${shard_index}-of-${shard_count}"
     mkdir -p "${run_dir}"
-    exec python3 scripts/run_vqa_benchmark.py \
+    exec "${python_bin}" scripts/run_vqa_benchmark.py \
       --model "${model}" --manifest "${manifest}" \
       --shard-index "${shard_index}" --shard-count "${shard_count}" \
       --image-cache "${RPX_VQA_CACHE}/images" \

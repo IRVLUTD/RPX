@@ -22,6 +22,11 @@ def main() -> None:
     parser.add_argument("--no-fetch", action="store_true")
     args = parser.parse_args()
     model = get_model(args.model)
+    if not model.capabilities:
+        raise SystemExit(
+            f"{model.key} has no scored RPX VQA capability. "
+            "Use diagnostic-remote for its native unscored tasks."
+        )
     samples = load_manifest(args.manifest)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8") as handle:

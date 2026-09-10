@@ -81,6 +81,11 @@ def build_label_localization_prompt(
     output_kind = (
         "diagnostic_oracle_bbox" if oracle else "diagnostic_predicted_label_bbox"
     )
+    if model_key.startswith("florence2-"):
+        # Florence's official phrase-grounding interface is TASK + phrase.
+        # Adding JSON instructions makes every noun in those instructions a
+        # grounding candidate and was the cause of the invalid smoke results.
+        return PromptSpec(label, 128, output_kind)
     if model_key.startswith("paligemma2-"):
         return PromptSpec(f"detect {label}\n", 64, output_kind)
     return PromptSpec(
@@ -103,14 +108,21 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             f"{question}\nAnswer using exactly one lowercase word: yes or no.", 4, "binary"
         )
     if sample.question_type in BBOX_TYPES:
+        if model_key.startswith("florence2-"):
+            raise ConfigError(
+                f"{model_key} cannot run the RPX direct single-call VQA+bbox task",
+                hint=(
+                    "use diagnostic-remote for unscored native semantic and "
+                    "phrase-grounding analysis; do not report it as an end-to-end score"
+                ),
+            )
         if model_key.startswith("paligemma2-"):
-            # PaliGemma is prefix-trained rather than conversational, so retain
-            # its official VQA prefix while asking it to solve and localize in
-            # one generation. No predicted-label follow-up is allowed here.
-            return PromptSpec(
-                f"answer en {_bbox_instruction(question)}\n",
-                96,
-                "bbox_json_normalized_1000",
+            raise ConfigError(
+                f"{model_key} cannot run the RPX direct single-call VQA+bbox task",
+                hint=(
+                    "use diagnostic-smoke-remote or diagnostic-acceptance-remote; "
+                    "PaliGemma requires answer-en followed by detect"
+                ),
             )
         return PromptSpec(
             _bbox_instruction(question),

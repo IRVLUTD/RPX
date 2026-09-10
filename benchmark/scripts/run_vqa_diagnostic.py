@@ -23,6 +23,7 @@ from rpx_benchmark.vqa.prompts import (
     build_prompt,
     build_semantic_diagnostic_prompt,
 )
+from rpx_benchmark.vqa.roster import get_model
 
 
 def comparable_label(value: str) -> str:
@@ -163,6 +164,35 @@ def diagnostic_bbox(sample, raw: str, model_key: str) -> dict:
                     "bbox": bbox,
                     "iou": bbox_iou(bbox, sample.answer_bbox),
                 }
+        # Florence may correctly expose several regions for a non-unique noun
+        # phrase. Retain every region and compute a GT-selected upper bound,
+        # but never turn that selection into a scored prediction.
+        raw_candidates = None if value is None else value.get("candidates")
+        if isinstance(raw_candidates, list):
+            for index, candidate in enumerate(raw_candidates):
+                candidate_bbox = (
+                    candidate.get("bbox") if isinstance(candidate, dict) else None
+                )
+                if not (
+                    isinstance(candidate_bbox, list)
+                    and len(candidate_bbox) == 4
+                    and all(isinstance(v, (int, float)) for v in candidate_bbox)
+                ):
+                    continue
+                x0, y0, x1, y1 = (float(v) for v in candidate_bbox)
+                if not (0 <= x0 <= x1 <= 1000 and 0 <= y0 <= y1 <= 1000):
+                    continue
+                normalized_bbox = (
+                    x0 * (sample.img_w - 1) / 1000,
+                    y0 * (sample.img_h - 1) / 1000,
+                    x1 * (sample.img_w - 1) / 1000,
+                    y1 * (sample.img_h - 1) / 1000,
+                )
+                hypotheses[f"native_candidate_{index + 1}_gt_selected"] = {
+                    "bbox": normalized_bbox,
+                    "iou": bbox_iou(normalized_bbox, sample.answer_bbox),
+                    "label": str(candidate.get("label") or ""),
+                }
     best_format = max(
         hypotheses, key=lambda key: hypotheses[key]["iou"], default=None
     )
@@ -222,8 +252,7 @@ def load_acceptance_rows(
             raise SystemExit(f"acceptance GT bbox mismatch for {sample.sample_id}")
         metadata = row.get("adapter_metadata") or {}
         if (
-            metadata.get("adapter")
-            not in {"direct_bbox_json", "florence2_native_phrase_grounding"}
+            metadata.get("adapter") != "direct_bbox_json"
             or metadata.get("single_scored_model_call") is not True
         ):
             raise SystemExit(
@@ -247,6 +276,13 @@ def main() -> None:
         help="reuse completed end-to-end rows instead of running them again",
     )
     args = parser.parse_args()
+    model = get_model(args.model)
+    direct_supported = "bbox" in model.capabilities
+    if args.acceptance_report and not direct_supported:
+        raise SystemExit(
+            f"{args.model} has no valid direct end-to-end acceptance protocol; "
+            "do not reuse its historical acceptance report"
+        )
 
     samples = [s for s in load_manifest(args.manifest) if s.question_type in BBOX_TYPES]
     if args.limit is not None:
@@ -280,6 +316,7 @@ def main() -> None:
                 semantic_spec.output_kind,
             )
             semantic_ms = runner.latency_ms
+            semantic_metadata = runner.prediction_metadata()
             semantic_extraction = extract_answer_phrase(semantic_raw)
             semantic_prediction = semantic_extraction["phrase"]
             expected_label = comparable_label(sample.answer)
@@ -299,6 +336,7 @@ def main() -> None:
                     predicted_spec.output_kind,
                 )
                 predicted_ms = runner.latency_ms
+                predicted_metadata = runner.prediction_metadata()
                 predicted_grounding = diagnostic_bbox(
                     sample, predicted_raw, args.model
                 )
@@ -311,9 +349,16 @@ def main() -> None:
                 oracle_spec.output_kind,
             )
             oracle_ms = runner.latency_ms
+            oracle_metadata = runner.prediction_metadata()
             oracle_grounding = diagnostic_bbox(sample, oracle_raw, args.model)
 
-            if acceptance_rows is None:
+            if not direct_supported:
+                end_raw = ""
+                end_ms = None
+                end_source = "unsupported_by_model"
+                end_parsed = None
+                end_iou = None
+            elif acceptance_rows is None:
                 end_spec = build_prompt(sample, args.model)
                 end_raw = runner.predict(
                     paths, end_spec.text, end_spec.max_new_tokens, end_spec.output_kind
@@ -325,14 +370,15 @@ def main() -> None:
                 end_raw = str(prior.get("raw_output") or "")
                 end_ms = float(prior.get("latency_ms") or 0.0)
                 end_source = str(args.acceptance_report)
-            end_parsed = parse_output(sample, end_raw, args.model)
-            end_iou = (
-                bbox_iou(end_parsed.bbox, sample.answer_bbox)
-                if end_parsed.valid
-                and end_parsed.bbox is not None
-                and sample.answer_bbox is not None
-                else 0.0
-            )
+            if direct_supported:
+                end_parsed = parse_output(sample, end_raw, args.model)
+                end_iou = (
+                    bbox_iou(end_parsed.bbox, sample.answer_bbox)
+                    if end_parsed.valid
+                    and end_parsed.bbox is not None
+                    and sample.answer_bbox is not None
+                    else 0.0
+                )
             row = {
                 "sample_id": sample.sample_id,
                 "question_type": sample.question_type,
@@ -347,11 +393,15 @@ def main() -> None:
                     "keyword_format_valid": semantic_extraction["format_valid"],
                     "keyword_format_errors": semantic_extraction["format_errors"],
                     "latency_ms": semantic_ms,
+                    "adapter_metadata": semantic_metadata,
                 },
                 "predicted_label_localization": {
                     "label_used": semantic_prediction,
                     "raw_output": predicted_raw,
                     "latency_ms": predicted_ms,
+                    "adapter_metadata": (
+                        predicted_metadata if semantic_prediction else {}
+                    ),
                     **(predicted_grounding or {
                         "strict_valid": False,
                         "strict_parse_error": "empty semantic answer",
@@ -367,18 +417,24 @@ def main() -> None:
                 "oracle_localization": {
                     "raw_output": oracle_raw,
                     "latency_ms": oracle_ms,
+                    "adapter_metadata": oracle_metadata,
                     "ground_truth_label_disclosed": True,
                     **oracle_grounding,
                 },
                 "end_to_end": {
+                    "supported": direct_supported,
                     "source": end_source,
                     "raw_output": end_raw,
-                    "valid": end_parsed.valid,
-                    "parse_error": end_parsed.error,
-                    "predicted_label": end_parsed.label,
-                    "predicted_bbox": end_parsed.bbox,
+                    "valid": None if end_parsed is None else end_parsed.valid,
+                    "parse_error": (
+                        "unsupported: Florence-2 requires a supplied grounding phrase"
+                        if end_parsed is None
+                        else end_parsed.error
+                    ),
+                    "predicted_label": None if end_parsed is None else end_parsed.label,
+                    "predicted_bbox": None if end_parsed is None else end_parsed.bbox,
                     "iou": end_iou,
-                    "hit_at_0_5": end_iou >= 0.5,
+                    "hit_at_0_5": None if end_iou is None else end_iou >= 0.5,
                     "latency_ms": end_ms,
                 },
             }
@@ -390,7 +446,7 @@ def main() -> None:
                 f"label={semantic_prediction!r} "
                 f"predicted_label_iou={row['predicted_label_localization']['best_iou']:.3f} "
                 f"oracle_iou={oracle_grounding['best_iou']:.3f} "
-                f"end_iou={end_iou:.3f}",
+                f"end_iou={'unsupported' if end_iou is None else f'{end_iou:.3f}'}",
                 flush=True,
             )
 
@@ -457,14 +513,18 @@ def main() -> None:
                     ).items()
                 )
             ),
-            "end_to_end_parse_rate": mean(
-                [float(row["end_to_end"]["valid"]) for row in values]
+            "end_to_end_supported": direct_supported,
+            "end_to_end_parse_rate": (
+                mean([float(row["end_to_end"]["valid"]) for row in values])
+                if direct_supported else None
             ),
-            "end_to_end_bbox_mean_iou": mean(
-                [row["end_to_end"]["iou"] for row in values]
+            "end_to_end_bbox_mean_iou": (
+                mean([row["end_to_end"]["iou"] for row in values])
+                if direct_supported else None
             ),
-            "end_to_end_bbox_accuracy_at_0_5": mean(
-                [float(row["end_to_end"]["hit_at_0_5"]) for row in values]
+            "end_to_end_bbox_accuracy_at_0_5": (
+                mean([float(row["end_to_end"]["hit_at_0_5"]) for row in values])
+                if direct_supported else None
             ),
             "identity_attribution": {
                 "identified_and_localizable": sum(
@@ -495,7 +555,8 @@ def main() -> None:
         "warning": (
             "All localization hypotheses and oracle results are diagnostic-only. "
             "Oracle localization discloses the GT label; best-coordinate scoring "
-            "uses GT to compare known conventions. Neither is a benchmark score."
+            "uses GT to compare known conventions and, for ambiguous Florence "
+            "outputs, native candidates. Neither is a benchmark score."
         ),
         "model": args.model,
         "inference": health,
@@ -504,10 +565,11 @@ def main() -> None:
             "images and returns the final label+bbox; diagnostic grounding calls "
             "are unscored and never replace that prediction"
         ),
+        "scored_path_supported": direct_supported,
         "end_to_end_source": (
             str(args.acceptance_report)
             if args.acceptance_report
-            else "new_model_calls"
+            else "new_model_calls" if direct_supported else "unsupported_by_model"
         ),
         "overall": aggregate(rows),
         "by_question_type": {

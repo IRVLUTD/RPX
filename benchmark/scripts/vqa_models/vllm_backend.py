@@ -13,9 +13,9 @@ call, which per the task contract must see BOTH images, this backend
 composites Image 1 and Image 2 side by side into one image and
 feeds PaliGemma that composite -- a disclosed, model-specific accommodation
 for a real architecture limit, not a hidden extra inference stage. Every
-scored PaliGemma row is one generation: question plus image input produces
-the final bbox response. Native `detect <label>` calls exist only in the
-unscored diagnostic that explicitly separates localization from reasoning.
+PaliGemma's native `answer en` and `detect <label>` tasks are exposed only in
+the unscored diagnostic that explicitly separates localization from reasoning.
+It is not used in the scored single-call VQA+bbox benchmark.
 """
 
 from __future__ import annotations
@@ -310,6 +310,8 @@ class VLLMVQARunner:
                 self._last_adapter_metadata = {
                     "adapter": "diagnostic_semantic_label",
                     "diagnostic_only": True,
+                    "single_model_call": True,
+                    "single_scored_model_call": False,
                 }
                 return raw
             if output_kind in {
@@ -330,6 +332,8 @@ class VLLMVQARunner:
                 self._last_adapter_metadata = {
                     "adapter": output_kind,
                     "diagnostic_only": True,
+                    "single_model_call": True,
+                    "single_scored_model_call": False,
                     "ground_truth_label_disclosed": (
                         output_kind == "diagnostic_oracle_bbox"
                     ),
@@ -337,7 +341,10 @@ class VLLMVQARunner:
                 return raw
             if self.checkpoint.paligemma:
                 if output_kind == "bbox_json_normalized_1000":
-                    return self._predict_paligemma_direct(images, prompt, max_tokens)
+                    raise ValueError(
+                        "PaliGemma has no direct single-call RPX VQA+bbox protocol; "
+                        "use its unscored answer-en plus detect diagnostic"
+                    )
                 diagnostic_image = (
                     images[0] if len(images) == 1 else self._side_by_side(images)
                 )
@@ -374,10 +381,17 @@ class VLLMVQARunner:
             self._last_batch_adapter_metadata = []
             images_by_row = [[image.convert("RGB") for image in row] for row in opened_by_row]
             if self.checkpoint.paligemma:
-                # Every scored row is exactly one generation. PaliGemma's
-                # single-image interface receives a labelled composite only
-                # for two-image questions; it is never called a second time
-                # with its own predicted label.
+                if any(
+                    output_kind == "bbox_json_normalized_1000"
+                    for _paths, _prompt, _max_tokens, output_kind in requests
+                ):
+                    raise ValueError(
+                        "PaliGemma has no direct single-call RPX VQA+bbox protocol; "
+                        "use its unscored answer-en plus detect diagnostic"
+                    )
+                # This branch is retained for non-bbox native tasks. Direct
+                # bbox requests were rejected above because PaliGemma needs
+                # separate answer-en and detect calls for the RPX task.
                 direct_requests = [
                     {
                         "prompt": prompt,

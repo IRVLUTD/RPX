@@ -78,7 +78,12 @@ def main() -> None:
         "--resume", action="store_true", help="append after validated completed rows"
     )
     args = parser.parse_args()
-    get_model(args.model)
+    model = get_model(args.model)
+    if "bbox" not in model.capabilities:
+        raise SystemExit(
+            f"{model.key} does not support the scored direct single-call VQA+bbox "
+            "protocol; use diagnostic-remote for native unscored analysis"
+        )
     if not torch.cuda.is_available():
         raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
     if torch.cuda.device_count() != 1:

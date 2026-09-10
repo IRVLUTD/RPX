@@ -1,10 +1,9 @@
-"""Native Transformers adapter for the two frozen Florence-2 checkpoints.
+"""Native, diagnostic-only adapter for the frozen Florence-2 checkpoints.
 
-Florence-2 is a prompted seq2seq vision model, not a chat model.  The scored
-adapter therefore adds only Florence's official caption-to-phrase-grounding
-task token to the model-neutral RPX prompt.  It performs one generation per
-row and decodes the model's native location tokens with the official
-processor.  It never runs an answer pass followed by a localization pass.
+Florence-2 phrase grounding accepts a phrase, not an arbitrary VQA question.
+The adapter therefore exposes the checkpoint's official VQA and
+caption-to-phrase-grounding tasks for diagnostic decomposition only.  The
+scored RPX single-call VQA+bbox path rejects Florence before inference.
 """
 
 from __future__ import annotations
@@ -55,7 +54,7 @@ class ImageGeometry:
 
 
 class FlorenceVQARunner:
-    """One native Florence-2 model with deterministic single-call inference."""
+    """One native Florence-2 model for deterministic diagnostic inference."""
 
     TASK = "<CAPTION_TO_PHRASE_GROUNDING>"
     VQA_TASK = "<VQA>"
@@ -176,7 +175,9 @@ class FlorenceVQARunner:
                 )
         metadata = {
             "adapter": "florence2_native_phrase_grounding",
-            "single_scored_model_call": True,
+            "single_model_call": True,
+            "single_scored_model_call": False,
+            "diagnostic_only": True,
             "task_token": self.TASK,
             "native_output": generated_text,
             "native_candidate_count": len(boxes),
@@ -228,6 +229,11 @@ class FlorenceVQARunner:
         output_kinds: list[str] = []
         max_tokens = 1
         for paths, prompt, row_max_tokens, output_kind in requests:
+            if not output_kind.startswith("diagnostic_"):
+                raise ValueError(
+                    "Florence-2 supports only diagnostic native tasks in RPX; "
+                    "direct scored VQA+bbox requests are unsupported"
+                )
             image, geometry = self._prepare_image(paths)
             images.append(image)
             geometries.append(geometry)
@@ -268,15 +274,17 @@ class FlorenceVQARunner:
                 values.append(text)
                 metadata.append(
                     {
-                        "adapter": "florence2_native_phrase_grounding",
+                        "adapter": "florence2_native_vqa_label",
                         "diagnostic_only": True,
+                        "single_model_call": True,
+                        "single_scored_model_call": False,
+                        "task_token": self.VQA_TASK,
                         "native_output": text,
                     }
                 )
             else:
                 value, row_metadata = self._decode_grounding(text, geometry)
                 if output_kind.startswith("diagnostic_"):
-                    row_metadata["diagnostic_only"] = True
                     row_metadata["ground_truth_label_disclosed"] = (
                         output_kind == "diagnostic_oracle_bbox"
                     )

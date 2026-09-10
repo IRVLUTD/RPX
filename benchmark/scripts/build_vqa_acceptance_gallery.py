@@ -28,6 +28,13 @@ from rpx_benchmark.vqa.prompts import display_question
 THUMB_MAX_W = 480
 GT_COLOR = (46, 204, 113)  # green
 PRED_COLOR = (231, 76, 60)  # red
+CANDIDATE_COLORS = (
+    (241, 196, 15),
+    (52, 152, 219),
+    (155, 89, 182),
+    (230, 126, 34),
+    (26, 188, 156),
+)
 
 
 def _to_data_uri(image: Image.Image) -> str:
@@ -40,13 +47,54 @@ def _to_data_uri(image: Image.Image) -> str:
     return f"data:image/jpeg;base64,{encoded}"
 
 
-def _overlay(target: Image.Image, gt_bbox, pred_bbox) -> Image.Image:
+def _native_candidates(raw: str | None, pred_row: dict | None) -> list[dict]:
+    """Recover rejected native candidates for visual audit only.
+
+    They remain invalid predictions: this function never selects or scores a
+    candidate. It simply makes Florence ambiguity visible in the gallery.
+    """
+    if raw is None or pred_row is None:
+        return []
+    metadata = pred_row.get("adapter_metadata") or {}
+    if metadata.get("adapter") != "florence2_native_phrase_grounding":
+        return []
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    candidates = payload.get("candidates") if isinstance(payload, dict) else None
+    if not isinstance(candidates, list):
+        return []
+    valid = []
+    for candidate in candidates:
+        bbox = candidate.get("bbox") if isinstance(candidate, dict) else None
+        if (
+            isinstance(bbox, list)
+            and len(bbox) == 4
+            and all(isinstance(value, (int, float)) for value in bbox)
+        ):
+            valid.append({"label": str(candidate.get("label") or ""), "bbox": bbox})
+    return valid
+
+
+def _overlay(target: Image.Image, gt_bbox, pred_bbox, candidates=()) -> Image.Image:
     canvas = target.convert("RGB").copy()
     draw = ImageDraw.Draw(canvas)
+    width = max(2, canvas.width // 200)
     if gt_bbox is not None:
-        draw.rectangle(list(gt_bbox), outline=GT_COLOR, width=max(2, canvas.width // 200))
+        draw.rectangle(list(gt_bbox), outline=GT_COLOR, width=width)
     if pred_bbox is not None:
-        draw.rectangle([round(v) for v in pred_bbox], outline=PRED_COLOR, width=max(2, canvas.width // 200))
+        draw.rectangle([round(v) for v in pred_bbox], outline=PRED_COLOR, width=width)
+    elif candidates:
+        for index, candidate in enumerate(candidates):
+            color = CANDIDATE_COLORS[index % len(CANDIDATE_COLORS)]
+            x0, y0, x1, y1 = (
+                round(float(value) * (canvas.width - 1 if axis % 2 == 0 else canvas.height - 1) / 1000)
+                for axis, value in enumerate(candidate["bbox"])
+            )
+            draw.rectangle([x0, y0, x1, y1], outline=color, width=width)
+            label = candidate["label"] or "candidate"
+            draw.text((x0 + 3, max(0, y0 - 12)), f"C{index + 1}: {label}", fill=color)
     return canvas
 
 
@@ -69,6 +117,7 @@ def _sample_section(sample, pred_row: dict | None, model: str, image_cache: Path
     iou = 0.0
     if parsed is not None and parsed.valid and parsed.bbox is not None and sample.answer_bbox is not None:
         iou = bbox_iou(parsed.bbox, sample.answer_bbox)
+    candidates = _native_candidates(raw, pred_row) if not (parsed and parsed.valid) else []
 
     image_paths = fetch_images(sample, image_cache)
     images_html = []
@@ -78,8 +127,16 @@ def _sample_section(sample, pred_row: dict | None, model: str, image_cache: Path
         target_image = Image.open(image_paths[1])
     else:
         target_image = Image.open(image_paths[0])
-    overlay = _overlay(target_image, sample.answer_bbox, parsed.bbox if parsed else None)
-    caption = "Image 2 (target), GT=green pred=red" if sample.is_in_context else "target, GT=green pred=red"
+    overlay = _overlay(
+        target_image,
+        sample.answer_bbox,
+        parsed.bbox if parsed and parsed.valid else None,
+        candidates,
+    )
+    legend = "GT=green, parsed prediction=red"
+    if candidates:
+        legend += ", rejected native candidates=C1…Cn (multicolor; unscored)"
+    caption = f"Image 2 (target), {legend}" if sample.is_in_context else f"target, {legend}"
     images_html.append(f'<figure><img src="{_to_data_uri(overlay)}"><figcaption>{caption}</figcaption></figure>')
 
     status = "no-prediction" if raw is None else ("valid" if parsed.valid else "parse-error")
@@ -91,6 +148,9 @@ def _sample_section(sample, pred_row: dict | None, model: str, image_cache: Path
     parts.append(f'<dt>raw output</dt><dd><code>{html.escape(raw) if raw is not None else "(missing)"}</code></dd>')
     parts.append(f'<dt>parsed prediction</dt><dd>{html.escape(str(parsed.label)) if parsed else "-"} '
                  f'{html.escape(str(parsed.bbox)) if parsed and parsed.bbox else ""}</dd>')
+    parts.append(
+        f'<dt>native candidates</dt><dd>{html.escape(json.dumps(candidates)) if candidates else "-"}</dd>'
+    )
     parts.append(f'<dt>ground truth</dt><dd>{html.escape(sample.answer)} {html.escape(str(sample.answer_bbox))}</dd>')
     parts.append(f'<dt>IoU</dt><dd>{iou:.3f}</dd>')
     parts.append(f'<dt>valid</dt><dd>{parsed.valid if parsed else False}</dd>')

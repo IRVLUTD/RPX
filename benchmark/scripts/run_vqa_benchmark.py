@@ -100,6 +100,11 @@ def main() -> None:
         raise SystemExit("max-row-attempts must be >= 1")
 
     model = get_model(args.model)
+    if "bbox" not in model.capabilities:
+        raise SystemExit(
+            f"{model.key} does not support the scored direct single-call VQA+bbox "
+            "protocol; it cannot be run in the RPX end-to-end benchmark"
+        )
     if not args.server_url:
         if not torch.cuda.is_available():
             raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
