@@ -12,6 +12,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 from tracking_models.grounded_sam2_tracker import GroundedSAM2Tracker  # noqa: E402
 from tracking_models.sam3_1_tracker import SAM31Tracker  # noqa: E402
+from tracking_text_runtime import TextPrompt  # noqa: E402
 
 
 def test_grounded_sam2_merge_assigns_highest_positive_logit() -> None:
@@ -23,6 +24,50 @@ def test_grounded_sam2_merge_assigns_highest_positive_logit() -> None:
     )
     result = GroundedSAM2Tracker._merge([4, 9], logits, (2, 2))
     np.testing.assert_array_equal(result, np.asarray([[4, 9], [9, 0]]))
+
+
+def test_grounded_sam2_selects_one_distinct_region_per_prompt() -> None:
+    prompts = (
+        TextPrompt(1, "blue bottle", "1", "bottle"),
+        TextPrompt(2, "white bottle", "2", "other_bottle"),
+    )
+    candidates = [
+        {
+            "prompt": "blue bottle",
+            "source_mask_index": 1,
+            "score": 0.9,
+            "box": [0, 0, 10, 10],
+        },
+        {
+            "prompt": "white bottle",
+            "source_mask_index": 2,
+            "score": 0.8,
+            "box": [0, 0, 10, 10],
+        },
+        {
+            "prompt": "white bottle",
+            "source_mask_index": 2,
+            "score": 0.7,
+            "box": [20, 20, 30, 30],
+        },
+        {
+            "prompt": "blue bottle",
+            "source_mask_index": 1,
+            "score": 0.6,
+            "box": [40, 40, 50, 50],
+        },
+    ]
+
+    selected, rejected = GroundedSAM2Tracker._select_one_to_one_detections(candidates, prompts)
+
+    assert [(item["prompt"], item["box"]) for item in selected] == [
+        ("blue bottle", [0, 0, 10, 10]),
+        ("white bottle", [20, 20, 30, 30]),
+    ]
+    assert {item["rejection_reason"] for item in rejected} == {
+        "region_claimed_by_other_prompt",
+        "lower_score_for_same_prompt",
+    }
 
 
 def test_sam31_merge_offsets_instances_and_accepts_singleton_channel() -> None:

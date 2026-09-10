@@ -72,18 +72,39 @@ def _open_vocabulary_index(output_dir: Path) -> dict[tuple[str, str, str, int], 
         if "__" not in key:
             continue
         scene, phase = key.rsplit("__", 1)
-        for frame in payload.get("frames") or []:
+        frames = payload.get("frames") or []
+        for frame in frames:
             frame_value = frame.get("frame")
             frame_name = (
-                str(frame_value)
-                if frame_value is not None
-                else f"{int(frame['frame_index']):05d}"
+                str(frame_value) if frame_value is not None else f"{int(frame['frame_index']):05d}"
             )
             for track in frame.get("tracks") or []:
-                index[(scene, phase, frame_name, int(track["track_id"]))] = str(
-                    track["class_name"]
-                )
+                index[(scene, phase, frame_name, int(track["track_id"]))] = str(track["class_name"])
+        # Older/native adapters describe a clip-level track-to-prompt mapping
+        # rather than repeating it for every frame.  Preserve that semantic
+        # identity through a wildcard frame entry instead of rendering bare IDs.
+        if not frames:
+            for detection in payload.get("detections") or []:
+                track_id = detection.get("predicted_track_id")
+                if track_id is not None:
+                    index[(scene, phase, "*", int(track_id))] = str(detection["prompt"])
+            for prompt in payload.get("prompts") or []:
+                if not isinstance(prompt, dict):
+                    continue
+                label = str(prompt.get("prompt", ""))
+                for track_id in prompt.get("predicted_track_ids") or []:
+                    index[(scene, phase, "*", int(track_id))] = label
     return index
+
+
+def _track_label(
+    index: dict[tuple[str, str, str, int], str],
+    scene: str,
+    phase: str,
+    frame: str,
+    object_id: int,
+) -> str | None:
+    return index.get((scene, phase, frame, object_id)) or index.get((scene, phase, "*", object_id))
 
 
 def main() -> None:
@@ -95,16 +116,10 @@ def main() -> None:
     if not predictions:
         raise SystemExit(f"No predictions found under {prediction_root}")
 
-    manifest_name = (
-        "ego_object_tracking"
-        if args.dataset_protocol == "ego"
-        else "object_tracking"
-    )
+    manifest_name = "ego_object_tracking" if args.dataset_protocol == "ego" else "object_tracking"
     rgb_index = _rgb_index(Path(args.cache_dir), manifest_name)
     if not rgb_index:
-        raise SystemExit(
-            f"No usable RGB entries found in cached Easy {manifest_name} manifests."
-        )
+        raise SystemExit(f"No usable RGB entries found in cached Easy {manifest_name} manifests.")
     vocabulary_index = _open_vocabulary_index(output_dir)
 
     rows: list[dict[str, str]] = []
@@ -135,14 +150,10 @@ def main() -> None:
         for object_id in object_ids:
             ys, xs = np.where(mask == object_id)
             if len(xs):
+                label = _track_label(vocabulary_index, scene, phase, frame, object_id)
                 draw.text(
                     (int(xs.mean()), int(ys.mean())),
-                    (
-                        f"{object_id}: "
-                        f"{vocabulary_index[(scene, phase, frame, object_id)]}"
-                        if (scene, phase, frame, object_id) in vocabulary_index
-                        else str(object_id)
-                    ),
+                    f"{object_id}: {label}" if label else str(object_id),
                     fill=(255, 255, 255),
                     stroke_width=2,
                     stroke_fill=(0, 0, 0),
@@ -160,9 +171,9 @@ def main() -> None:
                 "prediction": str(prediction_path),
                 "preview": str(destination),
                 "open_vocabulary_labels": {
-                    str(object_id): vocabulary_index[(scene, phase, frame, object_id)]
+                    str(object_id): label
                     for object_id in object_ids
-                    if (scene, phase, frame, object_id) in vocabulary_index
+                    if (label := _track_label(vocabulary_index, scene, phase, frame, object_id))
                 },
             }
         )

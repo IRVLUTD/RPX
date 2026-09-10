@@ -7,6 +7,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -167,9 +168,7 @@ def _validate_image_environment(model: str) -> str:
 
 def main() -> None:
     args = _parse_args()
-    expected_dataset_revision = str(
-        TRACKING_DATASETS[args.dataset_protocol]["revision"]
-    )
+    expected_dataset_revision = str(TRACKING_DATASETS[args.dataset_protocol]["revision"])
     if args.revision is None:
         args.revision = expected_dataset_revision
     if args.revision != expected_dataset_revision:
@@ -217,6 +216,17 @@ def main() -> None:
 
     # The first pass always performs inference, even when this gate was run before.
     subprocess.run(common, check=True)
+    # Preserve the actual inference report before the resume audit writes its
+    # invocation-level cache statistics to the conventional report paths.
+    for source_name, destination_name in (
+        ("result.json", "inference_result.json"),
+        ("run_metadata.json", "inference_run_metadata.json"),
+        ("cells.csv", "inference_cells.csv"),
+        ("cells.parquet", "inference_cells.parquet"),
+    ):
+        source = output_dir / source_name
+        if source.is_file():
+            shutil.copy2(source, output_dir / destination_name)
     # The second pass must reuse every persisted prediction and perform zero forwards.
     subprocess.run([*common, "--resume-predictions"], check=True)
     subprocess.run(
@@ -253,9 +263,23 @@ def main() -> None:
             ],
             check=True,
         )
+    result = json.loads((output_dir / "result.json").read_text(encoding="utf-8"))
+    semantic = result.get("semantic_identity_metrics") or {}
+    phase_metrics = result.get("phase_metrics") or {}
+    hota_values = [float(value["hota"]) for value in phase_metrics.values()]
+    mean_hota = sum(hota_values) / len(hota_values) if hota_values else float("nan")
+    semantic_accuracy = float(semantic.get("identity_mask_accuracy_at_0_5", 0.0))
     print(
-        f"RPX {args.model} {args.dataset_protocol} {args.gate} gate: "
-        f"PASS ({frames} real Easy frames)"
+        "MODEL QUALITY (reported, not an infrastructure pass/fail): "
+        f"class_agnostic_hota={mean_hota:.3f} "
+        f"semantic_identity_mask_iou={float(semantic.get('identity_mask_iou_mean', 0.0)):.3f} "
+        f"semantic_identity_acc@0.5={semantic_accuracy:.3f} "
+        f"initialized_identities={int(semantic.get('initialized_identity_count', 0))}/"
+        f"{int(semantic.get('prompt_count', 0))}"
+    )
+    print(
+        f"RPX {args.model} {args.dataset_protocol} {args.gate} "
+        f"INFRASTRUCTURE PASS ({frames} real Easy frames)"
     )
 
 

@@ -41,13 +41,9 @@ def main() -> None:
     result = json.loads(result_path.read_text(encoding="utf-8"))
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     if result.get("model") != args.model:
-        raise SystemExit(
-            f"result model is {result.get('model')!r}; expected {args.model!r}"
-        )
+        raise SystemExit(f"result model is {result.get('model')!r}; expected {args.model!r}")
     if result.get("clips") != args.expected_clips:
-        raise SystemExit(
-            f"result has {result.get('clips')} clips; expected {args.expected_clips}"
-        )
+        raise SystemExit(f"result has {result.get('clips')} clips; expected {args.expected_clips}")
     if result.get("frames") != args.expected_frames:
         raise SystemExit(
             f"result has {result.get('frames')} frames; expected {args.expected_frames}"
@@ -69,9 +65,7 @@ def main() -> None:
 
     if args.expected_rpx_revision:
         checkpoint_sha = (result.get("model_checkpoint") or {}).get("sha256")
-        if not isinstance(checkpoint_sha, str) or not re.fullmatch(
-            r"[0-9a-f]{64}", checkpoint_sha
-        ):
+        if not isinstance(checkpoint_sha, str) or not re.fullmatch(r"[0-9a-f]{64}", checkpoint_sha):
             raise SystemExit(f"Invalid checkpoint SHA-256: {checkpoint_sha!r}")
 
     prediction_files = sorted((output / "predictions").glob("*/*/*.npz"))
@@ -101,22 +95,12 @@ def main() -> None:
         if marker.get("frames") != args.expected_frames:
             bad.append(f"{path}: marker frames={marker.get('frames')!r}")
         if marker.get("dataset_protocol", "mos") != args.expected_dataset_protocol:
-            bad.append(
-                f"{path}: marker dataset protocol="
-                f"{marker.get('dataset_protocol', 'mos')!r}"
-            )
-        if (
-            args.expected_rpx_revision
-            and marker.get("rpx_git_sha") != args.expected_rpx_revision
-        ):
-            bad.append(
-                f"{path}: marker RPX revision={marker.get('rpx_git_sha')!r}"
-            )
+            bad.append(f"{path}: marker dataset protocol={marker.get('dataset_protocol', 'mos')!r}")
+        if args.expected_rpx_revision and marker.get("rpx_git_sha") != args.expected_rpx_revision:
+            bad.append(f"{path}: marker RPX revision={marker.get('rpx_git_sha')!r}")
 
     if len(prediction_files) != args.expected_frames:
-        bad.append(
-            f"prediction files={len(prediction_files)}; expected={args.expected_frames}"
-        )
+        bad.append(f"prediction files={len(prediction_files)}; expected={args.expected_frames}")
     if len(markers) != args.expected_clips:
         bad.append(f"complete markers={len(markers)}; expected={args.expected_clips}")
 
@@ -128,10 +112,7 @@ def main() -> None:
                 f"{stats.get('complete_clip_cache_hits')}; expected={args.expected_clips}"
             )
         if stats.get("model_propagation_frames") != 0:
-            bad.append(
-                "resume model forwards="
-                f"{stats.get('model_propagation_frames')}; expected=0"
-            )
+            bad.append(f"resume model forwards={stats.get('model_propagation_frames')}; expected=0")
 
     print(f"Model: {args.model}")
     print(f"Prediction files: {len(prediction_files)}")
@@ -142,7 +123,7 @@ def main() -> None:
         print("BAD:", item)
     if bad:
         raise SystemExit(1)
-    print("RPX tracking smoke validation: PASS")
+    print("RPX tracking infrastructure validation: PASS")
 
 
 if __name__ == "__main__":

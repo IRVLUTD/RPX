@@ -45,6 +45,7 @@ class GroundedSAM2Tracker:
     vocabulary_size = 70
     box_threshold = 0.35
     text_threshold = 0.25
+    cross_prompt_iou_threshold = 0.70
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda" or not torch.cuda.is_available():
@@ -53,6 +54,14 @@ class GroundedSAM2Tracker:
         from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 
         cache = os.environ.get("HF_HOME")
+        grounding_checkpoint = Path(
+            hf_hub_download(
+                repo_id=GROUNDING_MODEL_ID,
+                filename=self.checkpoint_filename,
+                revision=GROUNDING_MODEL_REVISION,
+                cache_dir=cache,
+            )
+        )
         sam_checkpoint = Path(
             hf_hub_download(
                 repo_id=SAM21_MODEL_ID,
@@ -64,15 +73,21 @@ class GroundedSAM2Tracker:
         self.processor = AutoProcessor.from_pretrained(
             GROUNDING_MODEL_ID, revision=GROUNDING_MODEL_REVISION, cache_dir=cache
         )
-        self.grounder = AutoModelForZeroShotObjectDetection.from_pretrained(
-            GROUNDING_MODEL_ID, revision=GROUNDING_MODEL_REVISION, cache_dir=cache
-        ).cuda().eval()
+        self.grounder = (
+            AutoModelForZeroShotObjectDetection.from_pretrained(
+                GROUNDING_MODEL_ID, revision=GROUNDING_MODEL_REVISION, cache_dir=cache
+            )
+            .cuda()
+            .eval()
+        )
         self.video_predictor = build_sam2_video_predictor(
             SAM21_CONFIG, str(sam_checkpoint), device="cuda", apply_postprocessing=True
         )
         self.video_predictor.non_overlap_masks = True
-        self.checkpoint_path = str(sam_checkpoint.resolve())
-        self.checkpoint_sha256 = _sha256(sam_checkpoint)
+        self.checkpoint_path = str(grounding_checkpoint.resolve())
+        self.checkpoint_sha256 = _sha256(grounding_checkpoint)
+        self.sam_checkpoint_path = str(sam_checkpoint.resolve())
+        self.sam_checkpoint_sha256 = _sha256(sam_checkpoint)
         self.parameter_count = int(
             sum(parameter.numel() for parameter in self.grounder.parameters())
             + sum(parameter.numel() for parameter in self.video_predictor.parameters())
@@ -97,6 +112,83 @@ class GroundedSAM2Tracker:
     def prediction_metadata(self) -> dict[str, Any]:
         return self._metadata
 
+    @staticmethod
+    def _box_iou(left: Sequence[float], right: Sequence[float]) -> float:
+        left_top_x = max(float(left[0]), float(right[0]))
+        left_top_y = max(float(left[1]), float(right[1]))
+        right_bottom_x = min(float(left[2]), float(right[2]))
+        right_bottom_y = min(float(left[3]), float(right[3]))
+        intersection = max(0.0, right_bottom_x - left_top_x) * max(0.0, right_bottom_y - left_top_y)
+        left_area = max(0.0, float(left[2]) - float(left[0])) * max(
+            0.0, float(left[3]) - float(left[1])
+        )
+        right_area = max(0.0, float(right[2]) - float(right[0])) * max(
+            0.0, float(right[3]) - float(right[1])
+        )
+        union = left_area + right_area - intersection
+        return intersection / union if union > 0 else 0.0
+
+    @classmethod
+    def _select_one_to_one_detections(
+        cls,
+        candidates: Sequence[dict[str, Any]],
+        prompts: Sequence[TextPrompt],
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Greedily assign at most one distinct image region to each prompt.
+
+        GroundingDINO is queried independently for each RPX prompt, so the raw
+        candidate lists are not mutually exclusive.  A global score ordering
+        lets a prompt fall back to its next candidate when its best box was
+        already claimed, while rejecting near-identical regions across labels.
+        Missing detections remain honest false negatives.
+        """
+
+        prompt_keys = {(int(prompt.mask_index), prompt.prompt_text) for prompt in prompts}
+        selected: list[dict[str, Any]] = []
+        rejected: list[dict[str, Any]] = []
+        claimed_prompts: set[tuple[int, str]] = set()
+        ordered = sorted(
+            (dict(candidate) for candidate in candidates),
+            key=lambda candidate: (
+                -float(candidate["score"]),
+                int(candidate["source_mask_index"]),
+                tuple(float(value) for value in candidate["box"]),
+            ),
+        )
+        for candidate in ordered:
+            prompt_key = (
+                int(candidate["source_mask_index"]),
+                str(candidate["prompt"]),
+            )
+            if prompt_key not in prompt_keys:
+                rejected.append({**candidate, "rejection_reason": "unknown_prompt"})
+                continue
+            if prompt_key in claimed_prompts:
+                rejected.append({**candidate, "rejection_reason": "lower_score_for_same_prompt"})
+                continue
+            conflict = next(
+                (
+                    accepted
+                    for accepted in selected
+                    if cls._box_iou(candidate["box"], accepted["box"])
+                    >= cls.cross_prompt_iou_threshold
+                ),
+                None,
+            )
+            if conflict is not None:
+                rejected.append(
+                    {
+                        **candidate,
+                        "rejection_reason": "region_claimed_by_other_prompt",
+                        "conflicts_with_prompt": conflict["prompt"],
+                        "conflict_iou": cls._box_iou(candidate["box"], conflict["box"]),
+                    }
+                )
+                continue
+            selected.append(candidate)
+            claimed_prompts.add(prompt_key)
+        return selected, rejected
+
     def track(
         self,
         video_dir: Path,
@@ -106,9 +198,11 @@ class GroundedSAM2Tracker:
     ) -> tuple[list[np.ndarray], list[float]]:
         frames = sorted(video_dir.glob("*.jpg"))
         if len(frames) != frame_count:
-            raise RuntimeError(f"Grounded-SAM2 received {len(frames)} frames; expected {frame_count}.")
+            raise RuntimeError(
+                f"Grounded-SAM2 received {len(frames)} frames; expected {frame_count}."
+            )
         first_image = Image.open(frames[0]).convert("RGB")
-        detections: list[dict[str, Any]] = []
+        candidates: list[dict[str, Any]] = []
         torch.cuda.synchronize()
         detection_started = time.perf_counter()
         with torch.inference_mode():
@@ -129,7 +223,7 @@ class GroundedSAM2Tracker:
                 for box, score, label in zip(
                     result["boxes"], result["scores"], result["labels"], strict=True
                 ):
-                    detections.append(
+                    candidates.append(
                         {
                             "prompt": prompt.prompt_text,
                             "source_mask_index": prompt.mask_index,
@@ -138,6 +232,23 @@ class GroundedSAM2Tracker:
                             "box": [float(value) for value in box.detach().cpu()],
                         }
                     )
+        detections, rejected_detections = self._select_one_to_one_detections(
+            candidates, text_prompts
+        )
+        selected_prompt_keys = {
+            (int(detection["source_mask_index"]), str(detection["prompt"]))
+            for detection in detections
+        }
+        missing_prompts = [
+            {
+                "prompt": prompt.prompt_text,
+                "source_mask_index": prompt.mask_index,
+                "source_catalog_id": prompt.source_catalog_id,
+                "object_id": prompt.object_id,
+            }
+            for prompt in text_prompts
+            if (prompt.mask_index, prompt.prompt_text) not in selected_prompt_keys
+        ]
         torch.cuda.synchronize()
         detection_ms = (time.perf_counter() - detection_started) * 1000
 
@@ -172,9 +283,7 @@ class GroundedSAM2Tracker:
                             break
                         torch.cuda.synchronize()
                         latencies[frame_index] = (time.perf_counter() - started) * 1000
-                        predictions[frame_index] = self._merge(
-                            object_ids, mask_logits, frame_shape
-                        )
+                        predictions[frame_index] = self._merge(object_ids, mask_logits, frame_shape)
         finally:
             first_image.close()
             if state is not None:
@@ -194,9 +303,43 @@ class GroundedSAM2Tracker:
             "sam2_model": {
                 "repo": SAM21_MODEL_ID,
                 "revision": SAM21_MODEL_REVISION,
-                "checkpoint_sha256": self.checkpoint_sha256,
+                "checkpoint_sha256": self.sam_checkpoint_sha256,
             },
-            "prompts": [prompt.prompt_text for prompt in text_prompts],
+            "grounding_checkpoint_sha256": self.checkpoint_sha256,
+            "selection_protocol": {
+                "name": "global_greedy_one_prompt_one_region",
+                "cross_prompt_iou_threshold": self.cross_prompt_iou_threshold,
+                "candidate_count": len(candidates),
+                "prompt_count": len(text_prompts),
+                "selected_track_count": len(detections),
+                "missing_prompt_count": len(missing_prompts),
+            },
+            "prompts": [
+                {
+                    "prompt": prompt.prompt_text,
+                    "source_mask_index": prompt.mask_index,
+                    "source_catalog_id": prompt.source_catalog_id,
+                    "object_id": prompt.object_id,
+                }
+                for prompt in text_prompts
+            ],
             "detections": detections,
+            "rejected_detections": rejected_detections,
+            "missing_prompts": missing_prompts,
+            "frames": [
+                {
+                    "frame_index": frame_index,
+                    "frame": f"{frame_index:05d}",
+                    "tracks": [
+                        {
+                            "track_id": int(detection["predicted_track_id"]),
+                            "class_name": str(detection["prompt"]),
+                            "source_mask_index": int(detection["source_mask_index"]),
+                        }
+                        for detection in detections
+                    ],
+                }
+                for frame_index in range(frame_count)
+            ],
         }
         return [value for value in predictions if value is not None], latencies

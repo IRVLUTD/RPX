@@ -78,15 +78,11 @@ def test_prediction_resume_is_invalidated_by_dataset_protocol(tmp_path: Path) ->
     )
 
     assert (
-        run_tracking._clip_predictions(
-            clip, clip.samples, tmp_path, "sam2", "a" * 40, "ego"
-        )
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40, "ego")
         is not None
     )
     assert (
-        run_tracking._clip_predictions(
-            clip, clip.samples, tmp_path, "sam2", "a" * 40, "mos"
-        )
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40, "mos")
         is None
     )
 
@@ -114,29 +110,16 @@ def test_prediction_resume_is_invalidated_by_evaluator_revision(
 
     monkeypatch.setenv("RPX_EVALUATOR_GIT_SHA", "b" * 40)
     assert (
-        run_tracking._clip_predictions(
-            clip, clip.samples, tmp_path, "sam2", "a" * 40
-        )
-        is not None
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40) is not None
     )
     monkeypatch.setenv("RPX_EVALUATOR_GIT_SHA", "c" * 40)
-    assert (
-        run_tracking._clip_predictions(
-            clip, clip.samples, tmp_path, "sam2", "a" * 40
-        )
-        is None
-    )
+    assert run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40) is None
 
 
 def test_ego_protocol_has_pinned_variable_length_split() -> None:
-    assert run_tracking.PINNED_EGO_DATASET_REVISION == (
-        "f082723002bad5800dd85e583115b4ea05734d31"
-    )
+    assert run_tracking.PINNED_EGO_DATASET_REVISION == ("f082723002bad5800dd85e583115b4ea05734d31")
     samples = ({"rgb": "unused", "mask": "unused"},) * 228
-    clips = [
-        run_tracking.Clip(f"scene{i:03d}", 0, "easy", Path("/"), samples)
-        for i in range(32)
-    ]
+    clips = [run_tracking.Clip(f"scene{i:03d}", 0, "easy", Path("/"), samples) for i in range(32)]
     clips.append(
         run_tracking.Clip(
             "scene032",
@@ -208,9 +191,9 @@ def test_renderer_uses_ego_manifest_rgb_path(tmp_path: Path) -> None:
         )
     )
 
-    assert render_tracking_predictions._rgb_index(
-        tmp_path, "ego_object_tracking"
-    ) == {("scene004", "0", "00000"): rgb_path}
+    assert render_tracking_predictions._rgb_index(tmp_path, "ego_object_tracking") == {
+        ("scene004", "0", "00000"): rgb_path
+    }
 
 
 def test_renderer_indexes_open_vocabulary_track_labels(tmp_path: Path) -> None:
@@ -235,6 +218,54 @@ def test_renderer_indexes_open_vocabulary_track_labels(tmp_path: Path) -> None:
     assert render_tracking_predictions._open_vocabulary_index(tmp_path) == {
         ("scene011", "0", "00000", 4): "coffee_mug"
     }
+
+
+def test_renderer_indexes_clip_level_open_vocabulary_track_labels(
+    tmp_path: Path,
+) -> None:
+    metadata = tmp_path / "open_vocabulary_predictions" / "scene011__0.json"
+    metadata.parent.mkdir(parents=True)
+    metadata.write_text(
+        json.dumps(
+            {
+                "detections": [
+                    {
+                        "predicted_track_id": 4,
+                        "prompt": "blue coffee mug",
+                    }
+                ]
+            }
+        )
+    )
+
+    index = render_tracking_predictions._open_vocabulary_index(tmp_path)
+    assert index == {("scene011", "0", "*", 4): "blue coffee mug"}
+    assert (
+        render_tracking_predictions._track_label(index, "scene011", "0", "00017", 4)
+        == "blue coffee mug"
+    )
+
+
+def test_semantic_identity_metrics_do_not_reassign_wrong_identity() -> None:
+    ground_truth = np.asarray([[1, 1, 0, 2], [1, 1, 0, 2]], dtype=np.int32)
+    # Track 10 is declared to be identity 1 but spatially covers GT identity 2.
+    prediction = np.asarray([[0, 0, 0, 10], [0, 0, 0, 10]], dtype=np.int32)
+    metadata = {
+        "detections": [
+            {
+                "predicted_track_id": 10,
+                "source_mask_index": 1,
+            }
+        ],
+        "prompts": [{"prompt": "object one", "source_mask_index": 1}],
+    }
+
+    metrics = run_tracking._semantic_identity_metrics([prediction], [ground_truth], metadata)
+
+    assert metrics["gt_object_frames"] == 2
+    assert metrics["initialized_identity_count"] == 1
+    assert metrics["identity_mask_iou_mean"] == 0.0
+    assert metrics["identity_mask_accuracy_at_0_5"] == 0.0
 
 
 def test_edgetam_cumulative_overlay_inherits_sam2_digest() -> None:
@@ -297,10 +328,7 @@ def test_sam2_plus_cumulative_overlay_inherits_sam2long_digest() -> None:
     assert "--prompt box" in dockerfile
     assert "--prepend-source" in dockerfile
     assert "training.dataset_plus.box.utils" in dockerfile
-    assert (
-        "SAM2_PLUS_CONFIG_DIR=/opt/rpx-models/sam2_plus/sam2_plus/configs/sam2.1"
-        in dockerfile
-    )
+    assert "SAM2_PLUS_CONFIG_DIR=/opt/rpx-models/sam2_plus/sam2_plus/configs/sam2.1" in dockerfile
     assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
     assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
     assert "sam2long-rpx-sha-bc16071faba7" in builder
