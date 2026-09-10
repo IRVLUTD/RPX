@@ -20,6 +20,61 @@ def display_question(question: str) -> str:
     return " ".join(question.replace("_", " ").split())
 
 
+def native_referring_expression(sample: VQASample) -> str:
+    """Rewrite an RPX question into a native grounding expression.
+
+    Florence/PaliGemma grounding heads are trained on referring expressions,
+    not interrogative VQA syntax.  This transformation is deterministic and
+    uses only the public question/type -- never the answer or GT bbox -- so the
+    scored path remains one model generation.
+    """
+    question = display_question(sample.question).strip().rstrip("?")
+    lower = question.lower()
+    if sample.question_type == "spatial_lr_extreme":
+        if "left" in lower:
+            return "the leftmost object"
+        if "right" in lower:
+            return "the rightmost object"
+    if (
+        sample.question_type == "depth_closest"
+        and "closest" in lower
+        and "camera" in lower
+    ):
+        return "the object closest to the camera"
+    if sample.question_type == "spatial_farthest":
+        marker = "farthest from the "
+        if marker in lower:
+            return "the object farthest from " + question[lower.index(marker) + len(marker):]
+    if sample.question_type == "inctx_spatial_farthest":
+        return "the object in image 2 farthest from the object shown in image 1"
+
+    # Normal attribute questions all begin with one of these stable forms.
+    for prefix in ("which object is ", "what is the object "):
+        if lower.startswith(prefix):
+            description = question[len(prefix):]
+            if sample.question_type == "attr_single_color":
+                return "the " + description + " object"
+            return "the object " + description
+
+    # In-context questions already encode the complete reference relation;
+    # remove only the redundant request for output formatting and turn the
+    # interrogative into a grammatical relative clause.
+    suffix = "? What is its bounding box in Image 2"
+    if question.endswith(suffix):
+        question = question[: -len(suffix)]
+    prefix = "Which object in Image 2 "
+    if question.startswith(prefix):
+        relation = question[len(prefix):]
+        if relation.startswith("has "):
+            relation = "that " + relation
+        elif relation.startswith("is "):
+            relation = "that " + relation
+        return "the object in image 2 " + relation
+    if question.lower().startswith("which object "):
+        return "the object " + question[len("Which object "):]
+    return question
+
+
 def _bbox_instruction(question: str) -> str:
     """Direct, model-neutral bbox instruction for every JSON-capable VLM.
 
@@ -117,18 +172,21 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
         )
     if sample.question_type in BBOX_TYPES:
         if model_key.startswith("florence2-"):
-            # One scored native call: the original question is the referring
-            # expression supplied to caption-to-phrase grounding.  Only the
+            # One scored native call: a deterministic, GT-free rewrite of the
+            # question is supplied to caption-to-phrase grounding. Only the
             # returned bbox is evaluated; no answer-label call is involved.
             return PromptSpec(
-                question, 128, "bbox_native_question_grounding"
+                native_referring_expression(sample),
+                128,
+                "bbox_native_question_grounding",
             )
         if model_key.startswith("paligemma2-"):
-            # PaliGemma's detector accepts a free-form referring phrase.  Pass
-            # the original question directly so selection and localization are
-            # performed in one generation, without an intermediate answer.
+            # PaliGemma's detector accepts a referring phrase rather than an
+            # interrogative. Rewrite question syntax without using its answer,
+            # then perform selection/localization in one generation.
+            expression = native_referring_expression(sample)
             return PromptSpec(
-                f"detect {question}\n", 64, "bbox_native_question_grounding"
+                f"detect {expression}\n", 64, "bbox_native_question_grounding"
             )
         return PromptSpec(
             _bbox_instruction(question),

@@ -185,7 +185,13 @@ class PaliGemmaVQARunner:
         return images
 
     def _generate(
-        self, image: Image.Image, prompt: str, max_tokens: int, *, keep_special: bool
+        self,
+        image: Image.Image,
+        prompt: str,
+        max_tokens: int,
+        *,
+        keep_special: bool,
+        num_beams: int = 1,
     ) -> str:
         import torch
 
@@ -198,7 +204,7 @@ class PaliGemmaVQARunner:
                 **inputs,
                 max_new_tokens=max_tokens,
                 do_sample=False,
-                num_beams=1,
+                num_beams=num_beams,
             )
         # HF generate returns prompt+completion for this decoder. Decode only
         # completion tokens; otherwise the task prefix contaminates parsing.
@@ -237,9 +243,15 @@ class PaliGemmaVQARunner:
             else:
                 model_image, geometry = self._side_by_side(images)
             native_raw = self._generate(
-                model_image, prompt, max_tokens, keep_special=True
+                model_image,
+                prompt,
+                max_tokens,
+                keep_special=True,
+                num_beams=3,
             )
             raw, metadata = self._decode_question_grounding(native_raw, geometry)
+            metadata["referring_expression"] = prompt.removeprefix("detect ").strip()
+            metadata["num_beams"] = 3
             adapter = "direct_native_question_grounding"
         elif output_kind in {
             "diagnostic_oracle_bbox",

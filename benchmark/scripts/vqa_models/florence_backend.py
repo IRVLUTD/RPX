@@ -146,6 +146,7 @@ class FlorenceVQARunner:
         generated_text: str,
         geometry: ImageGeometry,
         output_kind: str = "diagnostic_predicted_label_bbox",
+        referring_expression: str | None = None,
     ) -> tuple[str, dict[str, Any]]:
         postprocess_error = None
         try:
@@ -187,6 +188,8 @@ class FlorenceVQARunner:
             "candidate_policy": "exactly_one_region_in_target_panel",
             "num_beams": 3,
         }
+        if referring_expression is not None:
+            metadata["referring_expression"] = referring_expression
         if postprocess_error is not None:
             metadata["postprocess_error"] = postprocess_error
         if len(candidates) == 1:
@@ -269,8 +272,8 @@ class FlorenceVQARunner:
         )
         values: list[str] = []
         metadata: list[dict[str, Any]] = []
-        for text, geometry, output_kind in zip(
-            generated, geometries, output_kinds, strict=True
+        for text, geometry, output_kind, full_prompt in zip(
+            generated, geometries, output_kinds, prompts, strict=True
         ):
             if output_kind == "diagnostic_semantic_label":
                 # Retain native VQA output as-is; it is analysis only and is
@@ -288,7 +291,10 @@ class FlorenceVQARunner:
                 )
             else:
                 value, row_metadata = self._decode_grounding(
-                    text, geometry, output_kind
+                    text,
+                    geometry,
+                    output_kind,
+                    referring_expression=full_prompt[len(self.TASK):],
                 )
                 if output_kind.startswith("diagnostic_"):
                     row_metadata["ground_truth_label_disclosed"] = (

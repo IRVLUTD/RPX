@@ -4,6 +4,7 @@ import json
 import sys
 from collections import Counter
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,6 +19,7 @@ from rpx_benchmark.vqa.prompts import (
     build_oracle_localization_prompt,
     build_prompt,
     build_semantic_diagnostic_prompt,
+    native_referring_expression,
 )
 from rpx_benchmark.vqa.roster import MODELS, get_model
 
@@ -134,8 +136,22 @@ def test_prompts_are_task_specific_and_single_image() -> None:
     pali_bbox = build_prompt(
         VQASample.from_dict(row("depth_closest")), "paligemma2-3b"
     )
-    assert pali_bbox.text == "detect Which object is furthest to the left?\n"
+    assert pali_bbox.text == "detect the object furthest to the left\n"
     assert pali_bbox.output_kind == "bbox_native_question_grounding"
+
+
+def test_native_referring_expression_preserves_incontext_relation_without_gt() -> None:
+    sample = SimpleNamespace(
+        question_type="inctx_attr_single_material",
+        question=(
+            "Which object in Image 2 is made of the same material as the object "
+            "shown in Image 1? What is its bounding box in Image 2?"
+        ),
+    )
+    assert native_referring_expression(sample) == (
+        "the object in image 2 that is made of the same material as the object "
+        "shown in Image 1"
+    )
     pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
     assert pali_binary.text.startswith("answer en ")
 
@@ -163,7 +179,7 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
 def test_florence_uses_direct_scored_question_grounding(model_key: str) -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     prompt = build_prompt(sample, model_key)
-    assert prompt.text == "Which object is furthest to the left?"
+    assert prompt.text == "the object furthest to the left"
     assert prompt.output_kind == "bbox_native_question_grounding"
     model = get_model(model_key)
     assert model.capabilities == {"bbox"}
@@ -174,7 +190,7 @@ def test_florence_uses_direct_scored_question_grounding(model_key: str) -> None:
 def test_paligemma_uses_direct_scored_question_grounding(model_key: str) -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     prompt = build_prompt(sample, model_key)
-    assert prompt.text == "detect Which object is furthest to the left?\n"
+    assert prompt.text == "detect the object furthest to the left\n"
     assert prompt.output_kind == "bbox_native_question_grounding"
     model = get_model(model_key)
     assert model.capabilities == {"bbox"}

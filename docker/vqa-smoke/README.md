@@ -12,8 +12,9 @@ Generated text labels are retained for analysis but never affect the bbox score.
 
 `florence2-base` and `florence2-large` use the pinned Microsoft `-ft`
 checkpoints. The one-stage scored path invokes native
-`<CAPTION_TO_PHRASE_GROUNDING>` with the original question as the referring
-expression. It accepts a result only when exactly one native region lies in the
+`<CAPTION_TO_PHRASE_GROUNDING>` with a deterministic referring-expression
+rewrite of the original question. The rewrite uses no answer or GT data. It
+accepts a result only when exactly one native region lies in the
 target panel. Zero or multiple target regions remain parse failures; the
 evaluator never uses ground truth to select a candidate. For in-context rows,
 the labelled Image 1/Image 2 composite is used in that same call and composite
@@ -30,8 +31,9 @@ the main environment stays on the newer version required by Qwen3-VL/vLLM.
 ## PaliGemma 2 native adapter
 
 PaliGemma 2 runs through its official Hugging Face processor rather than
-vLLM. Its one-stage scored path uses `detect <original question>` and decodes
-native `<loc>` tokens. Exactly one region in the target panel is required.
+vLLM. Its one-stage scored path uses `detect <referring expression derived from
+the original question>` and decodes native `<loc>` tokens. Exactly one region
+in the target panel is required.
 For two-image rows, one labelled composite is passed to one generation and the
 native composite-relative coordinates are mapped back to Image 2. The
 `answer en` and `detect <known label>` calls exist only in the diagnostic
@@ -76,8 +78,9 @@ never fabricated inference rows.
 - Every scored bbox model answers and localizes in one scored call containing
   the original question and all required images. Two-image requests explicitly
   label Image 1 as the reference and Image 2 as the target.
-- Florence-2 uses native `<CAPTION_TO_PHRASE_GROUNDING><original question>`;
-  PaliGemma 2 uses native `detect <original question>`. Their two-image scored
+- Florence-2 uses native `<CAPTION_TO_PHRASE_GROUNDING><referring expression>`;
+  PaliGemma 2 uses native `detect <referring expression>`. The deterministic
+  rewrite uses the question/type only, with no answer or GT. Their two-image scored
   paths use a visibly labelled composite and remap the selected target-panel
   region into Image 2 coordinates.
 - PaliGemma 2 `answer en`, Florence `<VQA>`, predicted-label grounding, and

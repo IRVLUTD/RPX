@@ -39,8 +39,10 @@ side-by-side composite. No scored path performs answer-then-ground inference.
 ### Native Florence/PaliGemma accommodation
 
 Florence-2 and PaliGemma 2 run through pinned native Transformers backends.
-Florence uses `<CAPTION_TO_PHRASE_GROUNDING><original question>` and PaliGemma
-uses `detect <original question>` for the one-stage scored call. For an
+Florence uses `<CAPTION_TO_PHRASE_GROUNDING><referring expression>` and
+PaliGemma uses `detect <referring expression>` for the one-stage scored call.
+The expression is a deterministic rewrite of the question and uses neither
+the answer nor GT. For an
 in-context question, each backend composites Image 1 and Image 2 side by side
 into one visibly labelled image. Native coordinates are filtered to the target
 panel and mapped back to Image 2. Exactly one target-panel region is required;
