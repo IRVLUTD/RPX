@@ -117,8 +117,9 @@ EOF
     ;;
   benchmark-prefetch)
     manifest="${1:?benchmark-prefetch requires MANIFEST}"
+    shift
     exec python3 scripts/prefetch_vqa_benchmark.py \
-      --manifest "${manifest}" --image-cache "${RPX_VQA_CACHE}/images"
+      --manifest "${manifest}" --image-cache "${RPX_VQA_CACHE}/images" "$@"
     ;;
   shell)
     exec bash "$@"

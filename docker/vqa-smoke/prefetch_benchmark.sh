@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-manifest="${1:?usage: bash docker/vqa-smoke/prefetch_benchmark.sh MANIFEST}"
+manifest="${1:?usage: bash docker/vqa-smoke/prefetch_benchmark.sh MANIFEST [prefetch args...]}"
+shift
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
 image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
@@ -20,6 +21,7 @@ docker run --rm \
   -v "${runtime}/cache:/cache/rpx-vqa" \
   -v "${manifest_dir}:/manifests:ro" \
   "${image}:${tag}" benchmark-prefetch "/manifests/${manifest_name}" \
+  "$@" \
   2>&1 | tee "${log}"
 
 echo "log=${log}"

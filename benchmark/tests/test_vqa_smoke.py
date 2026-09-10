@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from rpx_benchmark.exceptions import ManifestError
+from rpx_benchmark.vqa import hub_rgb
 from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
 from rpx_benchmark.vqa.metrics import bbox_iou, label_token_f1, score_predictions
@@ -79,6 +80,36 @@ def test_manifest_rejects_duplicate_ids(tmp_path: Path) -> None:
     path.write_text(json.dumps(sample) + "\n" + json.dumps(sample) + "\n")
     with pytest.raises(ManifestError, match="duplicate"):
         load_manifest(path)
+
+
+def test_bulk_prefetch_can_inventory_missing_members_without_retrying_rows(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+
+    class EmptyArchive:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def __iter__(self):
+            return iter(())
+
+    monkeypatch.setattr(hub_rgb, "HTTPRangeReader", lambda _url: object())
+    monkeypatch.setattr(hub_rgb.tarfile, "open", lambda **_kwargs: EmptyArchive())
+    missing: list[dict[str, str]] = []
+    paths = hub_rgb.fetch_images_many([sample], tmp_path, missing_report=missing)
+    assert paths == {}
+    assert missing == [
+        {
+            "sample_id": sample.sample_id,
+            "role": "rgb",
+            "url": hub_rgb.hub_url(sample.image),
+            "member": "rgb/00000.webp",
+        }
+    ]
 
 
 def test_prompts_are_task_specific_and_single_image() -> None:

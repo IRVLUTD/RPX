@@ -254,7 +254,10 @@ def fetch_images(sample: VQASample, output_root: str | Path) -> tuple[Path, ...]
 
 
 def fetch_images_many(
-    samples: Iterable[VQASample], output_root: str | Path
+    samples: Iterable[VQASample],
+    output_root: str | Path,
+    *,
+    missing_report: list[dict[str, str]] | None = None,
 ) -> dict[str, tuple[Path, ...]]:
     """Fetch a manifest efficiently by scanning each remote tar shard once.
 
@@ -262,7 +265,10 @@ def fetch_images_many(
     requested member. That is tolerable for one row but becomes quadratic in
     shard position for acceptance/benchmark manifests. Here, missing members
     are grouped by shard and extracted during one forward scan. Existing cache
-    files remain authoritative and are never downloaded again.
+    files remain authoritative and are never downloaded again. Strict mode is
+    the default. Supplying ``missing_report`` inventories absent tar members,
+    continues through every remaining shard, and returns only fully cached
+    samples; callers can then create an explicit audited subset manifest.
     """
     sample_list = list(samples)
     root = Path(output_root)
@@ -316,8 +322,26 @@ def fetch_images_many(
                 if not remaining:
                     break
         if remaining:
-            raise FileNotFoundError(
-                f"members missing from {url}: {sorted(remaining)[:10]}"
-            )
+            if missing_report is None:
+                raise FileNotFoundError(
+                    f"members missing from {url}: {sorted(remaining)[:10]}"
+                )
+            for member, consumers in sorted(remaining.items()):
+                for kind, sample, _target in consumers:
+                    missing_report.append(
+                        {
+                            "sample_id": sample.sample_id,
+                            "role": kind,
+                            "url": url,
+                            "member": member,
+                        }
+                    )
 
-    return {sample.sample_id: fetch_images(sample, root) for sample in sample_list}
+    blocked = {
+        entry["sample_id"] for entry in (missing_report or [])
+    }
+    return {
+        sample.sample_id: fetch_images(sample, root)
+        for sample in sample_list
+        if sample.sample_id not in blocked
+    }
