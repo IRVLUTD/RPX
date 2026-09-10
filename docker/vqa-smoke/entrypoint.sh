@@ -7,7 +7,7 @@ if [[ $# -gt 0 ]]; then
 fi
 
 python_for_model() {
-  if [[ "$1" == florence2-* ]]; then
+  if [[ "$1" == florence2-* || "$1" == paligemma2-* ]]; then
     printf '%s\n' /opt/rpx-envs/florence2/bin/python
   else
     printf '%s\n' python3
@@ -43,7 +43,7 @@ EOF
     ;;
   verify)
     florence_transformers="$([ -x /opt/rpx-envs/florence2/bin/python ] && /opt/rpx-envs/florence2/bin/python -c 'import transformers; print(transformers.__version__)')"
-    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backends':['vllm','transformers-florence2'],'vllm':vllm.__version__,'transformers':transformers.__version__,'florence_transformers':'${florence_transformers}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() == 1, 'expose exactly one GPU'; print(json.dumps({'backends':['vllm','transformers-florence2','transformers-paligemma2'],'vllm':vllm.__version__,'transformers':transformers.__version__,'native_transformers':'${florence_transformers}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu':torch.cuda.get_device_name(0)},indent=2))"
     ;;
   list-models)
     exec env PYTHONPATH=scripts python3 -c "from vqa_models.backend_registry import CHECKPOINTS,backend_name; print('\n'.join(f'{key}\t{backend_name(key)}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"

@@ -6,22 +6,24 @@ from pathlib import Path
 
 from vqa_models.florence_backend import CHECKPOINTS as FLORENCE_CHECKPOINTS
 from vqa_models.florence_backend import FlorenceVQARunner
+from vqa_models.paligemma_backend import CHECKPOINTS as PALIGEMMA_CHECKPOINTS
+from vqa_models.paligemma_backend import PaliGemmaVQARunner
 from vqa_models.vllm_backend import CHECKPOINTS as VLLM_CHECKPOINTS
 from vqa_models.vllm_backend import VLLMVQARunner
 
-CHECKPOINTS = {**VLLM_CHECKPOINTS, **FLORENCE_CHECKPOINTS}
+CHECKPOINTS = {**VLLM_CHECKPOINTS, **FLORENCE_CHECKPOINTS, **PALIGEMMA_CHECKPOINTS}
 
 
 def backend_name(model_key: str) -> str:
-    return (
-        "transformers-florence2"
-        if model_key in FLORENCE_CHECKPOINTS
-        else "vllm"
-    )
+    if model_key in FLORENCE_CHECKPOINTS:
+        return "transformers-florence2"
+    if model_key in PALIGEMMA_CHECKPOINTS:
+        return "transformers-paligemma2"
+    return "vllm"
 
 
 def backend_version(model_key: str) -> str:
-    if model_key in FLORENCE_CHECKPOINTS:
+    if model_key in FLORENCE_CHECKPOINTS or model_key in PALIGEMMA_CHECKPOINTS:
         import transformers
 
         return transformers.__version__
@@ -36,9 +38,12 @@ def create_runner(
     gpu_memory_utilization: float = 0.90,
     max_num_seqs: int = 1,
 ):
-    runner_type = (
-        FlorenceVQARunner if model_key in FLORENCE_CHECKPOINTS else VLLMVQARunner
-    )
+    if model_key in FLORENCE_CHECKPOINTS:
+        runner_type = FlorenceVQARunner
+    elif model_key in PALIGEMMA_CHECKPOINTS:
+        runner_type = PaliGemmaVQARunner
+    else:
+        runner_type = VLLMVQARunner
     return runner_type(
         model_key,
         image_root,
@@ -56,6 +61,8 @@ def provenance(model_key: str) -> dict[str, str]:
         "revision": checkpoint.revision,
     }
     values[
-        "transformers_version" if model_key in FLORENCE_CHECKPOINTS else "vllm_version"
+        "transformers_version"
+        if model_key in FLORENCE_CHECKPOINTS or model_key in PALIGEMMA_CHECKPOINTS
+        else "vllm_version"
     ] = values["backend_version"]
     return values

@@ -47,7 +47,11 @@ def main() -> None:
             sample_id = str(row["sample_id"])
             if sample_id in raw_by_id:
                 raise SystemExit(f"duplicate prediction at line {line_number}: {sample_id}")
-            if row.get("backend") not in {"vllm", "transformers-florence2"}:
+            if row.get("backend") not in {
+                "vllm",
+                "transformers-florence2",
+                "transformers-paligemma2",
+            }:
                 raise SystemExit(
                     f"unknown inference backend at line {line_number}: "
                     f"{row.get('backend')!r}"

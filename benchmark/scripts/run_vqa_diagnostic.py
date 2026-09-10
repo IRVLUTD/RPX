@@ -555,8 +555,8 @@ def main() -> None:
         "warning": (
             "All localization hypotheses and oracle results are diagnostic-only. "
             "Oracle localization discloses the GT label; best-coordinate scoring "
-            "uses GT to compare known conventions and, for ambiguous Florence "
-            "outputs, native candidates. Neither is a benchmark score."
+            "uses GT to compare known conventions and ambiguous native "
+            "candidates. Neither is a benchmark score."
         ),
         "model": args.model,
         "inference": health,

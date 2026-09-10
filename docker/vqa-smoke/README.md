@@ -34,7 +34,10 @@ the main environment stays on the newer version required by Qwen3-VL/vLLM.
 
 ## PaliGemma 2 native diagnostic
 
-PaliGemma 2 exposes separate prefix-trained tasks: `answer en <question>` for
+PaliGemma 2 runs through its official Hugging Face processor rather than
+vLLM, whose PaliGemma detection path can terminate immediately without
+emitting location tokens. It exposes separate prefix-trained tasks:
+`answer en <question>` for
 VQA and `detect <phrase>` for native location tokens. The mix checkpoints do
 not provide a supported one-generation question-to-answer-and-box interface.
 Both PaliGemma variants therefore have no scored RPX `bbox` capability. Use

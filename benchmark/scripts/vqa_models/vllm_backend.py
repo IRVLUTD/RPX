@@ -41,11 +41,6 @@ CHECKPOINTS = {
     "gemma4-12b": VLLMCheckpoint(
         "google/gemma-4-12B-it", "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7"
     ),
-    "paligemma2-10b": VLLMCheckpoint(
-        "google/paligemma2-10b-mix-448",
-        "b26d16fb4251090ba4a4aa5af9fca1f8248ed5b6",
-        paligemma=True,
-    ),
     "idefics3-8b": VLLMCheckpoint(
         "HuggingFaceM4/Idefics3-8B-Llama3",
         "fddb4ff79181e55a994674777e06cd5456ce3dc3",
@@ -92,11 +87,6 @@ CHECKPOINTS = {
         "12b77fb40b63a2c73c68243d3f767aab688a1b2a",
         trust_remote_code=True,
         engine_kwargs={"mm_processor_kwargs": {"num_crops": 16}},
-    ),
-    "paligemma2-3b": VLLMCheckpoint(
-        "google/paligemma2-3b-mix-448",
-        "1406c92ec87d32cc6b983239278901b904ba7a51",
-        paligemma=True,
     ),
     "qwen2.5-vl-3b": VLLMCheckpoint(
         "Qwen/Qwen2.5-VL-3B-Instruct",

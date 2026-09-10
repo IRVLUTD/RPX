@@ -23,6 +23,8 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
+from vqa_models.backend_registry import backend_name  # noqa: E402
+from vqa_models.paligemma_backend import PaliGemmaVQARunner  # noqa: E402
 from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
 from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
@@ -418,7 +420,11 @@ def test_docker_matrix_matches_python_roster() -> None:
     assert matrix["single_image_only"] is False
     assert matrix["max_images_per_prompt"] == 2
     assert matrix["inference_backend"] == "model-specific"
-    assert matrix["inference_backends"] == ["vllm", "transformers-florence2"]
+    assert matrix["inference_backends"] == [
+        "vllm",
+        "transformers-florence2",
+        "transformers-paligemma2",
+    ]
     assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]
     assert [set(model["tasks"]) for model in matrix["models"]] == [
@@ -443,6 +449,13 @@ def test_vqa_docker_has_explicit_pinned_backends() -> None:
     assert "/opt/rpx-envs/florence2" in dockerfile
     assert "run_gemma4_smoke.py" not in entrypoint
     assert "run_paligemma2_smoke.py" not in entrypoint
+
+
+def test_paligemma_uses_native_transformers_backend() -> None:
+    assert backend_name("paligemma2-10b") == "transformers-paligemma2"
+    runner = object.__new__(PaliGemmaVQARunner)
+    runner._last_adapter_metadata = {}
+    assert runner.prediction_metadata() == {}
 
 
 def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:

@@ -28,9 +28,9 @@ RUN test -n "${RPX_GIT_SHA}" && \
       einops==0.8.1 \
       timm==1.0.22
 
-# Florence-2's pinned remote implementation is compatible with Transformers
-# 4.49, while Qwen3-VL needs the vLLM image's newer Transformers runtime.
-# Keep both dependency sets isolated and select the interpreter at entrypoint.
+# Florence-2 and native PaliGemma 2 are validated with Transformers 4.49,
+# while Qwen3-VL needs the vLLM image's newer Transformers runtime. Keep both
+# dependency sets isolated and select the interpreter at entrypoint.
 RUN python3 -m venv --system-site-packages /opt/rpx-envs/florence2 && \
     /opt/rpx-envs/florence2/bin/python -m pip install --no-cache-dir \
       transformers==4.49.0 \
