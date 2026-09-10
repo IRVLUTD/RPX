@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import inspect
 import time
 from pathlib import Path
 from typing import Any, Sequence
@@ -58,6 +59,7 @@ class SAM31Tracker:
             use_fa3=False,
             async_loading_frames=True,
         )
+        self._ignored_init_state_arguments = self._patch_init_state_compatibility()
         self.checkpoint_path = str(checkpoint.resolve())
         self.checkpoint_sha256 = _sha256(checkpoint)
         model = getattr(self.predictor, "model", None)
@@ -67,6 +69,40 @@ class SAM31Tracker:
             else 0
         )
         self._metadata: dict[str, Any] = {}
+
+    def _patch_init_state_compatibility(self) -> tuple[str, ...]:
+        """Filter base-predictor kwargs unsupported by the multiplex model.
+
+        At the pinned upstream revision, ``Sam3BasePredictor.start_session``
+        always forwards ``offload_state_to_cpu``.  SAM 3.1's multiplex
+        ``init_state`` does not accept that keyword, despite using the same
+        base predictor.  Filter only arguments absent from the concrete model
+        signature; supported arguments and model behavior are unchanged.
+        """
+
+        original = self.predictor.model.init_state
+        signature = inspect.signature(original)
+        if any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        ):
+            return ()
+        supported = set(signature.parameters)
+        base_arguments = {
+            "resource_path",
+            "offload_video_to_cpu",
+            "offload_state_to_cpu",
+            "async_loading_frames",
+            "video_loader_type",
+        }
+        ignored = tuple(sorted(base_arguments - supported))
+
+        def compatible_init_state(*args: Any, **kwargs: Any) -> Any:
+            filtered = {key: value for key, value in kwargs.items() if key in supported}
+            return original(*args, **filtered)
+
+        self.predictor.model.init_state = compatible_init_state
+        return ignored
 
     @staticmethod
     def _merge(
@@ -177,6 +213,11 @@ class SAM31Tracker:
                 "repo": SAM31_MODEL_ID,
                 "revision": SAM31_MODEL_REVISION,
                 "checkpoint_sha256": self.checkpoint_sha256,
+            },
+            "compatibility": {
+                "filtered_unsupported_init_state_arguments": list(
+                    self._ignored_init_state_arguments
+                )
             },
             "prompts": prompt_records,
         }

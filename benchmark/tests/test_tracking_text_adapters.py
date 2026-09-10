@@ -98,3 +98,33 @@ def test_sam31_merge_rejects_wrong_mask_shape() -> None:
             np.asarray([1.0]),
             np.asarray([1]),
         )
+
+
+def test_sam31_filters_base_predictor_kwargs_unsupported_by_multiplex() -> None:
+    calls = []
+
+    class Model:
+        def init_state(
+            self,
+            resource_path,
+            offload_video_to_cpu=False,
+            async_loading_frames=False,
+        ):
+            calls.append((resource_path, offload_video_to_cpu, async_loading_frames))
+            return {"ready": True}
+
+    tracker = object.__new__(SAM31Tracker)
+    tracker.predictor = type("Predictor", (), {"model": Model()})()
+
+    ignored = tracker._patch_init_state_compatibility()
+    result = tracker.predictor.model.init_state(
+        resource_path="frames",
+        offload_video_to_cpu=True,
+        offload_state_to_cpu=True,
+        async_loading_frames=True,
+        video_loader_type="async",
+    )
+
+    assert result == {"ready": True}
+    assert calls == [("frames", True, True)]
+    assert ignored == ("offload_state_to_cpu", "video_loader_type")
