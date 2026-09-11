@@ -39,10 +39,22 @@ RUN python3 -m venv --system-site-packages /opt/rpx-envs/florence2 && \
     /opt/rpx-envs/florence2/bin/python -c \
       "import torch,transformers; assert transformers.__version__ == '4.49.0'; print('Florence-2 runtime ready')"
 
+# The pinned Molmo 0924 remote code uses the pre-Transformers-5 tied-weight
+# contract. Keep it isolated from vLLM's newer Transformers runtime, just as
+# Florence/PaliGemma are isolated above. This changes no host packages.
+RUN python3 -m venv --system-site-packages /opt/rpx-envs/molmo && \
+    /opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir \
+      transformers==4.49.0 \
+      'huggingface-hub>=0.26,<1.0' \
+      'tokenizers>=0.21,<0.22' && \
+    /opt/rpx-envs/molmo/bin/python -c \
+      "import torch,transformers; assert transformers.__version__ == '4.49.0'; print('Molmo runtime ready')"
+
 COPY benchmark /opt/rpx/benchmark
 
 RUN python3 -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
     /opt/rpx-envs/florence2/bin/python -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
+    /opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
     python3 -c "import einops,pyarrow,sentencepiece,timm,transformers,vllm; assert vllm.__version__ == '0.28.0'; assert sentencepiece.__version__ == '0.2.1'; print('RPX VQA runtime ready')"
 
 COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
