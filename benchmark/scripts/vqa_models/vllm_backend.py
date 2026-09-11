@@ -29,6 +29,50 @@ from typing import Any, Sequence
 from PIL import Image
 
 
+_DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS: dict[str, Any] = {
+    # deepseek-ai/deepseek-vl2's nested language_config omits these fields,
+    # even though the official DeepseekV2Config supplies them as constructor
+    # defaults. vLLM consumes the serialized nested config directly, so its
+    # DeepSeek-V2 MLA module otherwise receives None for its head dimensions.
+    "num_hidden_layers": 30,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 32,
+    "kv_lora_rank": 512,
+    "qk_rope_head_dim": 64,
+    "qk_nope_head_dim": 128,
+    "v_head_dim": 128,
+    "use_mla": True,
+    "rope_theta": 10000.0,
+    "rms_norm_eps": 1e-6,
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "hidden_act": "silu",
+}
+
+
+def deepseek_vl2_full_hf_overrides(config: Any) -> Any:
+    """Complete VL2-full's incomplete nested LM config for vLLM.
+
+    This must remain a module-level function: vLLM passes ``hf_overrides`` to
+    spawned tensor-parallel workers, so the callable has to be picklable. It
+    is also invoked against a lightweight probe config before the real nested
+    config is loaded; that probe intentionally receives only the architecture
+    override.
+    """
+    config.architectures = ["DeepseekVLV2ForCausalLM"]
+    language_config = getattr(config, "language_config", None)
+    if language_config is None:
+        return config
+
+    for name, value in _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS.items():
+        if isinstance(language_config, dict):
+            if language_config.get(name) is None:
+                language_config[name] = value
+        elif getattr(language_config, name, None) is None:
+            setattr(language_config, name, value)
+    return config
+
+
 @dataclass(frozen=True)
 class VLLMCheckpoint:
     repo_id: str
@@ -121,7 +165,7 @@ CHECKPOINTS = {
         max_model_len=4096,
         deepseek_vl2=True,
         tensor_parallel_size=2,
-        engine_kwargs={"hf_overrides": {"architectures": ["DeepseekVLV2ForCausalLM"]}},
+        engine_kwargs={"hf_overrides": deepseek_vl2_full_hf_overrides},
     ),
 }
 
