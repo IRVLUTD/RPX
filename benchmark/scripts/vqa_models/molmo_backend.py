@@ -121,13 +121,21 @@ class MolmoVQARunner:
             "diagnostic_semantic_label",
             "diagnostic_oracle_bbox",
             "diagnostic_predicted_label_bbox",
+            "diagnostic_oracle_point",
+            "diagnostic_predicted_label_point",
         }:
             raise ValueError(f"unsupported Molmo output kind: {output_kind}")
         images = self._open_images(image_paths)
         raw = self._generate(images, prompt, max_tokens)
         diagnostic = output_kind.startswith("diagnostic_")
         self._last_adapter_metadata = {
-            "adapter": ("molmo_diagnostic" if diagnostic else "direct_bbox_json"),
+            "adapter": (
+                "molmo_native_point"
+                if output_kind.endswith("_point")
+                else "molmo_diagnostic"
+                if diagnostic
+                else "direct_bbox_json"
+            ),
             "backend": "transformers-molmo",
             "image_count": len(images),
             "image_order": ("target_only" if len(images) == 1 else "reference_then_target"),
@@ -135,7 +143,13 @@ class MolmoVQARunner:
             "single_scored_model_call": not diagnostic,
             "diagnostic_only": diagnostic,
             "native_point_outputs_are_not_boxes": True,
-            "ground_truth_label_disclosed": output_kind == "diagnostic_oracle_bbox",
+            "native_coordinate_format": (
+                "molmo_point_percent_0_100"
+                if output_kind.endswith("_point")
+                else None
+            ),
+            "ground_truth_label_disclosed": output_kind
+            in {"diagnostic_oracle_bbox", "diagnostic_oracle_point"},
         }
         return raw
 

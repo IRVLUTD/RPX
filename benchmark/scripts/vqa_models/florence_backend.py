@@ -172,11 +172,19 @@ class FlorenceVQARunner:
                     }
                 )
         diagnostic = output_kind.startswith("diagnostic_")
+        composite = geometry.target_left != 0 or geometry.target_top != 0
         metadata = {
             "adapter": (
-                "florence2_native_phrase_grounding"
+                "florence2_composite_phrase_grounding"
+                if composite
+                else "florence2_native_phrase_grounding"
                 if diagnostic
                 else "direct_native_question_grounding"
+            ),
+            "image_count": 2 if composite else 1,
+            "image_order": "reference_then_target" if composite else "target_only",
+            "multi_image_accommodation": (
+                "labelled_side_by_side_composite" if composite else "none"
             ),
             "single_model_call": True,
             "single_scored_model_call": not diagnostic,

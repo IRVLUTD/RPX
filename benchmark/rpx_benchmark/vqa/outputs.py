@@ -13,6 +13,12 @@ from .contract import ATTRIBUTE_TYPES, BBOX_TYPES, BINARY_TYPES, VQASample
 _LOC_RE = re.compile(
     r"<loc(?P<y0>\d{4})><loc(?P<x0>\d{4})><loc(?P<y1>\d{4})><loc(?P<x1>\d{4})>"
 )
+_MOLMO_POINT_TAG_RE = re.compile(r"<(?:point|points)\b(?P<attrs>[^>]*)>", re.IGNORECASE)
+_MOLMO_POINT_ATTR_RE = re.compile(
+    r"\b(?P<axis>[xy])(?P<index>\d*)\s*=\s*[\"']"
+    r"(?P<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+))[\"']",
+    re.IGNORECASE,
+)
 
 
 def normalize_label(value: str) -> str:
@@ -28,6 +34,59 @@ class ParsedOutput:
     bbox: tuple[float, float, float, float] | None = None
     error: str | None = None
     coordinate_format: str | None = None
+
+
+@dataclass(frozen=True)
+class ParsedPoints:
+    """A native Molmo pointing response, kept separate from bbox parsing."""
+
+    valid: bool
+    points: tuple[tuple[float, float], ...] = ()
+    error: str | None = None
+    coordinate_format: str = "molmo_point_percent_0_100"
+
+
+def parse_molmo_points(raw: str) -> ParsedPoints:
+    """Parse Molmo's documented ``<point>``/``<points>`` markup.
+
+    Coordinates remain percentages on Molmo's native 0--100 grid.  This
+    function intentionally cannot return a bbox: a point carries no object
+    extent and must not enter the benchmark's bbox-IoU metric.
+    """
+    points: list[tuple[float, float]] = []
+    errors: list[str] = []
+    tags = list(_MOLMO_POINT_TAG_RE.finditer(raw))
+    if not tags:
+        return ParsedPoints(False, error="missing Molmo <point> or <points> tag")
+    for tag in tags:
+        by_index: dict[str, dict[str, float]] = {}
+        for match in _MOLMO_POINT_ATTR_RE.finditer(tag.group("attrs")):
+            index = match.group("index") or "1"
+            axis = match.group("axis").lower()
+            slot = by_index.setdefault(index, {})
+            if axis in slot:
+                errors.append(f"duplicate {axis}{index} coordinate")
+                continue
+            slot[axis] = float(match.group("value"))
+        if not by_index:
+            errors.append("point tag contains no coordinate attributes")
+            continue
+        for index, coordinates in sorted(
+            by_index.items(), key=lambda item: int(item[0])
+        ):
+            if set(coordinates) != {"x", "y"}:
+                errors.append(f"point {index} is missing x or y")
+                continue
+            x, y = coordinates["x"], coordinates["y"]
+            if not (0 <= x <= 100 and 0 <= y <= 100):
+                errors.append(f"point {index} is outside the 0-100 grid")
+                continue
+            points.append((x, y))
+    if errors:
+        return ParsedPoints(False, points=tuple(points), error="; ".join(errors))
+    if not points:
+        return ParsedPoints(False, error="Molmo point markup contains no complete point")
+    return ParsedPoints(True, points=tuple(points))
 
 
 def _json_object(raw: str) -> dict:

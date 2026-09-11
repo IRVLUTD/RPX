@@ -21,7 +21,7 @@ class ModelSpec:
 ALL_TASKS = frozenset({"bbox"})
 FLORENCE_DIAGNOSTICS = frozenset({"semantic_label", "phrase_grounding"})
 PALIGEMMA_DIAGNOSTICS = frozenset({"semantic_label", "object_detection"})
-MOLMO_DIAGNOSTICS = frozenset({"semantic_label", "prompted_localization"})
+MOLMO_DIAGNOSTICS = frozenset({"semantic_label", "native_point"})
 
 MODELS = (
     # Native localization models receive the original question as their

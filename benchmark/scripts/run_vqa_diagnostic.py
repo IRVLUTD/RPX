@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import math
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -16,7 +17,7 @@ from vqa_models.backend_registry import CHECKPOINTS
 from rpx_benchmark.vqa.contract import BBOX_TYPES, load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_images_many
 from rpx_benchmark.vqa.metrics import bbox_iou
-from rpx_benchmark.vqa.outputs import normalize_label, parse_output
+from rpx_benchmark.vqa.outputs import normalize_label, parse_molmo_points, parse_output
 from rpx_benchmark.vqa.prompts import (
     build_label_localization_prompt,
     build_oracle_localization_prompt,
@@ -198,6 +199,7 @@ def diagnostic_bbox(sample, raw: str, model_key: str) -> dict:
     )
     best = hypotheses.get(best_format) if best_format else None
     return {
+        "localization_kind": "bbox",
         "strict_valid": strict.valid,
         "strict_parse_error": strict.error,
         "strict_bbox": strict.bbox,
@@ -208,6 +210,65 @@ def diagnostic_bbox(sample, raw: str, model_key: str) -> dict:
         "best_iou": 0.0 if best is None else best["iou"],
         "best_hit_at_0_5": bool(best is not None and best["iou"] >= 0.5),
     }
+
+
+def diagnostic_point(sample, raw: str) -> dict:
+    """Score native Molmo points without manufacturing bounding boxes.
+
+    Point-in-GT and miss distance are diagnostic-only because these calls use
+    a separately obtained predicted phrase or disclose the oracle label.  If
+    Molmo emits several native points, reporting the best/any point is also a
+    GT-selected upper bound and is labelled as such in the report.
+    """
+    parsed = parse_molmo_points(raw)
+    pixel_points = [
+        (x * (sample.img_w - 1) / 100, y * (sample.img_h - 1) / 100)
+        for x, y in parsed.points
+    ]
+    x0, y0, x1, y1 = sample.answer_bbox
+    diagonal = math.hypot(max(1, sample.img_w - 1), max(1, sample.img_h - 1))
+
+    def miss_distance(point: tuple[float, float]) -> float:
+        x, y = point
+        dx = max(x0 - x, 0.0, x - x1)
+        dy = max(y0 - y, 0.0, y - y1)
+        return math.hypot(dx, dy) / diagonal
+
+    inside = [x0 <= x <= x1 and y0 <= y <= y1 for x, y in pixel_points]
+    distances = [miss_distance(point) for point in pixel_points]
+    best_index = min(range(len(distances)), key=distances.__getitem__) if distances else None
+    return {
+        "localization_kind": "native_point",
+        "strict_valid": parsed.valid,
+        "strict_parse_error": parsed.error,
+        "strict_bbox": None,
+        "strict_coordinate_format": parsed.coordinate_format,
+        "hypotheses": {},
+        "best_coordinate_format": parsed.coordinate_format if pixel_points else None,
+        # Compatibility keys remain explicitly non-bbox. They must never be
+        # interpreted as an IoU result by Molmo diagnostic aggregation.
+        "best_bbox": None,
+        "best_iou": 0.0,
+        "best_hit_at_0_5": False,
+        "native_points_percent": [list(point) for point in parsed.points],
+        "native_points_pixel": [list(point) for point in pixel_points],
+        "point_count": len(pixel_points),
+        "points_inside_ground_truth_bbox": inside,
+        "any_point_inside_ground_truth_bbox": any(inside),
+        "best_point_pixel": (
+            None if best_index is None else list(pixel_points[best_index])
+        ),
+        "best_normalized_miss_distance": (
+            None if best_index is None else distances[best_index]
+        ),
+        "candidate_policy": "any_native_point_diagnostic_upper_bound",
+    }
+
+
+def diagnostic_localization(sample, raw: str, model_key: str) -> dict:
+    if model_key in {"molmo-7b-d", "molmoe-1b"}:
+        return diagnostic_point(sample, raw)
+    return diagnostic_bbox(sample, raw, model_key)
 
 
 def mean(values: list[float]) -> float:
@@ -334,7 +395,7 @@ def main() -> None:
                 )
                 predicted_ms = runner.latency_ms
                 predicted_metadata = runner.prediction_metadata()
-                predicted_grounding = diagnostic_bbox(
+                predicted_grounding = diagnostic_localization(
                     sample, predicted_raw, args.model
                 )
 
@@ -347,7 +408,7 @@ def main() -> None:
             )
             oracle_ms = runner.latency_ms
             oracle_metadata = runner.prediction_metadata()
-            oracle_grounding = diagnostic_bbox(sample, oracle_raw, args.model)
+            oracle_grounding = diagnostic_localization(sample, oracle_raw, args.model)
 
             if not direct_supported:
                 end_raw = ""
@@ -400,6 +461,11 @@ def main() -> None:
                         predicted_metadata if semantic_prediction else {}
                     ),
                     **(predicted_grounding or {
+                        "localization_kind": (
+                            "native_point"
+                            if args.model in {"molmo-7b-d", "molmoe-1b"}
+                            else "bbox"
+                        ),
                         "strict_valid": False,
                         "strict_parse_error": "empty semantic answer",
                         "strict_bbox": None,
@@ -409,6 +475,8 @@ def main() -> None:
                         "best_bbox": None,
                         "best_iou": 0.0,
                         "best_hit_at_0_5": False,
+                        "any_point_inside_ground_truth_bbox": False,
+                        "best_normalized_miss_distance": None,
                     }),
                 },
                 "oracle_localization": {
@@ -438,11 +506,26 @@ def main() -> None:
             rows.append(row)
             handle.write(json.dumps(row, sort_keys=True) + "\n")
             handle.flush()
+            if oracle_grounding.get("localization_kind") == "native_point":
+                predicted_point_hit = row["predicted_label_localization"].get(
+                    "any_point_inside_ground_truth_bbox", False
+                )
+                oracle_point_hit = oracle_grounding.get(
+                    "any_point_inside_ground_truth_bbox", False
+                )
+                localization_status = (
+                    f"predicted_point_inside_gt={predicted_point_hit} "
+                    f"oracle_point_inside_gt={oracle_point_hit}"
+                )
+            else:
+                localization_status = (
+                    "predicted_label_iou="
+                    f"{row['predicted_label_localization']['best_iou']:.3f} "
+                    f"oracle_iou={oracle_grounding['best_iou']:.3f}"
+                )
             print(
                 f"[{index}/{len(samples)}] {sample.sample_id} "
-                f"label={semantic_prediction!r} "
-                f"predicted_label_iou={row['predicted_label_localization']['best_iou']:.3f} "
-                f"oracle_iou={oracle_grounding['best_iou']:.3f} "
+                f"label={semantic_prediction!r} {localization_status} "
                 f"end_iou={'unsupported' if end_iou is None else f'{end_iou:.3f}'}",
                 flush=True,
             )
@@ -452,15 +535,36 @@ def main() -> None:
         groups[row["question_type"]].append(row)
 
     def aggregate(values: list[dict]) -> dict:
-        oracle_hits = sum(
-            row["oracle_localization"]["best_hit_at_0_5"] for row in values
-        )
-        joint_hits = sum(
-            row["predicted_label_localization"]["best_hit_at_0_5"]
-            and row["oracle_localization"]["best_hit_at_0_5"]
+        native_point = any(
+            row["oracle_localization"].get("localization_kind") == "native_point"
             for row in values
         )
-        return {
+        oracle_hits = sum(
+            (
+                row["oracle_localization"].get("any_point_inside_ground_truth_bbox", False)
+                if native_point
+                else row["oracle_localization"]["best_hit_at_0_5"]
+            )
+            for row in values
+        )
+        joint_hits = sum(
+            (
+                row["predicted_label_localization"].get(
+                    "any_point_inside_ground_truth_bbox", False
+                )
+                if native_point
+                else row["predicted_label_localization"]["best_hit_at_0_5"]
+            )
+            and (
+                row["oracle_localization"].get(
+                    "any_point_inside_ground_truth_bbox", False
+                )
+                if native_point
+                else row["oracle_localization"]["best_hit_at_0_5"]
+            )
+            for row in values
+        )
+        result = {
             "count": len(values),
             "semantic_exact_match_informational_only": mean(
                 [
@@ -474,16 +578,16 @@ def main() -> None:
             "oracle_parse_rate": mean(
                 [float(row["oracle_localization"]["strict_valid"]) for row in values]
             ),
-            "oracle_bbox_mean_iou": mean(
+            "oracle_bbox_mean_iou": None if native_point else mean(
                 [row["oracle_localization"]["best_iou"] for row in values]
             ),
-            "oracle_bbox_accuracy_at_0_5": mean(
+            "oracle_bbox_accuracy_at_0_5": None if native_point else mean(
                 [float(row["oracle_localization"]["best_hit_at_0_5"]) for row in values]
             ),
-            "predicted_label_bbox_mean_iou": mean(
+            "predicted_label_bbox_mean_iou": None if native_point else mean(
                 [row["predicted_label_localization"]["best_iou"] for row in values]
             ),
-            "predicted_label_bbox_accuracy_at_0_5": mean(
+            "predicted_label_bbox_accuracy_at_0_5": None if native_point else mean(
                 [
                     float(row["predicted_label_localization"]["best_hit_at_0_5"])
                     for row in values
@@ -524,28 +628,120 @@ def main() -> None:
                 if direct_supported else None
             ),
             "identity_attribution": {
-                "identified_and_localizable": sum(
-                    row["predicted_label_localization"]["best_hit_at_0_5"]
-                    and row["oracle_localization"]["best_hit_at_0_5"]
-                    for row in values
-                ),
+                "identified_and_localizable": joint_hits,
                 "selection_failed_but_oracle_localizable": sum(
-                    not row["predicted_label_localization"]["best_hit_at_0_5"]
-                    and row["oracle_localization"]["best_hit_at_0_5"]
+                    not (
+                        row["predicted_label_localization"].get(
+                            "any_point_inside_ground_truth_bbox", False
+                        )
+                        if native_point
+                        else row["predicted_label_localization"]["best_hit_at_0_5"]
+                    )
+                    and (
+                        row["oracle_localization"].get(
+                            "any_point_inside_ground_truth_bbox", False
+                        )
+                        if native_point
+                        else row["oracle_localization"]["best_hit_at_0_5"]
+                    )
                     for row in values
                 ),
                 "predicted_phrase_hit_despite_oracle_label_miss": sum(
-                    row["predicted_label_localization"]["best_hit_at_0_5"]
-                    and not row["oracle_localization"]["best_hit_at_0_5"]
+                    (
+                        row["predicted_label_localization"].get(
+                            "any_point_inside_ground_truth_bbox", False
+                        )
+                        if native_point
+                        else row["predicted_label_localization"]["best_hit_at_0_5"]
+                    )
+                    and not (
+                        row["oracle_localization"].get(
+                            "any_point_inside_ground_truth_bbox", False
+                        )
+                        if native_point
+                        else row["oracle_localization"]["best_hit_at_0_5"]
+                    )
                     for row in values
                 ),
                 "both_localizations_missed": sum(
-                    not row["predicted_label_localization"]["best_hit_at_0_5"]
-                    and not row["oracle_localization"]["best_hit_at_0_5"]
+                    not (
+                        row["predicted_label_localization"].get(
+                            "any_point_inside_ground_truth_bbox", False
+                        )
+                        if native_point
+                        else row["predicted_label_localization"]["best_hit_at_0_5"]
+                    )
+                    and not (
+                        row["oracle_localization"].get(
+                            "any_point_inside_ground_truth_bbox", False
+                        )
+                        if native_point
+                        else row["oracle_localization"]["best_hit_at_0_5"]
+                    )
                     for row in values
                 ),
             },
         }
+        result.update(
+            {
+                "native_point_diagnostic": native_point,
+                "oracle_native_point_parse_rate": (
+                    mean(
+                        [
+                            float(row["oracle_localization"]["strict_valid"])
+                            for row in values
+                        ]
+                    )
+                    if native_point
+                    else None
+                ),
+                "oracle_native_point_inside_gt_rate": (
+                    mean(
+                        [
+                            float(
+                                row["oracle_localization"].get(
+                                    "any_point_inside_ground_truth_bbox", False
+                                )
+                            )
+                            for row in values
+                        ]
+                    )
+                    if native_point
+                    else None
+                ),
+                "predicted_label_native_point_inside_gt_rate": (
+                    mean(
+                        [
+                            float(
+                                row["predicted_label_localization"].get(
+                                    "any_point_inside_ground_truth_bbox", False
+                                )
+                            )
+                            for row in values
+                        ]
+                    )
+                    if native_point
+                    else None
+                ),
+                "oracle_native_point_mean_normalized_miss_distance": (
+                    mean(
+                        [
+                            distance
+                            for row in values
+                            if (
+                                distance := row["oracle_localization"].get(
+                                    "best_normalized_miss_distance"
+                                )
+                            )
+                            is not None
+                        ]
+                    )
+                    if native_point
+                    else None
+                ),
+            }
+        )
+        return result
 
     report = {
         "diagnostic_only": True,
@@ -553,7 +749,9 @@ def main() -> None:
             "All localization hypotheses and oracle results are diagnostic-only. "
             "Oracle localization discloses the GT label; best-coordinate scoring "
             "uses GT to compare known conventions and ambiguous native "
-            "candidates. Neither is a benchmark score."
+            "candidates. Molmo point-in-GT and best-point distance likewise use "
+            "a second localization call and may select among points with GT. "
+            "None of these values is a benchmark bbox score."
         ),
         "model": args.model,
         "inference": health,

@@ -339,16 +339,28 @@ class VLLMVQARunner:
                         isinstance(bbox, list)
                         and len(bbox) == 4
                         and all(isinstance(value, (int, float)) for value in bbox)
-                        and all(0 <= float(value) <= 1000 for value in bbox)
+                        and all(0 <= float(value) <= 999 for value in bbox)
                     ):
-                        raise ValueError("native bbox is not four normalized numbers")
+                        raise ValueError(
+                            "native bbox is not four numbers on the 0-999 grid"
+                        )
                     x0, y0, x1, y1 = (float(value) for value in bbox)
                     if x1 < x0 or y1 < y0:
                         raise ValueError("native bbox is not XYXY ordered")
+                    # RPX's strict JSON contract is normalized 0--1000, while
+                    # DeepSeek-VL2's discrete native grounding grid is 0--999.
+                    # Convert explicitly instead of silently treating the two
+                    # scales as identical.
+                    scale = 1000.0 / 999.0
                     candidates.append(
                         {
                             "label": (match.group("label") or "").strip(),
-                            "bbox": [x0, y0, x1, y1],
+                            "bbox": [
+                                x0 * scale,
+                                y0 * scale,
+                                x1 * scale,
+                                y1 * scale,
+                            ],
                         }
                     )
             except (TypeError, ValueError, json.JSONDecodeError) as error:
@@ -357,7 +369,9 @@ class VLLMVQARunner:
             "native_output": raw,
             "native_candidate_count": len(candidates),
             "candidate_policy": "exactly_one_native_bbox",
-            "coordinate_format": "deepseek_vl2_normalized_0_999",
+            "native_coordinate_format": "deepseek_vl2_normalized_0_999",
+            "coordinate_format": "normalized_0_1000",
+            "native_to_rpx_scale": 1000.0 / 999.0,
         }
         if parse_errors:
             metadata["native_parse_errors"] = parse_errors

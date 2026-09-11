@@ -143,6 +143,20 @@ def build_label_localization_prompt(
         return PromptSpec(f"detect {label}\n", 64, output_kind)
     if model_key.startswith("deepseek-vl2"):
         return PromptSpec(f"<|ref|>{label}<|/ref|>.", 128, output_kind)
+    if model_key in {"molmo-7b-d", "molmoe-1b"}:
+        # Molmo 0924 is natively trained to answer pointing prompts with
+        # <point>/<points> markup on a 0--100 coordinate grid.  This remains
+        # an explicitly unscored localization diagnostic: a point is never
+        # fabricated into a bbox or substituted for the scored RPX result.
+        return PromptSpec(
+            f"Point to the {label} in the image.",
+            64,
+            (
+                "diagnostic_oracle_point"
+                if oracle
+                else "diagnostic_predicted_label_point"
+            ),
+        )
     return PromptSpec(
         f'Locate the visible object named "{label}" in the target image. '
         'Return only JSON: {"label":"object name","bbox":'
@@ -165,6 +179,19 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     if sample.question_type in BBOX_TYPES:
         if model_key.startswith("deepseek-vl2"):
             expression = native_referring_expression(sample)
+            if sample.is_in_context:
+                # DeepSeek-VL2 documents <|ref|> for ordinary single-image
+                # referring-expression localization, but its native
+                # multi-image/in-context grounding examples use the
+                # <|grounding|> mode.  Image 1 is already the hash-verified
+                # reference crop; Image 2 is the target scene.
+                return PromptSpec(
+                    "<|grounding|>The first image is a crop showing the reference "
+                    f"object. Locate only {expression} and return its grounding in "
+                    "the second image.",
+                    128,
+                    "bbox_native_question_grounding",
+                )
             return PromptSpec(
                 f"<|ref|>{expression}<|/ref|>.",
                 128,

@@ -13,7 +13,12 @@ from rpx_benchmark.vqa import hub_rgb
 from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
 from rpx_benchmark.vqa.metrics import bbox_iou, label_token_f1, score_predictions
-from rpx_benchmark.vqa.outputs import ParsedOutput, normalize_label, parse_output
+from rpx_benchmark.vqa.outputs import (
+    ParsedOutput,
+    normalize_label,
+    parse_molmo_points,
+    parse_output,
+)
 from rpx_benchmark.vqa.prompts import (
     build_label_localization_prompt,
     build_oracle_localization_prompt,
@@ -25,7 +30,7 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
-from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
+from run_vqa_diagnostic import diagnostic_bbox, diagnostic_point  # noqa: E402
 from run_vllm_vqa import validate_gpu_environment  # noqa: E402
 from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
@@ -211,6 +216,24 @@ def test_deepseek_uses_native_one_stage_grounding(model_key: str) -> None:
     assert get_model(model_key).capabilities == {"bbox"}
 
 
+@pytest.mark.parametrize("model_key", ["deepseek-vl2-tiny", "deepseek-vl2"])
+def test_deepseek_incontext_uses_native_grounding_mode(model_key: str) -> None:
+    sample = SimpleNamespace(
+        question_type="inctx_attr_single_material",
+        question=(
+            "Which object in Image 2 is made of the same material as the object "
+            "shown in Image 1? What is its bounding box in Image 2?"
+        ),
+        is_in_context=True,
+    )
+    prompt = build_prompt(sample, model_key)
+    assert prompt.text.startswith("<|grounding|>")
+    assert "first image is a crop showing the reference object" in prompt.text
+    assert "second image" in prompt.text
+    assert "<|ref|>" not in prompt.text
+    assert prompt.output_kind == "bbox_native_question_grounding"
+
+
 def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     semantic = build_semantic_diagnostic_prompt(sample, "gemma4-12b")
@@ -236,6 +259,11 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
     assert "JSON" not in florence_oracle.text
     florence_predicted = build_label_localization_prompt("red alarm clock", "florence2-base")
     assert florence_predicted.text == "red alarm clock"
+    molmo_oracle = build_oracle_localization_prompt(sample, "molmo-7b-d")
+    assert molmo_oracle.text == "Point to the alarm clock in the image."
+    assert molmo_oracle.output_kind == "diagnostic_oracle_point"
+    molmo_predicted = build_label_localization_prompt("red alarm clock", "molmo-7b-d")
+    assert molmo_predicted.output_kind == "diagnostic_predicted_label_point"
 
 
 def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
@@ -500,7 +528,7 @@ def test_docker_matrix_matches_python_roster() -> None:
     )
     molmo = [model for model in matrix["models"] if model["key"].startswith("molmo")]
     assert all(
-        model["diagnostic_tasks"] == ["semantic_label", "prompted_localization"] for model in molmo
+        model["diagnostic_tasks"] == ["semantic_label", "native_point"] for model in molmo
     )
 
 
@@ -568,15 +596,43 @@ def test_molmo_point_is_not_fabricated_into_bbox() -> None:
     assert parsed.error is not None and parsed.error.startswith("missing JSON object")
 
 
+def test_molmo_native_point_parser_and_diagnostic() -> None:
+    parsed = parse_molmo_points(
+        '<points x1="25.0" y1="50.0" x2="90.0" y2="10.0" '
+        'alt="alarm clock">alarm clock</points>'
+    )
+    assert parsed.valid
+    assert parsed.points == ((25.0, 50.0), (90.0, 10.0))
+    sample = VQASample.from_dict(row("depth_closest"))
+    result = diagnostic_point(
+        sample,
+        '<point x="23.5" y="35.5" alt="alarm clock">alarm clock</point>',
+    )
+    assert result["localization_kind"] == "native_point"
+    assert result["strict_bbox"] is None
+    assert result["point_count"] == 1
+    assert result["any_point_inside_ground_truth_bbox"] is True
+    assert result["best_normalized_miss_distance"] == 0.0
+
+
+def test_molmo_native_point_parser_rejects_bad_scale() -> None:
+    parsed = parse_molmo_points('<point x="250" y="50">object</point>')
+    assert not parsed.valid
+    assert parsed.error is not None and "outside the 0-100 grid" in parsed.error
+
+
 def test_deepseek_native_bbox_decoding_is_strict() -> None:
     raw, metadata = VLLMVQARunner._decode_deepseek_grounding(
         "<|ref|>alarm clock<|/ref|><|det|>[[100,200,300,400]]<|/det|>"
     )
-    assert json.loads(raw) == {
-        "label": "alarm clock",
-        "bbox": [100.0, 200.0, 300.0, 400.0],
-    }
+    decoded = json.loads(raw)
+    assert decoded["label"] == "alarm clock"
+    assert decoded["bbox"] == pytest.approx(
+        [100 * 1000 / 999, 200 * 1000 / 999, 300 * 1000 / 999, 400 * 1000 / 999]
+    )
     assert metadata["native_candidate_count"] == 1
+    assert metadata["native_coordinate_format"] == "deepseek_vl2_normalized_0_999"
+    assert metadata["coordinate_format"] == "normalized_0_1000"
     ambiguous, ambiguous_metadata = VLLMVQARunner._decode_deepseek_grounding(
         "<|ref|>object<|/ref|><|det|>[[1,2,3,4],[5,6,7,8]]<|/det|>"
     )
@@ -659,6 +715,9 @@ def test_florence_decodes_only_unambiguous_target_panel_candidate() -> None:
     assert metadata["target_candidate_count"] == 1
     assert metadata["single_scored_model_call"] is False
     assert metadata["diagnostic_only"] is True
+    assert metadata["adapter"] == "florence2_composite_phrase_grounding"
+    assert metadata["multi_image_accommodation"] == "labelled_side_by_side_composite"
+    assert metadata["image_count"] == 2
 
 
 def test_florence_direct_grounding_is_marked_as_one_scored_call() -> None:

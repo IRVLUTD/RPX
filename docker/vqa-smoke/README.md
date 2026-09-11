@@ -28,6 +28,12 @@ they are explicitly unscored and never replace the one-stage prediction.
 The container keeps Transformers 4.49.0 in an isolated Florence environment;
 the main environment stays on the newer version required by Qwen3-VL/vLLM.
 
+In-context Florence inference is an architecture accommodation rather than a
+native multi-image interface. Its per-row metadata records
+`florence2_composite_phrase_grounding`, the reference-then-target order, and
+`labelled_side_by_side_composite`; normal rows remain native single-image
+phrase grounding.
+
 ## PaliGemma 2 native adapter
 
 PaliGemma 2 runs through its official Hugging Face processor rather than
@@ -38,6 +44,27 @@ For two-image rows, one labelled composite is passed to one generation and the
 native composite-relative coordinates are mapped back to Image 2. The
 `answer en` and `detect <known label>` calls exist only in the diagnostic
 commands; semantic answers and oracle results are not benchmark predictions.
+
+## DeepSeek-VL2 native adapter
+
+Normal single-image rows use DeepSeek-VL2's documented
+`<|ref|>expression<|/ref|>` localization form. In-context rows use its native
+`<|grounding|>` mode with the hash-verified Image 1 reference crop followed by
+the Image 2 target scene. Both paths make one scored model call and accept
+exactly one native `<|det|>` bbox. DeepSeek's discrete 0--999 native grid is
+explicitly converted to RPX's 0--1000 JSON contract before common parsing.
+
+## Molmo native-point diagnostic
+
+The scored acceptance path continues to measure strict compliance with RPX's
+common bbox JSON contract. Separately, the diagnostic commands use Molmo
+0924's native `Point to ...` interface and parse `<point>`/`<points>` outputs
+on their documented 0--100 percentage grid. They report point-in-GT-bbox and
+normalized miss distance. Native points are never expanded or fabricated into
+boxes and never enter the benchmark bbox-IoU score. Diagnostic localization
+uses the target image only, including for an in-context row; it therefore
+measures localization of the separately predicted/oracle phrase, not the
+one-call end-to-end task.
 
 The current smoke manifest has 14 bbox questions over four RGB frames
 (normal tasks only):
@@ -85,6 +112,9 @@ never fabricated inference rows.
   rewrite uses the question/type only, with no answer or GT. Their two-image scored
   paths use a visibly labelled composite and remap the selected target-panel
   region into Image 2 coordinates.
+- DeepSeek-VL2 uses `<|ref|>` for normal referring-expression grounding and
+  `<|grounding|>` for two-image in-context grounding. Native 0--999 boxes are
+  converted to the common 0--1000 contract without changing their geometry.
 - PaliGemma 2 `answer en`, Florence `<VQA>`, predicted-label grounding, and
   GT-label oracle grounding are explicitly unscored diagnostic calls.
 - The smoke/acceptance gate (`run_vllm_vqa.py`) measures isolated,
@@ -284,3 +314,8 @@ protocol parsing plus JSON/Python-dict and normalized/pixel bbox hypotheses;
 the best-coordinate measurements use GT to identify convention mistakes and
 are diagnostic leakage.  Oracle and best-coordinate results must never be
 reported as benchmark performance.
+
+For Molmo, those two localization probes use native points instead of boxes.
+The report and gallery expose every point, point-in-GT-bbox success, and
+normalized distance to the GT box. These remain second-call/oracle diagnostics
+and must not be compared numerically with bbox IoU.

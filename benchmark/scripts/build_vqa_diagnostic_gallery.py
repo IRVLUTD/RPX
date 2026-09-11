@@ -8,7 +8,7 @@ import html
 import json
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from build_vqa_acceptance_gallery import _native_candidates, _overlay, _to_data_uri
 from rpx_benchmark.vqa.contract import load_manifest
@@ -31,6 +31,23 @@ def _load_rows(path: Path) -> dict[str, dict]:
 
 
 def _localization_figure(target: Image.Image, localization: dict, caption: str) -> str:
+    if localization.get("localization_kind") == "native_point":
+        rendered = target.copy()
+        draw = ImageDraw.Draw(rendered)
+        radius = max(5, round(min(rendered.size) / 80))
+        for index, point in enumerate(localization.get("native_points_pixel") or [], 1):
+            x, y = (float(value) for value in point)
+            draw.ellipse(
+                (x - radius, y - radius, x + radius, y + radius),
+                outline=(255, 0, 255),
+                width=max(2, radius // 3),
+            )
+            draw.text((x + radius + 2, y - radius), f"P{index}", fill=(255, 0, 255))
+        return (
+            f'<figure><img src="{_to_data_uri(rendered)}">'
+            f'<figcaption>{html.escape(caption)} — native Molmo points=P1…Pn '
+            "(magenta; unscored)</figcaption></figure>"
+        )
     strict_bbox = localization.get("strict_bbox") if localization.get("strict_valid") else None
     candidates = _native_candidates(
         localization.get("raw_output"),
@@ -67,6 +84,24 @@ def _section(sample, row: dict, image_cache: Path) -> str:
     figures.append(_localization_figure(target, oracle, "Oracle-phrase grounding"))
     semantic = row["semantic"]
     end = row["end_to_end"]
+    if oracle.get("localization_kind") == "native_point":
+        localization_metrics = [
+            "<dt>predicted phrase point inside GT</dt><dd>"
+            f"{bool(predicted.get('any_point_inside_ground_truth_bbox', False))}</dd>",
+            "<dt>predicted point normalized miss distance</dt><dd>"
+            f"{predicted.get('best_normalized_miss_distance')}</dd>",
+            "<dt>oracle point inside GT</dt><dd>"
+            f"{bool(oracle.get('any_point_inside_ground_truth_bbox', False))}</dd>",
+            "<dt>oracle point normalized miss distance</dt><dd>"
+            f"{oracle.get('best_normalized_miss_distance')}</dd>",
+        ]
+    else:
+        localization_metrics = [
+            "<dt>predicted phrase IoU upper bound</dt><dd>"
+            f'{float(predicted.get("best_iou", 0)):.3f}</dd>',
+            "<dt>oracle IoU upper bound</dt><dd>"
+            f'{float(oracle.get("best_iou", 0)):.3f}</dd>',
+        ]
     return "\n".join(
         [
             '<section class="sample">',
@@ -77,9 +112,9 @@ def _section(sample, row: dict, image_cache: Path) -> str:
             f'<dt>ground truth</dt><dd>{html.escape(sample.answer)} {html.escape(str(sample.answer_bbox))}</dd>',
             f'<dt>semantic raw</dt><dd><code>{html.escape(str(semantic.get("raw_output", "")))}</code></dd>',
             f'<dt>semantic phrase</dt><dd>{html.escape(str(semantic.get("normalized_prediction", "")))}</dd>',
-            f'<dt>predicted phrase IoU upper bound</dt><dd>{float(predicted.get("best_iou", 0)):.3f}</dd>',
+            *localization_metrics[:1],
             f'<dt>predicted grounding raw</dt><dd><code>{html.escape(str(predicted.get("raw_output", "")))}</code></dd>',
-            f'<dt>oracle IoU upper bound</dt><dd>{float(oracle.get("best_iou", 0)):.3f}</dd>',
+            *localization_metrics[1:],
             f'<dt>oracle grounding raw</dt><dd><code>{html.escape(str(oracle.get("raw_output", "")))}</code></dd>',
             f'<dt>end-to-end</dt><dd>{html.escape(str(end.get("parse_error") or end.get("source")))}</dd>',
             "</dl></section>",
@@ -123,7 +158,9 @@ def main() -> None:
         f"<h1>VQA diagnostic — {html.escape(args.model)}</h1>"
         "<p class='warning'><strong>Not benchmark scores.</strong> Predicted-phrase grounding is a "
         "second model call. Oracle grounding discloses the GT label. Any displayed best IoU may "
-        "select among native candidates using GT and is only an upper-bound diagnostic.</p>"
+        "select among native candidates using GT and is only an upper-bound diagnostic. Molmo "
+        "native points are displayed and scored only by point-in-GT and normalized miss distance; "
+        "they are never converted into boxes.</p>"
         + "\n".join(sections)
         + "</body></html>"
     )
