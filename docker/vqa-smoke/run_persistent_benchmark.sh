@@ -16,7 +16,11 @@ runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
 image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
 name="rpx-vqa-${model//[^a-zA-Z0-9_.-]/-}"
-repo_sha="$(git rev-parse --short=12 HEAD)"
+repo_sha="${RPX_GIT_SHA:-}"
+if [[ -z "${repo_sha}" ]]; then
+  repo_sha="$(git rev-parse HEAD)"
+fi
+repo_sha="${repo_sha:0:12}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 
 test -n "${HF_TOKEN:-}" || { echo "HF_TOKEN is not exported" >&2; exit 2; }

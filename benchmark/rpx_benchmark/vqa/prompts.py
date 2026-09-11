@@ -114,6 +114,17 @@ def _molmo_bbox_instruction(question: str) -> str:
     )
 
 
+def _internvl_bbox_instruction(expression: str) -> str:
+    """Use InternVL 3.5's trained RefCOCO-style native grounding protocol."""
+    # Match OpenGVLab's RefCOCO evaluation prompt exactly.  Output constraints
+    # added after this sentence can knock a native grounding checkpoint out of
+    # its trained response protocol; strictness belongs in the parser instead.
+    return (
+        "Please provide the bounding box coordinate of the region this sentence "
+        f"describes: {expression}"
+    )
+
+
 def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     """Ask for the answer label only, without leaking the ground truth.
 
@@ -239,6 +250,12 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
                 _molmo_bbox_instruction(question),
                 96,
                 "bbox_molmo_percent_100",
+            )
+        if model_key in {"internvl3.5-1b", "internvl3.5-14b"}:
+            return PromptSpec(
+                _internvl_bbox_instruction(native_referring_expression(sample)),
+                96,
+                "bbox_native_internvl_grounding",
             )
         return PromptSpec(
             _bbox_instruction(question),

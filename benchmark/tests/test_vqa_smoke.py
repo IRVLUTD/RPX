@@ -16,7 +16,6 @@ from rpx_benchmark.vqa.metrics import bbox_iou, label_token_f1, score_prediction
 from rpx_benchmark.vqa.outputs import (
     ParsedOutput,
     normalize_label,
-    parse_molmo_points,
     parse_output,
 )
 from rpx_benchmark.vqa.prompts import (
@@ -30,14 +29,11 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
-from run_vqa_diagnostic import diagnostic_bbox, diagnostic_point  # noqa: E402
+from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
 from run_vllm_vqa import validate_gpu_environment  # noqa: E402
 from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
-from vqa_models.molmo_backend import (  # noqa: E402
-    MolmoVQARunner,
-    _ignore_unused_molmo_tensorflow_import,
-)
+from vqa_models.internvl_backend import InternVLVQARunner, _dynamic_preprocess  # noqa: E402
 from vqa_models.paligemma_backend import PaliGemmaVQARunner  # noqa: E402
 from vqa_models.vllm_backend import (  # noqa: E402
     CHECKPOINTS as VLLM_CHECKPOINTS,
@@ -186,12 +182,14 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
     assert {prompt.output_kind for prompt in prompts} == {"bbox_json_normalized_1000"}
 
 
-@pytest.mark.parametrize("model_key", ["molmo-7b-d", "molmoe-1b"])
-def test_molmo_requests_a_complete_percentage_bbox(model_key: str) -> None:
+@pytest.mark.parametrize("model_key", ["internvl3.5-1b", "internvl3.5-14b"])
+def test_internvl_requests_native_grounding_bbox(model_key: str) -> None:
     prompt = build_prompt(VQASample.from_dict(row("depth_closest")), model_key)
-    assert prompt.output_kind == "bbox_molmo_percent_100"
-    assert "percentage from 0 to 100" in prompt.text
-    assert "[x_min,y_min,x_max,y_max]" in prompt.text
+    assert prompt.output_kind == "bbox_native_internvl_grounding"
+    assert prompt.text == (
+        "Please provide the bounding box coordinate of the region this sentence "
+        "describes: the object furthest to the left"
+    )
 
 
 @pytest.mark.parametrize("model_key", ["florence2-base", "florence2-large"])
@@ -268,11 +266,6 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
     assert "JSON" not in florence_oracle.text
     florence_predicted = build_label_localization_prompt("red alarm clock", "florence2-base")
     assert florence_predicted.text == "red alarm clock"
-    molmo_oracle = build_oracle_localization_prompt(sample, "molmo-7b-d")
-    assert molmo_oracle.text == "Point to the alarm clock in the image."
-    assert molmo_oracle.output_kind == "diagnostic_oracle_point"
-    molmo_predicted = build_label_localization_prompt("red alarm clock", "molmo-7b-d")
-    assert molmo_predicted.output_kind == "diagnostic_predicted_label_point"
 
 
 def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
@@ -467,7 +460,7 @@ def test_roster_matches_rpx_draft() -> None:
         "Qwen2.5-VL 3B",
         "Qwen3-VL 2B",
         "DeepSeek-VL2 Tiny (1B active)",
-        "MolmoE 1B (7.2B total)",
+        "InternVL 3.5 1B",
         "Gemma 4 E4B",
         "Phi-3.5-Vision 4.2B",
         "LLaVA-OneVision 7B",
@@ -475,7 +468,7 @@ def test_roster_matches_rpx_draft() -> None:
         "Qwen3-VL 8B",
         "Idefics3 8B",
         "InternVL 2.5 8B",
-        "Molmo 7B-D",
+        "InternVL 3.5 14B",
         "DeepSeek-VL2 (4.5B active)",
         "PaliGemma 2 10B",
         "Gemma 4 12B",
@@ -520,7 +513,7 @@ def test_docker_matrix_matches_python_roster() -> None:
         "vllm",
         "transformers-florence2",
         "transformers-paligemma2",
-        "transformers-molmo",
+        "transformers-internvl",
     ]
     assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]
@@ -535,10 +528,9 @@ def test_docker_matrix_matches_python_roster() -> None:
     assert all(
         model["diagnostic_tasks"] == ["semantic_label", "object_detection"] for model in paligemma
     )
-    molmo = [model for model in matrix["models"] if model["key"].startswith("molmo")]
-    assert all(
-        model["diagnostic_tasks"] == ["semantic_label", "native_point"] for model in molmo
-    )
+    internvl35 = [model for model in matrix["models"] if model["key"].startswith("internvl3.5-")]
+    assert len(internvl35) == 2
+    assert all(model["backend"] == "transformers-internvl" for model in internvl35)
 
 
 def test_vqa_docker_has_explicit_pinned_backends() -> None:
@@ -563,47 +555,39 @@ def test_paligemma_uses_native_transformers_backend() -> None:
     assert runner.prediction_metadata() == {}
 
 
-def test_molmo_uses_native_transformers_backend() -> None:
-    assert backend_name("molmo-7b-d") == "transformers-molmo"
-    assert backend_name("molmoe-1b") == "transformers-molmo"
+def test_internvl35_uses_native_transformers_backend() -> None:
+    assert backend_name("internvl3.5-1b") == "transformers-internvl"
+    assert backend_name("internvl3.5-14b") == "transformers-internvl"
 
 
-def test_molmo_uses_isolated_transformers_4_runtime() -> None:
+def test_internvl35_uses_isolated_supported_transformers_runtime() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     dockerfile = (repo_root / "docker/vqa-smoke/Dockerfile").read_text()
     entrypoint = (repo_root / "docker/vqa-smoke/entrypoint.sh").read_text()
 
-    assert "/opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir" in dockerfile
-    assert "transformers==4.49.0" in dockerfile
-    assert "/opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir --no-deps" in dockerfile
-    assert '[[ "$1" == molmo-* || "$1" == molmoe-* ]]' in entrypoint
-    assert "/opt/rpx-envs/molmo/bin/python" in entrypoint
+    assert "/opt/rpx-envs/internvl/bin/python -m pip install --no-cache-dir" in dockerfile
+    assert "transformers==4.57.1" in dockerfile
+    assert "/opt/rpx-envs/internvl/bin/python -m pip install --no-cache-dir --no-deps" in dockerfile
+    assert '[[ "$1" == internvl3.5-* ]]' in entrypoint
+    assert "/opt/rpx-envs/internvl/bin/python" in entrypoint
 
 
-def test_molmo_ignores_only_its_unused_tensorflow_resize_import(tmp_path: Path) -> None:
-    from transformers import dynamic_module_utils
+def test_internvl_dynamic_preprocess_preserves_official_tile_contract() -> None:
+    from PIL import Image
 
-    molmo_module = tmp_path / "image_preprocessing_molmo.py"
-    molmo_module.write_text("import numpy\n\ndef legacy_resize():\n    import tensorflow\n")
-    unrelated_module = tmp_path / "unrelated.py"
-    unrelated_module.write_text("import tensorflow\n")
-    original_get_imports = dynamic_module_utils.get_imports
-
-    with _ignore_unused_molmo_tensorflow_import():
-        assert dynamic_module_utils.get_imports(molmo_module) == ["numpy"]
-        assert dynamic_module_utils.get_imports(unrelated_module) == ["tensorflow"]
-
-    assert dynamic_module_utils.get_imports is original_get_imports
+    tiles = _dynamic_preprocess(Image.new("RGB", (1920, 1080)), max_num=6)
+    assert 1 < len(tiles) <= 7
+    assert all(tile.size == (448, 448) for tile in tiles)
 
 
-def test_molmo_one_stage_call_preserves_image_order(monkeypatch, tmp_path: Path) -> None:
+def test_internvl_one_stage_call_preserves_image_order(monkeypatch, tmp_path: Path) -> None:
     from PIL import Image
 
     reference = tmp_path / "reference.png"
     target = tmp_path / "target.png"
     Image.new("RGB", (8, 8), "red").save(reference)
     Image.new("RGB", (8, 8), "blue").save(target)
-    runner = object.__new__(MolmoVQARunner)
+    runner = object.__new__(InternVLVQARunner)
     runner._last_adapter_metadata = {}
     calls = []
     monkeypatch.setattr(
@@ -611,77 +595,46 @@ def test_molmo_one_stage_call_preserves_image_order(monkeypatch, tmp_path: Path)
         "_generate",
         lambda images, prompt, tokens: (
             calls.append(([image.getpixel((0, 0)) for image in images], prompt, tokens))
-            or '{"label":"object","bbox":[1,2,3,4]}'
+            or "object[[1,2,3,4]]"
         ),
     )
-    raw = runner.predict([reference, target], "question", 96, "bbox_molmo_percent_100")
-    assert raw == '{"label":"object","bbox":[1,2,3,4]}'
+    raw = runner.predict(
+        [reference, target], "question", 96, "bbox_native_internvl_grounding"
+    )
+    assert raw == "object[[1,2,3,4]]"
     assert calls == [([(255, 0, 0), (0, 0, 255)], "question", 96)]
     assert runner.prediction_metadata()["image_order"] == "reference_then_target"
     assert runner.prediction_metadata()["single_scored_model_call"] is True
-    assert runner.prediction_metadata()["native_coordinate_format"] == (
-        "molmo_bbox_percent_0_100"
-    )
+    assert runner.prediction_metadata()["native_coordinate_format"] == "internvl_bbox_0_1000"
 
 
-def test_molmo_percentage_bbox_is_scaled_without_point_expansion() -> None:
+def test_internvl_native_bbox_is_scaled_strictly() -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     parsed = parse_output(
         sample,
-        '{"label":"alarm clock","bbox":[25,20,75,80]}',
-        "molmo-7b-d",
+        "<ref>alarm clock</ref><box>[[250,200,750,800]]</box>",
+        "internvl3.5-14b",
     )
     assert parsed.valid
-    assert parsed.coordinate_format == "molmo_bbox_percent_0_100"
+    assert parsed.label == "alarm clock"
+    assert parsed.coordinate_format == "internvl_bbox_0_1000"
     assert parsed.bbox == pytest.approx((159.75, 95.8, 479.25, 383.2))
 
 
-def test_molmo_percentage_bbox_rejects_generic_1000_scale() -> None:
+def test_internvl_native_bbox_rejects_ambiguous_or_bad_boxes() -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     parsed = parse_output(
         sample,
-        '{"label":"alarm clock","bbox":[100,120,200,220]}',
-        "molmoe-1b",
+        "clock[[100,120,200,220]] other[[300,320,400,420]]",
+        "internvl3.5-1b",
     )
     assert not parsed.valid
-    assert parsed.error is not None and "outside percentage 0-100" in parsed.error
-
-
-def test_molmo_point_is_not_fabricated_into_bbox() -> None:
-    sample = VQASample.from_dict(row("depth_closest"))
-    parsed = parse_output(
-        sample,
-        '<point x="25.0" y="50.0">alarm clock</point>',
-        "molmo-7b-d",
+    assert parsed.error == "expected exactly one InternVL bbox"
+    reversed_box = parse_output(
+        sample, "clock[[300,400,200,500]]", "internvl3.5-1b"
     )
-    assert parsed.valid is False
-    assert parsed.bbox is None
-    assert parsed.error is not None and parsed.error.startswith("missing JSON object")
-
-
-def test_molmo_native_point_parser_and_diagnostic() -> None:
-    parsed = parse_molmo_points(
-        '<points x1="25.0" y1="50.0" x2="90.0" y2="10.0" '
-        'alt="alarm clock">alarm clock</points>'
-    )
-    assert parsed.valid
-    assert parsed.points == ((25.0, 50.0), (90.0, 10.0))
-    sample = VQASample.from_dict(row("depth_closest"))
-    result = diagnostic_point(
-        sample,
-        '<point x="23.5" y="35.5" alt="alarm clock">alarm clock</point>',
-    )
-    assert result["localization_kind"] == "native_point"
-    assert result["strict_bbox"] is None
-    assert result["point_count"] == 1
-    assert result["any_point_inside_ground_truth_bbox"] is True
-    assert result["best_normalized_miss_distance"] == 0.0
-
-
-def test_molmo_native_point_parser_rejects_bad_scale() -> None:
-    parsed = parse_molmo_points('<point x="250" y="50">object</point>')
-    assert not parsed.valid
-    assert parsed.error is not None and "outside the 0-100 grid" in parsed.error
+    assert not reversed_box.valid
+    assert reversed_box.error == "InternVL bbox corners are not ordered XYXY"
 
 
 def test_deepseek_native_bbox_decoding_is_strict() -> None:

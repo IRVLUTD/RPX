@@ -3,7 +3,7 @@
   "single_image_only": false,
   "max_images_per_prompt": 2,
   "inference_backend": "model-specific",
-  "inference_backends": ["vllm", "transformers-florence2", "transformers-paligemma2", "transformers-molmo"],
+  "inference_backends": ["vllm", "transformers-florence2", "transformers-paligemma2", "transformers-internvl"],
   "vllm_version": "0.28.0",
   "models": [
     {"key":"florence2-base","name":"Florence 2 Base","size_b":0.23,"vram_gb":4,"bbox":"native_loc","backend":"transformers-florence2","tasks":["bbox"],"diagnostic_tasks":["semantic_label","phrase_grounding"]},
@@ -12,7 +12,7 @@
     {"key":"qwen2.5-vl-3b","name":"Qwen2.5-VL 3B","size_b":3,"vram_gb":7,"bbox":"native","tasks":["bbox"]},
     {"key":"qwen3-vl-2b","name":"Qwen3-VL 2B","size_b":2,"vram_gb":7,"bbox":"native","tasks":["bbox"]},
     {"key":"deepseek-vl2-tiny","name":"DeepSeek-VL2 Tiny (1B active)","size_b":1,"vram_gb":16,"bbox":"native_loc","backend":"vllm","tasks":["bbox"]},
-    {"key":"molmoe-1b","name":"MolmoE 1B (7.2B total)","size_b":7.2,"vram_gb":20,"bbox":"prompted_percent_0_100","backend":"transformers-molmo","tasks":["bbox"],"diagnostic_tasks":["semantic_label","native_point"]},
+    {"key":"internvl3.5-1b","name":"InternVL 3.5 1B","size_b":1.1,"vram_gb":8,"bbox":"native_loc","backend":"transformers-internvl","tasks":["bbox"]},
     {"key":"gemma4-e4b","name":"Gemma 4 E4B","size_b":4.5,"vram_gb":18,"bbox":"prompted","tasks":["bbox"]},
     {"key":"phi-3.5-vision-4b","name":"Phi-3.5-Vision 4.2B","size_b":4.2,"vram_gb":10,"bbox":"prompted","tasks":["bbox"]},
     {"key":"llava-onevision-7b","name":"LLaVA-OneVision 7B","size_b":7,"vram_gb":16,"bbox":"prompted","tasks":["bbox"]},
@@ -20,7 +20,7 @@
     {"key":"qwen3-vl-8b","name":"Qwen3-VL 8B","size_b":8,"vram_gb":18,"bbox":"native","tasks":["bbox"]},
     {"key":"idefics3-8b","name":"Idefics3 8B","size_b":8,"vram_gb":18,"bbox":"prompted","tasks":["bbox"]},
     {"key":"internvl2.5-8b","name":"InternVL 2.5 8B","size_b":8,"vram_gb":17,"bbox":"prompted","tasks":["bbox"]},
-    {"key":"molmo-7b-d","name":"Molmo 7B-D","size_b":8,"vram_gb":20,"bbox":"prompted_percent_0_100","backend":"transformers-molmo","tasks":["bbox"],"diagnostic_tasks":["semantic_label","native_point"]},
+    {"key":"internvl3.5-14b","name":"InternVL 3.5 14B","size_b":15.1,"vram_gb":36,"bbox":"native_loc_tp2","backend":"transformers-internvl","tensor_parallel_size":2,"tasks":["bbox"]},
     {"key":"deepseek-vl2","name":"DeepSeek-VL2 (4.5B active)","size_b":4.5,"vram_gb":64,"bbox":"native_loc_tp2","backend":"vllm","tensor_parallel_size":2,"tasks":["bbox"]},
     {"key":"paligemma2-10b","name":"PaliGemma 2 10B","size_b":10,"vram_gb":21,"bbox":"native_loc","backend":"transformers-paligemma2","tasks":["bbox"],"diagnostic_tasks":["semantic_label","object_detection"]},
     {"key":"gemma4-12b","name":"Gemma 4 12B","size_b":12,"vram_gb":28,"bbox":"prompted","tasks":["bbox"]}

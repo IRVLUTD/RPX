@@ -21,7 +21,6 @@ class ModelSpec:
 ALL_TASKS = frozenset({"bbox"})
 FLORENCE_DIAGNOSTICS = frozenset({"semantic_label", "phrase_grounding"})
 PALIGEMMA_DIAGNOSTICS = frozenset({"semantic_label", "object_detection"})
-MOLMO_DIAGNOSTICS = frozenset({"semantic_label", "native_point"})
 
 MODELS = (
     # Native localization models receive the original question as their
@@ -63,15 +62,7 @@ MODELS = (
         "native_loc",
         ALL_TASKS,
     ),
-    ModelSpec(
-        "molmoe-1b",
-        "MolmoE 1B (7.2B total)",
-        7.2,
-        20,
-        "prompted",
-        ALL_TASKS,
-        MOLMO_DIAGNOSTICS,
-    ),
+    ModelSpec("internvl3.5-1b", "InternVL 3.5 1B", 1.1, 8, "native_loc", ALL_TASKS),
     ModelSpec("gemma4-e4b", "Gemma 4 E4B", 4.5, 18, "prompted", ALL_TASKS),
     ModelSpec("phi-3.5-vision-4b", "Phi-3.5-Vision 4.2B", 4.2, 10, "prompted", ALL_TASKS),
     ModelSpec("llava-onevision-7b", "LLaVA-OneVision 7B", 7.0, 16, "prompted", ALL_TASKS),
@@ -79,15 +70,7 @@ MODELS = (
     ModelSpec("qwen3-vl-8b", "Qwen3-VL 8B", 8.0, 18, "native", ALL_TASKS),
     ModelSpec("idefics3-8b", "Idefics3 8B", 8.0, 18, "prompted", ALL_TASKS),
     ModelSpec("internvl2.5-8b", "InternVL 2.5 8B", 8.0, 17, "prompted", ALL_TASKS),
-    ModelSpec(
-        "molmo-7b-d",
-        "Molmo 7B-D",
-        8.0,
-        20,
-        "prompted",
-        ALL_TASKS,
-        MOLMO_DIAGNOSTICS,
-    ),
+    ModelSpec("internvl3.5-14b", "InternVL 3.5 14B", 15.1, 36, "native_loc_tp2", ALL_TASKS),
     ModelSpec(
         "deepseek-vl2",
         "DeepSeek-VL2 (4.5B active)",

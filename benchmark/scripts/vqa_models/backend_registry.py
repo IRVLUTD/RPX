@@ -6,8 +6,8 @@ from pathlib import Path
 
 from vqa_models.florence_backend import CHECKPOINTS as FLORENCE_CHECKPOINTS
 from vqa_models.florence_backend import FlorenceVQARunner
-from vqa_models.molmo_backend import CHECKPOINTS as MOLMO_CHECKPOINTS
-from vqa_models.molmo_backend import MolmoVQARunner
+from vqa_models.internvl_backend import CHECKPOINTS as INTERNVL_CHECKPOINTS
+from vqa_models.internvl_backend import InternVLVQARunner
 from vqa_models.paligemma_backend import CHECKPOINTS as PALIGEMMA_CHECKPOINTS
 from vqa_models.paligemma_backend import PaliGemmaVQARunner
 from vqa_models.vllm_backend import CHECKPOINTS as VLLM_CHECKPOINTS
@@ -17,7 +17,7 @@ CHECKPOINTS = {
     **VLLM_CHECKPOINTS,
     **FLORENCE_CHECKPOINTS,
     **PALIGEMMA_CHECKPOINTS,
-    **MOLMO_CHECKPOINTS,
+    **INTERNVL_CHECKPOINTS,
 }
 
 
@@ -26,8 +26,8 @@ def backend_name(model_key: str) -> str:
         return "transformers-florence2"
     if model_key in PALIGEMMA_CHECKPOINTS:
         return "transformers-paligemma2"
-    if model_key in MOLMO_CHECKPOINTS:
-        return "transformers-molmo"
+    if model_key in INTERNVL_CHECKPOINTS:
+        return "transformers-internvl"
     return "vllm"
 
 
@@ -35,7 +35,7 @@ def backend_version(model_key: str) -> str:
     if (
         model_key in FLORENCE_CHECKPOINTS
         or model_key in PALIGEMMA_CHECKPOINTS
-        or model_key in MOLMO_CHECKPOINTS
+        or model_key in INTERNVL_CHECKPOINTS
     ):
         import transformers
 
@@ -55,8 +55,8 @@ def create_runner(
         runner_type = FlorenceVQARunner
     elif model_key in PALIGEMMA_CHECKPOINTS:
         runner_type = PaliGemmaVQARunner
-    elif model_key in MOLMO_CHECKPOINTS:
-        runner_type = MolmoVQARunner
+    elif model_key in INTERNVL_CHECKPOINTS:
+        runner_type = InternVLVQARunner
     else:
         runner_type = VLLMVQARunner
     return runner_type(
@@ -80,7 +80,7 @@ def provenance(model_key: str) -> dict[str, str]:
         if (
             model_key in FLORENCE_CHECKPOINTS
             or model_key in PALIGEMMA_CHECKPOINTS
-            or model_key in MOLMO_CHECKPOINTS
+            or model_key in INTERNVL_CHECKPOINTS
         )
         else "vllm_version"
     ] = values["backend_version"]

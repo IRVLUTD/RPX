@@ -3,8 +3,8 @@
 One pinned runtime image serves the frozen VQA roster, covering both one-image
 ("normal") and two-image ("in-context") tasks. Each prediction records its
 explicit backend and version, Hub repository, and immutable model revision.
-Chat-capable models use vLLM. Florence-2 and PaliGemma 2 use their native
-Transformers task interfaces. The scored contract is bbox-only: one generation
+Chat-capable models use vLLM. Florence-2, PaliGemma 2, and InternVL 3.5 use
+their native Transformers task interfaces. The scored contract is bbox-only: one generation
 receives the original question and every required image and returns the region.
 Generated text labels are retained for analysis but never affect the bbox score.
 
@@ -54,17 +54,18 @@ the Image 2 target scene. Both paths make one scored model call and accept
 exactly one native `<|det|>` bbox. DeepSeek's discrete 0--999 native grid is
 explicitly converted to RPX's 0--1000 JSON contract before common parsing.
 
-## Molmo native-point diagnostic
+## InternVL 3.5 native grounding adapter
 
-The scored acceptance path continues to measure strict compliance with RPX's
-common bbox JSON contract. Separately, the diagnostic commands use Molmo
-0924's native `Point to ...` interface and parse `<point>`/`<points>` outputs
-on their documented 0--100 percentage grid. They report point-in-GT-bbox and
-normalized miss distance. Native points are never expanded or fabricated into
-boxes and never enter the benchmark bbox-IoU score. Diagnostic localization
-uses the target image only, including for an in-context row; it therefore
-measures localization of the separately predicted/oracle phrase, not the
-one-call end-to-end task.
+`internvl3.5-1b` and `internvl3.5-14b` use the official dynamic 448-pixel
+tiling and `model.chat` path. A deterministic, GT-free rewrite converts each
+question into a referring expression, and the model returns its trained native
+`label[[x0,y0,x1,y1]]` box on the 0--1000 grid. Exactly one ordered box is
+accepted. Two-image rows receive the hash-verified reference crop followed by
+the target scene with explicit `Image-1` and `Image-2` markers.
+
+The 1B checkpoint runs in BF16 on one GPU. The 15.1B-parameter 14B checkpoint
+runs unquantized across both Server 3 GPUs using the checkpoint's documented
+`device_map="auto"` path; it must not run concurrently with the 1B engine.
 
 The current smoke manifest has 14 bbox questions over four RGB frames
 (normal tasks only):
@@ -259,6 +260,7 @@ The frozen keys, in high-latency-first execution order, are:
 ```text
 gemma4-12b
 paligemma2-10b
+internvl3.5-14b
 internvl2.5-8b
 idefics3-8b
 qwen2.5-vl-7b
@@ -269,6 +271,7 @@ phi-3.5-vision-4b
 paligemma2-3b
 qwen2.5-vl-3b
 qwen3-vl-2b
+internvl3.5-1b
 ```
 
 Reports are under:
@@ -314,8 +317,3 @@ protocol parsing plus JSON/Python-dict and normalized/pixel bbox hypotheses;
 the best-coordinate measurements use GT to identify convention mistakes and
 are diagnostic leakage.  Oracle and best-coordinate results must never be
 reported as benchmark performance.
-
-For Molmo, those two localization probes use native points instead of boxes.
-The report and gallery expose every point, point-in-GT-bbox success, and
-normalized distance to the GT box. These remain second-call/oracle diagnostics
-and must not be compared numerically with bbox IoU.

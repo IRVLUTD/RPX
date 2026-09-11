@@ -5,7 +5,7 @@ FROM vllm/vllm-openai@sha256:50509e700235cea487715cedeb501d20a1cd15fa6a54ce93688
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX VQA runtime" \
-      org.opencontainers.image.description="Pinned scored vLLM and diagnostic Florence-2 runtime" \
+      org.opencontainers.image.description="Pinned vLLM and native grounding runtimes" \
       org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
@@ -39,22 +39,23 @@ RUN python3 -m venv --system-site-packages /opt/rpx-envs/florence2 && \
     /opt/rpx-envs/florence2/bin/python -c \
       "import torch,transformers; assert transformers.__version__ == '4.49.0'; print('Florence-2 runtime ready')"
 
-# The pinned Molmo 0924 remote code uses the pre-Transformers-5 tied-weight
-# contract. Keep it isolated from vLLM's newer Transformers runtime, just as
-# Florence/PaliGemma are isolated above. This changes no host packages.
-RUN python3 -m venv --system-site-packages /opt/rpx-envs/molmo && \
-    /opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir \
-      transformers==4.49.0 \
-      'huggingface-hub>=0.26,<1.0' \
-      'tokenizers>=0.21,<0.22' && \
-    /opt/rpx-envs/molmo/bin/python -c \
-      "import torch,transformers; assert transformers.__version__ == '4.49.0'; print('Molmo runtime ready')"
+# InternVL 3.5 grounding is run through its official Transformers chat and
+# dynamic-tiling path, isolated from vLLM so native bbox serialization and
+# multi-image ordering are preserved exactly.
+RUN python3 -m venv --system-site-packages /opt/rpx-envs/internvl && \
+    /opt/rpx-envs/internvl/bin/python -m pip install --no-cache-dir \
+      transformers==4.57.1 \
+      accelerate==1.10.1 \
+      'huggingface-hub>=0.34,<1.0' \
+      'tokenizers>=0.22,<0.23' && \
+    /opt/rpx-envs/internvl/bin/python -c \
+      "import accelerate,torch,torchvision,transformers; assert transformers.__version__ == '4.57.1'; print('InternVL runtime ready')"
 
 COPY benchmark /opt/rpx/benchmark
 
 RUN python3 -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
     /opt/rpx-envs/florence2/bin/python -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
-    /opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
+    /opt/rpx-envs/internvl/bin/python -m pip install --no-cache-dir --no-deps /opt/rpx/benchmark && \
     python3 -c "import einops,pyarrow,sentencepiece,timm,transformers,vllm; assert vllm.__version__ == '0.28.0'; assert sentencepiece.__version__ == '0.2.1'; print('RPX VQA runtime ready')"
 
 COPY --chmod=0755 docker/vqa-smoke/entrypoint.sh /usr/local/bin/rpx-vqa-smoke
