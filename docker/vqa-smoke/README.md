@@ -68,7 +68,9 @@ never fabricated inference rows.
 ## Runtime contract
 
 - Base runtime: pinned `vllm/vllm-openai` 0.28.0 CUDA 12.9 image digest.
-- Exactly one visible GPU per model engine (`tensor_parallel_size=1`).
+- Exactly one visible GPU for single-GPU model engines. DeepSeek-VL2 full is
+  the explicit exception: its resident engine uses two visible GPUs with
+  `tensor_parallel_size=2`; remote gate/benchmark clients reuse that engine.
 - Every engine is built with `limit_mm_per_prompt={"image": 2}`: normal rows
   still send exactly one image; in-context rows send `[reference, target]`
   in that order (Image 1 then Image 2). The answer bbox is always in Image

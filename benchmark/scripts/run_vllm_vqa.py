@@ -26,6 +26,22 @@ def synchronize_cuda() -> None:
         torch.cuda.synchronize(device_index)
 
 
+def validate_gpu_environment(server_url: str | None) -> None:
+    """Require one GPU only when this process constructs the model engine.
+
+    A remote client performs preprocessing, HTTP calls, and scoring only. It
+    may run inside a resident tensor-parallel container that intentionally
+    exposes multiple GPUs (DeepSeek-VL2 full uses two), so applying the local
+    engine invariant to that client incorrectly rejects a healthy server.
+    """
+    if server_url:
+        return
+    if not torch.cuda.is_available():
+        raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
+    if torch.cuda.device_count() != 1:
+        raise SystemExit("exactly one visible GPU is required per VQA engine")
+
+
 class RemoteRunner:
     """Thin client for a model kept resident by serve_vllm_vqa.py."""
 
@@ -83,10 +99,7 @@ def main() -> None:
         raise SystemExit(
             f"{model.key} does not support the scored direct one-stage bbox protocol"
         )
-    if not torch.cuda.is_available():
-        raise SystemExit("CUDA is unavailable; expose exactly one GPU to this container")
-    if torch.cuda.device_count() != 1:
-        raise SystemExit("exactly one visible GPU is required per VQA engine")
+    validate_gpu_environment(args.server_url)
 
     samples = load_manifest(args.manifest)
     if args.limit is not None:

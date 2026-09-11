@@ -26,6 +26,7 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
 from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
+from run_vllm_vqa import validate_gpu_environment  # noqa: E402
 from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
 from vqa_models.molmo_backend import MolmoVQARunner  # noqa: E402
@@ -600,6 +601,21 @@ def test_deepseek_full_uses_vllm_live_text_config_override() -> None:
     assert overrides["text_config"]["v_head_dim"] == 128
     # q_lora_rank remains the checkpoint's explicit null, selecting q_proj.
     assert "q_lora_rank" not in overrides["text_config"]
+
+
+def test_remote_vqa_client_does_not_enforce_local_engine_gpu_count(monkeypatch) -> None:
+    def unexpected() -> bool:
+        raise AssertionError("remote client must not inspect CUDA")
+
+    monkeypatch.setattr("run_vllm_vqa.torch.cuda.is_available", unexpected)
+    validate_gpu_environment("http://127.0.0.1:8000")
+
+
+def test_local_vqa_engine_still_requires_exactly_one_gpu(monkeypatch) -> None:
+    monkeypatch.setattr("run_vllm_vqa.torch.cuda.is_available", lambda: True)
+    monkeypatch.setattr("run_vllm_vqa.torch.cuda.device_count", lambda: 2)
+    with pytest.raises(SystemExit, match="exactly one visible GPU"):
+        validate_gpu_environment(None)
 
 
 def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:
