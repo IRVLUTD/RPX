@@ -671,6 +671,32 @@ def test_deepseek_native_bbox_decoding_is_strict() -> None:
     assert json.loads(ambiguous)["candidate_count"] == 2
     assert ambiguous_metadata["native_candidate_count"] == 2
 
+    endpoint, _ = VLLMVQARunner._decode_deepseek_grounding(
+        "<|ref|>scene<|/ref|><|det|>[[0,0,999,999]]<|/det|>"
+    )
+    endpoint_bbox = json.loads(endpoint)["bbox"]
+    assert endpoint_bbox == [0.0, 0.0, 1000.0, 1000.0]
+    endpoint_parsed = parse_output(
+        VQASample.from_dict(row("depth_closest")),
+        endpoint,
+        "deepseek-vl2",
+    )
+    assert endpoint_parsed.valid
+    assert endpoint_parsed.bbox == (0.0, 0.0, 639.0, 479.0)
+    rounded_endpoint = parse_output(
+        VQASample.from_dict(row("depth_closest")),
+        '{"label":"scene","bbox":[0,0,1000.0000000000001,1000.0000000000001]}',
+        "deepseek-vl2",
+    )
+    assert rounded_endpoint.valid
+    assert rounded_endpoint.bbox == (0.0, 0.0, 639.0, 479.0)
+    genuinely_outside = parse_output(
+        VQASample.from_dict(row("depth_closest")),
+        '{"label":"scene","bbox":[0,0,1000.01,1000]}',
+        "deepseek-vl2",
+    )
+    assert not genuinely_outside.valid
+
 
 def test_deepseek_checkpoint_gpu_topology_is_explicit() -> None:
     assert VLLMCheckpoint.__dataclass_fields__["tensor_parallel_size"].default == 1

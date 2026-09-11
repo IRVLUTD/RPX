@@ -165,11 +165,21 @@ def parse_output(
             bbox = tuple(float(v) for v in raw_bbox)
             if not all(float("-inf") < value < float("inf") for value in bbox):
                 raise AdapterError("bbox contains a non-finite number", hint="return finite pixels")
-            if not all(0 <= coordinate <= 1000 for coordinate in bbox):
+            # JSON produced by an adapter may contain a machine-rounding
+            # residue at an exact normalized endpoint (for example
+            # 999 * 1000 / 999 -> 1000.0000000000001). Accept only that tiny
+            # numerical residue, then clamp it; genuinely out-of-range model
+            # coordinates remain invalid.
+            coordinate_epsilon = 1e-9
+            if not all(
+                -coordinate_epsilon <= coordinate <= 1000 + coordinate_epsilon
+                for coordinate in bbox
+            ):
                 raise AdapterError(
                     "bbox is outside normalized 0-1000 coordinates",
                     hint="return normalized xyxy coordinates",
                 )
+            bbox = tuple(min(1000.0, max(0.0, coordinate)) for coordinate in bbox)
             # Decode the two widespread normalized conventions without using
             # model identity. Values containing a genuine fraction and entirely
             # within [0,1] are unit-normalized; everything else follows the

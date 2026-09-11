@@ -350,16 +350,19 @@ class VLLMVQARunner:
                     # RPX's strict JSON contract is normalized 0--1000, while
                     # DeepSeek-VL2's discrete native grounding grid is 0--999.
                     # Convert explicitly instead of silently treating the two
-                    # scales as identical.
+                    # scales as identical. Clamp the upper endpoint so binary
+                    # floating-point cannot serialize 999 as
+                    # 1000.0000000000001 and fail RPX's strict range check.
                     scale = 1000.0 / 999.0
+                    to_rpx_coordinate = lambda value: min(1000.0, value * scale)
                     candidates.append(
                         {
                             "label": (match.group("label") or "").strip(),
                             "bbox": [
-                                x0 * scale,
-                                y0 * scale,
-                                x1 * scale,
-                                y1 * scale,
+                                to_rpx_coordinate(x0),
+                                to_rpx_coordinate(y0),
+                                to_rpx_coordinate(x1),
+                                to_rpx_coordinate(y1),
                             ],
                         }
                     )
