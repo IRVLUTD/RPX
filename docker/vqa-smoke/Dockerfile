@@ -12,6 +12,7 @@ LABEL org.opencontainers.image.title="RPX VQA runtime" \
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
     HF_HOME=/cache/huggingface \
     HF_HUB_DISABLE_XET=1 \
     RPX_VQA_CACHE=/cache/rpx-vqa \

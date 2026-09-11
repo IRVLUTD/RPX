@@ -7,6 +7,7 @@ import argparse
 import importlib
 import json
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -67,8 +68,14 @@ class RemoteRunner:
             data=payload,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(request, timeout=600) as response:
-            result = json.load(response)
+        try:
+            with urllib.request.urlopen(request, timeout=600) as response:
+                result = json.load(response)
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"HTTP {error.code} from {self.server_url}/predict: {body}"
+            ) from error
         self._metadata = result.get("adapter_metadata") or {}
         self.latency_ms = float(result["latency_ms"])
         return str(result["raw_output"])

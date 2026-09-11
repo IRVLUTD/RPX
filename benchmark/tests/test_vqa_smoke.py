@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import sys
+import urllib.error
 from collections import Counter
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -30,7 +32,7 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
 from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
-from run_vllm_vqa import validate_gpu_environment  # noqa: E402
+from run_vllm_vqa import RemoteRunner, validate_gpu_environment  # noqa: E402
 from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
 from vqa_models.internvl_backend import InternVLVQARunner, _dynamic_preprocess  # noqa: E402
@@ -769,6 +771,24 @@ def test_remote_vqa_client_does_not_enforce_local_engine_gpu_count(monkeypatch) 
 
     monkeypatch.setattr("run_vllm_vqa.torch.cuda.is_available", unexpected)
     validate_gpu_environment("http://127.0.0.1:8000")
+
+
+def test_remote_vqa_client_surfaces_server_error_body(monkeypatch) -> None:
+    error = urllib.error.HTTPError(
+        "http://127.0.0.1:8000/predict",
+        500,
+        "Internal Server Error",
+        {},
+        BytesIO(b'{"error":"CUDA out of memory","error_type":"OutOfMemoryError"}'),
+    )
+
+    def fail(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr("run_vllm_vqa.urllib.request.urlopen", fail)
+    runner = RemoteRunner("http://127.0.0.1:8000")
+    with pytest.raises(RuntimeError, match="CUDA out of memory"):
+        runner.predict(["unused.png"], "prompt", 32, "bbox")
 
 
 def test_local_vqa_engine_still_requires_exactly_one_gpu(monkeypatch) -> None:

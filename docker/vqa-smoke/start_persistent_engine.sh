@@ -9,6 +9,7 @@ tag="${RPX_VQA_TAG:-vllm}"
 name="rpx-vqa-${model//[^a-zA-Z0-9_.-]/-}"
 startup_polls="${RPX_VQA_STARTUP_POLLS:-360}"
 startup_poll_seconds="${RPX_VQA_STARTUP_POLL_SECONDS:-2}"
+pytorch_cuda_alloc_conf="${RPX_VQA_PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
 
 [[ "${startup_polls}" =~ ^[1-9][0-9]*$ ]] || {
   echo "RPX_VQA_STARTUP_POLLS must be a positive integer" >&2
@@ -41,12 +42,14 @@ if [[ "${gpu}" == *,* ]]; then
   gpu_request="\"device=${gpu}\""
 fi
 
+echo "PyTorch CUDA allocator: ${pytorch_cuda_alloc_conf}"
 docker run -d \
   --name "${name}" \
   --gpus "${gpu_request}" \
   --ipc=host \
   --shm-size=16g \
   -e HF_TOKEN \
+  -e "PYTORCH_CUDA_ALLOC_CONF=${pytorch_cuda_alloc_conf}" \
   -v "${runtime}/hf-cache:/cache/huggingface" \
   -v "${runtime}/cache:/cache/rpx-vqa" \
   -v "${runtime}/outputs:/outputs" \

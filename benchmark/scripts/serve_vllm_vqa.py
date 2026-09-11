@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
+import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -77,6 +78,7 @@ def main() -> None:
                     },
                 )
             except Exception as exc:  # noqa: BLE001
+                traceback.print_exc()
                 self._json(500, {"error": str(exc), "error_type": type(exc).__name__})
 
         def log_message(self, fmt: str, *values: object) -> None:
