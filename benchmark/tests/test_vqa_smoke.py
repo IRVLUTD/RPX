@@ -562,6 +562,18 @@ def test_molmo_uses_native_transformers_backend() -> None:
     assert backend_name("molmoe-1b") == "transformers-molmo"
 
 
+def test_molmo_uses_isolated_transformers_4_runtime() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    dockerfile = (repo_root / "docker/vqa-smoke/Dockerfile").read_text()
+    entrypoint = (repo_root / "docker/vqa-smoke/entrypoint.sh").read_text()
+
+    assert "/opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir" in dockerfile
+    assert "transformers==4.49.0" in dockerfile
+    assert "/opt/rpx-envs/molmo/bin/python -m pip install --no-cache-dir --no-deps" in dockerfile
+    assert '[[ "$1" == molmo-* || "$1" == molmoe-* ]]' in entrypoint
+    assert "/opt/rpx-envs/molmo/bin/python" in entrypoint
+
+
 def test_molmo_ignores_only_its_unused_tensorflow_resize_import(tmp_path: Path) -> None:
     from transformers import dynamic_module_utils
 
