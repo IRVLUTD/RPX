@@ -19,11 +19,13 @@ order `Image-1` (reference), then `Image-2` (target), together with InternVL's
 `num_patches_list` boundary metadata.
 
 Images use OpenGVLab's 448-pixel dynamic tiling and ImageNet normalization.
-The prompt is the exact RefCOCO-style native grounding request. The strict
-parser accepts exactly one native `label[[x0,y0,x1,y1]]` box on InternVL's
-0--1000 grid, rejects ambiguous or malformed boxes, and scales it relative to
-the target image. No ground-truth label, ground-truth box, box repair, or
-second localization call is used.
+The prompt is the exact RefCOCO-style native grounding request, including the
+required `<ref>...</ref>` referring-expression tags. Matching OpenGVLab's
+official evaluator, the strict parser accepts exactly one native box in either
+`label[[x0,y0,x1,y1]]` or `[x0,y0,x1,y1]` form on InternVL's 0--1000 grid,
+rejects ambiguous or malformed boxes, and scales it relative to the target
+image. No ground-truth label, ground-truth box, box repair, or second
+localization call is used.
 
 ## Required order on Server 3
 
