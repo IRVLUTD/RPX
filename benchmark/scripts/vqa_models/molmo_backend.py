@@ -8,6 +8,7 @@ box: a point has insufficient extent information for an honest IoU score.
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Sequence
@@ -34,6 +35,35 @@ CHECKPOINTS = {
 }
 
 
+@contextlib.contextmanager
+def _ignore_unused_molmo_tensorflow_import():
+    """Ignore Molmo's optional TensorFlow resize branch during HF code loading.
+
+    The pinned Molmo image processor defaults to ``torch-bilinear`` but keeps a
+    function-local ``import tensorflow`` for reproducing an alternate legacy
+    resize path. Transformers scans the complete syntax tree and otherwise
+    rejects the module when TensorFlow is not installed. Keep the exception
+    scoped to that one pinned remote-code filename and restore the loader
+    immediately after the processor has loaded.
+    """
+
+    from transformers import dynamic_module_utils
+
+    original_get_imports = dynamic_module_utils.get_imports
+
+    def molmo_get_imports(filename):
+        imports = original_get_imports(filename)
+        if Path(filename).name == "image_preprocessing_molmo.py":
+            return [dependency for dependency in imports if dependency != "tensorflow"]
+        return imports
+
+    dynamic_module_utils.get_imports = molmo_get_imports
+    try:
+        yield
+    finally:
+        dynamic_module_utils.get_imports = original_get_imports
+
+
 class MolmoVQARunner:
     """Run a frozen Molmo checkpoint through its documented HF interface."""
 
@@ -56,11 +86,12 @@ class MolmoVQARunner:
         self.dtype = torch.bfloat16
         # Both the code and weights are frozen to the recorded Hub commit.
         # trust_remote_code executes only inside the RPX Docker container.
-        self.processor = AutoProcessor.from_pretrained(
-            checkpoint.repo_id,
-            revision=checkpoint.revision,
-            trust_remote_code=True,
-        )
+        with _ignore_unused_molmo_tensorflow_import():
+            self.processor = AutoProcessor.from_pretrained(
+                checkpoint.repo_id,
+                revision=checkpoint.revision,
+                trust_remote_code=True,
+            )
         self.model = (
             AutoModelForCausalLM.from_pretrained(
                 checkpoint.repo_id,

@@ -34,7 +34,10 @@ from run_vqa_diagnostic import diagnostic_bbox, diagnostic_point  # noqa: E402
 from run_vllm_vqa import validate_gpu_environment  # noqa: E402
 from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
-from vqa_models.molmo_backend import MolmoVQARunner  # noqa: E402
+from vqa_models.molmo_backend import (  # noqa: E402
+    MolmoVQARunner,
+    _ignore_unused_molmo_tensorflow_import,
+)
 from vqa_models.paligemma_backend import PaliGemmaVQARunner  # noqa: E402
 from vqa_models.vllm_backend import (  # noqa: E402
     CHECKPOINTS as VLLM_CHECKPOINTS,
@@ -557,6 +560,22 @@ def test_paligemma_uses_native_transformers_backend() -> None:
 def test_molmo_uses_native_transformers_backend() -> None:
     assert backend_name("molmo-7b-d") == "transformers-molmo"
     assert backend_name("molmoe-1b") == "transformers-molmo"
+
+
+def test_molmo_ignores_only_its_unused_tensorflow_resize_import(tmp_path: Path) -> None:
+    from transformers import dynamic_module_utils
+
+    molmo_module = tmp_path / "image_preprocessing_molmo.py"
+    molmo_module.write_text("import numpy\n\ndef legacy_resize():\n    import tensorflow\n")
+    unrelated_module = tmp_path / "unrelated.py"
+    unrelated_module.write_text("import tensorflow\n")
+    original_get_imports = dynamic_module_utils.get_imports
+
+    with _ignore_unused_molmo_tensorflow_import():
+        assert dynamic_module_utils.get_imports(molmo_module) == ["numpy"]
+        assert dynamic_module_utils.get_imports(unrelated_module) == ["tensorflow"]
+
+    assert dynamic_module_utils.get_imports is original_get_imports
 
 
 def test_molmo_one_stage_call_preserves_image_order(monkeypatch, tmp_path: Path) -> None:
