@@ -165,6 +165,18 @@ def parse_output(
             bbox = tuple(float(v) for v in raw_bbox)
             if not all(float("-inf") < value < float("inf") for value in bbox):
                 raise AdapterError("bbox contains a non-finite number", hint="return finite pixels")
+            # Molmo's model-facing bbox protocol uses the same 0--100
+            # percentage grid as its documented spatial pointing interface.
+            # This is a complete four-corner box, not a point-derived box.
+            # Convert it deterministically here while retaining the untouched
+            # model text in raw_output for auditability.
+            molmo_percent = model_key in {"molmo-7b-d", "molmoe-1b"}
+            if molmo_percent and not all(0 <= coordinate <= 100 for coordinate in bbox):
+                raise AdapterError(
+                    "Molmo bbox is outside percentage 0-100 coordinates",
+                    hint="return percentage xyxy coordinates",
+                )
+
             # JSON produced by an adapter may contain a machine-rounding
             # residue at an exact normalized endpoint (for example
             # 999 * 1000 / 999 -> 1000.0000000000001). Accept only that tiny
@@ -185,9 +197,17 @@ def parse_output(
             # within [0,1] are unit-normalized; everything else follows the
             # requested [0,1000] protocol. This fixes the previous silent bug
             # where [0.5,...] became a sub-pixel box at the top-left.
-            unit_normalized = all(0 <= coordinate <= 1 for coordinate in bbox)
-            denominator = 1 if unit_normalized else 1000
-            coordinate_format = "normalized_0_1" if unit_normalized else "normalized_0_1000"
+            unit_normalized = not molmo_percent and all(
+                0 <= coordinate <= 1 for coordinate in bbox
+            )
+            denominator = 100 if molmo_percent else 1 if unit_normalized else 1000
+            coordinate_format = (
+                "molmo_bbox_percent_0_100"
+                if molmo_percent
+                else "normalized_0_1"
+                if unit_normalized
+                else "normalized_0_1000"
+            )
             bbox = (
                 bbox[0] * (sample.img_w - 1) / denominator,
                 bbox[1] * (sample.img_h - 1) / denominator,

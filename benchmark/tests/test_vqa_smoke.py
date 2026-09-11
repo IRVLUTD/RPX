@@ -180,12 +180,18 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
         "qwen3-vl-2b",
         "llava-onevision-7b",
         "phi-3.5-vision-4b",
-        "molmo-7b-d",
-        "molmoe-1b",
     )
     prompts = [build_prompt(sample, key) for key in keys]
     assert len({prompt.text for prompt in prompts}) == 1
     assert {prompt.output_kind for prompt in prompts} == {"bbox_json_normalized_1000"}
+
+
+@pytest.mark.parametrize("model_key", ["molmo-7b-d", "molmoe-1b"])
+def test_molmo_requests_a_complete_percentage_bbox(model_key: str) -> None:
+    prompt = build_prompt(VQASample.from_dict(row("depth_closest")), model_key)
+    assert prompt.output_kind == "bbox_molmo_percent_100"
+    assert "percentage from 0 to 100" in prompt.text
+    assert "[x_min,y_min,x_max,y_max]" in prompt.text
 
 
 @pytest.mark.parametrize("model_key", ["florence2-base", "florence2-large"])
@@ -608,11 +614,37 @@ def test_molmo_one_stage_call_preserves_image_order(monkeypatch, tmp_path: Path)
             or '{"label":"object","bbox":[1,2,3,4]}'
         ),
     )
-    raw = runner.predict([reference, target], "question", 96, "bbox_json_normalized_1000")
+    raw = runner.predict([reference, target], "question", 96, "bbox_molmo_percent_100")
     assert raw == '{"label":"object","bbox":[1,2,3,4]}'
     assert calls == [([(255, 0, 0), (0, 0, 255)], "question", 96)]
     assert runner.prediction_metadata()["image_order"] == "reference_then_target"
     assert runner.prediction_metadata()["single_scored_model_call"] is True
+    assert runner.prediction_metadata()["native_coordinate_format"] == (
+        "molmo_bbox_percent_0_100"
+    )
+
+
+def test_molmo_percentage_bbox_is_scaled_without_point_expansion() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(
+        sample,
+        '{"label":"alarm clock","bbox":[25,20,75,80]}',
+        "molmo-7b-d",
+    )
+    assert parsed.valid
+    assert parsed.coordinate_format == "molmo_bbox_percent_0_100"
+    assert parsed.bbox == pytest.approx((159.75, 95.8, 479.25, 383.2))
+
+
+def test_molmo_percentage_bbox_rejects_generic_1000_scale() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(
+        sample,
+        '{"label":"alarm clock","bbox":[100,120,200,220]}',
+        "molmoe-1b",
+    )
+    assert not parsed.valid
+    assert parsed.error is not None and "outside percentage 0-100" in parsed.error
 
 
 def test_molmo_point_is_not_fabricated_into_bbox() -> None:

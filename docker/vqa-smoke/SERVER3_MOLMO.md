@@ -17,10 +17,15 @@ model.
 ## Scoring contract
 
 Each scored row makes exactly one model generation with the original question
-and its one or two required images. The requested result is a normalized
-0–1000 XYXY JSON bounding box. Native Molmo `<point>` markup is retained in
-`raw_output` but is not converted into a box, because a point contains no
-object-extent information and cannot support a valid bbox IoU score.
+and its one or two required images. The requested result is a complete XYXY
+JSON bounding box on Molmo's native image-relative 0–100 percentage grid. The
+strict parser converts all four corners to target-image pixels for the same IoU
+scoring used by every other model. It does not use the answer or ground truth,
+infer object extent, reorder invalid corners, or turn a point into a box.
+
+Native Molmo `<point>` markup remains available only in the separately named
+diagnostic output. It is retained verbatim and is never converted into a box,
+because a single point contains no object-extent information.
 
 Run the 14-row smoke gate and 104-row acceptance gate before scheduling the
 full benchmark. Infrastructure completion proves reproducibility and coverage;

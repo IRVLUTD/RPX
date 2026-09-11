@@ -92,6 +92,28 @@ def _bbox_instruction(question: str) -> str:
     )
 
 
+def _molmo_bbox_instruction(question: str) -> str:
+    """Request an entire box on Molmo's native percentage coordinate grid.
+
+    Molmo's documented spatial markup uses image-relative percentages.  Asking
+    these checkpoints for the generic RPX 0--1000 grid made otherwise plausible
+    percentage boxes score as tiny top-left boxes.  Keep the scored task to one
+    model call, but make the model-facing coordinate convention explicit; the
+    output parser performs the deterministic 0--100 to image-pixel conversion.
+    """
+    return (
+        f"{question}\n"
+        "Identify and localize the one visible object that answers the question. "
+        "For a relational question, localize the result object, not the reference "
+        "object named or shown in the question. The answer object is in the target "
+        "image (Image 2 for a two-image input; otherwise the only image). Return only "
+        '{"label":"object name","bbox":[x_min,y_min,x_max,y_max]}. '
+        "Express every bbox coordinate as a percentage from 0 to 100 relative to "
+        "the target image width and height. Use XYXY corner order and enclose the "
+        "entire object. No Markdown or explanation."
+    )
+
+
 def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     """Ask for the answer label only, without leaking the ground truth.
 
@@ -212,6 +234,12 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             # then perform selection/localization in one generation.
             expression = native_referring_expression(sample)
             return PromptSpec(f"detect {expression}\n", 64, "bbox_native_question_grounding")
+        if model_key in {"molmo-7b-d", "molmoe-1b"}:
+            return PromptSpec(
+                _molmo_bbox_instruction(question),
+                96,
+                "bbox_molmo_percent_100",
+            )
         return PromptSpec(
             _bbox_instruction(question),
             96,

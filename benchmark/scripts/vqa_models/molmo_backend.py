@@ -1,9 +1,9 @@
 """Native Transformers backend for the Molmo 0924 checkpoints.
 
-Molmo accepts one or more images through its official processor.  RPX asks it
-for the same normalized XYXY JSON used by the other general-purpose VLMs.  The
-model's native pointing markup is intentionally not converted to a bounding
-box: a point has insufficient extent information for an honest IoU score.
+Molmo accepts one or more images through its official processor. RPX asks it
+for a complete XYXY box on Molmo's native 0--100 percentage coordinate grid;
+the strict output parser converts that box to image pixels for scoring. Native
+pointing diagnostics remain separate: a point is never expanded into a box.
 """
 
 from __future__ import annotations
@@ -148,7 +148,7 @@ class MolmoVQARunner:
         output_kind: str,
     ) -> str:
         if output_kind not in {
-            "bbox_json_normalized_1000",
+            "bbox_molmo_percent_100",
             "diagnostic_semantic_label",
             "diagnostic_oracle_bbox",
             "diagnostic_predicted_label_bbox",
@@ -165,7 +165,7 @@ class MolmoVQARunner:
                 if output_kind.endswith("_point")
                 else "molmo_diagnostic"
                 if diagnostic
-                else "direct_bbox_json"
+                else "direct_molmo_percent_bbox"
             ),
             "backend": "transformers-molmo",
             "image_count": len(images),
@@ -177,6 +177,8 @@ class MolmoVQARunner:
             "native_coordinate_format": (
                 "molmo_point_percent_0_100"
                 if output_kind.endswith("_point")
+                else "molmo_bbox_percent_0_100"
+                if output_kind == "bbox_molmo_percent_100"
                 else None
             ),
             "ground_truth_label_disclosed": output_kind
