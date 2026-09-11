@@ -152,6 +152,38 @@ def parse_output(
                 ),
                 coordinate_format="internvl_bbox_0_1000",
             )
+        # The 1B checkpoint sometimes preserves the same 0--1000 coordinate
+        # contract but spells the single box out as labelled corners.  This is
+        # a deterministic serialization variant, not box repair: require one
+        # complete pair, validate it identically, and never infer coordinates
+        # from descriptive prose.
+        verbose_matches = re.findall(
+            r"top[\s-]*left\s+corner\s*:\s*[\[(]\s*"
+            r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*[\])]"
+            r".*?bottom[\s-]*right\s+corner\s*:\s*[\[(]\s*"
+            r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*[\])]",
+            raw,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        if verbose_matches:
+            if len(verbose_matches) != 1:
+                return ParsedOutput(False, error="expected exactly one InternVL corner pair")
+            bbox = tuple(float(value) for value in verbose_matches[0])
+            if not all(0 <= value <= 1000 for value in bbox):
+                return ParsedOutput(False, error="InternVL bbox is outside the 0-1000 grid")
+            x0, y0, x1, y1 = bbox
+            if not (x0 <= x1 and y0 <= y1):
+                return ParsedOutput(False, error="InternVL bbox corners are not ordered XYXY")
+            return ParsedOutput(
+                True,
+                bbox=(
+                    x0 * (sample.img_w - 1) / 1000,
+                    y0 * (sample.img_h - 1) / 1000,
+                    x1 * (sample.img_w - 1) / 1000,
+                    y1 * (sample.img_h - 1) / 1000,
+                ),
+                coordinate_format="internvl_verbose_bbox_0_1000",
+            )
         # Retain the strict JSON fallback for a checkpoint that follows the
         # explicit coordinate contract but emits the generic RPX envelope.
     if sample.question_type in BBOX_TYPES and model_key.startswith("paligemma2-"):

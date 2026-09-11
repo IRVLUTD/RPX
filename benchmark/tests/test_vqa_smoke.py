@@ -621,6 +621,27 @@ def test_internvl_native_bbox_is_scaled_strictly() -> None:
     assert parsed.bbox == pytest.approx((159.75, 95.8, 479.25, 383.2))
 
 
+def test_internvl_verbose_corner_bbox_is_scaled_strictly() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(
+        sample,
+        "The box is:\n- Top-left corner: (250, 200)\n"
+        "- Bottom-right corner: (750, 800)\nThis contains the object.",
+        "internvl3.5-1b",
+    )
+    assert parsed.valid
+    assert parsed.coordinate_format == "internvl_verbose_bbox_0_1000"
+    assert parsed.bbox == pytest.approx((159.75, 95.8, 479.25, 383.2))
+
+
+def test_smoke_gate_accepts_every_registered_backend() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    gate = (repo_root / "benchmark/scripts/run_vqa_smoke_gate.py").read_text()
+    matrix = json.loads((repo_root / "docker/vqa-smoke/model-matrix.json").read_text())
+    for backend in matrix["inference_backends"]:
+        assert f'"{backend}"' in gate
+
+
 def test_internvl_native_bbox_rejects_ambiguous_or_bad_boxes() -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     parsed = parse_output(
