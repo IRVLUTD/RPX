@@ -64,6 +64,21 @@ def _rpx_git_sha() -> str:
     return os.environ.get("RPX_GIT_SHA", "unknown")
 
 
+def _resume_compatible_git_shas() -> set[str]:
+    """Return explicitly approved prior revisions for prediction-only reuse.
+
+    This is intentionally opt-in. It is used for evaluator-only recovery fixes
+    where already committed model masks are unchanged and must not be
+    recomputed. The accepted revisions are emitted in the run metadata.
+    """
+
+    return {
+        revision.strip()
+        for revision in os.environ.get("RPX_RESUME_COMPATIBLE_GIT_SHAS", "").split(",")
+        if revision.strip()
+    }
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from tracking_models import TRACKER_CLASSES  # noqa: E402
@@ -278,11 +293,16 @@ def _clip_predictions(
     except (OSError, json.JSONDecodeError):
         return None
     evaluator_git_sha = os.environ.get("RPX_EVALUATOR_GIT_SHA", rpx_git_sha)
+    compatible_revisions = _resume_compatible_git_shas()
+    accepted_adapter_revisions = {rpx_git_sha, *compatible_revisions}
+    accepted_evaluator_revisions = {evaluator_git_sha, *compatible_revisions}
     if (
         marker.get("model") != model_name
         or marker.get("frames") != len(samples)
-        or marker.get("rpx_git_sha") != rpx_git_sha
-        or marker.get("evaluator_git_sha", marker.get("rpx_git_sha")) != evaluator_git_sha
+        or marker.get("rpx_git_sha") not in accepted_adapter_revisions
+        or marker.get(
+            "evaluator_git_sha", marker.get("rpx_git_sha")
+        ) not in accepted_evaluator_revisions
         or marker.get("dataset_protocol", "mos") != dataset_protocol
     ):
         return None
@@ -698,6 +718,7 @@ def main() -> None:
         "model": args.model,
         "rpx_git_sha": rpx_git_sha,
         "evaluator_git_sha": os.environ.get("RPX_EVALUATOR_GIT_SHA", rpx_git_sha),
+        "resume_compatible_git_shas": sorted(_resume_compatible_git_shas()),
         "task": "object_tracking",
         "dataset_protocol": args.dataset_protocol,
         "split": args.split,
