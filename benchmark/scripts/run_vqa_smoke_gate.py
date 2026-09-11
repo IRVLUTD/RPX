@@ -51,6 +51,7 @@ def main() -> None:
                 "vllm",
                 "transformers-florence2",
                 "transformers-paligemma2",
+                "transformers-molmo",
             }:
                 raise SystemExit(
                     f"unknown inference backend at line {line_number}: "

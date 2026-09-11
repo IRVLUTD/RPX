@@ -24,12 +24,13 @@ from rpx_benchmark.vqa.prompts import (
 from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
-from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
-from vqa_models.backend_registry import backend_name  # noqa: E402
-from vqa_models.paligemma_backend import PaliGemmaVQARunner  # noqa: E402
-from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
 from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
+from vqa_models.backend_registry import backend_name  # noqa: E402
+from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
+from vqa_models.molmo_backend import MolmoVQARunner  # noqa: E402
+from vqa_models.paligemma_backend import PaliGemmaVQARunner  # noqa: E402
+from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
 
 
 def row(question_type: str = "spatial_lr_binary") -> dict:
@@ -133,9 +134,7 @@ def test_prompts_are_task_specific_and_single_image() -> None:
         "Which object is furthest to the left?",
     )
     assert bbox.output_kind == "bbox_json_normalized_1000"
-    pali_bbox = build_prompt(
-        VQASample.from_dict(row("depth_closest")), "paligemma2-3b"
-    )
+    pali_bbox = build_prompt(VQASample.from_dict(row("depth_closest")), "paligemma2-3b")
     assert pali_bbox.text == "detect the object furthest to the left\n"
     assert pali_bbox.output_kind == "bbox_native_question_grounding"
 
@@ -149,8 +148,7 @@ def test_native_referring_expression_preserves_incontext_relation_without_gt() -
         ),
     )
     assert native_referring_expression(sample) == (
-        "the object in image 2 that is made of the same material as the object "
-        "shown in Image 1"
+        "the object in image 2 that is made of the same material as the object shown in Image 1"
     )
     pali_binary = build_prompt(VQASample.from_dict(row()), "paligemma2-3b")
     assert pali_binary.text.startswith("answer en ")
@@ -167,12 +165,12 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
         "qwen3-vl-2b",
         "llava-onevision-7b",
         "phi-3.5-vision-4b",
+        "molmo-7b-d",
+        "molmoe-1b",
     )
     prompts = [build_prompt(sample, key) for key in keys]
     assert len({prompt.text for prompt in prompts}) == 1
-    assert {prompt.output_kind for prompt in prompts} == {
-        "bbox_json_normalized_1000"
-    }
+    assert {prompt.output_kind for prompt in prompts} == {"bbox_json_normalized_1000"}
 
 
 @pytest.mark.parametrize("model_key", ["florence2-base", "florence2-large"])
@@ -215,16 +213,12 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
     predicted = build_label_localization_prompt("red alarm clock", "gemma4-12b")
     assert '"red alarm clock"' in predicted.text
     assert predicted.output_kind == "diagnostic_predicted_label_bbox"
-    pali_predicted = build_label_localization_prompt(
-        "red alarm clock", "paligemma2-10b"
-    )
+    pali_predicted = build_label_localization_prompt("red alarm clock", "paligemma2-10b")
     assert pali_predicted.text == "detect red alarm clock\n"
     florence_oracle = build_oracle_localization_prompt(sample, "florence2-large")
     assert florence_oracle.text == "alarm clock"
     assert "JSON" not in florence_oracle.text
-    florence_predicted = build_label_localization_prompt(
-        "red alarm clock", "florence2-base"
-    )
+    florence_predicted = build_label_localization_prompt("red alarm clock", "florence2-base")
     assert florence_predicted.text == "red alarm clock"
 
 
@@ -256,9 +250,7 @@ def test_gallery_exposes_rejected_direct_native_candidates() -> None:
             ],
         }
     )
-    prediction = {
-        "adapter_metadata": {"adapter": "direct_native_question_grounding"}
-    }
+    prediction = {"adapter_metadata": {"adapter": "direct_native_question_grounding"}}
     assert _native_candidates(raw, prediction) == [
         {"label": "shoe", "bbox": [10, 20, 30, 40]},
         {"label": "boot", "bbox": [50, 60, 70, 80]},
@@ -279,8 +271,9 @@ def test_oracle_diagnostic_uses_only_target_image(monkeypatch, tmp_path: Path) -
     monkeypatch.setattr(
         runner,
         "_chat_generate",
-        lambda paths, prompt, tokens: calls.append((paths, prompt, tokens))
-        or '{"label":"alarm clock","bbox":[1,2,3,4]}',
+        lambda paths, prompt, tokens: (
+            calls.append((paths, prompt, tokens)) or '{"label":"alarm clock","bbox":[1,2,3,4]}'
+        ),
     )
     runner.predict(
         [reference, target],
@@ -307,7 +300,9 @@ def test_strict_output_parsers() -> None:
     assert not parse_output(binary, "yes because it is", "qwen2.5-vl-3b").valid
     attribute = VQASample.from_dict(row("attr_composition"))
     assert normalize_label("Air_Duster_Can.") == "air duster can"
-    parsed_attr = parse_output(attribute, '{"label":"air_duster_can","bbox":[100,120,200,220]}', "gemma4-12b")
+    parsed_attr = parse_output(
+        attribute, '{"label":"air_duster_can","bbox":[100,120,200,220]}', "gemma4-12b"
+    )
     assert parsed_attr.label == "air duster can" and parsed_attr.valid
     assert parsed_attr.bbox == pytest.approx((63.9, 57.48, 127.8, 105.38))
     bbox = VQASample.from_dict(row("depth_closest"))
@@ -403,9 +398,7 @@ def test_mean_accuracy_50_95_is_not_mislabeled_as_map() -> None:
 
 
 def test_batched_chat_content_labels_both_incontext_images() -> None:
-    content = VLLMVQARunner._chat_content(
-        [Path("reference.png"), Path("target.png")], "question"
-    )
+    content = VLLMVQARunner._chat_content([Path("reference.png"), Path("target.png")], "question")
     assert [item.get("text") for item in content if item["type"] == "text"] == [
         "Image 1 — reference object:",
         "Image 2 — target scene:",
@@ -420,6 +413,7 @@ def test_roster_matches_rpx_draft() -> None:
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
         "Qwen3-VL 2B",
+        "MolmoE 1B (7.2B total)",
         "Gemma 4 E4B",
         "Phi-3.5-Vision 4.2B",
         "LLaVA-OneVision 7B",
@@ -427,6 +421,7 @@ def test_roster_matches_rpx_draft() -> None:
         "Qwen3-VL 8B",
         "Idefics3 8B",
         "InternVL 2.5 8B",
+        "Molmo 7B-D",
         "PaliGemma 2 10B",
         "Gemma 4 12B",
     ]
@@ -470,6 +465,7 @@ def test_docker_matrix_matches_python_roster() -> None:
         "vllm",
         "transformers-florence2",
         "transformers-paligemma2",
+        "transformers-molmo",
     ]
     assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]
@@ -477,9 +473,17 @@ def test_docker_matrix_matches_python_roster() -> None:
         set(model.capabilities) for model in MODELS
     ]
     florence = [model for model in matrix["models"] if model["key"].startswith("florence2-")]
-    assert all(model["diagnostic_tasks"] == ["semantic_label", "phrase_grounding"] for model in florence)
+    assert all(
+        model["diagnostic_tasks"] == ["semantic_label", "phrase_grounding"] for model in florence
+    )
     paligemma = [model for model in matrix["models"] if model["key"].startswith("paligemma2-")]
-    assert all(model["diagnostic_tasks"] == ["semantic_label", "object_detection"] for model in paligemma)
+    assert all(
+        model["diagnostic_tasks"] == ["semantic_label", "object_detection"] for model in paligemma
+    )
+    molmo = [model for model in matrix["models"] if model["key"].startswith("molmo")]
+    assert all(
+        model["diagnostic_tasks"] == ["semantic_label", "prompted_localization"] for model in molmo
+    )
 
 
 def test_vqa_docker_has_explicit_pinned_backends() -> None:
@@ -502,6 +506,48 @@ def test_paligemma_uses_native_transformers_backend() -> None:
     runner = object.__new__(PaliGemmaVQARunner)
     runner._last_adapter_metadata = {}
     assert runner.prediction_metadata() == {}
+
+
+def test_molmo_uses_native_transformers_backend() -> None:
+    assert backend_name("molmo-7b-d") == "transformers-molmo"
+    assert backend_name("molmoe-1b") == "transformers-molmo"
+
+
+def test_molmo_one_stage_call_preserves_image_order(monkeypatch, tmp_path: Path) -> None:
+    from PIL import Image
+
+    reference = tmp_path / "reference.png"
+    target = tmp_path / "target.png"
+    Image.new("RGB", (8, 8), "red").save(reference)
+    Image.new("RGB", (8, 8), "blue").save(target)
+    runner = object.__new__(MolmoVQARunner)
+    runner._last_adapter_metadata = {}
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_generate",
+        lambda images, prompt, tokens: (
+            calls.append(([image.getpixel((0, 0)) for image in images], prompt, tokens))
+            or '{"label":"object","bbox":[1,2,3,4]}'
+        ),
+    )
+    raw = runner.predict([reference, target], "question", 96, "bbox_json_normalized_1000")
+    assert raw == '{"label":"object","bbox":[1,2,3,4]}'
+    assert calls == [([(255, 0, 0), (0, 0, 255)], "question", 96)]
+    assert runner.prediction_metadata()["image_order"] == "reference_then_target"
+    assert runner.prediction_metadata()["single_scored_model_call"] is True
+
+
+def test_molmo_point_is_not_fabricated_into_bbox() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(
+        sample,
+        '<point x="25.0" y="50.0">alarm clock</point>',
+        "molmo-7b-d",
+    )
+    assert parsed.valid is False
+    assert parsed.bbox is None
+    assert parsed.error is not None and parsed.error.startswith("missing JSON object")
 
 
 def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:

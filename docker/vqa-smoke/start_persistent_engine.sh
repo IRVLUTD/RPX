@@ -7,6 +7,17 @@ runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
 image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
 name="rpx-vqa-${model//[^a-zA-Z0-9_.-]/-}"
+startup_polls="${RPX_VQA_STARTUP_POLLS:-360}"
+startup_poll_seconds="${RPX_VQA_STARTUP_POLL_SECONDS:-2}"
+
+[[ "${startup_polls}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "RPX_VQA_STARTUP_POLLS must be a positive integer" >&2
+  exit 2
+}
+[[ "${startup_poll_seconds}" =~ ^[1-9][0-9]*$ ]] || {
+  echo "RPX_VQA_STARTUP_POLL_SECONDS must be a positive integer" >&2
+  exit 2
+}
 
 test -n "${HF_TOKEN:-}" || { echo "HF_TOKEN is not exported" >&2; exit 2; }
 mkdir -p "${runtime}"/{hf-cache,cache,outputs,logs}
@@ -37,7 +48,7 @@ docker run -d \
   "${image}:${tag}" serve "${model}" >/dev/null
 
 echo "loading ${model} in ${name} on GPU ${gpu}"
-for _ in $(seq 1 360); do
+for _ in $(seq 1 "${startup_polls}"); do
   if ! docker ps --format '{{.Names}}' | grep -Fxq "${name}"; then
     docker logs "${name}" --tail 100
     exit 1
@@ -48,8 +59,8 @@ for _ in $(seq 1 360); do
     echo "${name}: READY"
     exit 0
   fi
-  sleep 2
+  sleep "${startup_poll_seconds}"
 done
-echo "timed out waiting for ${name}" >&2
+echo "timed out waiting for ${name} after $((startup_polls * startup_poll_seconds)) seconds" >&2
 docker logs "${name}" --tail 100
 exit 1
