@@ -19,6 +19,11 @@ _MOLMO_POINT_ATTR_RE = re.compile(
     r"(?P<value>[+-]?(?:\d+(?:\.\d*)?|\.\d+))[\"']",
     re.IGNORECASE,
 )
+_NUMBER_RE = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
+_INTERNVL_BBOX_RE = re.compile(
+    rf"(?<!\[)\[\[?\s*({_NUMBER_RE})\s*,\s*({_NUMBER_RE})\s*,\s*"
+    rf"({_NUMBER_RE})\s*,\s*({_NUMBER_RE})\s*\]\]?(?!\])"
+)
 
 
 def normalize_label(value: str) -> str:
@@ -121,24 +126,22 @@ def parse_output(
         return ParsedOutput(True, label=label)
     if sample.question_type in BBOX_TYPES and model_key.startswith("internvl3.5-"):
         # InternVL's official RefCOCO evaluation protocol serializes one
-        # target-relative 0--1000 box as ``label[[x0,y0,x1,y1]]``. Accept the
-        # native form before the generic JSON fallback, but never silently
-        # choose among multiple candidates in this one-object benchmark.
-        matches = re.findall(
-            r"\[\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*"
-            r"(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]\]",
-            raw,
-        )
+        # target-relative 0--1000 box.  Its own evaluator deliberately accepts
+        # either ``label[[x0,y0,x1,y1]]`` or ``[x0,y0,x1,y1]``.  Accept those
+        # two serializations before the generic JSON fallback, but never choose
+        # silently among multiple candidates in this one-object benchmark.
+        matches = list(_INTERNVL_BBOX_RE.finditer(raw))
         if matches:
             if len(matches) != 1:
                 return ParsedOutput(False, error="expected exactly one InternVL bbox")
-            bbox = tuple(float(value) for value in matches[0])
+            match = matches[0]
+            bbox = tuple(float(value) for value in match.groups())
             if not all(0 <= value <= 1000 for value in bbox):
                 return ParsedOutput(False, error="InternVL bbox is outside the 0-1000 grid")
             x0, y0, x1, y1 = bbox
             if not (x0 <= x1 and y0 <= y1):
                 return ParsedOutput(False, error="InternVL bbox corners are not ordered XYXY")
-            prefix = raw[: raw.find("[[")]
+            prefix = raw[: match.start()]
             prefix = re.sub(r"</?(?:ref|box)>", "", prefix, flags=re.IGNORECASE)
             label = normalize_label(prefix.splitlines()[-1]) or None
             return ParsedOutput(

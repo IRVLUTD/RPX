@@ -121,7 +121,7 @@ def _internvl_bbox_instruction(expression: str) -> str:
     # its trained response protocol; strictness belongs in the parser instead.
     return (
         "Please provide the bounding box coordinate of the region this sentence "
-        f"describes: {expression}"
+        f"describes: <ref>{expression}</ref>"
     )
 
 

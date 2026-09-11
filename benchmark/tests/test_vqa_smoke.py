@@ -188,7 +188,25 @@ def test_internvl_requests_native_grounding_bbox(model_key: str) -> None:
     assert prompt.output_kind == "bbox_native_internvl_grounding"
     assert prompt.text == (
         "Please provide the bounding box coordinate of the region this sentence "
-        "describes: the object furthest to the left"
+        "describes: <ref>the object furthest to the left</ref>"
+    )
+
+
+@pytest.mark.parametrize("model_key", ["internvl3.5-1b", "internvl3.5-14b"])
+def test_internvl_native_prompt_preserves_two_image_relation(model_key: str) -> None:
+    sample = SimpleNamespace(
+        question_type="inctx_attr_single_material",
+        question=(
+            "Which object in Image 2 is made of the same material as the object "
+            "shown in Image 1? What is its bounding box in Image 2?"
+        ),
+    )
+    prompt = build_prompt(sample, model_key)
+    assert prompt.output_kind == "bbox_native_internvl_grounding"
+    assert prompt.text == (
+        "Please provide the bounding box coordinate of the region this sentence "
+        "describes: <ref>the object in image 2 that is made of the same material "
+        "as the object shown in Image 1</ref>"
     )
 
 
@@ -621,6 +639,24 @@ def test_internvl_native_bbox_is_scaled_strictly() -> None:
     assert parsed.bbox == pytest.approx((159.75, 95.8, 479.25, 383.2))
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected_label"),
+    [
+        ("alarm clock[250,200,750,800]", "alarm clock"),
+        ("<ref>alarm clock</ref><box>[250,200,750,800]</box>", "alarm clock"),
+    ],
+)
+def test_internvl_official_single_bracket_bbox_is_scaled_strictly(
+    raw: str, expected_label: str
+) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(sample, raw, "internvl3.5-1b")
+    assert parsed.valid
+    assert parsed.label == expected_label
+    assert parsed.coordinate_format == "internvl_bbox_0_1000"
+    assert parsed.bbox == pytest.approx((159.75, 95.8, 479.25, 383.2))
+
+
 def test_internvl_verbose_corner_bbox_is_scaled_strictly() -> None:
     sample = VQASample.from_dict(row("depth_closest"))
     parsed = parse_output(
@@ -651,6 +687,11 @@ def test_internvl_native_bbox_rejects_ambiguous_or_bad_boxes() -> None:
     )
     assert not parsed.valid
     assert parsed.error == "expected exactly one InternVL bbox"
+    mixed_brackets = parse_output(
+        sample, "clock[[100,120,200,220]] other[300,320,400,420]", "internvl3.5-14b"
+    )
+    assert not mixed_brackets.valid
+    assert mixed_brackets.error == "expected exactly one InternVL bbox"
     reversed_box = parse_output(
         sample, "clock[[300,400,200,500]]", "internvl3.5-1b"
     )
