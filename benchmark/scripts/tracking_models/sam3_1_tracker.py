@@ -17,6 +17,7 @@ from tracking_text_runtime import TextPrompt
 SAM31_MODEL_ID = "facebook/sam3.1"
 SAM31_MODEL_REVISION = "daa63191845a41281374e725f4c9e51c7a824460"
 SAM31_SOURCE_REVISION = "6dbb02bd38288df755dfa1378000a861e65b84f6"
+SAM31_EMPTY_POINTS_ERROR = "No points are provided; please add points first"
 
 
 def _sha256(path: Path) -> str:
@@ -140,10 +141,12 @@ class SAM31Tracker:
         for prompt in text_prompts:
             session_id = None
             internal_to_output: dict[int, int] = {}
+            last_output_frame_index: int | None = None
             record: dict[str, Any] = {
                 "prompt": prompt.prompt_text,
                 "source_mask_index": prompt.mask_index,
                 "predicted_track_ids": [],
+                "propagation_status": "pending",
             }
             try:
                 response = self.predictor.handle_request(
@@ -165,41 +168,74 @@ class SAM31Tracker:
                         "text": prompt.prompt_text,
                     }
                 )
-                for response in self.predictor.handle_stream_request(
-                    {
-                        "type": "propagate_in_video",
-                        "session_id": session_id,
-                        "propagation_direction": "forward",
-                        "start_frame_index": 0,
-                        "max_frame_num_to_track": frame_count,
-                    }
-                ):
-                    torch.cuda.synchronize()
-                    frame_index = int(response["frame_index"])
-                    output = response["outputs"]
-                    internal_ids = np.asarray(output["out_obj_ids"], dtype=np.int64)
-                    for internal_id in internal_ids:
-                        if int(internal_id) not in internal_to_output:
-                            internal_to_output[int(internal_id)] = next_track_id
-                            record["predicted_track_ids"].append(next_track_id)
-                            next_track_id += 1
-                    output_ids = np.asarray(
-                        [internal_to_output[int(value)] for value in internal_ids],
-                        dtype=np.int32,
+                try:
+                    for response in self.predictor.handle_stream_request(
+                        {
+                            "type": "propagate_in_video",
+                            "session_id": session_id,
+                            "propagation_direction": "forward",
+                            "start_frame_index": 0,
+                            "max_frame_num_to_track": frame_count,
+                        }
+                    ):
+                        torch.cuda.synchronize()
+                        frame_index = int(response["frame_index"])
+                        last_output_frame_index = frame_index
+                        output = response["outputs"]
+                        internal_ids = np.asarray(output["out_obj_ids"], dtype=np.int64)
+                        for internal_id in internal_ids:
+                            if int(internal_id) not in internal_to_output:
+                                internal_to_output[int(internal_id)] = next_track_id
+                                record["predicted_track_ids"].append(next_track_id)
+                                next_track_id += 1
+                        output_ids = np.asarray(
+                            [internal_to_output[int(value)] for value in internal_ids],
+                            dtype=np.int32,
+                        )
+                        scores = np.asarray(
+                            output.get("out_probs", np.ones(len(output_ids))),
+                            dtype=np.float32,
+                        )
+                        self._merge(
+                            predictions[frame_index],
+                            confidences[frame_index],
+                            np.asarray(output["out_binary_masks"]),
+                            scores,
+                            output_ids,
+                        )
+                        now = time.perf_counter()
+                        latencies[frame_index] += (now - started) * 1000
+                        started = now
+                except RuntimeError as error:
+                    if str(error) != SAM31_EMPTY_POINTS_ERROR:
+                        raise
+                    first_unprocessed_frame = (
+                        0 if last_output_frame_index is None else last_output_frame_index + 1
                     )
-                    scores = np.asarray(
-                        output.get("out_probs", np.ones(len(output_ids))), dtype=np.float32
+                    record.update(
+                        {
+                            "propagation_status": "terminated_empty_points",
+                            "propagation_error": str(error),
+                            "last_output_frame_index": last_output_frame_index,
+                            "first_unprocessed_frame_index": first_unprocessed_frame,
+                            "unprocessed_frame_count": max(
+                                0, frame_count - first_unprocessed_frame
+                            ),
+                            "recovery": (
+                                "Unprocessed frames remain background for this prompt; "
+                                "other prompts and clips continue."
+                            ),
+                        }
                     )
-                    self._merge(
-                        predictions[frame_index],
-                        confidences[frame_index],
-                        np.asarray(output["out_binary_masks"]),
-                        scores,
-                        output_ids,
+                    print(
+                        "WARNING: SAM 3.1 lost all tracker points for "
+                        f"prompt={prompt.prompt_text!r} after frame "
+                        f"{last_output_frame_index}; continuing with background "
+                        "for its remaining frames.",
+                        flush=True,
                     )
-                    now = time.perf_counter()
-                    latencies[frame_index] += (now - started) * 1000
-                    started = now
+                else:
+                    record["propagation_status"] = "complete"
             finally:
                 if session_id is not None:
                     with contextlib.suppress(Exception):

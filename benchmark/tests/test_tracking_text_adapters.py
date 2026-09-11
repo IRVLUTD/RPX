@@ -128,3 +128,81 @@ def test_sam31_filters_base_predictor_kwargs_unsupported_by_multiplex() -> None:
     assert result == {"ready": True}
     assert calls == [("frames", True, True)]
     assert ignored == ("offload_state_to_cpu", "video_loader_type")
+
+
+def test_sam31_empty_points_ends_only_the_affected_prompt(monkeypatch, tmp_path) -> None:
+    class Predictor:
+        def __init__(self) -> None:
+            self.closed_sessions: list[str] = []
+
+        def handle_request(self, request):
+            if request["type"] == "start_session":
+                return {"session_id": f"session-{request['resource_path']}"}
+            if request["type"] == "close_session":
+                self.closed_sessions.append(request["session_id"])
+            return {}
+
+        def handle_stream_request(self, request):
+            del request
+            yield {
+                "frame_index": 0,
+                "outputs": {
+                    "out_obj_ids": np.asarray([7]),
+                    "out_probs": np.asarray([0.9]),
+                    "out_binary_masks": np.asarray([[[[True, False], [False, False]]]]),
+                },
+            }
+            raise RuntimeError("No points are provided; please add points first")
+
+    monkeypatch.setattr(torch.cuda, "synchronize", lambda: None)
+    tracker = object.__new__(SAM31Tracker)
+    tracker.predictor = Predictor()
+    tracker.checkpoint_sha256 = "test-checkpoint"
+    tracker._ignored_init_state_arguments = ()
+
+    predictions, latencies = tracker.track(
+        video_dir=tmp_path,
+        frame_shape=(2, 2),
+        frame_count=3,
+        text_prompts=(TextPrompt(1, "red cup", "1", "cup"),),
+    )
+
+    np.testing.assert_array_equal(predictions[0], np.asarray([[1, 0], [0, 0]]))
+    np.testing.assert_array_equal(predictions[1], np.zeros((2, 2), dtype=np.int32))
+    np.testing.assert_array_equal(predictions[2], np.zeros((2, 2), dtype=np.int32))
+    assert latencies[0] > 0
+    assert latencies[1:] == [0.0, 0.0]
+    assert len(tracker.predictor.closed_sessions) == 1
+    record = tracker.prediction_metadata()["prompts"][0]
+    assert record["propagation_status"] == "terminated_empty_points"
+    assert record["last_output_frame_index"] == 0
+    assert record["first_unprocessed_frame_index"] == 1
+    assert record["unprocessed_frame_count"] == 2
+
+
+def test_sam31_does_not_hide_unrelated_runtime_errors(monkeypatch, tmp_path) -> None:
+    class Predictor:
+        def handle_request(self, request):
+            if request["type"] == "start_session":
+                return {"session_id": "session"}
+            return {}
+
+        def handle_stream_request(self, request):
+            del request
+            if False:
+                yield
+            raise RuntimeError("CUDA failure")
+
+    monkeypatch.setattr(torch.cuda, "synchronize", lambda: None)
+    tracker = object.__new__(SAM31Tracker)
+    tracker.predictor = Predictor()
+    tracker.checkpoint_sha256 = "test-checkpoint"
+    tracker._ignored_init_state_arguments = ()
+
+    with pytest.raises(RuntimeError, match="CUDA failure"):
+        tracker.track(
+            video_dir=tmp_path,
+            frame_shape=(2, 2),
+            frame_count=1,
+            text_prompts=(TextPrompt(1, "red cup", "1", "cup"),),
+        )
