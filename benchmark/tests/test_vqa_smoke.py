@@ -36,7 +36,6 @@ from vqa_models.vllm_backend import (  # noqa: E402
 from vqa_models.vllm_backend import (
     VLLMCheckpoint,
     VLLMVQARunner,
-    deepseek_vl2_full_hf_overrides,
 )
 
 
@@ -591,53 +590,16 @@ def test_deepseek_checkpoint_gpu_topology_is_explicit() -> None:
     assert VLLM_CHECKPOINTS["deepseek-vl2"].tensor_parallel_size == 2
 
 
-def test_deepseek_full_override_completes_missing_mla_config() -> None:
-    language_config = SimpleNamespace(q_lora_rank=None, kv_lora_rank=None)
-    config = SimpleNamespace(language_config=language_config)
-    assert deepseek_vl2_full_hf_overrides(config) is config
-    assert config.architectures == ["DeepseekVLV2ForCausalLM"]
-    assert language_config.use_mla is True
-    assert language_config.kv_lora_rank == 512
-    assert language_config.qk_rope_head_dim == 64
-    assert language_config.qk_nope_head_dim == 128
-    assert language_config.v_head_dim == 128
-    # The checkpoint explicitly selects the direct q_proj path. Do not replace
-    # that explicit null with the configuration class's q-LoRA default.
-    assert language_config.q_lora_rank is None
-
-
-def test_deepseek_full_override_preserves_checkpoint_values_and_probe_config() -> None:
-    language_config = {"kv_lora_rank": 256, "num_attention_heads": 16}
-    config = SimpleNamespace(language_config=language_config)
-    deepseek_vl2_full_hf_overrides(config)
-    assert language_config["kv_lora_rank"] == 256
-    assert language_config["num_attention_heads"] == 16
-    assert language_config["qk_rope_head_dim"] == 64
-
-    probe = SimpleNamespace()
-    assert deepseek_vl2_full_hf_overrides(probe) is probe
-    assert probe.architectures == ["DeepseekVLV2ForCausalLM"]
-
-
-def test_deepseek_full_override_supports_vllm_text_config_alias() -> None:
-    text_config = SimpleNamespace(kv_lora_rank=None)
-    config = SimpleNamespace(get_text_config=lambda: text_config)
-    deepseek_vl2_full_hf_overrides(config)
-    assert text_config.kv_lora_rank == 512
-    assert text_config.qk_rope_head_dim == 64
-
-
-def test_deepseek_full_override_updates_distinct_serialized_and_live_aliases() -> None:
-    serialized = {"kv_lora_rank": None}
-    live = SimpleNamespace(kv_lora_rank=None)
-    config = SimpleNamespace(
-        language_config=serialized,
-        text_config=live,
-        get_text_config=lambda: live,
-    )
-    deepseek_vl2_full_hf_overrides(config)
-    assert serialized["kv_lora_rank"] == 512
-    assert live.kv_lora_rank == 512
+def test_deepseek_full_uses_vllm_live_text_config_override() -> None:
+    overrides = VLLM_CHECKPOINTS["deepseek-vl2"].engine_kwargs["hf_overrides"]
+    assert overrides["architectures"] == ["DeepseekVLV2ForCausalLM"]
+    assert overrides["text_config"]["use_mla"] is True
+    assert overrides["text_config"]["kv_lora_rank"] == 512
+    assert overrides["text_config"]["qk_rope_head_dim"] == 64
+    assert overrides["text_config"]["qk_nope_head_dim"] == 128
+    assert overrides["text_config"]["v_head_dim"] == 128
+    # q_lora_rank remains the checkpoint's explicit null, selecting q_proj.
+    assert "q_lora_rank" not in overrides["text_config"]
 
 
 def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:

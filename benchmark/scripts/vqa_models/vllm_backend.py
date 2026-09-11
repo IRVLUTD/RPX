@@ -50,42 +50,6 @@ _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS: dict[str, Any] = {
 }
 
 
-def deepseek_vl2_full_hf_overrides(config: Any) -> Any:
-    """Complete VL2-full's incomplete nested LM config for vLLM.
-
-    This must remain a module-level function: vLLM passes ``hf_overrides`` to
-    spawned tensor-parallel workers, so the callable has to be picklable. It
-    is also invoked against a lightweight probe config before the real nested
-    config is loaded; that probe intentionally receives only the architecture
-    override.
-    """
-    config.architectures = ["DeepseekVLV2ForCausalLM"]
-    # vLLM's registered DeepseekVLV2Config exposes the nested language model
-    # through ``text_config``/``get_text_config()`` even though the checkpoint
-    # serializes the same object under ``language_config``. Check every form;
-    # looking only for the serialized name makes the override a silent no-op.
-    language_configs: list[Any] = []
-    for attribute in ("language_config", "text_config"):
-        nested = getattr(config, attribute, None)
-        if nested is not None and all(nested is not value for value in language_configs):
-            language_configs.append(nested)
-    if callable(getattr(config, "get_text_config", None)):
-        nested = config.get_text_config()
-        if nested is not None and all(nested is not value for value in language_configs):
-            language_configs.append(nested)
-    if not language_configs:
-        return config
-
-    for language_config in language_configs:
-        for name, value in _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS.items():
-            if isinstance(language_config, dict):
-                if language_config.get(name) is None:
-                    language_config[name] = value
-            elif getattr(language_config, name, None) is None:
-                setattr(language_config, name, value)
-    return config
-
-
 @dataclass(frozen=True)
 class VLLMCheckpoint:
     repo_id: str
@@ -178,7 +142,16 @@ CHECKPOINTS = {
         max_model_len=4096,
         deepseek_vl2=True,
         tensor_parallel_size=2,
-        engine_kwargs={"hf_overrides": deepseek_vl2_full_hf_overrides},
+        # vLLM applies nested dictionary overrides directly to the live
+        # PretrainedConfig used by init_vllm_registered_model. The checkpoint
+        # calls this language_config on disk, but vLLM exposes it as
+        # text_config; targeting that canonical live name is essential.
+        engine_kwargs={
+            "hf_overrides": {
+                "architectures": ["DeepseekVLV2ForCausalLM"],
+                "text_config": _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS,
+            }
+        },
     ),
 }
 
