@@ -36,9 +36,14 @@ if docker ps -a --format '{{.Names}}' | grep -Fxq "${name}"; then
   docker rm "${name}" >/dev/null
 fi
 
+gpu_request="device=${gpu}"
+if [[ "${gpu}" == *,* ]]; then
+  gpu_request="\"device=${gpu}\""
+fi
+
 docker run -d \
   --name "${name}" \
-  --gpus "device=${gpu}" \
+  --gpus "${gpu_request}" \
   --ipc=host \
   --shm-size=16g \
   -e HF_TOKEN \

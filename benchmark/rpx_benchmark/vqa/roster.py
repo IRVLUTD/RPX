@@ -56,6 +56,14 @@ MODELS = (
     ModelSpec("qwen2.5-vl-3b", "Qwen2.5-VL 3B", 3.0, 7, "native", ALL_TASKS),
     ModelSpec("qwen3-vl-2b", "Qwen3-VL 2B", 2.0, 7, "native", ALL_TASKS),
     ModelSpec(
+        "deepseek-vl2-tiny",
+        "DeepSeek-VL2 Tiny (1B active)",
+        1.0,
+        16,
+        "native_loc",
+        ALL_TASKS,
+    ),
+    ModelSpec(
         "molmoe-1b",
         "MolmoE 1B (7.2B total)",
         7.2,
@@ -79,6 +87,14 @@ MODELS = (
         "prompted",
         ALL_TASKS,
         MOLMO_DIAGNOSTICS,
+    ),
+    ModelSpec(
+        "deepseek-vl2",
+        "DeepSeek-VL2 (4.5B active)",
+        4.5,
+        64,
+        "native_loc_tp2",
+        ALL_TASKS,
     ),
     ModelSpec(
         "paligemma2-10b",

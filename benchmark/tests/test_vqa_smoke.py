@@ -30,7 +30,13 @@ from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
 from vqa_models.molmo_backend import MolmoVQARunner  # noqa: E402
 from vqa_models.paligemma_backend import PaliGemmaVQARunner  # noqa: E402
-from vqa_models.vllm_backend import VLLMCheckpoint, VLLMVQARunner  # noqa: E402
+from vqa_models.vllm_backend import (  # noqa: E402
+    CHECKPOINTS as VLLM_CHECKPOINTS,
+)
+from vqa_models.vllm_backend import (
+    VLLMCheckpoint,
+    VLLMVQARunner,
+)
 
 
 def row(question_type: str = "spatial_lr_binary") -> dict:
@@ -193,6 +199,15 @@ def test_paligemma_uses_direct_scored_question_grounding(model_key: str) -> None
     model = get_model(model_key)
     assert model.capabilities == {"bbox"}
     assert model.diagnostic_capabilities == {"semantic_label", "object_detection"}
+
+
+@pytest.mark.parametrize("model_key", ["deepseek-vl2-tiny", "deepseek-vl2"])
+def test_deepseek_uses_native_one_stage_grounding(model_key: str) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    prompt = build_prompt(sample, model_key)
+    assert prompt.text == "<|ref|>the object furthest to the left<|/ref|>."
+    assert prompt.output_kind == "bbox_native_question_grounding"
+    assert get_model(model_key).capabilities == {"bbox"}
 
 
 def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> None:
@@ -413,6 +428,7 @@ def test_roster_matches_rpx_draft() -> None:
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
         "Qwen3-VL 2B",
+        "DeepSeek-VL2 Tiny (1B active)",
         "MolmoE 1B (7.2B total)",
         "Gemma 4 E4B",
         "Phi-3.5-Vision 4.2B",
@@ -422,6 +438,7 @@ def test_roster_matches_rpx_draft() -> None:
         "Idefics3 8B",
         "InternVL 2.5 8B",
         "Molmo 7B-D",
+        "DeepSeek-VL2 (4.5B active)",
         "PaliGemma 2 10B",
         "Gemma 4 12B",
     ]
@@ -548,6 +565,29 @@ def test_molmo_point_is_not_fabricated_into_bbox() -> None:
     assert parsed.valid is False
     assert parsed.bbox is None
     assert parsed.error is not None and parsed.error.startswith("missing JSON object")
+
+
+def test_deepseek_native_bbox_decoding_is_strict() -> None:
+    raw, metadata = VLLMVQARunner._decode_deepseek_grounding(
+        "<|ref|>alarm clock<|/ref|><|det|>[[100,200,300,400]]<|/det|>"
+    )
+    assert json.loads(raw) == {
+        "label": "alarm clock",
+        "bbox": [100.0, 200.0, 300.0, 400.0],
+    }
+    assert metadata["native_candidate_count"] == 1
+    ambiguous, ambiguous_metadata = VLLMVQARunner._decode_deepseek_grounding(
+        "<|ref|>object<|/ref|><|det|>[[1,2,3,4],[5,6,7,8]]<|/det|>"
+    )
+    assert "bbox" not in json.loads(ambiguous)
+    assert json.loads(ambiguous)["candidate_count"] == 2
+    assert ambiguous_metadata["native_candidate_count"] == 2
+
+
+def test_deepseek_checkpoint_gpu_topology_is_explicit() -> None:
+    assert VLLMCheckpoint.__dataclass_fields__["tensor_parallel_size"].default == 1
+    assert VLLM_CHECKPOINTS["deepseek-vl2-tiny"].tensor_parallel_size == 1
+    assert VLLM_CHECKPOINTS["deepseek-vl2"].tensor_parallel_size == 2
 
 
 def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:

@@ -20,6 +20,8 @@ It is not used in the scored single-call VQA+bbox benchmark.
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
@@ -35,6 +37,8 @@ class VLLMCheckpoint:
     max_model_len: int = 4096
     engine_kwargs: dict[str, Any] = field(default_factory=dict)
     paligemma: bool = False
+    deepseek_vl2: bool = False
+    tensor_parallel_size: int = 1
 
 
 CHECKPOINTS = {
@@ -104,6 +108,21 @@ CHECKPOINTS = {
         "89644892e4d85e24eaac8bacfd4f463576704203",
         max_model_len=8192,
     ),
+    "deepseek-vl2-tiny": VLLMCheckpoint(
+        "deepseek-ai/deepseek-vl2-tiny",
+        "66c54660eae7e90c9ba259bfdf92d07d6e3ce8aa",
+        max_model_len=4096,
+        deepseek_vl2=True,
+        engine_kwargs={"hf_overrides": {"architectures": ["DeepseekVLV2ForCausalLM"]}},
+    ),
+    "deepseek-vl2": VLLMCheckpoint(
+        "deepseek-ai/deepseek-vl2",
+        "f363772d1c47f4239dd844015b4bd53beb87951b",
+        max_model_len=4096,
+        deepseek_vl2=True,
+        tensor_parallel_size=2,
+        engine_kwargs={"hf_overrides": {"architectures": ["DeepseekVLV2ForCausalLM"]}},
+    ),
 }
 
 
@@ -135,7 +154,7 @@ class VLLMVQARunner:
             dtype="bfloat16",
             max_model_len=checkpoint.max_model_len,
             max_num_seqs=max_num_seqs,
-            tensor_parallel_size=1,
+            tensor_parallel_size=checkpoint.tensor_parallel_size,
             gpu_memory_utilization=gpu_memory_utilization,
             # 2, not 1: in-context rows send [reference, target]; normal rows
             # still send exactly one image. This is a ceiling, never a floor.
@@ -194,9 +213,7 @@ class VLLMVQARunner:
         return self._text(self.llm.generate(request, params, use_tqdm=False))
 
     @staticmethod
-    def _chat_content(
-        image_paths: Sequence[str | Path], prompt: str
-    ) -> list[dict[str, Any]]:
+    def _chat_content(image_paths: Sequence[str | Path], prompt: str) -> list[dict[str, Any]]:
         """Build an explicitly ordered multimodal message without model tokens."""
         content: list[dict[str, Any]] = []
         if len(image_paths) == 2:
@@ -237,6 +254,129 @@ class VLLMVQARunner:
             )
         )
 
+    def _deepseek_generate(
+        self,
+        images: Sequence[Image.Image],
+        prompt: str,
+        max_tokens: int,
+        *,
+        keep_special: bool,
+    ) -> str:
+        """Apply the prompt format used by vLLM's official VL2 example."""
+        from vllm import SamplingParams
+
+        placeholders = "".join(f"image_{index}:<image>\n" for index in range(1, len(images) + 1))
+        formatted = f"<|User|>: {placeholders}{prompt}\n\n<|Assistant|>:"
+        request = {
+            "prompt": formatted,
+            "multi_modal_data": {"image": list(images)},
+        }
+        params = SamplingParams(
+            temperature=0.0,
+            max_tokens=max_tokens,
+            skip_special_tokens=not keep_special,
+        )
+        return self._text(self.llm.generate(request, params, use_tqdm=False))
+
+    @staticmethod
+    def _decode_deepseek_grounding(raw: str) -> tuple[str, dict[str, Any]]:
+        """Convert native normalized VL2 detections to the strict RPX JSON.
+
+        DeepSeek serializes detections as ``<|ref|>label<|/ref|><|det|>
+        [[x0,y0,x1,y1]]<|/det|>`` in normalized 0--999 coordinates.
+        Multiple native boxes remain an invalid ambiguous prediction.
+        """
+        pattern = re.compile(
+            r"(?:<\|ref\|>(?P<label>.*?)<\|/ref\|>)?\s*"
+            r"<\|det\|>(?P<boxes>.*?)<\|/det\|>",
+            re.DOTALL,
+        )
+        candidates: list[dict[str, Any]] = []
+        parse_errors: list[str] = []
+        for match in pattern.finditer(raw):
+            try:
+                boxes = json.loads(match.group("boxes"))
+                if (
+                    isinstance(boxes, list)
+                    and len(boxes) == 4
+                    and all(isinstance(value, (int, float)) for value in boxes)
+                ):
+                    boxes = [boxes]
+                if not isinstance(boxes, list):
+                    raise ValueError("native det payload is not a list")
+                for bbox in boxes:
+                    if not (
+                        isinstance(bbox, list)
+                        and len(bbox) == 4
+                        and all(isinstance(value, (int, float)) for value in bbox)
+                        and all(0 <= float(value) <= 1000 for value in bbox)
+                    ):
+                        raise ValueError("native bbox is not four normalized numbers")
+                    x0, y0, x1, y1 = (float(value) for value in bbox)
+                    if x1 < x0 or y1 < y0:
+                        raise ValueError("native bbox is not XYXY ordered")
+                    candidates.append(
+                        {
+                            "label": (match.group("label") or "").strip(),
+                            "bbox": [x0, y0, x1, y1],
+                        }
+                    )
+            except (TypeError, ValueError, json.JSONDecodeError) as error:
+                parse_errors.append(str(error))
+        metadata = {
+            "native_output": raw,
+            "native_candidate_count": len(candidates),
+            "candidate_policy": "exactly_one_native_bbox",
+            "coordinate_format": "deepseek_vl2_normalized_0_999",
+        }
+        if parse_errors:
+            metadata["native_parse_errors"] = parse_errors
+        if len(candidates) == 1:
+            return json.dumps(candidates[0], separators=(",", ":")), metadata
+        return (
+            json.dumps(
+                {
+                    "error": "expected exactly one native bbox candidate",
+                    "candidate_count": len(candidates),
+                    "candidates": candidates,
+                },
+                separators=(",", ":"),
+            ),
+            metadata,
+        )
+
+    def _predict_deepseek(
+        self,
+        images: Sequence[Image.Image],
+        prompt: str,
+        max_tokens: int,
+        output_kind: str,
+    ) -> str:
+        diagnostic = output_kind.startswith("diagnostic_")
+        grounding = output_kind in {
+            "bbox_native_question_grounding",
+            "diagnostic_oracle_bbox",
+            "diagnostic_predicted_label_bbox",
+        }
+        native = self._deepseek_generate(images, prompt, max_tokens, keep_special=grounding)
+        if grounding:
+            raw, native_metadata = self._decode_deepseek_grounding(native)
+        else:
+            raw, native_metadata = native, {"native_output": native}
+        self._last_adapter_metadata = {
+            "adapter": (
+                "deepseek_vl2_native_grounding" if grounding else "diagnostic_semantic_label"
+            ),
+            "diagnostic_only": diagnostic,
+            "single_model_call": True,
+            "single_scored_model_call": not diagnostic,
+            "image_count": len(images),
+            "image_order": "target_only" if len(images) == 1 else "reference_then_target",
+            "ground_truth_label_disclosed": output_kind == "diagnostic_oracle_bbox",
+            **native_metadata,
+        }
+        return raw
+
     def _predict_json_direct(
         self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
     ) -> str:
@@ -252,9 +392,7 @@ class VLLMVQARunner:
     ) -> str:
         """One scored PaliGemma call: question and image(s) in, bbox out."""
         model_image = images[0] if len(images) == 1 else self._side_by_side(images)
-        raw = self._generate_paligemma(
-            model_image, prompt, max_tokens, keep_special=True
-        )
+        raw = self._generate_paligemma(model_image, prompt, max_tokens, keep_special=True)
         self._last_adapter_metadata = {
             "adapter": "direct_bbox_json",
             "single_scored_model_call": True,
@@ -287,11 +425,11 @@ class VLLMVQARunner:
         try:
             self._last_adapter_metadata = {}
             images = [image.convert("RGB") for image in opened]
+            if self.checkpoint.deepseek_vl2:
+                return self._predict_deepseek(images, prompt, max_tokens, output_kind)
             if output_kind == "diagnostic_semantic_label":
                 if self.checkpoint.paligemma:
-                    diagnostic_image = (
-                        images[0] if len(images) == 1 else self._side_by_side(images)
-                    )
+                    diagnostic_image = images[0] if len(images) == 1 else self._side_by_side(images)
                     raw = self._generate_paligemma(
                         diagnostic_image, prompt, max_tokens, keep_special=False
                     )
@@ -316,17 +454,13 @@ class VLLMVQARunner:
                         images[-1], prompt, max_tokens, keep_special=True
                     )
                 else:
-                    raw = self._chat_generate(
-                        [image_paths[-1]], prompt, max_tokens
-                    )
+                    raw = self._chat_generate([image_paths[-1]], prompt, max_tokens)
                 self._last_adapter_metadata = {
                     "adapter": output_kind,
                     "diagnostic_only": True,
                     "single_model_call": True,
                     "single_scored_model_call": False,
-                    "ground_truth_label_disclosed": (
-                        output_kind == "diagnostic_oracle_bbox"
-                    ),
+                    "ground_truth_label_disclosed": (output_kind == "diagnostic_oracle_bbox"),
                 }
                 return raw
             if self.checkpoint.paligemma:
@@ -335,9 +469,7 @@ class VLLMVQARunner:
                         "PaliGemma has no direct single-call RPX VQA+bbox protocol; "
                         "use its unscored answer-en plus detect diagnostic"
                     )
-                diagnostic_image = (
-                    images[0] if len(images) == 1 else self._side_by_side(images)
-                )
+                diagnostic_image = images[0] if len(images) == 1 else self._side_by_side(images)
                 raw = self._generate_paligemma(
                     diagnostic_image, prompt, max_tokens, keep_special=False
                 )
@@ -370,6 +502,16 @@ class VLLMVQARunner:
         try:
             self._last_batch_adapter_metadata = []
             images_by_row = [[image.convert("RGB") for image in row] for row in opened_by_row]
+            if self.checkpoint.deepseek_vl2:
+                values = []
+                metadata = []
+                for images, (_paths, prompt, max_tokens, output_kind) in zip(
+                    images_by_row, requests, strict=True
+                ):
+                    values.append(self._predict_deepseek(images, prompt, max_tokens, output_kind))
+                    metadata.append(self.prediction_metadata())
+                self._last_batch_adapter_metadata = metadata
+                return values
             if self.checkpoint.paligemma:
                 if any(
                     output_kind == "bbox_json_normalized_1000"
@@ -405,9 +547,7 @@ class VLLMVQARunner:
                     # trained detection serialization instead of JSON.
                     skip_special_tokens=False,
                 )
-                direct_outputs = self.llm.generate(
-                    direct_requests, params1, use_tqdm=False
-                )
+                direct_outputs = self.llm.generate(direct_requests, params1, use_tqdm=False)
                 values = [self._text([output]) for output in direct_outputs]
                 self._last_batch_adapter_metadata = [
                     {
@@ -418,9 +558,7 @@ class VLLMVQARunner:
                         ),
                         "single_scored_model_call": True,
                         "paligemma_multi_image_accommodation": (
-                            "none"
-                            if len(images) == 1
-                            else "labelled_side_by_side_composite"
+                            "none" if len(images) == 1 else "labelled_side_by_side_composite"
                         ),
                     }
                     for images, (_paths, _prompt, _max_tokens, output_kind) in zip(
@@ -442,9 +580,7 @@ class VLLMVQARunner:
                 # between acceptance and the full benchmark.
                 content = self._chat_content(path_list, prompt)
                 messages_batch.append([{"role": "user", "content": content}])
-            max_tokens = max(
-                max_tokens for _paths, _prompt, max_tokens, _output_kind in requests
-            )
+            max_tokens = max(max_tokens for _paths, _prompt, max_tokens, _output_kind in requests)
             params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
             chat_template_kwargs = (
                 {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None

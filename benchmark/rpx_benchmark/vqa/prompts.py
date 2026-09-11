@@ -35,23 +35,19 @@ def native_referring_expression(sample: VQASample) -> str:
             return "the leftmost object"
         if "right" in lower:
             return "the rightmost object"
-    if (
-        sample.question_type == "depth_closest"
-        and "closest" in lower
-        and "camera" in lower
-    ):
+    if sample.question_type == "depth_closest" and "closest" in lower and "camera" in lower:
         return "the object closest to the camera"
     if sample.question_type == "spatial_farthest":
         marker = "farthest from the "
         if marker in lower:
-            return "the object farthest from " + question[lower.index(marker) + len(marker):]
+            return "the object farthest from " + question[lower.index(marker) + len(marker) :]
     if sample.question_type == "inctx_spatial_farthest":
         return "the object in image 2 farthest from the object shown in image 1"
 
     # Normal attribute questions all begin with one of these stable forms.
     for prefix in ("which object is ", "what is the object "):
         if lower.startswith(prefix):
-            description = question[len(prefix):]
+            description = question[len(prefix) :]
             if sample.question_type == "attr_single_color":
                 return "the " + description + " object"
             return "the object " + description
@@ -64,14 +60,14 @@ def native_referring_expression(sample: VQASample) -> str:
         question = question[: -len(suffix)]
     prefix = "Which object in Image 2 "
     if question.startswith(prefix):
-        relation = question[len(prefix):]
+        relation = question[len(prefix) :]
         if relation.startswith("has "):
             relation = "that " + relation
         elif relation.startswith("is "):
             relation = "that " + relation
         return "the object in image 2 " + relation
     if question.lower().startswith("which object "):
-        return "the object " + question[len("Which object "):]
+        return "the object " + question[len("Which object ") :]
     return question
 
 
@@ -110,9 +106,7 @@ def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> Promp
     if model_key.startswith("paligemma2-"):
         # Follow the checkpoint's documented `answer {lang} {question}` form
         # exactly.  Enforce short-answer formatting in the diagnostic parser.
-        return PromptSpec(
-            f"answer en {question}\n", 32, "diagnostic_semantic_label"
-        )
+        return PromptSpec(f"answer en {question}\n", 32, "diagnostic_semantic_label")
     instruction = (
         f"{question}\nIdentify the one object that answers the question. "
         "For a relational question, name the result object, not the reference "
@@ -125,9 +119,7 @@ def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> Promp
 
 def build_oracle_localization_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     """Localize the known GT label in the target image for diagnosis only."""
-    return build_label_localization_prompt(
-        display_question(sample.answer), model_key, oracle=True
-    )
+    return build_label_localization_prompt(display_question(sample.answer), model_key, oracle=True)
 
 
 def build_label_localization_prompt(
@@ -141,9 +133,7 @@ def build_label_localization_prompt(
     semantic failure merely because their strings differ from the catalog.
     """
     label = display_question(label)
-    output_kind = (
-        "diagnostic_oracle_bbox" if oracle else "diagnostic_predicted_label_bbox"
-    )
+    output_kind = "diagnostic_oracle_bbox" if oracle else "diagnostic_predicted_label_bbox"
     if model_key.startswith("florence2-"):
         # Florence's official phrase-grounding interface is TASK + phrase.
         # Adding JSON instructions makes every noun in those instructions a
@@ -151,6 +141,8 @@ def build_label_localization_prompt(
         return PromptSpec(label, 128, output_kind)
     if model_key.startswith("paligemma2-"):
         return PromptSpec(f"detect {label}\n", 64, output_kind)
+    if model_key.startswith("deepseek-vl2"):
+        return PromptSpec(f"<|ref|>{label}<|/ref|>.", 128, output_kind)
     return PromptSpec(
         f'Locate the visible object named "{label}" in the target image. '
         'Return only JSON: {"label":"object name","bbox":'
@@ -171,6 +163,13 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             f"{question}\nAnswer using exactly one lowercase word: yes or no.", 4, "binary"
         )
     if sample.question_type in BBOX_TYPES:
+        if model_key.startswith("deepseek-vl2"):
+            expression = native_referring_expression(sample)
+            return PromptSpec(
+                f"<|ref|>{expression}<|/ref|>.",
+                128,
+                "bbox_native_question_grounding",
+            )
         if model_key.startswith("florence2-"):
             # One scored native call: a deterministic, GT-free rewrite of the
             # question is supplied to caption-to-phrase grounding. Only the
@@ -185,9 +184,7 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             # interrogative. Rewrite question syntax without using its answer,
             # then perform selection/localization in one generation.
             expression = native_referring_expression(sample)
-            return PromptSpec(
-                f"detect {expression}\n", 64, "bbox_native_question_grounding"
-            )
+            return PromptSpec(f"detect {expression}\n", 64, "bbox_native_question_grounding")
         return PromptSpec(
             _bbox_instruction(question),
             96,
