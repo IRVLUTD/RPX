@@ -619,6 +619,27 @@ def test_deepseek_full_override_preserves_checkpoint_values_and_probe_config() -
     assert probe.architectures == ["DeepseekVLV2ForCausalLM"]
 
 
+def test_deepseek_full_override_supports_vllm_text_config_alias() -> None:
+    text_config = SimpleNamespace(kv_lora_rank=None)
+    config = SimpleNamespace(get_text_config=lambda: text_config)
+    deepseek_vl2_full_hf_overrides(config)
+    assert text_config.kv_lora_rank == 512
+    assert text_config.qk_rope_head_dim == 64
+
+
+def test_deepseek_full_override_updates_distinct_serialized_and_live_aliases() -> None:
+    serialized = {"kv_lora_rank": None}
+    live = SimpleNamespace(kv_lora_rank=None)
+    config = SimpleNamespace(
+        language_config=serialized,
+        text_config=live,
+        get_text_config=lambda: live,
+    )
+    deepseek_vl2_full_hf_overrides(config)
+    assert serialized["kv_lora_rank"] == 512
+    assert live.kv_lora_rank == 512
+
+
 def test_florence_target_bbox_remaps_composite_without_gt_selection() -> None:
     geometry = ImageGeometry(
         width=1288,

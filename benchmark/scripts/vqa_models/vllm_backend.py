@@ -60,16 +60,29 @@ def deepseek_vl2_full_hf_overrides(config: Any) -> Any:
     override.
     """
     config.architectures = ["DeepseekVLV2ForCausalLM"]
-    language_config = getattr(config, "language_config", None)
-    if language_config is None:
+    # vLLM's registered DeepseekVLV2Config exposes the nested language model
+    # through ``text_config``/``get_text_config()`` even though the checkpoint
+    # serializes the same object under ``language_config``. Check every form;
+    # looking only for the serialized name makes the override a silent no-op.
+    language_configs: list[Any] = []
+    for attribute in ("language_config", "text_config"):
+        nested = getattr(config, attribute, None)
+        if nested is not None and all(nested is not value for value in language_configs):
+            language_configs.append(nested)
+    if callable(getattr(config, "get_text_config", None)):
+        nested = config.get_text_config()
+        if nested is not None and all(nested is not value for value in language_configs):
+            language_configs.append(nested)
+    if not language_configs:
         return config
 
-    for name, value in _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS.items():
-        if isinstance(language_config, dict):
-            if language_config.get(name) is None:
-                language_config[name] = value
-        elif getattr(language_config, name, None) is None:
-            setattr(language_config, name, value)
+    for language_config in language_configs:
+        for name, value in _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS.items():
+            if isinstance(language_config, dict):
+                if language_config.get(name) is None:
+                    language_config[name] = value
+            elif getattr(language_config, name, None) is None:
+                setattr(language_config, name, value)
     return config
 
 
