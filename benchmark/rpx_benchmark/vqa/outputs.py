@@ -107,6 +107,46 @@ def _json_object(raw: str) -> dict:
     return value
 
 
+def _cosmos_bbox_candidates(raw: str) -> list[dict]:
+    """Extract complete native Reason2 ``bbox_2d`` objects from JSON values.
+
+    Reason2 may wrap its answer in a JSON code fence or an ``<answer>`` block.
+    Decode real JSON values instead of using a bracket regex, and retain every
+    candidate so the one-object benchmark can reject ambiguous multi-box output.
+    """
+    text = raw.strip()
+    answer = re.search(r"<answer>(.*?)</answer>", text, flags=re.IGNORECASE | re.DOTALL)
+    if answer:
+        text = answer.group(1).strip()
+    fenced = re.search(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    decoder = json.JSONDecoder()
+    candidates: list[dict] = []
+    offset = 0
+    while offset < len(text):
+        starts = [
+            index
+            for index in (text.find("[", offset), text.find("{", offset))
+            if index >= 0
+        ]
+        if not starts:
+            break
+        start = min(starts)
+        try:
+            value, consumed = decoder.raw_decode(text[start:])
+        except json.JSONDecodeError:
+            offset = start + 1
+            continue
+        values = value if isinstance(value, list) else [value]
+        candidates.extend(
+            item for item in values if isinstance(item, dict) and "bbox_2d" in item
+        )
+        offset = start + max(consumed, 1)
+    return candidates
+
+
 def parse_output(
     sample: VQASample,
     raw: str,
@@ -124,6 +164,44 @@ def parse_output(
         if not label or len(label.split()) > 8:
             return ParsedOutput(False, error="invalid object-name answer")
         return ParsedOutput(True, label=label)
+    if sample.question_type in BBOX_TYPES and model_key.startswith("cosmos-reason2-"):
+        candidates = _cosmos_bbox_candidates(raw)
+        if len(candidates) != 1:
+            return ParsedOutput(
+                False,
+                error=f"expected exactly one Cosmos bbox_2d candidate, got {len(candidates)}",
+            )
+        value = candidates[0]
+        try:
+            raw_bbox = value["bbox_2d"]
+            if not isinstance(raw_bbox, list) or len(raw_bbox) != 4:
+                raise AdapterError(
+                    "Cosmos bbox_2d must contain four numbers",
+                    hint="return one normalized XYXY box",
+                )
+            bbox = tuple(float(coordinate) for coordinate in raw_bbox)
+            if not all(float("-inf") < coordinate < float("inf") for coordinate in bbox):
+                raise AdapterError("Cosmos bbox contains a non-finite number")
+            if not all(0 <= coordinate <= 1000 for coordinate in bbox):
+                raise AdapterError("Cosmos bbox is outside the 0-1000 grid")
+            x0, y0, x1, y1 = bbox
+            if not (x0 <= x1 and y0 <= y1):
+                raise AdapterError("Cosmos bbox corners are not ordered XYXY")
+            scaled = (
+                x0 * (sample.img_w - 1) / 1000,
+                y0 * (sample.img_h - 1) / 1000,
+                x1 * (sample.img_w - 1) / 1000,
+                y1 * (sample.img_h - 1) / 1000,
+            )
+            label = normalize_label(str(value.get("label", ""))) or None
+            return ParsedOutput(
+                True,
+                label=label,
+                bbox=scaled,
+                coordinate_format="cosmos_bbox_2d_0_1000",
+            )
+        except (KeyError, TypeError, ValueError, RPXError) as exc:
+            return ParsedOutput(False, error=str(exc))
     if sample.question_type in BBOX_TYPES and model_key.startswith("internvl3.5-"):
         # InternVL's official RefCOCO evaluation protocol serializes one
         # target-relative 0--1000 box.  Its own evaluator deliberately accepts

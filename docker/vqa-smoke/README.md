@@ -54,6 +54,19 @@ the Image 2 target scene. Both paths make one scored model call and accept
 exactly one native `<|det|>` bbox. DeepSeek's discrete 0--999 native grid is
 explicitly converted to RPX's 0--1000 JSON contract before common parsing.
 
+## Cosmos Reason2 grounding adapter
+
+`cosmos-reason2-2b` and `cosmos-reason2-8b` run as single-GPU BF16 vLLM
+engines from immutable Hugging Face revisions. They use NVIDIA's exact example
+system message (`You are a helpful assistant.`), preserve Image 1/Image 2 media
+order, and make one deterministic scored call. NVIDIA's official 2D-grounding
+prompt requires a bounding box returned as JSON but does not define a complete
+machine-readable schema. RPX therefore makes the Qwen3-VL-compatible contract
+explicit: exactly one `bbox_2d` XYXY box on a target-relative 0--1000 grid.
+Missing, multiple, non-finite, reversed, and out-of-range boxes remain parse
+failures. RPX omits Reason2's optional chain-of-thought instruction because the
+benchmark scores the direct localization result rather than a reasoning trace.
+
 ## InternVL 3.5 native grounding adapter
 
 `internvl3.5-1b` and `internvl3.5-14b` use the official dynamic 448-pixel
@@ -116,6 +129,10 @@ never fabricated inference rows.
 - DeepSeek-VL2 uses `<|ref|>` for normal referring-expression grounding and
   `<|grounding|>` for two-image in-context grounding. Native 0--999 boxes are
   converted to the common 0--1000 contract without changing their geometry.
+- Cosmos Reason2 uses the official system message plus a strict `bbox_2d` JSON
+  contract. The model's optional reasoning mode is disabled for deterministic
+  one-call localization, and every serialization decision is recorded in the
+  row metadata.
 - PaliGemma 2 `answer en`, Florence `<VQA>`, predicted-label grounding, and
   GT-label oracle grounding are explicitly unscored diagnostic calls.
 - The smoke/acceptance gate (`run_vllm_vqa.py`) measures isolated,
@@ -131,12 +148,12 @@ never fabricated inference rows.
 - Reports retain every question, raw output, parsed bbox, ground-truth bbox,
   IoU, parse error, and latency, plus aggregate parse rate, mean IoU, Acc@0.5,
   and latency statistics.
-- Every JSON-capable model receives the identical direct semantic instruction
-  and is asked for XYXY coordinates normalized to 0--1000. The
-  model-independent decoder also recognizes the common fractional 0--1
-  convention and one redundant singleton bbox list; the selected coordinate
-  convention is recorded per row. It does not guess reversed XYXY/XYWH boxes,
-  invent labels, or replace refusals/missing boxes.
+- Generic JSON-capable models receive the same direct semantic instruction and
+  are asked for XYXY coordinates normalized to 0--1000. Cosmos Reason2 uses its
+  explicit `bbox_2d` adapter described above. The generic decoder also recognizes
+  the common fractional 0--1 convention and one redundant singleton bbox list;
+  the selected coordinate convention is recorded per row. No decoder guesses
+  reversed XYXY/XYWH boxes, invents labels, or replaces refusals/missing boxes.
 - Diagnostic semantic and oracle outputs are never merged into scored results.
 
 ## Build once

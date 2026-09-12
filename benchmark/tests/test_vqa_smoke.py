@@ -184,6 +184,31 @@ def test_json_bbox_instruction_is_identical_across_models() -> None:
     assert {prompt.output_kind for prompt in prompts} == {"bbox_json_normalized_1000"}
 
 
+@pytest.mark.parametrize("model_key", ["cosmos-reason2-2b", "cosmos-reason2-8b"])
+def test_cosmos_reason2_uses_native_grounding_contract(model_key: str) -> None:
+    prompt = build_prompt(VQASample.from_dict(row("depth_closest")), model_key)
+    assert prompt.output_kind == "bbox_json_normalized_1000"
+    assert '"bbox_2d":[x1,y1,x2,y2]' in prompt.text
+    assert "Normalize x and y independently from 0 to 1000" in prompt.text
+    assert "target image" in prompt.text
+    assert "<think>" not in prompt.text
+    assert "reasoning" in prompt.text
+
+
+def test_cosmos_reason2_incontext_prompt_preserves_image_roles() -> None:
+    sample = SimpleNamespace(
+        question_type="inctx_attr_single_material",
+        question=(
+            "Which object in Image 2 is made of the same material as the object "
+            "shown in Image 1? What is its bounding box in Image 2?"
+        ),
+    )
+    prompt = build_prompt(sample, "cosmos-reason2-8b")
+    assert "Image 2 for a two-image input" in prompt.text
+    assert "result object, not the reference object" in prompt.text
+    assert sample.question in prompt.text
+
+
 @pytest.mark.parametrize("model_key", ["internvl3.5-1b", "internvl3.5-14b"])
 def test_internvl_requests_native_grounding_bbox(model_key: str) -> None:
     prompt = build_prompt(VQASample.from_dict(row("depth_closest")), model_key)
@@ -290,6 +315,7 @@ def test_diagnostic_prompts_separate_semantics_from_oracle_localization() -> Non
 
 def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
     runner = object.__new__(VLLMVQARunner)
+    runner.checkpoint = VLLMCheckpoint("test/model", "revision")
     runner._last_adapter_metadata = {}
     calls = []
     monkeypatch.setattr(
@@ -304,6 +330,50 @@ def test_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
         "adapter": "direct_bbox_json",
         "single_scored_model_call": True,
     }
+
+
+def test_cosmos_direct_bbox_adapter_is_one_scored_call(monkeypatch) -> None:
+    runner = object.__new__(VLLMVQARunner)
+    runner.checkpoint = VLLMCheckpoint(
+        "nvidia/Cosmos-Reason2-2B", "revision", cosmos_reason2=True
+    )
+    runner._last_adapter_metadata = {}
+    calls = []
+    monkeypatch.setattr(
+        runner,
+        "_chat_generate",
+        lambda paths, prompt, tokens: (
+            calls.append((paths, prompt, tokens))
+            or '[{"bbox_2d":[1,2,3,4],"label":"object"}]'
+        ),
+    )
+    paths = [Path("reference.png"), Path("target.png")]
+    raw = runner._predict_json_direct(paths, "question", 128)
+    assert '"bbox_2d"' in raw
+    assert calls == [(paths, "question", 128)]
+    assert runner.prediction_metadata() == {
+        "adapter": "direct_cosmos_reason2_bbox",
+        "single_scored_model_call": True,
+        "native_coordinate_format": "cosmos_bbox_2d_0_1000",
+        "reasoning_requested": False,
+    }
+
+
+def test_cosmos_chat_messages_match_official_system_and_media_order() -> None:
+    runner = object.__new__(VLLMVQARunner)
+    runner.checkpoint = VLLMCheckpoint(
+        "nvidia/Cosmos-Reason2-8B", "revision", cosmos_reason2=True
+    )
+    messages = runner._chat_messages(
+        [Path("reference.png"), Path("target.png")], "question"
+    )
+    assert messages[0] == {"role": "system", "content": "You are a helpful assistant."}
+    assert messages[1]["role"] == "user"
+    assert [item.get("text") for item in messages[1]["content"] if item["type"] == "text"] == [
+        "Image 1 — reference object:",
+        "Image 2 — target scene:",
+        "question",
+    ]
 
 
 def test_gallery_exposes_rejected_direct_native_candidates() -> None:
@@ -417,6 +487,46 @@ def test_strict_output_parsers() -> None:
     assert pali_json.coordinate_format == "normalized_0_1000"
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        '[{"bbox_2d":[100,200,300,400],"label":"alarm_clock"}]',
+        '```json\n[{"bbox_2d":[100,200,300,400],"label":"alarm_clock"}]\n```',
+        '<think>short trace</think><answer>'
+        '{"bbox_2d":[100,200,300,400],"label":"alarm_clock"}</answer>',
+    ],
+)
+def test_cosmos_native_bbox_is_scaled_strictly(raw: str) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(sample, raw, "cosmos-reason2-8b")
+    assert parsed.valid
+    assert parsed.label == "alarm clock"
+    assert parsed.coordinate_format == "cosmos_bbox_2d_0_1000"
+    assert parsed.bbox == pytest.approx((63.9, 95.8, 191.7, 191.6))
+
+
+@pytest.mark.parametrize(
+    ("raw", "error"),
+    [
+        ("[]", "got 0"),
+        (
+            '[{"bbox_2d":[1,2,3,4]},{"bbox_2d":[5,6,7,8]}]',
+            "got 2",
+        ),
+        ('[{"bbox_2d":[100,200,1001,400]}]', "outside the 0-1000 grid"),
+        ('[{"bbox_2d":[300,200,100,400]}]', "not ordered XYXY"),
+        ('[{"bbox":[100,200,300,400]}]', "got 0"),
+    ],
+)
+def test_cosmos_native_bbox_rejects_ambiguous_or_invalid_output(
+    raw: str, error: str
+) -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    parsed = parse_output(sample, raw, "cosmos-reason2-2b")
+    assert not parsed.valid
+    assert error in (parsed.error or "")
+
+
 def test_metrics_oracle() -> None:
     samples = [
         VQASample.from_dict(row()),
@@ -479,6 +589,7 @@ def test_roster_matches_rpx_draft() -> None:
         "PaliGemma 2 3B",
         "Qwen2.5-VL 3B",
         "Qwen3-VL 2B",
+        "Cosmos Reason 2 2B",
         "DeepSeek-VL2 Tiny (1B active)",
         "InternVL 3.5 1B",
         "Gemma 4 E4B",
@@ -486,6 +597,7 @@ def test_roster_matches_rpx_draft() -> None:
         "LLaVA-OneVision 7B",
         "Qwen2.5-VL 7B",
         "Qwen3-VL 8B",
+        "Cosmos Reason 2 8B",
         "Idefics3 8B",
         "InternVL 2.5 8B",
         "InternVL 3.5 14B",
@@ -751,6 +863,33 @@ def test_deepseek_checkpoint_gpu_topology_is_explicit() -> None:
     assert VLLMCheckpoint.__dataclass_fields__["tensor_parallel_size"].default == 1
     assert VLLM_CHECKPOINTS["deepseek-vl2-tiny"].tensor_parallel_size == 1
     assert VLLM_CHECKPOINTS["deepseek-vl2"].tensor_parallel_size == 2
+
+
+@pytest.mark.parametrize(
+    ("model_key", "repo_id", "revision"),
+    [
+        (
+            "cosmos-reason2-2b",
+            "nvidia/Cosmos-Reason2-2B",
+            "9ce19a195e423419c349abfc86fd07178b230561",
+        ),
+        (
+            "cosmos-reason2-8b",
+            "nvidia/Cosmos-Reason2-8B",
+            "a9fae2cf89dc64db96b12860417f0eb403013bb9",
+        ),
+    ],
+)
+def test_cosmos_reason2_checkpoint_contract(
+    model_key: str, repo_id: str, revision: str
+) -> None:
+    checkpoint = VLLM_CHECKPOINTS[model_key]
+    assert checkpoint.repo_id == repo_id
+    assert checkpoint.revision == revision
+    assert checkpoint.max_model_len == 8192
+    assert checkpoint.tensor_parallel_size == 1
+    assert checkpoint.cosmos_reason2 is True
+    assert backend_name(model_key) == "vllm"
 
 
 def test_deepseek_full_uses_vllm_live_text_config_override() -> None:
