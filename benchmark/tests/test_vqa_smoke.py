@@ -14,7 +14,14 @@ from rpx_benchmark.exceptions import ManifestError
 from rpx_benchmark.vqa import hub_rgb
 from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
-from rpx_benchmark.vqa.metrics import bbox_iou, label_token_f1, score_predictions
+from rpx_benchmark.vqa.metrics import (
+    bbox_center_in_ground_truth,
+    bbox_generalized_iou,
+    bbox_iou,
+    bbox_is_valid,
+    label_token_f1,
+    score_predictions,
+)
 from rpx_benchmark.vqa.outputs import (
     ParsedOutput,
     normalize_label,
@@ -31,8 +38,8 @@ from rpx_benchmark.vqa.roster import MODELS, get_model
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
 from build_vqa_acceptance_gallery import _native_candidates  # noqa: E402
-from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
 from run_vllm_vqa import RemoteRunner, validate_gpu_environment  # noqa: E402
+from run_vqa_diagnostic import diagnostic_bbox  # noqa: E402
 from vqa_models.backend_registry import backend_name  # noqa: E402
 from vqa_models.florence_backend import FlorenceVQARunner, ImageGeometry  # noqa: E402
 from vqa_models.internvl_backend import InternVLVQARunner, _dynamic_preprocess  # noqa: E402
@@ -547,11 +554,38 @@ def test_metrics_oracle() -> None:
     assert result["bbox_accuracy_at_0_5"] == 1.0
     assert result["bbox_accuracy_at_0_25"] == 1.0
     assert result["bbox_accuracy_at_0_75"] == 1.0
+    assert result["bbox_validity_rate"] == 1.0
+    assert result["bbox_mean_giou"] == 1.0
+    assert result["bbox_mean_giou_valid"] == 1.0
+    assert result["bbox_center_in_gt_accuracy"] == 1.0
     assert result["bbox_mean_accuracy_50_95"] == 1.0
     assert result["bbox_label_normalized_exact_match"] == 1.0
     assert result["bbox_label_token_f1"] == 1.0
     assert result["bbox_joint_label_exact_and_iou_at_0_5"] == 1.0
     assert bbox_iou((100, 120, 200, 220), (100, 120, 200, 220)) == 1.0
+
+
+def test_bbox_geometry_metrics_use_inclusive_pixels() -> None:
+    ground_truth = (10, 10, 19, 19)
+    assert bbox_is_valid((0, 0, 0, 0), 20, 20)
+    assert not bbox_is_valid(None, 20, 20)
+    assert not bbox_is_valid((-1, 0, 10, 10), 20, 20)
+    assert not bbox_is_valid((10, 10, 20, 19), 20, 20)
+    assert not bbox_is_valid((10, 10, 9, 19), 20, 20)
+    assert bbox_generalized_iou(ground_truth, ground_truth) == 1.0
+    assert bbox_generalized_iou((0, 0, 4, 4), ground_truth) == pytest.approx(-0.6875)
+    assert bbox_center_in_ground_truth((10, 10, 12, 12), ground_truth)
+    assert not bbox_center_in_ground_truth((0, 0, 4, 4), ground_truth)
+
+
+def test_invalid_bbox_is_penalized_in_new_localization_metrics() -> None:
+    sample = VQASample.from_dict(row("depth_closest"))
+    result = score_predictions([(sample, ParsedOutput(False, error="bad output"))])
+    assert result["bbox_count"] == 1
+    assert result["bbox_validity_rate"] == 0.0
+    assert result["bbox_mean_giou"] == -1.0
+    assert result["bbox_mean_giou_valid"] == 0.0
+    assert result["bbox_center_in_gt_accuracy"] == 0.0
 
 
 def test_label_token_f1_is_lexical_and_missing_labels_score_zero() -> None:

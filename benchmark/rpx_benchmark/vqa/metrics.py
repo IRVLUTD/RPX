@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from typing import Any, Iterable
 
@@ -24,6 +25,54 @@ def bbox_iou(
     gt_area = (gx1 - gx0 + 1) * (gy1 - gy0 + 1)
     union = pred_area + gt_area - intersection
     return intersection / union if union else 0.0
+
+
+def bbox_is_valid(
+    predicted: tuple[float, float, float, float] | None,
+    image_width: int,
+    image_height: int,
+) -> bool:
+    """Whether an inclusive-pixel XYXY prediction is finite and in bounds."""
+    if predicted is None or image_width < 1 or image_height < 1:
+        return False
+    x0, y0, x1, y1 = predicted
+    return (
+        all(math.isfinite(value) for value in predicted)
+        and 0 <= x0 <= x1 < image_width
+        and 0 <= y0 <= y1 < image_height
+    )
+
+
+def bbox_generalized_iou(
+    predicted: tuple[float, float, float, float],
+    ground_truth: tuple[int, int, int, int],
+) -> float:
+    """Generalized IoU for the dataset's inclusive-pixel XYXY convention."""
+    px0, py0, px1, py1 = predicted
+    gx0, gy0, gx1, gy1 = ground_truth
+    ix0, iy0, ix1, iy1 = max(px0, gx0), max(py0, gy0), min(px1, gx1), min(py1, gy1)
+    intersection = max(0.0, ix1 - ix0 + 1) * max(0.0, iy1 - iy0 + 1)
+    pred_area = max(0.0, px1 - px0 + 1) * max(0.0, py1 - py0 + 1)
+    gt_area = max(0.0, gx1 - gx0 + 1) * max(0.0, gy1 - gy0 + 1)
+    union = pred_area + gt_area - intersection
+    iou = intersection / union if union else 0.0
+    enclosing_area = (
+        max(0.0, max(px1, gx1) - min(px0, gx0) + 1)
+        * max(0.0, max(py1, gy1) - min(py0, gy0) + 1)
+    )
+    return iou - (enclosing_area - union) / enclosing_area if enclosing_area else -1.0
+
+
+def bbox_center_in_ground_truth(
+    predicted: tuple[float, float, float, float],
+    ground_truth: tuple[int, int, int, int],
+) -> bool:
+    """Whether the predicted-box center lies inside the inclusive GT box."""
+    px0, py0, px1, py1 = predicted
+    gx0, gy0, gx1, gy1 = ground_truth
+    center_x = (px0 + px1) / 2
+    center_y = (py0 + py1) / 2
+    return gx0 <= center_x <= gx1 and gy0 <= center_y <= gy1
 
 
 def _mean(values: list[float]) -> float:
@@ -73,6 +122,10 @@ def score_predictions(
     bbox_labels: list[float] = []
     bbox_label_token_f1: list[float] = []
     bbox_joint_hits: list[float] = []
+    bbox_validity: list[float] = []
+    bbox_gious: list[float] = []
+    bbox_valid_gious: list[float] = []
+    bbox_center_hits: list[float] = []
     bbox_hits_by_threshold: dict[float, list[float]] = {
         threshold: [] for threshold in (0.25, 0.5, 0.75, *COCO_IOU_THRESHOLDS)
     }
@@ -87,10 +140,25 @@ def score_predictions(
             attribute.append(score)
         elif sample.question_type in BBOX_TYPES:
             assert sample.answer_bbox is not None
+            bbox_valid = bool(
+                parsed.valid
+                and bbox_is_valid(parsed.bbox, sample.img_w, sample.img_h)
+            )
             iou = 0.0
-            if parsed.valid and parsed.bbox is not None:
+            giou = -1.0
+            center_hit = 0.0
+            if bbox_valid and parsed.bbox is not None:
                 iou = bbox_iou(parsed.bbox, sample.answer_bbox)
+                giou = bbox_generalized_iou(parsed.bbox, sample.answer_bbox)
+                center_hit = float(
+                    bbox_center_in_ground_truth(parsed.bbox, sample.answer_bbox)
+                )
             ious.append(iou)
+            bbox_validity.append(float(bbox_valid))
+            bbox_gious.append(giou)
+            if bbox_valid:
+                bbox_valid_gious.append(giou)
+            bbox_center_hits.append(center_hit)
             score = float(iou >= iou_threshold)
             bbox_hits.append(score)
             label_exact = float(parsed.label == normalize_label(sample.answer))
@@ -106,7 +174,10 @@ def score_predictions(
             detailed_by_type[sample.question_type].append(
                 {
                     "valid": float(parsed.valid),
+                    "bbox_valid": float(bbox_valid),
                     "iou": iou,
+                    "giou": giou,
+                    "center_in_gt": center_hit,
                     "label_exact": label_exact,
                     "label_token_f1": label_f1,
                 }
@@ -117,7 +188,15 @@ def score_predictions(
         per_type_detailed[question_type] = {
             "count": len(values),
             "parse_rate": _mean([value["valid"] for value in values]),
+            "bbox_validity_rate": _mean([value["bbox_valid"] for value in values]),
             "bbox_mean_iou": _mean([value["iou"] for value in values]),
+            "bbox_mean_giou": _mean([value["giou"] for value in values]),
+            "bbox_mean_giou_valid": _mean(
+                [value["giou"] for value in values if value["bbox_valid"]]
+            ),
+            "bbox_center_in_gt_accuracy": _mean(
+                [value["center_in_gt"] for value in values]
+            ),
             "bbox_accuracy_at_0_25": _mean(
                 [float(value["iou"] >= 0.25) for value in values]
             ),
@@ -139,10 +218,15 @@ def score_predictions(
         "parse_rate": _mean(valid),
         "binary_accuracy": _mean(binary),
         "attribute_exact_match": _mean(attribute),
+        "bbox_count": len(ious),
+        "bbox_validity_rate": _mean(bbox_validity),
         "bbox_accuracy_at_0_5": _mean(bbox_hits),
         "bbox_accuracy_at_0_25": _mean(bbox_hits_by_threshold[0.25]),
         "bbox_accuracy_at_0_75": _mean(bbox_hits_by_threshold[0.75]),
         "bbox_mean_iou": _mean(ious),
+        "bbox_mean_giou": _mean(bbox_gious),
+        "bbox_mean_giou_valid": _mean(bbox_valid_gious),
+        "bbox_center_in_gt_accuracy": _mean(bbox_center_hits),
         "bbox_mean_accuracy_50_95": _mean(
             [_mean(bbox_hits_by_threshold[threshold]) for threshold in COCO_IOU_THRESHOLDS]
         ),
@@ -155,6 +239,23 @@ def score_predictions(
         "per_type": {key: _mean(value) for key, value in sorted(by_type.items())},
         "per_type_detailed": per_type_detailed,
         "metric_notes": {
+            "bbox_validity_rate": (
+                "Fraction of bbox-task rows with a parsed, finite, ordered inclusive-XYXY "
+                "box wholly inside the target image."
+            ),
+            "bbox_mean_giou": (
+                "Mean generalized IoU over every bbox-task row; an invalid or missing box "
+                "receives -1.0, the worst possible GIoU, to prevent parse failures from "
+                "inflating localization quality."
+            ),
+            "bbox_mean_giou_valid": (
+                "Diagnostic mean GIoU over valid boxes only; use bbox_mean_giou for the "
+                "all-row model comparison."
+            ),
+            "bbox_center_in_gt_accuracy": (
+                "Fraction of every bbox-task row whose predicted-box center lies inside "
+                "the inclusive ground-truth box; invalid or missing boxes count as misses."
+            ),
             "bbox_mean_accuracy_50_95": (
                 "Mean single-box success rate over IoU thresholds 0.50:0.05:0.95; "
                 "not detection mAP because predictions have no confidence scores."

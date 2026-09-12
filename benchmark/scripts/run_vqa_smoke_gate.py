@@ -10,7 +10,13 @@ from collections import Counter
 from pathlib import Path
 
 from rpx_benchmark.vqa.contract import ATTRIBUTE_TYPES, BBOX_TYPES, load_manifest
-from rpx_benchmark.vqa.metrics import bbox_iou, score_predictions
+from rpx_benchmark.vqa.metrics import (
+    bbox_center_in_ground_truth,
+    bbox_generalized_iou,
+    bbox_iou,
+    bbox_is_valid,
+    score_predictions,
+)
 from rpx_benchmark.vqa.outputs import parse_output
 from rpx_benchmark.vqa.roster import get_model
 
@@ -115,8 +121,17 @@ def main() -> None:
     for sample_id, sample in expected.items():
         parsed = parsed_by_id[sample_id]
         iou = 0.0
-        if parsed.valid and parsed.bbox is not None and sample.answer_bbox is not None:
+        giou = -1.0
+        center_in_gt = False
+        bbox_valid = bool(
+            sample.answer_bbox is not None
+            and parsed.valid
+            and bbox_is_valid(parsed.bbox, sample.img_w, sample.img_h)
+        )
+        if bbox_valid and parsed.bbox is not None and sample.answer_bbox is not None:
             iou = bbox_iou(parsed.bbox, sample.answer_bbox)
+            giou = bbox_generalized_iou(parsed.bbox, sample.answer_bbox)
+            center_in_gt = bbox_center_in_ground_truth(parsed.bbox, sample.answer_bbox)
         report["samples"].append(
             {
                 "sample_id": sample_id,
@@ -128,9 +143,12 @@ def main() -> None:
                 "raw_output": raw_by_id[sample_id],
                 "predicted_bbox": parsed.bbox,
                 "valid": parsed.valid,
+                "bbox_valid": bbox_valid,
                 "parse_error": parsed.error,
                 "coordinate_format": parsed.coordinate_format,
                 "iou": iou,
+                "giou": giou,
+                "center_in_gt": center_in_gt,
                 "latency_ms": latency_by_id[sample_id],
                 "adapter_metadata": adapter_metadata_by_id[sample_id],
             }
