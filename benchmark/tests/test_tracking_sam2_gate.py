@@ -75,6 +75,7 @@ def test_prediction_resume_accepts_only_explicit_compatible_revision(
                 "frames": 1,
                 "rpx_git_sha": "a" * 40,
                 "evaluator_git_sha": "a" * 40,
+                "prompt_type": "box",
             }
         )
     )
@@ -113,6 +114,37 @@ def test_prediction_resume_compatible_revision_does_not_relax_other_contracts(
     assert (
         run_tracking._clip_predictions(
             clip, clip.samples, tmp_path, "sam3.1", "b" * 40, "mos"
+        )
+        is None
+    )
+
+
+def test_sam31_text_predictions_cannot_resume_for_box_protocol(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam3.1",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "evaluator_git_sha": "a" * 40,
+                "prompt_type": "text",
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_RESUME_COMPATIBLE_GIT_SHAS", "a" * 40)
+    assert (
+        run_tracking._clip_predictions(
+            clip, clip.samples, tmp_path, "sam3.1", "b" * 40
         )
         is None
     )

@@ -26,8 +26,8 @@ from tracking_models.edgetam_tracker import (
 )
 from tracking_models.grounded_sam2_tracker import (
     GROUNDED_SAM2_SOURCE_REVISION,
-    GROUNDING_MODEL_ID,
-    GROUNDING_MODEL_REVISION,
+    SAM21_MODEL_ID,
+    SAM21_MODEL_REVISION,
 )
 from tracking_models.mits_tracker import (
     MITS_MODEL_ID,
@@ -108,8 +108,8 @@ MODEL_PROVENANCE = {
     },
     "grounded-sam2": {
         "source_revision": GROUNDED_SAM2_SOURCE_REVISION,
-        "checkpoint_repo": GROUNDING_MODEL_ID,
-        "checkpoint_revision": GROUNDING_MODEL_REVISION,
+        "checkpoint_repo": SAM21_MODEL_ID,
+        "checkpoint_revision": SAM21_MODEL_REVISION,
     },
     "sam3.1": {
         "source_revision": SAM31_SOURCE_REVISION,

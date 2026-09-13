@@ -56,8 +56,8 @@ def test_tracking_registry_declares_initialization_protocols() -> None:
         "sam2-plus": "box",
         "sam2long": "mask",
         "xmem": "mask",
-        "grounded-sam2": "text",
-        "sam3.1": "text",
+        "grounded-sam2": "box",
+        "sam3.1": "box",
     }
 
 

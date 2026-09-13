@@ -11,7 +11,29 @@ The paper matrix is source-pinned and dependency-locked. It does **not** claim
 that an environment has passed RPX inference merely because it builds: the
 checkpoint and GPU smoke gate is a separate, later acceptance step.
 
-## Text-initialized tracking: Grounded-SAM2 and SAM 3.1
+## GT-box-initialized tracking: Grounded-SAM2 and SAM 3.1
+
+The paper-comparable variants initialize both adapters from tight bounding
+boxes derived from the released frame-zero GT instance mask. Frame zero is
+excluded from scoring. SAM 3.1 receives normalized XYWH visual prompts through
+its native video API. For Grounded-SAM2, GroundingDINO is intentionally bypassed
+and its pinned SAM 2.1 video backend receives pixel-space XYXY boxes; this
+ablation is recorded explicitly in every prediction-metadata artifact.
+
+Build and gate these variants with:
+
+```bash
+docker/tracking-smoke/build_bbox_rpx.sh grounded-sam2 --push
+docker/tracking-smoke/build_bbox_rpx.sh sam3.1 --push
+docker/tracking-smoke/run_bbox_gate.sh sam3.1 smoke mos 0
+docker/tracking-smoke/run_bbox_gate.sh sam3.1 smoke ego 1
+```
+
+Always use a new bbox-specific output root. Resume markers include the RPX code
+revision, but separating output roots also prevents accidental comparison with
+the earlier text-initialized experiments.
+
+## Legacy text-initialized tracking: Grounded-SAM2 and SAM 3.1
 
 These two adapters use the released RPX scene-condition vocabulary
 (`primary_color + canonical object name`) and never receive a ground-truth mask

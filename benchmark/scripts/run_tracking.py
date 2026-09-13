@@ -304,6 +304,10 @@ def _clip_predictions(
             "evaluator_git_sha", marker.get("rpx_git_sha")
         ) not in accepted_evaluator_revisions
         or marker.get("dataset_protocol", "mos") != dataset_protocol
+        or (
+            model_name in {"grounded-sam2", "sam3.1"}
+            and marker.get("prompt_type") != TRACKER_CLASSES[model_name].prompt_type
+        )
     ):
         return None
     predictions: list[np.ndarray] = []
@@ -336,6 +340,8 @@ def _write_complete_marker(
             "rpx_git_sha": rpx_git_sha,
             "evaluator_git_sha": os.environ.get("RPX_EVALUATOR_GIT_SHA", rpx_git_sha),
             "dataset_protocol": dataset_protocol,
+            "prompt_type": tracker_class.prompt_type,
+            "tracking_mode": getattr(tracker_class, "tracking_mode", None),
             "frames": sample_count,
             "model_outputs": model_outputs,
         },

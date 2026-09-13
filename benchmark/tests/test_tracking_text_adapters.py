@@ -12,7 +12,6 @@ sys.path.insert(0, str(SCRIPTS))
 
 from tracking_models.grounded_sam2_tracker import GroundedSAM2Tracker  # noqa: E402
 from tracking_models.sam3_1_tracker import SAM31Tracker  # noqa: E402
-from tracking_text_runtime import TextPrompt  # noqa: E402
 
 
 def test_grounded_sam2_merge_assigns_highest_positive_logit() -> None:
@@ -26,48 +25,21 @@ def test_grounded_sam2_merge_assigns_highest_positive_logit() -> None:
     np.testing.assert_array_equal(result, np.asarray([[4, 9], [9, 0]]))
 
 
-def test_grounded_sam2_selects_one_distinct_region_per_prompt() -> None:
-    prompts = (
-        TextPrompt(1, "blue bottle", "1", "bottle"),
-        TextPrompt(2, "white bottle", "2", "other_bottle"),
-    )
-    candidates = [
-        {
-            "prompt": "blue bottle",
-            "source_mask_index": 1,
-            "score": 0.9,
-            "box": [0, 0, 10, 10],
-        },
-        {
-            "prompt": "white bottle",
-            "source_mask_index": 2,
-            "score": 0.8,
-            "box": [0, 0, 10, 10],
-        },
-        {
-            "prompt": "white bottle",
-            "source_mask_index": 2,
-            "score": 0.7,
-            "box": [20, 20, 30, 30],
-        },
-        {
-            "prompt": "blue bottle",
-            "source_mask_index": 1,
-            "score": 0.6,
-            "box": [40, 40, 50, 50],
-        },
+def test_grounded_sam2_derives_tight_half_open_gt_boxes() -> None:
+    mask = np.asarray([[0, 4, 4], [9, 4, 0], [9, 0, 0]], dtype=np.int32)
+
+    assert GroundedSAM2Tracker._object_boxes(mask) == [
+        (4, [1.0, 0.0, 3.0, 2.0]),
+        (9, [0.0, 1.0, 1.0, 3.0]),
     ]
 
-    selected, rejected = GroundedSAM2Tracker._select_one_to_one_detections(candidates, prompts)
 
-    assert [(item["prompt"], item["box"]) for item in selected] == [
-        ("blue bottle", [0, 0, 10, 10]),
-        ("white bottle", [20, 20, 30, 30]),
+def test_sam31_derives_normalized_xywh_gt_boxes() -> None:
+    mask = np.asarray([[0, 4, 4, 0], [0, 4, 0, 0]], dtype=np.int32)
+
+    assert SAM31Tracker._object_boxes(mask) == [
+        (4, [1.0, 0.0, 3.0, 2.0], [0.25, 0.0, 0.5, 1.0]),
     ]
-    assert {item["rejection_reason"] for item in rejected} == {
-        "region_claimed_by_other_prompt",
-        "lower_score_for_same_prompt",
-    }
 
 
 def test_sam31_merge_offsets_instances_and_accepts_singleton_channel() -> None:
@@ -130,16 +102,19 @@ def test_sam31_filters_base_predictor_kwargs_unsupported_by_multiplex() -> None:
     assert ignored == ("offload_state_to_cpu", "video_loader_type")
 
 
-def test_sam31_empty_points_ends_only_the_affected_prompt(monkeypatch, tmp_path) -> None:
+def test_sam31_empty_points_ends_only_the_affected_object(monkeypatch, tmp_path) -> None:
     class Predictor:
         def __init__(self) -> None:
             self.closed_sessions: list[str] = []
+            self.add_requests: list[dict] = []
 
         def handle_request(self, request):
             if request["type"] == "start_session":
                 return {"session_id": f"session-{request['resource_path']}"}
             if request["type"] == "close_session":
                 self.closed_sessions.append(request["session_id"])
+            if request["type"] == "add_prompt":
+                self.add_requests.append(request)
             return {}
 
         def handle_stream_request(self, request):
@@ -162,18 +137,21 @@ def test_sam31_empty_points_ends_only_the_affected_prompt(monkeypatch, tmp_path)
 
     predictions, latencies = tracker.track(
         video_dir=tmp_path,
-        frame_shape=(2, 2),
+        first_frame_mask=np.asarray([[7, 0], [0, 0]], dtype=np.int32),
         frame_count=3,
-        text_prompts=(TextPrompt(1, "red cup", "1", "cup"),),
     )
 
-    np.testing.assert_array_equal(predictions[0], np.asarray([[1, 0], [0, 0]]))
+    np.testing.assert_array_equal(predictions[0], np.asarray([[7, 0], [0, 0]]))
     np.testing.assert_array_equal(predictions[1], np.zeros((2, 2), dtype=np.int32))
     np.testing.assert_array_equal(predictions[2], np.zeros((2, 2), dtype=np.int32))
     assert latencies[0] > 0
     assert latencies[1:] == [0.0, 0.0]
     assert len(tracker.predictor.closed_sessions) == 1
-    record = tracker.prediction_metadata()["prompts"][0]
+    assert tracker.predictor.add_requests[0]["bounding_boxes"] == [[0.0, 0.0, 0.5, 0.5]]
+    assert tracker.predictor.add_requests[0]["bounding_box_labels"] == [1]
+    assert tracker.predictor.add_requests[0]["obj_id"] == 7
+    assert tracker.predictor.add_requests[0]["text"] is None
+    record = tracker.prediction_metadata()["objects"][0]
     assert record["propagation_status"] == "terminated_empty_points"
     assert record["last_output_frame_index"] == 0
     assert record["first_unprocessed_frame_index"] == 1
@@ -202,7 +180,6 @@ def test_sam31_does_not_hide_unrelated_runtime_errors(monkeypatch, tmp_path) -> 
     with pytest.raises(RuntimeError, match="CUDA failure"):
         tracker.track(
             video_dir=tmp_path,
-            frame_shape=(2, 2),
+            first_frame_mask=np.asarray([[1, 0], [0, 0]], dtype=np.int32),
             frame_count=1,
-            text_prompts=(TextPrompt(1, "red cup", "1", "cup"),),
         )

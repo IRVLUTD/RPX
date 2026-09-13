@@ -1,4 +1,4 @@
-"""Native SAM 3.1 text-prompted video tracking adapter for RPX."""
+"""Native SAM 3.1 GT-box-initialized video tracking adapter for RPX."""
 
 from __future__ import annotations
 
@@ -7,12 +7,11 @@ import hashlib
 import inspect
 import time
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 import numpy as np
 import torch
 from huggingface_hub import hf_hub_download
-from tracking_text_runtime import TextPrompt
 
 SAM31_MODEL_ID = "facebook/sam3.1"
 SAM31_MODEL_REVISION = "daa63191845a41281374e725f4c9e51c7a824460"
@@ -35,10 +34,8 @@ class SAM31Tracker:
     source_revision = SAM31_SOURCE_REVISION
     checkpoint_filename = "sam3.1_multiplex.pt"
     adapter_label = "SAM 3.1"
-    prompt_type = "text"
-    tracking_mode = "native-scene-vocabulary-text-prompted-video-segmentation"
-    vocabulary_name = "RPX-primary-color-plus-canonical-name-v1"
-    vocabulary_size = 70
+    prompt_type = "box"
+    tracking_mode = "native-tight-gt-box-prompted-video-segmentation"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda" or not torch.cuda.is_available():
@@ -126,26 +123,58 @@ class SAM31Tracker:
     def prediction_metadata(self) -> dict[str, Any]:
         return self._metadata
 
+    @staticmethod
+    def _object_boxes(
+        first_frame_mask: np.ndarray,
+    ) -> list[tuple[int, list[float], list[float]]]:
+        """Return GT object IDs, pixel XYXY boxes, and normalized XYWH boxes."""
+
+        height, width = first_frame_mask.shape
+        boxes: list[tuple[int, list[float], list[float]]] = []
+        for value in np.unique(first_frame_mask):
+            object_id = int(value)
+            if object_id == 0:
+                continue
+            ys, xs = np.where(first_frame_mask == object_id)
+            if xs.size == 0:
+                continue
+            x0 = int(xs.min())
+            y0 = int(ys.min())
+            x1 = int(xs.max()) + 1
+            y1 = int(ys.max()) + 1
+            boxes.append(
+                (
+                    object_id,
+                    [float(x0), float(y0), float(x1), float(y1)],
+                    [
+                        x0 / width,
+                        y0 / height,
+                        (x1 - x0) / width,
+                        (y1 - y0) / height,
+                    ],
+                )
+            )
+        return boxes
+
     def track(
         self,
         video_dir: Path,
-        frame_shape: tuple[int, int],
+        first_frame_mask: np.ndarray,
         frame_count: int,
-        text_prompts: Sequence[TextPrompt],
     ) -> tuple[list[np.ndarray], list[float]]:
+        frame_shape = first_frame_mask.shape
         predictions = [np.zeros(frame_shape, dtype=np.int32) for _ in range(frame_count)]
         confidences = [np.full(frame_shape, -np.inf, dtype=np.float32) for _ in range(frame_count)]
         latencies = [0.0] * frame_count
         prompt_records: list[dict[str, Any]] = []
-        next_track_id = 1
-        for prompt in text_prompts:
+        boxes = self._object_boxes(first_frame_mask)
+        for object_id, box_xyxy, box_xywh_normalized in boxes:
             session_id = None
-            internal_to_output: dict[int, int] = {}
             last_output_frame_index: int | None = None
             record: dict[str, Any] = {
-                "prompt": prompt.prompt_text,
-                "source_mask_index": prompt.mask_index,
-                "predicted_track_ids": [],
+                "object_id": object_id,
+                "box_xyxy_pixels": box_xyxy,
+                "box_xywh_normalized": box_xywh_normalized,
                 "propagation_status": "pending",
             }
             try:
@@ -165,7 +194,11 @@ class SAM31Tracker:
                         "type": "add_prompt",
                         "session_id": session_id,
                         "frame_index": 0,
-                        "text": prompt.prompt_text,
+                        "text": None,
+                        "bounding_boxes": [box_xywh_normalized],
+                        "bounding_box_labels": [1],
+                        "obj_id": object_id,
+                        "rel_coordinates": True,
                     }
                 )
                 try:
@@ -183,15 +216,7 @@ class SAM31Tracker:
                         last_output_frame_index = frame_index
                         output = response["outputs"]
                         internal_ids = np.asarray(output["out_obj_ids"], dtype=np.int64)
-                        for internal_id in internal_ids:
-                            if int(internal_id) not in internal_to_output:
-                                internal_to_output[int(internal_id)] = next_track_id
-                                record["predicted_track_ids"].append(next_track_id)
-                                next_track_id += 1
-                        output_ids = np.asarray(
-                            [internal_to_output[int(value)] for value in internal_ids],
-                            dtype=np.int32,
-                        )
+                        output_ids = np.full(internal_ids.shape, object_id, dtype=np.int32)
                         scores = np.asarray(
                             output.get("out_probs", np.ones(len(output_ids))),
                             dtype=np.float32,
@@ -229,7 +254,7 @@ class SAM31Tracker:
                     )
                     print(
                         "WARNING: SAM 3.1 lost all tracker points for "
-                        f"prompt={prompt.prompt_text!r} after frame "
+                        f"object_id={object_id} after frame "
                         f"{last_output_frame_index}; continuing with background "
                         "for its remaining frames.",
                         flush=True,
@@ -244,7 +269,13 @@ class SAM31Tracker:
                         )
             prompt_records.append(record)
         self._metadata = {
-            "initialization": "native SAM 3.1 semantic video prompts",
+            "initialization": "tight GT bounding boxes on frame 0",
+            "prompt_type": "box",
+            "box_format": {
+                "adapter_input": "normalized_xywh",
+                "pixel_reference": "half_open_xyxy",
+                "source": "ground_truth_first_frame_instance_mask",
+            },
             "model": {
                 "repo": SAM31_MODEL_ID,
                 "revision": SAM31_MODEL_REVISION,
@@ -255,6 +286,6 @@ class SAM31Tracker:
                     self._ignored_init_state_arguments
                 )
             },
-            "prompts": prompt_records,
+            "objects": prompt_records,
         }
         return predictions, latencies
