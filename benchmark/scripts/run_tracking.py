@@ -300,13 +300,16 @@ def _clip_predictions(
         marker.get("model") != model_name
         or marker.get("frames") != len(samples)
         or marker.get("rpx_git_sha") not in accepted_adapter_revisions
-        or marker.get(
-            "evaluator_git_sha", marker.get("rpx_git_sha")
-        ) not in accepted_evaluator_revisions
+        or marker.get("evaluator_git_sha", marker.get("rpx_git_sha"))
+        not in accepted_evaluator_revisions
         or marker.get("dataset_protocol", "mos") != dataset_protocol
         or (
             model_name in {"grounded-sam2", "sam3.1"}
-            and marker.get("prompt_type") != TRACKER_CLASSES[model_name].prompt_type
+            and (
+                marker.get("prompt_type") != TRACKER_CLASSES[model_name].prompt_type
+                or marker.get("tracking_mode")
+                != getattr(TRACKER_CLASSES[model_name], "tracking_mode", None)
+            )
         )
     ):
         return None

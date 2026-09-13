@@ -35,7 +35,7 @@ class SAM31Tracker:
     checkpoint_filename = "sam3.1_multiplex.pt"
     adapter_label = "SAM 3.1"
     prompt_type = "box"
-    tracking_mode = "native-tight-gt-box-prompted-video-segmentation"
+    tracking_mode = "native-tight-gt-box-multiplex-video-segmentation"
 
     def __init__(self, device: str = "cuda") -> None:
         if device != "cuda" or not torch.cuda.is_available():
@@ -166,77 +166,87 @@ class SAM31Tracker:
         predictions = [np.zeros(frame_shape, dtype=np.int32) for _ in range(frame_count)]
         confidences = [np.full(frame_shape, -np.inf, dtype=np.float32) for _ in range(frame_count)]
         latencies = [0.0] * frame_count
-        prompt_records: list[dict[str, Any]] = []
         boxes = self._object_boxes(first_frame_mask)
-        for object_id, box_xyxy, box_xywh_normalized in boxes:
-            session_id = None
-            last_output_frame_index: int | None = None
-            record: dict[str, Any] = {
+        prompt_records: list[dict[str, Any]] = [
+            {
                 "object_id": object_id,
                 "box_xyxy_pixels": box_xyxy,
                 "box_xywh_normalized": box_xywh_normalized,
                 "propagation_status": "pending",
             }
-            try:
-                response = self.predictor.handle_request(
-                    {
-                        "type": "start_session",
-                        "resource_path": str(video_dir),
-                        "offload_video_to_cpu": True,
-                        "offload_state_to_cpu": False,
-                    }
-                )
-                session_id = response["session_id"]
-                torch.cuda.synchronize()
-                started = time.perf_counter()
+            for object_id, box_xyxy, box_xywh_normalized in boxes
+        ]
+        session_id = None
+        last_output_frame_index: int | None = None
+        try:
+            response = self.predictor.handle_request(
+                {
+                    "type": "start_session",
+                    "resource_path": str(video_dir),
+                    "offload_video_to_cpu": True,
+                    "offload_state_to_cpu": False,
+                }
+            )
+            session_id = response["session_id"]
+            torch.cuda.synchronize()
+            started = time.perf_counter()
+
+            # SAM's native box encoding is two corner points carrying labels 2
+            # and 3.  Supplying each box this way reaches SAM 3.1's explicit
+            # object-ID refinement path, so every GT identity is added to one
+            # multiplex state before the single video propagation below.
+            for object_id, _, box_xywh_normalized in boxes:
+                x, y, width, height = box_xywh_normalized
                 self.predictor.handle_request(
                     {
                         "type": "add_prompt",
                         "session_id": session_id,
                         "frame_index": 0,
                         "text": None,
-                        "bounding_boxes": [box_xywh_normalized],
-                        "bounding_box_labels": [1],
+                        "points": [[x, y], [x + width, y + height]],
+                        "point_labels": [2, 3],
+                        "clear_old_points": True,
                         "obj_id": object_id,
                         "rel_coordinates": True,
                     }
                 )
-                try:
-                    for response in self.predictor.handle_stream_request(
-                        {
-                            "type": "propagate_in_video",
-                            "session_id": session_id,
-                            "propagation_direction": "forward",
-                            "start_frame_index": 0,
-                            "max_frame_num_to_track": frame_count,
-                        }
-                    ):
-                        torch.cuda.synchronize()
-                        frame_index = int(response["frame_index"])
-                        last_output_frame_index = frame_index
-                        output = response["outputs"]
-                        internal_ids = np.asarray(output["out_obj_ids"], dtype=np.int64)
-                        output_ids = np.full(internal_ids.shape, object_id, dtype=np.int32)
-                        scores = np.asarray(
-                            output.get("out_probs", np.ones(len(output_ids))),
-                            dtype=np.float32,
-                        )
-                        self._merge(
-                            predictions[frame_index],
-                            confidences[frame_index],
-                            np.asarray(output["out_binary_masks"]),
-                            scores,
-                            output_ids,
-                        )
-                        now = time.perf_counter()
-                        latencies[frame_index] += (now - started) * 1000
-                        started = now
-                except RuntimeError as error:
-                    if str(error) != SAM31_EMPTY_POINTS_ERROR:
-                        raise
-                    first_unprocessed_frame = (
-                        0 if last_output_frame_index is None else last_output_frame_index + 1
+
+            try:
+                for response in self.predictor.handle_stream_request(
+                    {
+                        "type": "propagate_in_video",
+                        "session_id": session_id,
+                        "propagation_direction": "forward",
+                        "start_frame_index": 0,
+                        "max_frame_num_to_track": frame_count,
+                    }
+                ):
+                    torch.cuda.synchronize()
+                    frame_index = int(response["frame_index"])
+                    last_output_frame_index = frame_index
+                    output = response["outputs"]
+                    output_ids = np.asarray(output["out_obj_ids"], dtype=np.int32)
+                    scores = np.asarray(
+                        output.get("out_probs", np.ones(len(output_ids))),
+                        dtype=np.float32,
                     )
+                    self._merge(
+                        predictions[frame_index],
+                        confidences[frame_index],
+                        np.asarray(output["out_binary_masks"]),
+                        scores,
+                        output_ids,
+                    )
+                    now = time.perf_counter()
+                    latencies[frame_index] = (now - started) * 1000
+                    started = now
+            except RuntimeError as error:
+                if str(error) != SAM31_EMPTY_POINTS_ERROR:
+                    raise
+                first_unprocessed_frame = (
+                    0 if last_output_frame_index is None else last_output_frame_index + 1
+                )
+                for record in prompt_records:
                     record.update(
                         {
                             "propagation_status": "terminated_empty_points",
@@ -247,34 +257,38 @@ class SAM31Tracker:
                                 0, frame_count - first_unprocessed_frame
                             ),
                             "recovery": (
-                                "Unprocessed frames remain background for this prompt; "
-                                "other prompts and clips continue."
+                                "Unprocessed frames remain background; the clip "
+                                "is retained and subsequent clips continue."
                             ),
                         }
                     )
-                    print(
-                        "WARNING: SAM 3.1 lost all tracker points for "
-                        f"object_id={object_id} after frame "
-                        f"{last_output_frame_index}; continuing with background "
-                        "for its remaining frames.",
-                        flush=True,
-                    )
-                else:
+                print(
+                    "WARNING: SAM 3.1 multiplex propagation lost all tracker "
+                    f"points after frame {last_output_frame_index}; continuing "
+                    "with background for the remaining frames.",
+                    flush=True,
+                )
+            else:
+                for record in prompt_records:
                     record["propagation_status"] = "complete"
-            finally:
-                if session_id is not None:
-                    with contextlib.suppress(Exception):
-                        self.predictor.handle_request(
-                            {"type": "close_session", "session_id": session_id}
-                        )
-            prompt_records.append(record)
+        finally:
+            if session_id is not None:
+                with contextlib.suppress(Exception):
+                    self.predictor.handle_request(
+                        {"type": "close_session", "session_id": session_id}
+                    )
         self._metadata = {
             "initialization": "tight GT bounding boxes on frame 0",
             "prompt_type": "box",
             "box_format": {
-                "adapter_input": "normalized_xywh",
+                "adapter_input": "normalized_xyxy_corner_points_labels_2_3",
                 "pixel_reference": "half_open_xyxy",
                 "source": "ground_truth_first_frame_instance_mask",
+            },
+            "multiplex": {
+                "session_count_per_clip": 1,
+                "propagation_count_per_clip": 1,
+                "object_identity": "explicit_ground_truth_obj_id",
             },
             "model": {
                 "repo": SAM31_MODEL_ID,

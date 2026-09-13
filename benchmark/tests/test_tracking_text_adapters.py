@@ -102,14 +102,17 @@ def test_sam31_filters_base_predictor_kwargs_unsupported_by_multiplex() -> None:
     assert ignored == ("offload_state_to_cpu", "video_loader_type")
 
 
-def test_sam31_empty_points_ends_only_the_affected_object(monkeypatch, tmp_path) -> None:
+def test_sam31_multiplexes_gt_boxes_and_handles_empty_points(monkeypatch, tmp_path) -> None:
     class Predictor:
         def __init__(self) -> None:
             self.closed_sessions: list[str] = []
             self.add_requests: list[dict] = []
+            self.start_requests: list[dict] = []
+            self.propagate_requests: list[dict] = []
 
         def handle_request(self, request):
             if request["type"] == "start_session":
+                self.start_requests.append(request)
                 return {"session_id": f"session-{request['resource_path']}"}
             if request["type"] == "close_session":
                 self.closed_sessions.append(request["session_id"])
@@ -118,13 +121,18 @@ def test_sam31_empty_points_ends_only_the_affected_object(monkeypatch, tmp_path)
             return {}
 
         def handle_stream_request(self, request):
-            del request
+            self.propagate_requests.append(request)
             yield {
                 "frame_index": 0,
                 "outputs": {
-                    "out_obj_ids": np.asarray([7]),
-                    "out_probs": np.asarray([0.9]),
-                    "out_binary_masks": np.asarray([[[[True, False], [False, False]]]]),
+                    "out_obj_ids": np.asarray([7, 9]),
+                    "out_probs": np.asarray([0.9, 0.8]),
+                    "out_binary_masks": np.asarray(
+                        [
+                            [[[True, False], [False, False]]],
+                            [[[False, False], [False, True]]],
+                        ]
+                    ),
                 },
             }
             raise RuntimeError("No points are provided; please add points first")
@@ -137,25 +145,37 @@ def test_sam31_empty_points_ends_only_the_affected_object(monkeypatch, tmp_path)
 
     predictions, latencies = tracker.track(
         video_dir=tmp_path,
-        first_frame_mask=np.asarray([[7, 0], [0, 0]], dtype=np.int32),
+        first_frame_mask=np.asarray([[7, 0], [0, 9]], dtype=np.int32),
         frame_count=3,
     )
 
-    np.testing.assert_array_equal(predictions[0], np.asarray([[7, 0], [0, 0]]))
+    np.testing.assert_array_equal(predictions[0], np.asarray([[7, 0], [0, 9]]))
     np.testing.assert_array_equal(predictions[1], np.zeros((2, 2), dtype=np.int32))
     np.testing.assert_array_equal(predictions[2], np.zeros((2, 2), dtype=np.int32))
     assert latencies[0] > 0
     assert latencies[1:] == [0.0, 0.0]
+    assert len(tracker.predictor.start_requests) == 1
     assert len(tracker.predictor.closed_sessions) == 1
-    assert tracker.predictor.add_requests[0]["bounding_boxes"] == [[0.0, 0.0, 0.5, 0.5]]
-    assert tracker.predictor.add_requests[0]["bounding_box_labels"] == [1]
+    assert len(tracker.predictor.add_requests) == 2
+    assert len(tracker.predictor.propagate_requests) == 1
+    assert tracker.predictor.add_requests[0]["points"] == [
+        [0.0, 0.0],
+        [0.5, 0.5],
+    ]
+    assert tracker.predictor.add_requests[0]["point_labels"] == [2, 3]
     assert tracker.predictor.add_requests[0]["obj_id"] == 7
     assert tracker.predictor.add_requests[0]["text"] is None
-    record = tracker.prediction_metadata()["objects"][0]
-    assert record["propagation_status"] == "terminated_empty_points"
-    assert record["last_output_frame_index"] == 0
-    assert record["first_unprocessed_frame_index"] == 1
-    assert record["unprocessed_frame_count"] == 2
+    assert tracker.predictor.add_requests[1]["obj_id"] == 9
+    assert tracker.prediction_metadata()["multiplex"] == {
+        "session_count_per_clip": 1,
+        "propagation_count_per_clip": 1,
+        "object_identity": "explicit_ground_truth_obj_id",
+    }
+    for record in tracker.prediction_metadata()["objects"]:
+        assert record["propagation_status"] == "terminated_empty_points"
+        assert record["last_output_frame_index"] == 0
+        assert record["first_unprocessed_frame_index"] == 1
+        assert record["unprocessed_frame_count"] == 2
 
 
 def test_sam31_does_not_hide_unrelated_runtime_errors(monkeypatch, tmp_path) -> None:

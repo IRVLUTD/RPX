@@ -15,10 +15,12 @@ checkpoint and GPU smoke gate is a separate, later acceptance step.
 
 The paper-comparable variants initialize both adapters from tight bounding
 boxes derived from the released frame-zero GT instance mask. Frame zero is
-excluded from scoring. SAM 3.1 receives normalized XYWH visual prompts through
-its native video API. For Grounded-SAM2, GroundingDINO is intentionally bypassed
-and its pinned SAM 2.1 video backend receives pixel-space XYXY boxes; this
-ablation is recorded explicitly in every prediction-metadata artifact.
+excluded from scoring. SAM 3.1 encodes each normalized XYXY box as its native
+corner-point labels 2/3, retains the released GT object ID, adds every object to
+one multiplex session, and propagates the clip once. For Grounded-SAM2,
+GroundingDINO is intentionally bypassed and its pinned SAM 2.1 video backend
+receives pixel-space XYXY boxes; this ablation is recorded explicitly in every
+prediction-metadata artifact.
 
 Build and gate these variants with:
 
