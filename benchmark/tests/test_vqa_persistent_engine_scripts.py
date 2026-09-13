@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import subprocess
-
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
 SCRIPT_DIR = REPO_ROOT / "docker" / "vqa-smoke"

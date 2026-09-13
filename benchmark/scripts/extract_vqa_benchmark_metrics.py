@@ -15,6 +15,7 @@ import hashlib
 import json
 import re
 import time
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +37,26 @@ SUMMARY_FIELDS = (
     "bbox_center_in_gt_accuracy",
     "bbox_mean_iou",
     "run_dir",
+)
+SCENE_FIELDS = (
+    "model",
+    "scene",
+    "kind",
+    "phase",
+    "capture",
+    "rows",
+    "predictions",
+    "inference_failures",
+    "bbox_validity_rate",
+    "bbox_accuracy_at_0_25",
+    "bbox_accuracy_at_0_5",
+    "bbox_accuracy_at_0_75",
+    "bbox_mean_accuracy_50_95",
+    "bbox_mean_giou",
+    "bbox_mean_giou_valid",
+    "bbox_center_in_gt_accuracy",
+    "bbox_mean_iou",
+    "parse_rate",
 )
 
 
@@ -244,6 +265,30 @@ def score_model(
         )
         if subset
     }
+    grouped_by_scene: dict[tuple[str, str, int | None], list[VQASample]] = defaultdict(list)
+    for sample in bbox_samples:
+        grouped_by_scene[(sample.scene_id, sample.kind, sample.phase)].append(sample)
+    metrics_by_scene = []
+    for (scene_id, kind, phase), subset in sorted(
+        grouped_by_scene.items(),
+        key=lambda item: (item[0][0], item[0][1], -1 if item[0][2] is None else item[0][2]),
+    ):
+        metrics_by_scene.append(
+            {
+                "scene": scene_id,
+                "kind": kind,
+                "phase": phase,
+                "capture": "ego" if kind == "ego" else f"mos_phase_{phase}",
+                "rows": len(subset),
+                "predictions": sum(
+                    sample.sample_id in candidate.predictions for sample in subset
+                ),
+                "inference_failures": sum(
+                    sample.sample_id in candidate.failures for sample in subset
+                ),
+                "metrics": score_subset(subset, parsed_by_id),
+            }
+        )
     return {
         "model": model,
         "run_dir": str(candidate.benchmark_dir),
@@ -255,6 +300,7 @@ def score_model(
         "metrics": metrics,
         "metrics_by_context": metrics_by_context,
         "metrics_by_capture": metrics_by_capture,
+        "metrics_by_scene": metrics_by_scene,
     }
 
 
@@ -280,6 +326,40 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer = csv.DictWriter(handle, fieldnames=SUMMARY_FIELDS)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def scene_rows(results: list[dict]) -> list[dict]:
+    rows = []
+    for result in results:
+        for scene in result["metrics_by_scene"]:
+            metrics = scene["metrics"]
+            rows.append(
+                {
+                    "model": result["model"],
+                    "scene": scene["scene"],
+                    "kind": scene["kind"],
+                    "phase": "" if scene["phase"] is None else scene["phase"],
+                    "capture": scene["capture"],
+                    "rows": scene["rows"],
+                    "predictions": scene["predictions"],
+                    "inference_failures": scene["inference_failures"],
+                    "bbox_validity_rate": metrics["bbox_validity_rate"],
+                    "bbox_accuracy_at_0_25": metrics["bbox_accuracy_at_0_25"],
+                    "bbox_accuracy_at_0_5": metrics["bbox_accuracy_at_0_5"],
+                    "bbox_accuracy_at_0_75": metrics["bbox_accuracy_at_0_75"],
+                    "bbox_mean_accuracy_50_95": metrics[
+                        "bbox_mean_accuracy_50_95"
+                    ],
+                    "bbox_mean_giou": metrics["bbox_mean_giou"],
+                    "bbox_mean_giou_valid": metrics["bbox_mean_giou_valid"],
+                    "bbox_center_in_gt_accuracy": metrics[
+                        "bbox_center_in_gt_accuracy"
+                    ],
+                    "bbox_mean_iou": metrics["bbox_mean_iou"],
+                    "parse_rate": metrics["parse_rate"],
+                }
+            )
+    return rows
 
 
 def write_markdown(path: Path, rows: list[dict], manifest_sha256: str) -> None:
@@ -350,13 +430,19 @@ def main() -> None:
     json_path = args.out_dir / "vqa_localization_metrics.json"
     csv_path = args.out_dir / "vqa_localization_metrics.csv"
     markdown_path = args.out_dir / "vqa_localization_metrics.md"
+    scene_path = args.out_dir / "vqa_scene_metrics.csv"
     json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_csv(csv_path, summary)
+    with scene_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=SCENE_FIELDS)
+        writer.writeheader()
+        writer.writerows(scene_rows(results))
     write_markdown(markdown_path, summary, manifest_sha256)
     print(markdown_path.read_text(encoding="utf-8"))
     print(f"wrote {json_path}")
     print(f"wrote {csv_path}")
     print(f"wrote {markdown_path}")
+    print(f"wrote {scene_path}")
 
 
 if __name__ == "__main__":
