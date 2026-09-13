@@ -240,6 +240,34 @@ becoming a terminal `failures.jsonl` entry. A later invocation with
 `--retry-failures` archives those entries to `failures.jsonl.history` and
 requeues them while retaining every successful row.
 
+To run two replicas of the same single-GPU model, give each resident engine an
+explicit instance name.  The instance only disambiguates containers and logs;
+all shards still write into the same revision-scoped benchmark directory:
+
+```bash
+RPX_VQA_ENGINE_INSTANCE=gpu3 \
+  bash docker/vqa-smoke/start_persistent_engine.sh internvl3.5-1b 3
+RPX_VQA_ENGINE_INSTANCE=gpu4 \
+  bash docker/vqa-smoke/start_persistent_engine.sh internvl3.5-1b 4
+
+RPX_VQA_ENGINE_INSTANCE=gpu3 \
+  bash docker/vqa-smoke/run_persistent_benchmark.sh \
+    internvl3.5-1b benchmark_plan/benchmark_available_31500.jsonl 0 2 &
+RPX_VQA_ENGINE_INSTANCE=gpu4 \
+  bash docker/vqa-smoke/run_persistent_benchmark.sh \
+    internvl3.5-1b benchmark_plan/benchmark_available_31500.jsonl 1 2 &
+wait
+```
+
+`run_dual_gpu_persistent_benchmark.sh` performs the same launch with GPU and
+manifest preflight checks, starts both replicas, waits for both shards, and
+returns nonzero if either shard fails:
+
+```bash
+bash docker/vqa-smoke/run_dual_gpu_persistent_benchmark.sh \
+  internvl3.5-1b benchmark_plan/benchmark_available_31500.jsonl 3 4
+```
+
 `SHARD_INDEX`/`SHARD_COUNT` split the manifest deterministically (sorted by
 `sample_id`, round-robin) so multiple GPUs can run disjoint shards in
 parallel; rerunning the same shard resumes safely. Per-shard outputs

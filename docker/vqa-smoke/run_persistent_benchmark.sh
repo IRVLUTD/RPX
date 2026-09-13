@@ -12,10 +12,14 @@ shard_index="$3"
 shard_count="$4"
 shift 4
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=persistent_engine_lib.sh
+source "${script_dir}/persistent_engine_lib.sh"
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
 image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
-name="rpx-vqa-${model//[^a-zA-Z0-9_.-]/-}"
+name="$(rpx_vqa_engine_name "${model}")"
+instance_suffix="$(rpx_vqa_engine_instance_suffix)"
 repo_sha="${RPX_GIT_SHA:-}"
 if [[ -z "${repo_sha}" ]]; then
   repo_sha="$(git rev-parse HEAD)"
@@ -33,7 +37,7 @@ docker ps --format '{{.Names}}' | grep -Fxq "${name}" || {
 manifest_dir="$(cd "$(dirname "${manifest}")" && pwd)"
 manifest_name="$(basename "${manifest}")"
 mkdir -p "${runtime}/hf-cache" "${runtime}/cache" "${runtime}/outputs" "${runtime}/logs"
-log="${runtime}/logs/benchmark-${model}-shard${shard_index}of${shard_count}-${timestamp}.log"
+log="${runtime}/logs/benchmark-${model}${instance_suffix}-shard${shard_index}of${shard_count}-${timestamp}.log"
 run_dir="${runtime}/outputs/${model}/sha-${repo_sha}/benchmark/shard-${shard_index}-of-${shard_count}"
 
 health="$(docker exec "${name}" python3 -c \

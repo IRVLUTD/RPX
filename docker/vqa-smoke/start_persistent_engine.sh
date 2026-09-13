@@ -3,10 +3,13 @@ set -euo pipefail
 
 model="${1:?usage: start_persistent_engine.sh MODEL GPU}"
 gpu="${2:?usage: start_persistent_engine.sh MODEL GPU}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=persistent_engine_lib.sh
+source "${script_dir}/persistent_engine_lib.sh"
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
 image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
-name="rpx-vqa-${model//[^a-zA-Z0-9_.-]/-}"
+name="$(rpx_vqa_engine_name "${model}")"
 startup_polls="${RPX_VQA_STARTUP_POLLS:-360}"
 startup_poll_seconds="${RPX_VQA_STARTUP_POLL_SECONDS:-2}"
 pytorch_cuda_alloc_conf="${RPX_VQA_PYTORCH_CUDA_ALLOC_CONF:-expandable_segments:True}"
@@ -55,7 +58,7 @@ docker run -d \
   -v "${runtime}/outputs:/outputs" \
   "${image}:${tag}" serve "${model}" >/dev/null
 
-echo "loading ${model} in ${name} on GPU ${gpu}"
+echo "loading ${model} in ${name} on physical GPU ${gpu}"
 for _ in $(seq 1 "${startup_polls}"); do
   if ! docker ps --format '{{.Names}}' | grep -Fxq "${name}"; then
     docker logs "${name}" --tail 100
