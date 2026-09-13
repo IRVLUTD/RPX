@@ -125,6 +125,31 @@ def _internvl_bbox_instruction(expression: str) -> str:
     )
 
 
+def _cosmos_reason2_bbox_instruction(question: str) -> str:
+    """Use a strict Reason2 2D-grounding JSON and coordinate grid.
+
+    NVIDIA's official Reason2 grounding prompt asks to locate a bounding box
+    and return JSON. RPX makes that underspecified JSON contract explicit using
+    Qwen3-VL's ``bbox_2d`` field and target-relative 0--1000 XYXY coordinates;
+    Reason2 is a Qwen3-VL architecture. RPX also adds the GT-free selection
+    rules required by relational questions. The optional Reason2 chain-of-thought
+    instruction is deliberately omitted: this benchmark scores one direct answer
+    and retains deterministic decoding.
+    """
+    return (
+        f"{question}\n"
+        "Identify the one visible object that answers the question. For a relational "
+        "question, select the result object, not the reference object named or shown "
+        "in the question. The answer object is in the target image (Image 2 for a "
+        "two-image input; otherwise the only image). Locate the accurate bounding box "
+        "of that answer object. Return only a JSON list in this exact form: "
+        '[{"bbox_2d":[x1,y1,x2,y2],"label":"object name"}]. '
+        "Normalize x and y independently from 0 to 1000 relative to the target image. "
+        "Use XYXY corner order and enclose the entire object. No Markdown, reasoning, "
+        "or explanation."
+    )
+
+
 def build_semantic_diagnostic_prompt(sample: VQASample, model_key: str) -> PromptSpec:
     """Ask for the answer label only, without leaking the ground truth.
 
@@ -176,6 +201,16 @@ def build_label_localization_prompt(
         return PromptSpec(f"detect {label}\n", 64, output_kind)
     if model_key.startswith("deepseek-vl2"):
         return PromptSpec(f"<|ref|>{label}<|/ref|>.", 128, output_kind)
+    if model_key.startswith("cosmos-reason2-"):
+        return PromptSpec(
+            f'Locate the accurate bounding box of "{label}" in the target image. '
+            "Return only a JSON list in this exact form: "
+            '[{"bbox_2d":[x1,y1,x2,y2],"label":"object name"}]. '
+            "Normalize x and y independently from 0 to 1000 relative to the target "
+            "image. Use XYXY corner order. No Markdown, reasoning, or explanation.",
+            96,
+            output_kind,
+        )
     if model_key in {"molmo-7b-d", "molmoe-1b"}:
         # Molmo 0924 is natively trained to answer pointing prompts with
         # <point>/<points> markup on a 0--100 coordinate grid.  This remains
@@ -210,6 +245,12 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             f"{question}\nAnswer using exactly one lowercase word: yes or no.", 4, "binary"
         )
     if sample.question_type in BBOX_TYPES:
+        if model_key.startswith("cosmos-reason2-"):
+            return PromptSpec(
+                _cosmos_reason2_bbox_instruction(question),
+                128,
+                "bbox_json_normalized_1000",
+            )
         if model_key.startswith("deepseek-vl2"):
             expression = native_referring_expression(sample)
             if sample.is_in_context:

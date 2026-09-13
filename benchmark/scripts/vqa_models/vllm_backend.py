@@ -59,6 +59,7 @@ class VLLMCheckpoint:
     engine_kwargs: dict[str, Any] = field(default_factory=dict)
     paligemma: bool = False
     deepseek_vl2: bool = False
+    cosmos_reason2: bool = False
     tensor_parallel_size: int = 1
 
 
@@ -128,6 +129,18 @@ CHECKPOINTS = {
         "Qwen/Qwen3-VL-2B-Instruct",
         "89644892e4d85e24eaac8bacfd4f463576704203",
         max_model_len=8192,
+    ),
+    "cosmos-reason2-2b": VLLMCheckpoint(
+        "nvidia/Cosmos-Reason2-2B",
+        "9ce19a195e423419c349abfc86fd07178b230561",
+        max_model_len=8192,
+        cosmos_reason2=True,
+    ),
+    "cosmos-reason2-8b": VLLMCheckpoint(
+        "nvidia/Cosmos-Reason2-8B",
+        "a9fae2cf89dc64db96b12860417f0eb403013bb9",
+        max_model_len=8192,
+        cosmos_reason2=True,
     ),
     "deepseek-vl2-tiny": VLLMCheckpoint(
         "deepseek-ai/deepseek-vl2-tiny",
@@ -269,8 +282,7 @@ class VLLMVQARunner:
     ) -> str:
         from vllm import SamplingParams
 
-        content = self._chat_content(image_paths, prompt)
-        messages = [{"role": "user", "content": content}]
+        messages = self._chat_messages(image_paths, prompt)
         params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
         chat_template_kwargs = (
             {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None
@@ -283,6 +295,19 @@ class VLLMVQARunner:
                 chat_template_kwargs=chat_template_kwargs,
             )
         )
+
+    def _chat_messages(
+        self, image_paths: Sequence[str | Path], prompt: str
+    ) -> list[dict[str, Any]]:
+        content = self._chat_content(image_paths, prompt)
+        messages = []
+        if self.checkpoint.cosmos_reason2:
+            # NVIDIA's Reason2 examples use this exact system message. Reasoning
+            # is opt-in through an explicit <think> instruction, which RPX omits
+            # for its short deterministic one-call grounding contract.
+            messages.append({"role": "system", "content": "You are a helpful assistant."})
+        messages.append({"role": "user", "content": content})
+        return messages
 
     def _deepseek_generate(
         self,
@@ -429,8 +454,20 @@ class VLLMVQARunner:
     ) -> str:
         raw = self._chat_generate(image_paths, prompt, max_tokens)
         self._last_adapter_metadata = {
-            "adapter": "direct_bbox_json",
+            "adapter": (
+                "direct_cosmos_reason2_bbox"
+                if self.checkpoint.cosmos_reason2
+                else "direct_bbox_json"
+            ),
             "single_scored_model_call": True,
+            **(
+                {
+                    "native_coordinate_format": "cosmos_bbox_2d_0_1000",
+                    "reasoning_requested": False,
+                }
+                if self.checkpoint.cosmos_reason2
+                else {}
+            ),
         }
         return raw
 
@@ -625,8 +662,7 @@ class VLLMVQARunner:
                 # isolated acceptance.  The previous batched path preserved
                 # order but silently omitted these labels, changing the task
                 # between acceptance and the full benchmark.
-                content = self._chat_content(path_list, prompt)
-                messages_batch.append([{"role": "user", "content": content}])
+                messages_batch.append(self._chat_messages(path_list, prompt))
             max_tokens = max(max_tokens for _paths, _prompt, max_tokens, _output_kind in requests)
             params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
             chat_template_kwargs = (
@@ -640,7 +676,22 @@ class VLLMVQARunner:
             values = list(stage1_values)
             metadata: list[dict[str, Any]] = [
                 (
-                    {"adapter": "direct_bbox_json", "single_scored_model_call": True}
+                    {
+                        "adapter": (
+                            "direct_cosmos_reason2_bbox"
+                            if self.checkpoint.cosmos_reason2
+                            else "direct_bbox_json"
+                        ),
+                        "single_scored_model_call": True,
+                        **(
+                            {
+                                "native_coordinate_format": "cosmos_bbox_2d_0_1000",
+                                "reasoning_requested": False,
+                            }
+                            if self.checkpoint.cosmos_reason2
+                            else {}
+                        ),
+                    }
                     if request[3] == "bbox_json_normalized_1000"
                     else {}
                 )
