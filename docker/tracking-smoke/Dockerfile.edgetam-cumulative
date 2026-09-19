@@ -1,0 +1,63 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 SAM2 plus EdgeTAM image"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/edgetam/bin/python \
+    EDGETAM_CONFIG_DIR=/opt/rpx-models/edgetam/sam2/configs \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/patches/edgetam-pytorch-noncontiguous.patch \
+     /tmp/edgetam-pytorch-noncontiguous.patch
+
+ARG EDGETAM_GIT_SHA=7711e012a30a2402c4eaab637bdb00a521302c91
+RUN case "${RPX_GIT_SHA}" in \
+      [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;; \
+      *) echo "RPX_GIT_SHA must be a full lowercase 40-character commit" >&2; exit 1 ;; \
+    esac && \
+    rpx-clone-pinned https://github.com/facebookresearch/EdgeTAM.git \
+      "${EDGETAM_GIT_SHA}" /opt/rpx-models/edgetam && \
+    git -C /opt/rpx-models/edgetam apply --check \
+      /tmp/edgetam-pytorch-noncontiguous.patch && \
+    git -C /opt/rpx-models/edgetam apply \
+      /tmp/edgetam-pytorch-noncontiguous.patch && \
+    python -m venv --system-site-packages /opt/rpx-envs/edgetam && \
+    SAM2_BUILD_CUDA=0 /opt/rpx-envs/edgetam/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/edgetam && \
+    /opt/rpx-envs/edgetam/bin/python /usr/local/bin/rpx-register-model-env \
+      --model edgetam \
+      --prompt mask \
+      --source-dir /opt/rpx-models/edgetam \
+      --source-revision "${EDGETAM_GIT_SHA}" \
+      --checkpoint-repo facebook/EdgeTAM \
+      --checkpoint-revision 14d7ecc48c656b94e5184519f698cd5386c5a2bf \
+      --import sam2 \
+      --import sam2.sam2_video_predictor
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/edgetam/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/edgetam/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model edgetam \
+      --source-revision 7711e012a30a2402c4eaab637bdb00a521302c91 \
+      --checkpoint-repo facebook/EdgeTAM \
+      --checkpoint-revision 14d7ecc48c656b94e5184519f698cd5386c5a2bf && \
+    /opt/rpx-envs/edgetam/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/edgetam/bin/python -c \
+      "from scripts.tracking_models import TRACKER_CLASSES; assert TRACKER_CLASSES['edgetam'].model_revision == '14d7ecc48c656b94e5184519f698cd5386c5a2bf'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

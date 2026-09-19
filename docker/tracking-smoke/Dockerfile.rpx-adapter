@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.description="RPX D3 adapter overlay on a pinned tracking environment"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN "${RPX_TRACKING_PYTHON:-python}" -m pip install \
+      --no-deps \
+      --force-reinstall \
+      /opt/rpx/benchmark
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

@@ -1,0 +1,55 @@
+diff --git a/ovtr/models/backbone/backbone.py b/ovtr/models/backbone/backbone.py
+index 15133a6..793dfad 100644
+--- a/ovtr/models/backbone/backbone.py
++++ b/ovtr/models/backbone/backbone.py
+@@ -130,7 +130,7 @@ class Backbone(BackboneBase):
+         if name in ["resnet18", "resnet34", "resnet50", "resnet101"]:
+             backbone = getattr(torchvision.models, name)(
+                 replace_stride_with_dilation=[False, False, dilation],
+-                pretrained=is_main_process(),
++                weights=None,
+                 norm_layer=batch_norm,
+             )
+         else:
+diff --git a/ovtr/models/ops/setup.py b/ovtr/models/ops/setup.py
+index ac86c32..9276883 100644
+--- a/ovtr/models/ops/setup.py
++++ b/ovtr/models/ops/setup.py
+@@ -36,4 +36,4 @@
+-    if torch.cuda.is_available() and CUDA_HOME is not None:
++    if CUDA_HOME is not None:
+         extension = CUDAExtension
+         sources += source_cuda
+         define_macros += [("WITH_CUDA", None)]
+diff --git a/ovtr/models/ops/src/cuda/ms_deform_attn_cuda.cu b/ovtr/models/ops/src/cuda/ms_deform_attn_cuda.cu
+index 7d3599d..cb928c9 100644
+--- a/ovtr/models/ops/src/cuda/ms_deform_attn_cuda.cu
++++ b/ovtr/models/ops/src/cuda/ms_deform_attn_cuda.cu
+@@ -61,7 +61,7 @@ at::Tensor ms_deform_attn_cuda_forward(
+     for (int n = 0; n < batch/im2col_step_; ++n)
+     {
+         auto columns = output_n.select(0, n);
+-        AT_DISPATCH_FLOATING_TYPES(value.type(), "ms_deform_attn_forward_cuda", ([&] {
++        AT_DISPATCH_FLOATING_TYPES(value.scalar_type(), "ms_deform_attn_forward_cuda", ([&] {
+             ms_deformable_im2col_cuda(at::cuda::getCurrentCUDAStream(),
+                 value.data<scalar_t>() + n * im2col_step_ * per_value_size,
+                 spatial_shapes.data<int64_t>(),
+@@ -131,7 +131,7 @@ std::vector<at::Tensor> ms_deform_attn_cuda_backward(
+     for (int n = 0; n < batch/im2col_step_; ++n)
+     {
+         auto grad_output_g = grad_output_n.select(0, n);
+-        AT_DISPATCH_FLOATING_TYPES(value.type(), "ms_deform_attn_backward_cuda", ([&] {
++        AT_DISPATCH_FLOATING_TYPES(value.scalar_type(), "ms_deform_attn_backward_cuda", ([&] {
+             ms_deformable_col2im_cuda(at::cuda::getCurrentCUDAStream(),
+                                     grad_output_g.data<scalar_t>(),
+                                     value.data<scalar_t>() + n * im2col_step_ * per_value_size,
+diff --git a/ovtr/util/clip_utils.py b/ovtr/util/clip_utils.py
+index 6a91e8e..22c21c1 100644
+--- a/ovtr/util/clip_utils.py
++++ b/ovtr/util/clip_utils.py
+@@ -141,3 +141,3 @@ def load_embeddings(Clip_text_embeddings, Clip_image_embeddings):
+-    text_embedding = torch.load(Clip_text_embeddings, map_location=lambda storage, loc: storage)
+-    image_embedding = torch.load(Clip_image_embeddings, map_location=lambda storage, loc: storage)
++    text_embedding = torch.load(Clip_text_embeddings, map_location=lambda storage, loc: storage, weights_only=False)
++    image_embedding = torch.load(Clip_image_embeddings, map_location=lambda storage, loc: storage, weights_only=False)
+     return text_embedding.cuda(), image_embedding.cuda()

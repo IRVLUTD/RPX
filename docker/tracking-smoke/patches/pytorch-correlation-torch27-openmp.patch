@@ -1,0 +1,20 @@
+diff --git a/Correlation_Module/correlation.cpp b/Correlation_Module/correlation.cpp
+index a7bdb0c..765c47e 100644
+--- a/Correlation_Module/correlation.cpp
++++ b/Correlation_Module/correlation.cpp
+@@ -94,7 +94,6 @@ AT_DISPATCH_FLOATING_TYPES(input1.scalar_type(), "correlation_forward_cpp", ([&
+   auto input2_acc = input2.accessor<scalar_t, 4>();
+   auto output_acc = output.accessor<scalar_t, 5>();
+ 
+-  #pragma omp parallel for private(n, ph, pw, h, w) collapse(2)
+   for (n = 0; n < batch_size; ++n) {
+     for(ph = 0; ph < patchH; ++ph){
+       for(pw = 0; pw < patchW; ++pw){
+@@ -147,7 +146,6 @@ AT_DISPATCH_FLOATING_TYPES(input1.scalar_type(), "correlation_backward_cpp", ([&
+   auto input2_acc = input2.accessor<scalar_t, 4>();
+   auto gradInput2_acc = gradInput2.accessor<scalar_t, 4>();
+   auto gradOutput_acc = gradOutput.accessor<scalar_t, 5>();
+-  #pragma omp parallel for private(n, ph, pw, h, w)
+     for (n = 0; n < batch_size; ++n) {
+         for(ph = 0; ph < patchH; ++ph){
+           for(pw = 0; pw < patchW; ++pw){

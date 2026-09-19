@@ -126,11 +126,9 @@ def test_round_trip_load(with_manifests, recipe_key, split):
     parse through `RPXDataset.from_manifest` without errors AND yield
     at least one sample whose modalities resolve to existing files.
 
-    `object_tracking` is a special case — the loader's `_load_tracklets`
-    will fail because the mock doesn't generate per-phase tracklets
-    JSON. We assert the manifest-parse step works (covers the entry
-    key + task-type-string mismatches we fought) but stop before
-    iterating samples for that one task.
+    Object tracking is backed by the released temporally consistent instance
+    masks; the generic loader exposes each frame as one-step tracklets while
+    the production D3 runner groups the full sequence.
     """
     from rpx_benchmark.loader import RPXDataset
 
@@ -144,11 +142,7 @@ def test_round_trip_load(with_manifests, recipe_key, split):
     ds = RPXDataset.from_manifest(resolved, batch_size=1)
     assert len(ds) > 0, f"{recipe_key}/{split}: empty dataset"
 
-    # 2. For tasks that don't depend on auxiliary JSON files the mock
-    #    doesn't generate, also iterate one sample to verify modality
-    #    paths resolve.
-    if recipe_key == "object_tracking":
-        return  # tracklets JSON not in mock; manifest-parse is enough
+    # 2. Iterate one sample to verify modality paths resolve.
     first_batch = next(iter(ds))
     assert len(first_batch) >= 1
     sample = first_batch[0]

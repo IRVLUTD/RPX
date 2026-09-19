@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+"""Render persisted RPX instance masks over their exact manifest RGB frames."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image, ImageDraw
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--cache-dir", required=True)
+    parser.add_argument(
+        "--dataset-protocol",
+        choices=("mos", "ego"),
+        default="mos",
+    )
+    return parser.parse_args()
+
+
+def _rgb_index(
+    cache_root: Path,
+    manifest_name: str = "object_tracking",
+) -> dict[tuple[str, str, str], Path]:
+    index: dict[tuple[str, str, str], Path] = {}
+    manifests = sorted(cache_root.rglob(f"manifests/{manifest_name}/easy.json"))
+    for manifest_path in manifests:
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        snapshot_root = manifest_path.parents[2]
+        for sample in payload.get("samples") or []:
+            relative = Path(str(sample["rgb"]))
+            rgb_path = relative if relative.is_absolute() else snapshot_root / relative
+            if rgb_path.is_file():
+                index[
+                    (
+                        str(sample["scene_id"]),
+                        str(sample["phase"]),
+                        rgb_path.stem,
+                    )
+                ] = rgb_path
+    return index
+
+
+def _colour(instance_id: int) -> np.ndarray:
+    return np.asarray(
+        [
+            64 + (37 * instance_id) % 192,
+            64 + (83 * instance_id) % 192,
+            64 + (149 * instance_id) % 192,
+        ],
+        dtype=np.uint8,
+    )
+
+
+def _open_vocabulary_index(output_dir: Path) -> dict[tuple[str, str, str, int], str]:
+    index: dict[tuple[str, str, str, int], str] = {}
+    metadata_root = output_dir / "open_vocabulary_predictions"
+    for metadata_path in sorted(metadata_root.glob("*.json")):
+        try:
+            payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        key = metadata_path.stem
+        if "__" not in key:
+            continue
+        scene, phase = key.rsplit("__", 1)
+        frames = payload.get("frames") or []
+        for frame in frames:
+            frame_value = frame.get("frame")
+            frame_name = (
+                str(frame_value) if frame_value is not None else f"{int(frame['frame_index']):05d}"
+            )
+            for track in frame.get("tracks") or []:
+                index[(scene, phase, frame_name, int(track["track_id"]))] = str(track["class_name"])
+        # Older/native adapters describe a clip-level track-to-prompt mapping
+        # rather than repeating it for every frame.  Preserve that semantic
+        # identity through a wildcard frame entry instead of rendering bare IDs.
+        if not frames:
+            for detection in payload.get("detections") or []:
+                track_id = detection.get("predicted_track_id")
+                if track_id is not None:
+                    index[(scene, phase, "*", int(track_id))] = str(detection["prompt"])
+            for prompt in payload.get("prompts") or []:
+                if not isinstance(prompt, dict):
+                    continue
+                label = str(prompt.get("prompt", ""))
+                for track_id in prompt.get("predicted_track_ids") or []:
+                    index[(scene, phase, "*", int(track_id))] = label
+    return index
+
+
+def _track_label(
+    index: dict[tuple[str, str, str, int], str],
+    scene: str,
+    phase: str,
+    frame: str,
+    object_id: int,
+) -> str | None:
+    return index.get((scene, phase, frame, object_id)) or index.get((scene, phase, "*", object_id))
+
+
+def main() -> None:
+    args = _parse_args()
+    output_dir = Path(args.output_dir)
+    prediction_root = output_dir / "predictions"
+    preview_root = output_dir / "prediction_frames"
+    predictions = sorted(prediction_root.glob("*/*/*.npz"))
+    if not predictions:
+        raise SystemExit(f"No predictions found under {prediction_root}")
+
+    manifest_name = "ego_object_tracking" if args.dataset_protocol == "ego" else "object_tracking"
+    rgb_index = _rgb_index(Path(args.cache_dir), manifest_name)
+    if not rgb_index:
+        raise SystemExit(f"No usable RGB entries found in cached Easy {manifest_name} manifests.")
+    vocabulary_index = _open_vocabulary_index(output_dir)
+
+    rows: list[dict[str, str]] = []
+    for prediction_path in predictions:
+        scene, phase, filename = prediction_path.relative_to(prediction_root).parts
+        frame = Path(filename).stem
+        rgb_path = rgb_index.get((scene, phase, frame))
+        if rgb_path is None:
+            raise SystemExit(f"Manifest has no RGB mapping for {scene}/{phase}/{frame}")
+
+        with np.load(prediction_path, allow_pickle=False) as archive:
+            mask = archive["mask"].astype(np.int32)
+        rgb = np.asarray(Image.open(rgb_path).convert("RGB"), dtype=np.uint8)
+        if rgb.shape[:2] != mask.shape:
+            raise SystemExit(
+                f"Shape mismatch for {scene}/{phase}/{frame}: "
+                f"RGB={rgb.shape[:2]}, mask={mask.shape}"
+            )
+
+        overlay = rgb.copy()
+        object_ids = [int(value) for value in np.unique(mask) if value > 0]
+        for object_id in object_ids:
+            selected = mask == object_id
+            overlay[selected] = (0.55 * rgb[selected] + 0.45 * _colour(object_id)).astype(np.uint8)
+
+        image = Image.fromarray(overlay)
+        draw = ImageDraw.Draw(image)
+        for object_id in object_ids:
+            ys, xs = np.where(mask == object_id)
+            if len(xs):
+                label = _track_label(vocabulary_index, scene, phase, frame, object_id)
+                draw.text(
+                    (int(xs.mean()), int(ys.mean())),
+                    f"{object_id}: {label}" if label else str(object_id),
+                    fill=(255, 255, 255),
+                    stroke_width=2,
+                    stroke_fill=(0, 0, 0),
+                )
+
+        destination = preview_root / scene / phase / f"{frame}.png"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        image.save(destination, compress_level=4)
+        rows.append(
+            {
+                "scene": scene,
+                "phase": phase,
+                "frame": frame,
+                "rgb": str(rgb_path),
+                "prediction": str(prediction_path),
+                "preview": str(destination),
+                "open_vocabulary_labels": {
+                    str(object_id): label
+                    for object_id in object_ids
+                    if (label := _track_label(vocabulary_index, scene, phase, frame, object_id))
+                },
+            }
+        )
+
+    (preview_root / "manifest.json").write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+    print(f"Rendered {len(rows)} prediction frames into {preview_root}")
+
+
+if __name__ == "__main__":
+    main()

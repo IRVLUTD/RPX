@@ -1,0 +1,93 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 tracking image with official OVTR open-vocabulary MOT"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/ovtr/bin/python \
+    OVTR_SOURCE_DIR=/opt/rpx-models/ovtr/ovtr \
+    TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9+PTX" \
+    MAX_JOBS=8 \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/requirements-ovtr-runtime.lock /tmp/requirements-ovtr-runtime.lock
+COPY docker/tracking-smoke/patches/ovtr-torch27-runtime.patch /tmp/ovtr-torch27-runtime.patch
+COPY docker/tracking-smoke/ovtr_bbox_overlaps.py /tmp/ovtr_bbox_overlaps.py
+
+ARG OVTR_GIT_SHA=500e72c19bf5f7f8717546911a5639fdc26bfee5
+ARG OPENAI_CLIP_GIT_SHA=d05afc436d78f1c48dc0dbf8e5980a9d471f35f6
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    test -x /usr/local/cuda/bin/nvcc && \
+    rpx-clone-pinned https://github.com/jinyanglii/OVTR.git \
+      "${OVTR_GIT_SHA}" /opt/rpx-models/ovtr && \
+    rpx-clone-pinned https://github.com/openai/CLIP.git \
+      "${OPENAI_CLIP_GIT_SHA}" /opt/rpx-models/openai-clip && \
+    sed -i 's/\r$//' \
+      /opt/rpx-models/ovtr/ovtr/models/ops/setup.py \
+      /opt/rpx-models/ovtr/ovtr/models/ops/src/cuda/ms_deform_attn_cuda.cu \
+      /opt/rpx-models/ovtr/ovtr/util/tool.py && \
+    git -C /opt/rpx-models/ovtr apply --check /tmp/ovtr-torch27-runtime.patch && \
+    git -C /opt/rpx-models/ovtr apply /tmp/ovtr-torch27-runtime.patch && \
+    sed -i \
+      's/from mmdet.core import bbox_overlaps/from util.rpx_bbox_overlaps import bbox_overlaps/' \
+      /opt/rpx-models/ovtr/ovtr/models/utils.py && \
+    sed -i \
+      's/map_location=lambda storage, loc: storage)/map_location=lambda storage, loc: storage, weights_only=False)/' \
+      /opt/rpx-models/ovtr/ovtr/util/tool.py && \
+    python -m venv --system-site-packages /opt/rpx-envs/ovtr && \
+    /opt/rpx-envs/ovtr/bin/python -m pip install \
+      -r /tmp/requirements-ovtr-runtime.lock && \
+    /opt/rpx-envs/ovtr/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/openai-clip && \
+    cp /tmp/ovtr_bbox_overlaps.py \
+      /opt/rpx-models/ovtr/ovtr/util/rpx_bbox_overlaps.py && \
+    cd /opt/rpx-models/ovtr/ovtr/models/ops && \
+    /opt/rpx-envs/ovtr/bin/python setup.py build_ext --inplace && \
+    /opt/rpx-envs/ovtr/bin/python /usr/local/bin/rpx-register-model-env \
+      --model ovtr \
+      --prompt detector \
+      --source-dir /opt/rpx-models/ovtr \
+      --source-revision "${OVTR_GIT_SHA}" \
+      --checkpoint-repo jinyanglii/OVTR \
+      --checkpoint-revision gdrive-10GKAIBxAseTiXnJXV1MnxnJBTmOHVFh5 \
+      --prepend-source \
+      --python-path ovtr \
+      --python-path ovtr/models/ops \
+      --import models \
+      --import models.ovtr \
+      --import util.list_LVIS \
+      --import clip \
+      --import MultiScaleDeformableAttention
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/ovtr/bin/python -m pip install \
+      --no-deps --no-build-isolation --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/ovtr/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model ovtr \
+      --source-revision 500e72c19bf5f7f8717546911a5639fdc26bfee5 \
+      --checkpoint-repo jinyanglii/OVTR \
+      --checkpoint-revision gdrive-10GKAIBxAseTiXnJXV1MnxnJBTmOHVFh5 && \
+    /opt/rpx-envs/ovtr/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/ovtr/bin/python -c \
+      "from util.list_LVIS import CLASSES; from clip import clip; import MultiScaleDeformableAttention; assert len(CLASSES) == 1203; assert callable(clip.tokenize)" && \
+    /opt/rpx-envs/ovtr/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; required = {'cutie', 'edgetam', 'mits', 'ovtr', 'sam2', 'sam2-plus', 'sam2long', 'xmem'}; assert required <= TRACKER_CLASSES.keys(), (required, sorted(TRACKER_CLASSES)); assert TRACKER_CLASSES['ovtr'].prompt_type == 'detector'; assert TRACKER_CLASSES['ovtr'].vocabulary_size == 1203"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

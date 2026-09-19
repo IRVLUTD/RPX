@@ -1,0 +1,1922 @@
+{
+  "counts": {
+    "ego_conditions": 100,
+    "excluded_sentinel_entries": 60,
+    "mos_conditions": 300,
+    "object_catalog_vocab_rows": 70,
+    "scene_condition_vocab_rows": 2739,
+    "scenes": 100,
+    "total_scene_conditions": 400
+  },
+  "coverage_and_validation": {
+    "catalog_completeness_check": {
+      "objects_with_gaps": [],
+      "ok": true
+    },
+    "catalog_size_check": {
+      "actual": 70,
+      "expected": 70,
+      "ok": true
+    },
+    "duplicate_prompt_audit": {
+      "collision_groups": 0,
+      "collisions": []
+    },
+    "exhaustive_mask_coverage_check": {
+      "conditions_checked": 400,
+      "extra_conditions": [],
+      "missing_mappings": [
+        {
+          "frame": "00177",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene008",
+          "unmapped_mask_indices": [
+            10006
+          ]
+        },
+        {
+          "frame": "00071",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene010",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00207",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene016",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00212",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene016",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00227",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene019",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00227",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene024",
+          "unmapped_mask_indices": [
+            10003
+          ]
+        },
+        {
+          "frame": "00186",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene025",
+          "unmapped_mask_indices": [
+            10006
+          ]
+        },
+        {
+          "frame": "00226",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene034",
+          "unmapped_mask_indices": [
+            10005
+          ]
+        },
+        {
+          "frame": "00230",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene038",
+          "unmapped_mask_indices": [
+            8,
+            9
+          ]
+        },
+        {
+          "frame": "00231",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene038",
+          "unmapped_mask_indices": [
+            8,
+            9
+          ]
+        },
+        {
+          "frame": "00232",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene038",
+          "unmapped_mask_indices": [
+            8,
+            9
+          ]
+        },
+        {
+          "frame": "00235",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene038",
+          "unmapped_mask_indices": [
+            9,
+            10
+          ]
+        },
+        {
+          "frame": "00236",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene038",
+          "unmapped_mask_indices": [
+            9,
+            10
+          ]
+        },
+        {
+          "frame": "00237",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene038",
+          "unmapped_mask_indices": [
+            9,
+            10
+          ]
+        },
+        {
+          "frame": "00069",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene040",
+          "unmapped_mask_indices": [
+            10001
+          ]
+        },
+        {
+          "frame": "00167",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene040",
+          "unmapped_mask_indices": [
+            10004
+          ]
+        },
+        {
+          "frame": "00188",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene040",
+          "unmapped_mask_indices": [
+            10008
+          ]
+        },
+        {
+          "frame": "00073",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene044",
+          "unmapped_mask_indices": [
+            8,
+            9
+          ]
+        },
+        {
+          "frame": "00194",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene046",
+          "unmapped_mask_indices": [
+            10009
+          ]
+        },
+        {
+          "frame": "00200",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene049",
+          "unmapped_mask_indices": [
+            11
+          ]
+        },
+        {
+          "frame": "00069",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene053",
+          "unmapped_mask_indices": [
+            10006
+          ]
+        },
+        {
+          "frame": "00000",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00001",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00002",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00003",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00004",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00005",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00006",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00007",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00008",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00009",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00010",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00011",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00012",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00013",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00014",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00015",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00016",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00017",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00018",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00019",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00020",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00021",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00022",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00023",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00024",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00025",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00026",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00027",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00028",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00029",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00030",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00031",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00032",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00033",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00034",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00035",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00036",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00037",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00038",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00039",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00040",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00041",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00042",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00043",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00044",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00045",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00046",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00047",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00048",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00049",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00050",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00051",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00052",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00053",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00054",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00055",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00056",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00057",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00058",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00059",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00060",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00061",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00062",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00063",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00064",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00066",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00067",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00068",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00069",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00070",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00071",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00072",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00073",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00074",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00075",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00076",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00077",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00078",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00079",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00080",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00081",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00082",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00083",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00084",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00085",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00086",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00087",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00088",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00089",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00090",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00091",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00092",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00093",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00095",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00096",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00097",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00098",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00099",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00100",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00101",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00102",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00103",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00104",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00105",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00106",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00107",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00108",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00109",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00110",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00111",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00112",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00113",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00114",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00115",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00116",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00117",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00118",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00119",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00120",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00121",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00122",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00123",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00124",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00125",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00126",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00127",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00128",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00129",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00130",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00132",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00133",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00134",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00135",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00136",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00137",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00138",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00139",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00140",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00141",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00142",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00143",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00144",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00145",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00146",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00147",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00148",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00149",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00150",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00151",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00152",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00153",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00154",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00155",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00156",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00157",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00158",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00159",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00160",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00161",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00162",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00163",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00164",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00165",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00166",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00167",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00168",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00169",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00170",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00171",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00172",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00173",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00174",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00175",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00176",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00177",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00178",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00179",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00180",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        },
+        {
+          "frame": "00181",
+          "kind": "ego",
+          "phase": null,
+          "scene_id": "scene058",
+          "unmapped_mask_indices": [
+            8
+          ]
+        }
+      ],
+      "missing_mappings_count": 252,
+      "ok": false,
+      "total_frames": 98124,
+      "total_sentinel_frame_occurrences": 27,
+      "total_visible_frame_object_occurrences": 658254
+    },
+    "mask_resolution_check": {
+      "duplicate_object_ids_within_condition": [],
+      "ego_conditions_checked": 100,
+      "excluded_sentinels_count": 60,
+      "mos_conditions_checked": 300,
+      "ok": true,
+      "total_entries": 2799,
+      "unresolved": []
+    },
+    "no_duplicates_check": {
+      "duplicate_mask_index_rows": 0,
+      "duplicate_source_catalog_id_rows": 0,
+      "ok": true
+    },
+    "parquet_jsonl_equality_check": {
+      "ok": true,
+      "tables": {
+        "object_catalog_vocab": {
+          "jsonl_rows": 70,
+          "ok": true,
+          "parquet_rows": 70
+        },
+        "scene_condition_vocab": {
+          "jsonl_rows": 2739,
+          "ok": true,
+          "parquet_rows": 2739
+        }
+      }
+    },
+    "prompt_nonempty_check": {
+      "empty_prompt_rows": 0,
+      "ok": true
+    },
+    "scene_condition_counts_check": {
+      "ego_conditions": 100,
+      "mos_conditions": 300,
+      "ok": true,
+      "scenes": 100,
+      "total_conditions": 400
+    },
+    "validator_overall_pass": false,
+    "vqa_cross_check": {
+      "distinct_ids_referenced": 70,
+      "note": "report-only cross-check; these rows are never used to fill missing catalog attributes",
+      "ok": true,
+      "resolved_to_catalog": 70,
+      "unresolved": [],
+      "unresolved_count": 0
+    }
+  },
+  "generated_at": "2026-09-08T18:50:02.041492+00:00",
+  "generator_git_branch": "naren/tracking-text-vocab-v1",
+  "generator_git_commit": "abe8e9320e216dc25d1303bac3b793df4728742f",
+  "hf_repo_id": "IRVLUTD/RPX",
+  "known_limitations": [
+    {
+      "affected_ego_scenes": 14,
+      "affected_occurrences": 252,
+      "description": "252 of 658,254 visible frame-object occurrences (0.038%; 0/75,000 in MOS) have a mask index with real pixels in labels/masks/v1.tar but no entry at all (not even the unknown/unlabeled sentinel) in that scene-condition's own sam2/mask_to_object.json. Confirmed a real upstream annotation gap, not a pipeline defect, by directly inspecting raw sam2_meta JSON; Ego has no masks_aux alternate source. There is no attribute data anywhere to build a prompt from for these indices, so they are documented here rather than given an invented identity.",
+      "full_list_location": "coverage_and_validation.exhaustive_mask_coverage_check.missing_mappings (first 200) and the validator's own --report JSON (complete list)",
+      "id": "undeclared_ego_mask_indices",
+      "total_ego_scenes": 100
+    }
+  ],
+  "output_sha256": {
+    "README.md": "8b63506bf310b948469179274a1a4c58a756c967a237e302e14b9dec6ad1ffdc",
+    "object_catalog_vocab.jsonl": "6412b6a94940f982057c6f2cbc17f58bacccd2a31bc30392aabb7f59c792aaa0",
+    "object_catalog_vocab.parquet": "e6be3bfe08ff2e85af5b6b39458cd081a463d061260d6f77ec3caec069f22aac",
+    "scene_condition_vocab.jsonl": "c79791a87c007f07bf98981fc74ecf709e8987d0a697034691abab243c38a44b",
+    "scene_condition_vocab.parquet": "49db73a4a4711aef5148d87a206d5f520b726f40b7b421c692d721e01873afe1"
+  },
+  "release_decision": "Published with this documented, narrow, quantified limitation rather than withheld. The vocabulary is complete and correct for every mask index that does have a declared identity (100% of MOS, 99.96% of Ego occurrences); blocking the release over an upstream annotation gap this pipeline cannot fill would not serve consumers. All other validation requirements pass with zero exceptions.",
+  "schema_version": "tracking-text-vocab-manifest-1.0",
+  "source_revisions": {
+    "catalog_and_questionnaires": "93e31d378f1f98eca18a7aa01a2279c9f332440c",
+    "ego_tracking_sam2_meta_and_masks": "f082723002bad5800dd85e583115b4ea05734d31",
+    "mos_tracking_sam2_meta_and_masks": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+    "vqa_cross_check": "vqa"
+  }
+}

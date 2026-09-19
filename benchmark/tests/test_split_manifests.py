@@ -167,15 +167,15 @@ def test_rgbd_relative_pose_adds_depth_to_pair(tmp_path):
     assert "pose_b" in s
 
 
-def test_object_tracking_references_tracklets_json(tmp_path):
+def test_object_tracking_references_temporally_consistent_mask(tmp_path):
     _make_parquet(tmp_path)
     w = write_split_manifests(tmp_path, tasks=["object_tracking"])
     p = _load_one(w, "object_tracking", "easy")
     assert p["task"] == "object_tracking"
     s = p["samples"][0]
-    # Loader's _load_tracklets reads entry["tracks"] as a JSON path.
-    assert "tracks" in s
-    assert s["tracks"].endswith(".json")
+    assert "mask" in s
+    assert "/sam2/masks/" in s["mask"]
+    assert "tracks" not in s
 
 
 def test_vqa_emits_no_samples_yet(tmp_path, caplog):

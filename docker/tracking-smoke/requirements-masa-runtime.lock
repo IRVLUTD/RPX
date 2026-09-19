@@ -1,0 +1,16 @@
+# Runtime requirements declared by the pinned MMDetection source that are not
+# already supplied by requirements-models.lock, followed by the pinned
+# Scalabel branch's runtime requirements that are not in the shared lock.
+shapely==2.1.2
+six==1.17.0
+terminaltables==3.1.10
+joblib==1.5.1
+motmetrics==1.4.0
+nanoid==2.0.0
+plyfile==1.1.3
+psutil==7.0.0
+pydantic==2.7.0
+pyparsing==3.2.3
+python-dateutil==2.9.0.post0
+requests==2.32.4
+toml==0.10.2

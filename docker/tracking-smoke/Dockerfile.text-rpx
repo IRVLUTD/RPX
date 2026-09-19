@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+ARG MODEL
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1
+
+COPY benchmark /opt/rpx/benchmark
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+
+RUN if [ "${MODEL}" = "sam3.1" ]; then \
+    /opt/rpx-envs/sam3_1/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/sam3_1/bin/python -m pip install 'timm==1.0.17' && \
+    /opt/rpx-envs/sam3_1/bin/python /usr/local/bin/rpx-register-model-env \
+      --model sam3.1 \
+      --prompt text \
+      --source-dir /opt/rpx-models/sam3_1 \
+      --source-revision 6dbb02bd38288df755dfa1378000a861e65b84f6 \
+      --checkpoint-repo facebook/sam3.1 \
+      --checkpoint-revision daa63191845a41281374e725f4c9e51c7a824460 \
+      --import sam3; \
+    elif [ "${MODEL}" = "grounded-sam2" ]; then \
+    /opt/rpx-envs/grounded_sam2/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/grounded_sam2/bin/python -m pip install 'transformers==4.40.2' && \
+    /opt/rpx-envs/grounded_sam2/bin/python /usr/local/bin/rpx-register-model-env \
+      --model grounded-sam2 \
+      --prompt text \
+      --source-dir /opt/rpx-models/grounded_sam2 \
+      --source-revision b7a9c29f196edff0eb54dbe14588d7ae5e3dde28 \
+      --checkpoint-repo IDEA-Research/grounding-dino-tiny \
+      --checkpoint-revision a2bb814dd30d776dcf7e30523b00659f4f141c71 \
+      --python-path grounding_dino \
+      --import groundingdino \
+      --import sam2 \
+      --import transformers; \
+    else echo "Unsupported MODEL=${MODEL}" >&2; exit 2; fi
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

@@ -352,7 +352,9 @@ class RPXDataset:
             return SegmentationGroundTruth(mask=self._load_mask(entry["mask"]))
 
         if task == TaskType.OBJECT_TRACKING:
-            return self._load_tracklets(entry)
+            if "tracks" in entry and self._resolve(entry["tracks"]).is_file():
+                return self._load_tracklets(entry)
+            return self._load_tracking_mask(entry)
 
         if task == TaskType.RELATIVE_CAMERA_POSE:
             return self._load_relative_pose(entry)
@@ -387,6 +389,28 @@ class RPXDataset:
             boxes = np.array(item["boxes"], dtype=np.float32)
             scores = np.array(item["scores"], dtype=np.float32) if "scores" in item else None
             tracks.append(Tracklet(track_id=str(item["track_id"]), boxes=boxes, scores=scores))
+        return TrackletGroundTruth(tracks=tracks)
+
+    def _load_tracking_mask(self, entry: Dict[str, Any]) -> TrackletGroundTruth:
+        """Represent one released instance-mask frame as one-step tracklets.
+
+        The D3 production runner groups the masks into complete clips before
+        evaluation.  This fallback keeps the generic frame loader usable for
+        inspection without depending on the unpublished ``tracklets/v1.json``.
+        """
+        mask = self._load_mask(entry["mask"])
+        tracks = []
+        for track_id in np.unique(mask):
+            if int(track_id) <= 0:
+                continue
+            ys, xs = np.nonzero(mask == track_id)
+            if xs.size == 0:
+                continue
+            boxes = np.array(
+                [[xs.min(), ys.min(), xs.max() + 1, ys.max() + 1]],
+                dtype=np.float32,
+            )
+            tracks.append(Tracklet(track_id=str(int(track_id)), boxes=boxes))
         return TrackletGroundTruth(tracks=tracks)
 
     def _load_relative_pose(self, entry: Dict[str, Any]) -> RelativePoseGroundTruth:

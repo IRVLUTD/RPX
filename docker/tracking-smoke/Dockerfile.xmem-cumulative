@@ -1,0 +1,62 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 SAM2, EdgeTAM, Cutie, SAM2Long, SAM 2++, MITS and XMem image"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/xmem/bin/python \
+    XMEM_SOURCE_DIR=/opt/rpx-models/xmem \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/patches/xmem-torch27-checkpoint.patch /tmp/xmem-torch27-checkpoint.patch
+
+ARG XMEM_GIT_SHA=f3b841d50df058910bbf690229ddc15fb1aef7d6
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    rpx-clone-pinned https://github.com/hkchengrex/XMem.git \
+      "${XMEM_GIT_SHA}" /opt/rpx-models/xmem && \
+    git -C /opt/rpx-models/xmem apply --check /tmp/xmem-torch27-checkpoint.patch && \
+    git -C /opt/rpx-models/xmem apply /tmp/xmem-torch27-checkpoint.patch && \
+    python -m venv --system-site-packages /opt/rpx-envs/xmem && \
+    /opt/rpx-envs/xmem/bin/python /usr/local/bin/rpx-register-model-env \
+      --model xmem \
+      --prompt mask \
+      --source-dir /opt/rpx-models/xmem \
+      --source-revision "${XMEM_GIT_SHA}" \
+      --checkpoint-repo hkchengrex/XMem \
+      --checkpoint-revision v1.0 \
+      --prepend-source \
+      --import model.network \
+      --import inference.inference_core
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/xmem/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/xmem/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model xmem \
+      --source-revision f3b841d50df058910bbf690229ddc15fb1aef7d6 \
+      --checkpoint-repo hkchengrex/XMem \
+      --checkpoint-revision v1.0 && \
+    /opt/rpx-envs/xmem/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/xmem/bin/python -c \
+      "from pathlib import Path; import model.network as network; import inference.inference_core as core; assert Path(network.__file__).is_relative_to('/opt/rpx-models/xmem'); assert Path(core.__file__).is_relative_to('/opt/rpx-models/xmem')" && \
+    /opt/rpx-envs/xmem/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; required = {'cutie', 'edgetam', 'mits', 'sam2', 'sam2-plus', 'sam2long', 'xmem'}; assert required <= TRACKER_CLASSES.keys(), (required, sorted(TRACKER_CLASSES)); assert TRACKER_CLASSES['xmem'].prompt_type == 'mask'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

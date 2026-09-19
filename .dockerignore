@@ -1,0 +1,14 @@
+**
+
+!docker/
+!docker/tracking-smoke/
+!docker/tracking-smoke/Dockerfile
+!docker/tracking-smoke/requirements-yoloe.in
+!docker/tracking-smoke/requirements-yoloe.lock
+!docker/tracking-smoke/requirements-sam2.lock
+!docker/tracking-smoke/README.md
+
+!benchmark/
+!benchmark/**
+
+!.dockerignore

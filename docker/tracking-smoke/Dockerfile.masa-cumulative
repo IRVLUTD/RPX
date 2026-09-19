@@ -1,0 +1,88 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="Cumulative RPX D3 image through detector-driven MASA-Detic"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/masa/bin/python \
+    MASA_SOURCE_DIR=/opt/rpx-models/masa \
+    PYTHONUNBUFFERED=1
+
+COPY --chmod=0755 docker/tracking-smoke/register_model_env.py /usr/local/bin/rpx-register-model-env
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+COPY docker/tracking-smoke/requirements-masa-runtime.lock /tmp/requirements-masa-runtime.lock
+
+ARG MASA_GIT_SHA=c5472b9c7615f35abdf1188cb1a0c5408fe50d66
+ARG MMDET_GIT_SHA=44ebd17b145c2372c4b700bfb9cb20dbd28ab64a
+ARG SCALABEL_GIT_SHA=78b26be9800596a3c0c2a999f9e04deb8e3fc29a
+ARG TETA_GIT_SHA=a62a9c0affec3a97f2cd0263141c53bcfb9c79f7
+ARG MASA_CHECKPOINT_REVISION=25ed372c47f2c46cf36fd446d1b657b656bc7ea9
+RUN test "${#RPX_GIT_SHA}" -eq 40 && \
+    case "${RPX_GIT_SHA}" in \
+      *[!0-9a-f]*) echo "RPX_GIT_SHA must be lowercase hexadecimal" >&2; exit 1 ;; \
+      *) ;; \
+    esac && \
+    rpx-clone-pinned https://github.com/siyuanliii/masa.git \
+      "${MASA_GIT_SHA}" /opt/rpx-models/masa && \
+    rpx-clone-pinned https://github.com/open-mmlab/mmdetection.git \
+      "${MMDET_GIT_SHA}" /opt/rpx-models/mmdetection && \
+    rpx-clone-pinned https://github.com/scalabel/scalabel.git \
+      "${SCALABEL_GIT_SHA}" /opt/rpx-models/scalabel && \
+    rpx-clone-pinned https://github.com/SysCV/tet.git \
+      "${TETA_GIT_SHA}" /opt/rpx-models/tet && \
+    python -m venv --system-site-packages /opt/rpx-envs/masa && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --index-url https://download.pytorch.org/whl/cu118 \
+      torch==2.1.2+cu118 torchvision==0.16.2+cu118 && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      mmengine==0.10.7 mmcv==2.1.0 \
+      --find-links https://download.openmmlab.com/mmcv/dist/cu118/torch2.1/index.html && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      -r /tmp/requirements-masa-runtime.lock && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/mmdetection && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/tet/teta && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/scalabel && \
+    /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --no-build-isolation /opt/rpx-models/masa && \
+    /opt/rpx-envs/masa/bin/python /usr/local/bin/rpx-register-model-env \
+      --model masa \
+      --prompt detector \
+      --source-dir /opt/rpx-models/masa \
+      --source-revision "${MASA_GIT_SHA}" \
+      --checkpoint-repo dereksiyuanli/masa \
+      --checkpoint-revision "${MASA_CHECKPOINT_REVISION}" \
+      --prepend-source \
+      --import teta \
+      --import scalabel \
+      --import masa \
+      --import projects.Detic_new.detic
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/masa/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/masa/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model masa \
+      --source-revision c5472b9c7615f35abdf1188cb1a0c5408fe50d66 \
+      --checkpoint-repo dereksiyuanli/masa \
+      --checkpoint-revision 25ed372c47f2c46cf36fd446d1b657b656bc7ea9 && \
+    /opt/rpx-envs/masa/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/masa/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from pathlib import Path; from tracking_models.masa_tracker import MASATracker; cfg = MASATracker._load_config(Path('/opt/rpx-models/masa')); assert cfg.model.detector.init_cfg is None; assert all(head.cls_predictor_cfg.zs_weight_path == 'rand' and not head.use_fed_loss for head in cfg.model.detector.roi_head.bbox_head)" && \
+    /opt/rpx-envs/masa/bin/python -c \
+      "import sys; sys.path.insert(0, '/opt/rpx/benchmark/scripts'); from tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['cutie', 'edgetam', 'masa', 'motip', 'sam2', 'sam2-plus', 'sam2long']; assert TRACKER_CLASSES['masa'].model_revision == '25ed372c47f2c46cf36fd446d1b657b656bc7ea9'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []

@@ -25,6 +25,7 @@ Repo layout (on HF)::
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
 import os
@@ -180,6 +181,7 @@ REPO_TYPE = "dataset"
 RGB = "rgb/*"
 DEPTH = "depth/*"
 MASK = "mask/*"
+SAM2_META = "sam2_meta/*"
 POSE = "pose/*"
 FISHEYE_L = "fisheye_left/*"
 FISHEYE_R = "fisheye_right/*"
@@ -200,7 +202,11 @@ TASK_MODALITIES: Dict[TaskType, List[str]] = {
     TaskType.OBJECT_SEGMENTATION: [RGB, MASK],
     TaskType.OBJECT_DETECTION: [RGB, MASK, TRACKLETS],
     TaskType.OPEN_VOCAB_DETECTION: [RGB, MASK, TRACKLETS, QUESTIONNAIRES],
-    TaskType.OBJECT_TRACKING: [RGB, MASK, TRACKLETS],
+    # Tracking GT is the temporally consistent instance-mask sequence.
+    # ``sam2_meta`` carries mask_to_object.json for auditable ID/name
+    # provenance.  The pinned RPX release contains no loose tracklets.json;
+    # the historical TRACKLETS entry therefore could never be downloaded.
+    TaskType.OBJECT_TRACKING: [RGB, MASK, SAM2_META],
     TaskType.RELATIVE_CAMERA_POSE: [RGB, POSE],
     TaskType.NOVEL_VIEW_SYNTHESIS: [RGB, DEPTH, POSE],
     TaskType.VISUAL_GROUNDING: [RGB, QUESTIONNAIRES, SPATIAL_QA],
@@ -246,8 +252,12 @@ def _rpx_cache_dir() -> Path:
     return Path.home() / ".cache" / "rpx_benchmark"
 
 
-def _manifest_repo_path(task: TaskType | str, split: Difficulty | str) -> str:
-    task_name = task.value if isinstance(task, TaskType) else str(task)
+def _manifest_repo_path(
+    task: TaskType | str,
+    split: Difficulty | str,
+    manifest_name: str | None = None,
+) -> str:
+    task_name = manifest_name or (task.value if isinstance(task, TaskType) else str(task))
     split_name = split.value if isinstance(split, Difficulty) else str(split)
     return f"manifests/{task_name}/{split_name}.json"
 
@@ -271,6 +281,7 @@ def fetch_manifest(
     repo_id: str = DEFAULT_REPO_ID,
     cache_dir: str | Path | None = None,
     revision: str | None = None,
+    manifest_name: str | None = None,
 ) -> Dict[str, Any]:
     """Download and parse the task-level manifest for ``(task, split)``.
 
@@ -302,7 +313,7 @@ def fetch_manifest(
         If the downloaded file is not valid JSON.
     """
     hf = _hub()
-    repo_path = _manifest_repo_path(task, split)
+    repo_path = _manifest_repo_path(task, split, manifest_name)
     try:
         local = hf.hf_hub_download(
             repo_id=repo_id,
@@ -336,17 +347,25 @@ def _extract_scene_phase_pairs(manifest: Dict[str, Any]) -> Set[Tuple[str, str]]
             pairs.add((str(entry["scene"]), str(entry["phase"])))
         return pairs
     for sample in manifest.get("samples", []):
-        if sample.get("scene_id") is not None and sample.get("phase") is not None:
-            pairs.add((str(sample["scene_id"]), str(sample["phase"])))
-            continue
+        # Prefer the physical path over the logical ``phase`` field. Ego
+        # manifests intentionally use phase=0 for metric grouping while their
+        # files live under scenes/<scene>/ego/ on the Hub.
+        found_path = False
         for key in ("rgb", "depth", "mask"):
             p = sample.get(key)
             if not p:
                 continue
             parts = Path(p).parts
-            if len(parts) >= 3 and parts[0] == "scenes":
-                pairs.add((parts[1], parts[2]))
+            try:
+                scene_part = parts.index("scenes")
+            except ValueError:
+                continue
+            if len(parts) >= scene_part + 3:
+                pairs.add((parts[scene_part + 1], parts[scene_part + 2]))
+                found_path = True
                 break
+        if not found_path and sample.get("scene_id") is not None and sample.get("phase") is not None:
+            pairs.add((str(sample["scene_id"]), str(sample["phase"])))
     return pairs
 
 
@@ -360,6 +379,7 @@ def _build_allow_patterns(
         RGB: "rgb.tar",
         DEPTH: "depth.tar",
         MASK: "labels/masks/v1.tar",
+        SAM2_META: "labels/sam2_meta/v1.tar",
         POSE: "labels/cam_pose/v1.tar",
         FISHEYE_L: "fisheye.tar",
         FISHEYE_R: "fisheye.tar",
@@ -389,6 +409,7 @@ def download_split(
     extra_modalities: Sequence[str] | None = None,
     max_workers: int = 8,
     max_samples: int | None = None,
+    manifest_name: str | None = None,
 ) -> Path:
     """Download only the files (task, split) needs, return resolved manifest path.
 
@@ -402,7 +423,14 @@ def download_split(
     )
     split_enum = Difficulty(split) if isinstance(split, str) else split
 
-    manifest = fetch_manifest(task_enum, split_enum, repo_id, cache_dir, revision)
+    manifest = fetch_manifest(
+        task_enum,
+        split_enum,
+        repo_id,
+        cache_dir,
+        revision,
+        manifest_name,
+    )
     if max_samples is not None:
         if max_samples < 1:
             raise ConfigError(
@@ -425,7 +453,7 @@ def download_split(
         modalities.extend(extra_modalities)
 
     allow_patterns = _build_allow_patterns(modalities, pairs)
-    allow_patterns.append(_manifest_repo_path(task_enum, split_enum))
+    allow_patterns.append(_manifest_repo_path(task_enum, split_enum, manifest_name))
     allow_patterns.append("manifest/checksums.json")
 
     log.info(
@@ -469,7 +497,9 @@ def download_split(
         task_enum.value if isinstance(task_enum, TaskType) else str(task_enum),
     )
 
-    task_name = task_enum.value if isinstance(task_enum, TaskType) else str(task_enum)
+    task_name = manifest_name or (
+        task_enum.value if isinstance(task_enum, TaskType) else str(task_enum)
+    )
     out_dir = _rpx_cache_dir() / repo_id.replace("/", "__") / "manifests" / task_name
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = (
@@ -534,7 +564,7 @@ def mount(repo_id: str = DEFAULT_REPO_ID):
 # ------------------------------------------------------------------ #
 
 
-def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
+def _extract_snapshot_tars_unlocked(snapshot_root: Path) -> Tuple[int, int]:
     """Extract every tar shard under ``snapshot_root`` into ``snapshot_root/extracted/``.
 
     The HF dataset tree ships tar shards (``scenes/<scene>/<phase>/rgb.tar``,
@@ -610,19 +640,24 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
                             "publisher."
                         ),
                     )
-        # Locate the (scene, phase) prefix: the parts up to and including
-        # the first numeric component (the phase index 0/1/2). Example:
-        # ('scenes', 'scene1', '0', 'rgb.tar')         → 'scenes/scene1/0'
-        # ('scenes', 'scene1', '0', 'labels', 'masks', 'v1.tar') → same.
-        prefix_parts: List[str] = []
-        for p in rel.parts[:-1]:  # stop before the .tar filename
-            prefix_parts.append(p)
-            if p.isdigit():
-                break
-        if not prefix_parts or not prefix_parts[-1].isdigit():
-            # Not a per-scene-per-phase shard (e.g. an unrelated tar at
-            # repo root); skip rather than guess.
-            continue
+        # Locate the physical capture prefix. MOS uses numeric phase names,
+        # while the ego-preview release stores each capture under the literal
+        # directory ``scenes/<scene>/ego``. Requiring ``str.isdigit()`` here
+        # silently skipped every downloaded ego tar even though the manifest
+        # and allow-pattern generation were correct.
+        if len(rel.parts) >= 4 and rel.parts[0] == "scenes":
+            prefix_parts = list(rel.parts[:3])
+        else:
+            # Retain the legacy numeric-prefix fallback for old snapshots that
+            # did not use the canonical scenes/<scene>/<capture>/ layout.
+            prefix_parts = []
+            for p in rel.parts[:-1]:  # stop before the .tar filename
+                prefix_parts.append(p)
+                if p.isdigit():
+                    break
+            if not prefix_parts or not prefix_parts[-1].isdigit():
+                # Unrelated tar at repo root; skip rather than guess.
+                continue
         out_base = extracted_root.joinpath(*prefix_parts)
         out_base.mkdir(parents=True, exist_ok=True)
         try:
@@ -653,3 +688,23 @@ def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
             log.warning("failed to extract %s: %s", tar_path, e)
             continue
     return n_new, n_skip
+
+
+def _extract_snapshot_tars(snapshot_root: Path) -> Tuple[int, int]:
+    """Serialize extraction into a shared HF snapshot across processes.
+
+    Tracking jobs deliberately share one content-addressed cache. Without a
+    snapshot-level lock, concurrent processes can overwrite and rename the
+    same ``.part`` file, causing one process to fail after another moves it.
+    ``flock`` keeps the existing idempotent extraction implementation while
+    ensuring only one process mutates ``extracted/`` at a time.
+    """
+
+    snapshot_root = Path(snapshot_root)
+    lock_path = snapshot_root / ".rpx-extraction.lock"
+    with lock_path.open("a+b") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            return _extract_snapshot_tars_unlocked(snapshot_root)
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)

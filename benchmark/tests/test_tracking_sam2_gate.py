@@ -1,0 +1,459 @@
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPTS = ROOT / "benchmark" / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+import render_tracking_predictions  # noqa: E402
+import run_tracking  # noqa: E402
+import run_tracking_gate  # noqa: E402
+
+
+def test_gate_budgets_are_bounded_and_sequential() -> None:
+    assert run_tracking_gate.GATE_FRAMES == {
+        "smoke": 2,
+        "micro": 8,
+        "acceptance": 25,
+    }
+    assert set(run_tracking_gate.MODEL_PROVENANCE) == {
+        "dam4sam",
+        "sam2",
+        "sam2-plus",
+        "edgetam",
+        "mits",
+        "ovtr",
+        "cutie",
+        "sam2long",
+        "xmem",
+        "grounded-sam2",
+        "sam3.1",
+    }
+
+
+def test_prediction_resume_is_invalidated_by_adapter_revision(tmp_path: Path) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip(
+        scene="scene_000",
+        phase=0,
+        split="easy",
+        root=tmp_path,
+        samples=(sample,),
+    )
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(json.dumps({"model": "sam2", "frames": 1, "rpx_git_sha": "a" * 40}))
+
+    assert (
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40) is not None
+    )
+    assert run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "b" * 40) is None
+
+
+def test_prediction_resume_accepts_only_explicit_compatible_revision(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam3.1",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "evaluator_git_sha": "a" * 40,
+                "prompt_type": "box",
+                "tracking_mode": ("native-tight-gt-box-multiplex-video-segmentation"),
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_RESUME_COMPATIBLE_GIT_SHAS", "a" * 40)
+    assert (
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam3.1", "b" * 40) is not None
+    )
+
+
+def test_sam31_per_object_predictions_cannot_resume_for_multiplex_protocol(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam3.1",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "evaluator_git_sha": "a" * 40,
+                "prompt_type": "box",
+                "tracking_mode": ("native-tight-gt-box-prompted-video-segmentation"),
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_RESUME_COMPATIBLE_GIT_SHAS", "a" * 40)
+    assert run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam3.1", "b" * 40) is None
+
+
+def test_prediction_resume_compatible_revision_does_not_relax_other_contracts(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "grounded-sam2",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "dataset_protocol": "ego",
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_RESUME_COMPATIBLE_GIT_SHAS", "a" * 40)
+    assert (
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam3.1", "b" * 40, "mos")
+        is None
+    )
+
+
+def test_sam31_text_predictions_cannot_resume_for_box_protocol(tmp_path: Path, monkeypatch) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam3.1",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "evaluator_git_sha": "a" * 40,
+                "prompt_type": "text",
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_RESUME_COMPATIBLE_GIT_SHAS", "a" * 40)
+    assert run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam3.1", "b" * 40) is None
+
+
+def test_prediction_resume_is_invalidated_by_dataset_protocol(tmp_path: Path) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EGO_EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam2",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "dataset_protocol": "ego",
+            }
+        )
+    )
+
+    assert (
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40, "ego")
+        is not None
+    )
+    assert (
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40, "mos")
+        is None
+    )
+
+
+def test_prediction_resume_is_invalidated_by_evaluator_revision(
+    tmp_path: Path, monkeypatch
+) -> None:
+    sample = {"rgb": "00000.png"}
+    clip = run_tracking.Clip("scene_000", 0, "easy", tmp_path, (sample,))
+    prediction_path = run_tracking._prediction_path(tmp_path, clip, sample)
+    run_tracking._atomic_mask(
+        prediction_path, np.zeros(run_tracking.EXPECTED_SHAPE, dtype=np.int32)
+    )
+    marker_path = prediction_path.parent / "_complete.json"
+    marker_path.write_text(
+        json.dumps(
+            {
+                "model": "sam2",
+                "frames": 1,
+                "rpx_git_sha": "a" * 40,
+                "evaluator_git_sha": "b" * 40,
+            }
+        )
+    )
+
+    monkeypatch.setenv("RPX_EVALUATOR_GIT_SHA", "b" * 40)
+    assert (
+        run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40) is not None
+    )
+    monkeypatch.setenv("RPX_EVALUATOR_GIT_SHA", "c" * 40)
+    assert run_tracking._clip_predictions(clip, clip.samples, tmp_path, "sam2", "a" * 40) is None
+
+
+def test_ego_protocol_has_pinned_variable_length_split() -> None:
+    assert run_tracking.PINNED_EGO_DATASET_REVISION == ("f082723002bad5800dd85e583115b4ea05734d31")
+    samples = ({"rgb": "unused", "mask": "unused"},) * 228
+    clips = [run_tracking.Clip(f"scene{i:03d}", 0, "easy", Path("/"), samples) for i in range(32)]
+    clips.append(
+        run_tracking.Clip(
+            "scene032",
+            0,
+            "easy",
+            Path("/"),
+            ({"rgb": "unused", "mask": "unused"},) * 256,
+        )
+    )
+
+    run_tracking._validate_split(clips, "easy", "ego")
+
+
+def test_sam2_overlay_is_pinned_and_uses_sam2_python() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.sam2-rpx").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_sam2_rpx.sh").read_text()
+
+    assert "@sha256:b3e0d935b689" in dockerfile
+    assert "/opt/rpx-envs/sam2/bin/python -m pip install" in dockerfile
+    assert "rpx-stamp-adapter-env" in dockerfile
+    assert "sam2-rpx-sha-${short_revision}" in builder
+    assert 'if [[ "${base_image}" != *@sha256:* ]]' in builder
+
+
+def test_renderer_uses_manifest_rgb_path(tmp_path: Path) -> None:
+    snapshot = tmp_path / "datasets--IRVLUTD--RPX" / "snapshots" / "revision"
+    manifest_path = snapshot / "manifests" / "object_tracking" / "easy.json"
+    rgb_path = snapshot / "unusual" / "scene011" / "frame-00000.jpeg"
+    rgb_path.parent.mkdir(parents=True)
+    rgb_path.write_bytes(b"rgb")
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "samples": [
+                    {
+                        "scene_id": "scene011",
+                        "phase": 0,
+                        "rgb": "unusual/scene011/frame-00000.jpeg",
+                    }
+                ]
+            }
+        )
+    )
+
+    assert render_tracking_predictions._rgb_index(tmp_path) == {
+        ("scene011", "0", "frame-00000"): rgb_path
+    }
+
+
+def test_renderer_uses_ego_manifest_rgb_path(tmp_path: Path) -> None:
+    snapshot = tmp_path / "datasets--IRVLUTD--RPX" / "snapshots" / "revision"
+    manifest_path = snapshot / "manifests" / "ego_object_tracking" / "easy.json"
+    rgb_path = snapshot / "extracted" / "scenes" / "scene004" / "ego" / "rgb" / "00000.webp"
+    rgb_path.parent.mkdir(parents=True)
+    rgb_path.write_bytes(b"rgb")
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "samples": [
+                    {
+                        "scene_id": "scene004",
+                        "phase": 0,
+                        "rgb": "extracted/scenes/scene004/ego/rgb/00000.webp",
+                    }
+                ]
+            }
+        )
+    )
+
+    assert render_tracking_predictions._rgb_index(tmp_path, "ego_object_tracking") == {
+        ("scene004", "0", "00000"): rgb_path
+    }
+
+
+def test_renderer_indexes_open_vocabulary_track_labels(tmp_path: Path) -> None:
+    metadata = tmp_path / "open_vocabulary_predictions" / "scene011__0.json"
+    metadata.parent.mkdir(parents=True)
+    metadata.write_text(
+        json.dumps(
+            {
+                "frames": [
+                    {
+                        "frame_index": 0,
+                        "frame": "00000",
+                        "tracks": [
+                            {"track_id": 4, "class_name": "coffee_mug"},
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+
+    assert render_tracking_predictions._open_vocabulary_index(tmp_path) == {
+        ("scene011", "0", "00000", 4): "coffee_mug"
+    }
+
+
+def test_renderer_indexes_clip_level_open_vocabulary_track_labels(
+    tmp_path: Path,
+) -> None:
+    metadata = tmp_path / "open_vocabulary_predictions" / "scene011__0.json"
+    metadata.parent.mkdir(parents=True)
+    metadata.write_text(
+        json.dumps(
+            {
+                "detections": [
+                    {
+                        "predicted_track_id": 4,
+                        "prompt": "blue coffee mug",
+                    }
+                ]
+            }
+        )
+    )
+
+    index = render_tracking_predictions._open_vocabulary_index(tmp_path)
+    assert index == {("scene011", "0", "*", 4): "blue coffee mug"}
+    assert (
+        render_tracking_predictions._track_label(index, "scene011", "0", "00017", 4)
+        == "blue coffee mug"
+    )
+
+
+def test_semantic_identity_metrics_do_not_reassign_wrong_identity() -> None:
+    ground_truth = np.asarray([[1, 1, 0, 2], [1, 1, 0, 2]], dtype=np.int32)
+    # Track 10 is declared to be identity 1 but spatially covers GT identity 2.
+    prediction = np.asarray([[0, 0, 0, 10], [0, 0, 0, 10]], dtype=np.int32)
+    metadata = {
+        "detections": [
+            {
+                "predicted_track_id": 10,
+                "source_mask_index": 1,
+            }
+        ],
+        "prompts": [{"prompt": "object one", "source_mask_index": 1}],
+    }
+
+    metrics = run_tracking._semantic_identity_metrics([prediction], [ground_truth], metadata)
+
+    assert metrics["gt_object_frames"] == 2
+    assert metrics["initialized_identity_count"] == 1
+    assert metrics["identity_mask_iou_mean"] == 0.0
+    assert metrics["identity_mask_accuracy_at_0_5"] == 0.0
+
+
+def test_edgetam_cumulative_overlay_inherits_sam2_digest() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.edgetam-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_edgetam_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "7711e012a30a2402c4eaab637bdb00a521302c91" in dockerfile
+    assert "/opt/rpx-envs/edgetam/bin/python" in dockerfile
+    assert "edgetam-pytorch-noncontiguous.patch" in dockerfile
+    assert "sam2-rpx-sha-060b74b287a4" in builder
+    assert "RepoDigests" in builder
+    assert "edgetam-rpx-sha-${short_revision}" in builder
+
+
+def test_cutie_cumulative_overlay_inherits_edgetam_digest() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.cutie-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_cutie_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "ec5cdd4cf16f75c73ad785a2f96fb97dbad4125a" in dockerfile
+    assert "f6995795397118b7d0ac01aecd3f39ffbfad9dee" in dockerfile
+    assert "/opt/rpx-envs/cutie/bin/python" in dockerfile
+    assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
+    assert "*[!0-9a-f]*" in dockerfile
+    assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
+    assert "from tracking_models import TRACKER_CLASSES" in dockerfile
+    assert "weights" not in "\n".join(
+        line for line in dockerfile.splitlines() if line.lstrip().startswith("COPY")
+    )
+    assert "edgetam-rpx-sha-73e9f1309b05" in builder
+    assert "RepoDigests" in builder
+    assert "cutie-rpx-sha-${short_revision}" in builder
+
+
+def test_sam2long_cumulative_overlay_inherits_cutie_digest() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.sam2long-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_sam2long_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "7193b77fa0c8827e0520ab281acd2cf394ab898e" in dockerfile
+    assert "665f8e2ad61cf5f53d65644ff27c8ee525124610" in dockerfile
+    assert "/opt/rpx-envs/sam2long/bin/python" in dockerfile
+    assert "SAM2LONG_CONFIG_DIR=/opt/rpx-models/sam2long/sam2/configs/sam2.1" in dockerfile
+    assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
+    assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
+    assert "cutie-rpx-sha-ccd827ee74ce" in builder
+    assert "RepoDigests" in builder
+    assert "sam2long-rpx-sha-${short_revision}" in builder
+
+
+def test_sam2_plus_cumulative_overlay_inherits_sam2long_digest() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.sam2-plus-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_sam2_plus_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "09c9ec4686d7170396ed98abcc0150f35e82c6b9" in dockerfile
+    assert "c3c534e30469d8788123287a484488567c5115d4" in dockerfile
+    assert "/opt/rpx-envs/sam2_plus/bin/python" in dockerfile
+    assert "--prompt box" in dockerfile
+    assert "--prepend-source" in dockerfile
+    assert "training.dataset_plus.box.utils" in dockerfile
+    assert "SAM2_PLUS_CONFIG_DIR=/opt/rpx-models/sam2_plus/sam2_plus/configs/sam2.1" in dockerfile
+    assert 'test "${#RPX_GIT_SHA}" -eq 40' in dockerfile
+    assert "sys.path.insert(0, '/opt/rpx/benchmark/scripts')" in dockerfile
+    assert "sam2long-rpx-sha-bc16071faba7" in builder
+    assert "RepoDigests" in builder
+    assert "sam2-plus-rpx-sha-${short_revision}" in builder
+
+
+def test_motip_cumulative_overlay_skips_samurai_and_inherits_sam2_plus() -> None:
+    dockerfile = (ROOT / "docker/tracking-smoke/Dockerfile.motip-cumulative").read_text()
+    builder = (ROOT / "docker/tracking-smoke/build_motip_rpx.sh").read_text()
+
+    assert "FROM ${BASE_IMAGE}" in dockerfile
+    assert "14a4f2e4b96d7913899966ce7e70771f0ee7fc75" in dockerfile
+    assert "--prompt detector" in dockerfile
+    assert "--prepend-source" in dockerfile
+    assert "models.ops.modules" in dockerfile
+    assert "samurai" not in dockerfile.lower()
+    assert "sam2-plus-rpx-sha-711b53f7b7e2" in builder
+    assert "RepoDigests" in builder
+    assert "motip-rpx-sha-${short_revision}" in builder

@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1.7
+
+# Immutable published cumulative SAM2 environment. Override only with another
+# digest-pinned image that carries the same SAM2 provenance manifest.
+ARG BASE_IMAGE=vndhiran123/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa
+FROM ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.description="RPX D3 SAM2 adapter and real-data gates"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    RPX_TRACKING_PYTHON=/opt/rpx-envs/sam2/bin/python \
+    PYTHONUNBUFFERED=1
+
+COPY benchmark /opt/rpx/benchmark
+COPY --chmod=0755 docker/tracking-smoke/stamp_adapter_env.py /usr/local/bin/rpx-stamp-adapter-env
+
+RUN case "${RPX_GIT_SHA}" in \
+      [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) ;; \
+      *) echo "RPX_GIT_SHA must be a full lowercase 40-character commit" >&2; exit 1 ;; \
+    esac && \
+    /opt/rpx-envs/sam2/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark && \
+    /opt/rpx-envs/sam2/bin/python /usr/local/bin/rpx-stamp-adapter-env \
+      --model sam2 \
+      --source-revision 2b90b9f5ceec907a1c18123530e92e794ad901a4 \
+      --checkpoint-repo facebook/sam2-hiera-large \
+      --checkpoint-revision e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251 && \
+    /opt/rpx-envs/sam2/bin/python -m compileall -q \
+      /opt/rpx/benchmark/rpx_benchmark /opt/rpx/benchmark/scripts && \
+    /opt/rpx-envs/sam2/bin/python -c \
+      "from scripts.tracking_models import TRACKER_CLASSES; assert sorted(TRACKER_CLASSES) == ['edgetam', 'sam2']; assert TRACKER_CLASSES['sam2'].model_revision == 'e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251'"
+
+WORKDIR /opt/rpx/benchmark
+ENTRYPOINT []
