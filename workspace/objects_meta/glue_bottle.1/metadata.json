@@ -1,0 +1,12 @@
+{
+  "object_id": "glue_bottle.1",
+  "fewsol_id": "58.1",
+  "fewsol_dir": "58.1-glue_bottle",
+  "global_object_id": 25,
+  "source_catalog_id": "58.1",
+  "source_category_id": "58",
+  "source_instance_id": "1",
+  "object_name": "glue_bottle",
+  "sos_data_path": "objects/glue_bottle.1/",
+  "questionnaire_path": "objects_meta/glue_bottle.1/questionnaire.json"
+}

@@ -1,0 +1,24 @@
+{
+  "object_id": "soft_scrub_cleanser_bottle",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "bottle",
+      "cleaning",
+      "packaging"
+    ],
+    "What is the name of the object in these images?": [
+      "soft scrub cleanser bottle",
+      "bottle"
+    ]
+  },
+  "source": "sos/soft_scrub_cleanser_bottle/questionnaire.txt",
+  "global_object_id": 58,
+  "source_catalog_id": "121",
+  "source_category_id": "121",
+  "source_instance_id": null,
+  "object_name": "soft_scrub_cleanser_bottle",
+  "sos_data_path": "objects/soft_scrub_cleanser_bottle/",
+  "questionnaire_path": "objects_meta/soft_scrub_cleanser_bottle/questionnaire.json",
+  "class_name": "soft_scrub_cleanser_bottle",
+  "sos_path": "objects/soft_scrub_cleanser_bottle/"
+}

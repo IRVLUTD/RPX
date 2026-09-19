@@ -1,0 +1,12 @@
+{
+  "object_id": "hat.1",
+  "fewsol_id": "66.1",
+  "fewsol_dir": "66.1-hat",
+  "global_object_id": 29,
+  "source_catalog_id": "66.1",
+  "source_category_id": "66",
+  "source_instance_id": "1",
+  "object_name": "hat",
+  "sos_data_path": "objects/hat.1/",
+  "questionnaire_path": "objects_meta/hat.1/questionnaire.json"
+}

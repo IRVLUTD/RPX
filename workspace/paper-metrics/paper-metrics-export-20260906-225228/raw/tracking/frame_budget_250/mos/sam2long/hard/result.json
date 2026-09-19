@@ -1,0 +1,69 @@
+{
+  "clips": 102,
+  "dataset": {
+    "manifest_sha256": "fbc3c01164696ffacfd8f09d202ab0880fe46ce5933af2daf3750a4ba3b7c6bc",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "2bb9b919082727eb099f2b0824f97373a32a33d1",
+  "frames": 25500,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "sam2long",
+  "model_checkpoint": {
+    "filename": "sam2.1_hiera_large.pt",
+    "repo": "facebook/sam2.1-hiera-large",
+    "revision": "665f8e2ad61cf5f53d65644ff27c8ee525124610",
+    "sha256": "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9701664090322443,
+      "deta": 0.9600613751079059,
+      "hota": 0.9649943010922447,
+      "idf1": 0.9895253294592012,
+      "idsw": 1.0,
+      "mota": 0.9791628703788393
+    },
+    "1": {
+      "assa": 0.919284183534047,
+      "deta": 0.868262828539037,
+      "hota": 0.8925764203001066,
+      "idf1": 0.9439634799846279,
+      "idsw": 2.3823529411764706,
+      "mota": 0.891538194459553
+    },
+    "2": {
+      "assa": 0.9685822179680176,
+      "deta": 0.9561172081416318,
+      "hota": 0.962210321342292,
+      "idf1": 0.989736812667755,
+      "idsw": 0.4117647058823529,
+      "mota": 0.9801483315146882
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 102,
+    "model_propagation_frames": 25398
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "scored_frames": "1_to_end (initialization frame excluded)"
+  },
+  "rpx_git_sha": "bc16071faba747b667f8845ce560490e86445c2f",
+  "split": "hard",
+  "task": "object_tracking"
+}

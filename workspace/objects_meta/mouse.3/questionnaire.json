@@ -1,0 +1,24 @@
+{
+  "object_id": "mouse.3",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "computer accessories",
+      "computer accessory"
+    ],
+    "What is the name of the object in these images?": [
+      "computer mouse",
+      "mouse",
+      "wireless mouse"
+    ]
+  },
+  "source": "sos/mouse.3/questionnaire.txt",
+  "global_object_id": 44,
+  "source_catalog_id": "87.3",
+  "source_category_id": "87",
+  "source_instance_id": "3",
+  "object_name": "mouse",
+  "sos_data_path": "objects/mouse.3/",
+  "questionnaire_path": "objects_meta/mouse.3/questionnaire.json",
+  "class_name": "mouse",
+  "sos_path": "objects/mouse.3/"
+}

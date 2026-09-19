@@ -1,0 +1,23 @@
+{
+  "object_id": "alarm_clock",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "clocks and watches",
+      "watches and clocks"
+    ],
+    "What is the name of the object in these images?": [
+      "analog alarm clock",
+      "clock"
+    ]
+  },
+  "source": "sos/alarm_clock/questionnaire.txt",
+  "global_object_id": 2,
+  "source_catalog_id": "3",
+  "source_category_id": "3",
+  "source_instance_id": null,
+  "object_name": "alarm_clock",
+  "sos_data_path": "objects/alarm_clock/",
+  "questionnaire_path": "objects_meta/alarm_clock/questionnaire.json",
+  "class_name": "alarm_clock",
+  "sos_path": "objects/alarm_clock/"
+}

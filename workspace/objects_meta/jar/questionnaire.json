@@ -1,0 +1,24 @@
+{
+  "object_id": "jar",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "storage",
+      "glass item",
+      "jar"
+    ],
+    "What is the name of the object in these images?": [
+      "jar",
+      "pickle jar"
+    ]
+  },
+  "source": "sos/jar/questionnaire.txt",
+  "global_object_id": 33,
+  "source_catalog_id": "71",
+  "source_category_id": "71",
+  "source_instance_id": null,
+  "object_name": "jar",
+  "sos_data_path": "objects/jar/",
+  "questionnaire_path": "objects_meta/jar/questionnaire.json",
+  "class_name": "jar",
+  "sos_path": "objects/jar/"
+}

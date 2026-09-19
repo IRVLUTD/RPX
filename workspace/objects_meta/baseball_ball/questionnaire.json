@@ -1,0 +1,25 @@
+{
+  "object_id": "baseball_ball",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "sports",
+      "toy",
+      "sport equipment or pet tool",
+      "balls"
+    ],
+    "What is the name of the object in these images?": [
+      "ball",
+      "baseball"
+    ]
+  },
+  "source": "sos/baseball_ball/questionnaire.txt",
+  "global_object_id": 6,
+  "source_catalog_id": "10",
+  "source_category_id": "10",
+  "source_instance_id": null,
+  "object_name": "baseball_ball",
+  "sos_data_path": "objects/baseball_ball/",
+  "questionnaire_path": "objects_meta/baseball_ball/questionnaire.json",
+  "class_name": "baseball_ball",
+  "sos_path": "objects/baseball_ball/"
+}

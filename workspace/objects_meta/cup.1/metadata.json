@@ -1,0 +1,12 @@
+{
+  "object_id": "cup.1",
+  "fewsol_id": "40.1",
+  "fewsol_dir": "40.1-cup",
+  "global_object_id": 19,
+  "source_catalog_id": "40.1",
+  "source_category_id": "40",
+  "source_instance_id": "1",
+  "object_name": "cup",
+  "sos_data_path": "objects/cup.1/",
+  "questionnaire_path": "objects_meta/cup.1/questionnaire.json"
+}

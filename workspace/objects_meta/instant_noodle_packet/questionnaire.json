@@ -1,0 +1,24 @@
+{
+  "object_id": "instant_noodle_packet",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "packet",
+      "food",
+      "food packet"
+    ],
+    "What is the name of the object in these images?": [
+      "instant noodles",
+      "maruchan ramen noodles"
+    ]
+  },
+  "source": "sos/instant_noodle_packet/questionnaire.txt",
+  "global_object_id": 32,
+  "source_catalog_id": "70",
+  "source_category_id": "70",
+  "source_instance_id": null,
+  "object_name": "instant_noodle_packet",
+  "sos_data_path": "objects/instant_noodle_packet/",
+  "questionnaire_path": "objects_meta/instant_noodle_packet/questionnaire.json",
+  "class_name": "instant_noodle_packet",
+  "sos_path": "objects/instant_noodle_packet/"
+}

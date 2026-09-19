@@ -1,0 +1,12 @@
+{
+  "object_id": "hammer.2",
+  "fewsol_id": "63.2",
+  "fewsol_dir": "63.2-hammer",
+  "global_object_id": 27,
+  "source_catalog_id": "63.2",
+  "source_category_id": "63",
+  "source_instance_id": "2",
+  "object_name": "hammer",
+  "sos_data_path": "objects/hammer.2/",
+  "questionnaire_path": "objects_meta/hammer.2/questionnaire.json"
+}

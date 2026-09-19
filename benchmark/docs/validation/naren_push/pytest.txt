@@ -1,0 +1,99 @@
+........................................................................ [  5%]
+....s................................................................... [ 11%]
+........................................................................ [ 16%]
+......................................ss................................ [ 22%]
+........................................................................ [ 27%]
+.....................s.................................................. [ 33%]
+........................................................................ [ 39%]
+.................F...................................................... [ 44%]
+.......................sss......ssss........................F........... [ 50%]
+........................................................................ [ 55%]
+........................................................................ [ 61%]
+..........F............................................................. [ 67%]
+........................................................................ [ 72%]
+........................................................................ [ 78%]
+........................................................................ [ 83%]
+.............................................................s......F... [ 89%]
+s....................................................................... [ 94%]
+................................s................................        [100%]
+=================================== FAILURES ===================================
+_________ test_rolling_depth_uses_path_api_and_official_keyword_names __________
+tests/test_depth_smoke_tools.py:578: in test_rolling_depth_uses_path_api_and_official_keyword_names
+    depth = adapter._predict_clip(sample)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/video_depth_models/rolling_depth.py:120: in _predict_clip
+    imageio.mimsave(
+/var/data/python/lib/python3.13/site-packages/imageio/v2.py:494: in mimwrite
+    with imopen(uri, "wI", **imopen_args) as file:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/var/data/python/lib/python3.13/site-packages/imageio/core/imopen.py:190: in imopen
+    candidate_plugin = config.plugin_class
+                       ^^^^^^^^^^^^^^^^^^^
+/var/data/python/lib/python3.13/site-packages/imageio/config/plugins.py:100: in plugin_class
+    module = importlib.import_module(self.module_name, self.package_name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.13/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1387: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1360: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1331: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:935: in _load_unlocked
+    ???
+<frozen importlib._bootstrap_external>:1023: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+/var/data/python/lib/python3.13/site-packages/imageio/plugins/pyav.py:193: in <module>
+    def _format_to_dtype(format: av.VideoFormat) -> np.dtype:
+                                 ^^^^^^^^^^^^^^
+E   AttributeError: module 'av' has no attribute 'VideoFormat'. Did you mean: 'VideoFrame'?
+____________________ test_no_bare_stdlib_raises_in_library _____________________
+tests/test_exceptions_and_logging.py:121: in test_no_bare_stdlib_raises_in_library
+    assert not offenders, (
+E   AssertionError: Found bare stdlib raises in library code. Use RPXError subclasses with a `hint`:
+E       rpx_benchmark/pose_conventions.py:22: raise ValueError(f"expected a 4x4 pose, got {transform.shape}")
+E       rpx_benchmark/pose_pairs.py:139: raise ValueError(f"camera pose {path} must have shape (7,), got {values.shape}")
+E       rpx_benchmark/pose_pairs.py:233: raise ValueError(
+E       rpx_benchmark/ar_pose_audit.py:104: raise RuntimeError(
+E       rpx_benchmark/ar_pose_audit.py:109: raise RuntimeError(
+E       rpx_benchmark/ar_pose_audit.py:144: raise ValueError(f"unknown FewSOL marker id: {marker_id}")
+E       rpx_benchmark/ar_pose_audit.py:345: raise ValueError("frame, camera-pose and board-observation counts differ")
+E       rpx_benchmark/ar_pose_audit.py:352: raise ValueError("pose_axis_convention must be 't265' or 'opencv'")
+E   assert not ['rpx_benchmark/pose_conventions.py:22: raise ValueError(f"expected a 4x4 pose, got {transform.shape}")', 'rpx_benchma... RuntimeError(', 'rpx_benchmark/ar_pose_audit.py:144: raise ValueError(f"unknown FewSOL marker id: {marker_id}")', ...]
+____________________ test_video_depth_aliases_are_identity _____________________
+tests/test_paper_aliases.py:19: in test_video_depth_aliases_are_identity
+    assert vd.evaluate_d1v_clip is vd.evaluate_video_depth_clip
+           ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: module 'rpx_benchmark.tasks.video_depth' has no attribute 'evaluate_d1v_clip'
+_____________ test_real_video_adapter_shape[da3-video-DA3-metric] ______________
+tests/test_video_depth_skeletons.py:152: in test_real_video_adapter_shape
+    assert adapter.depth_output_kind == expected_kind, (
+E   AssertionError: da3-video: depth_output_kind='relative', expected 'metric' (controls per-clip alignment)
+E   assert 'relative' == 'metric'
+E     
+E     - metric
+E     + relative
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_ar_pose_audit.py:34: could not import 'cv2': No module named 'cv2'
+SKIPPED [1] tests/test_dataset_hub_integration.py:137: no manifest for (relative_pose, easy) in this mock
+SKIPPED [1] tests/test_dataset_hub_integration.py:137: no manifest for (rgbd_relative_pose, easy) in this mock
+SKIPPED [1] tests/test_dataset_hub_v2_integration.py:319: no rgbd_relative_pose/easy manifest in this mock
+SKIPPED [1] tests/test_esd_scoring.py:242: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_esd_scoring.py:253: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_esd_scoring.py:269: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_esd_scoring.py:370: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_esd_scoring.py:390: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_esd_scoring.py:404: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_esd_scoring.py:415: could not import 'sklearn': No module named 'sklearn'
+SKIPPED [1] tests/test_video_depth_skeletons.py:92: got empty parameter set for (key)
+SKIPPED [1] tests/test_video_depth_skeletons.py:164: got empty parameter set for (key, expected_name, expected_kind)
+SKIPPED [1] tests/test_vqa_smoke.py:645: bbox smoke manifest is generated from the pinned Hub revision
+FAILED tests/test_depth_smoke_tools.py::test_rolling_depth_uses_path_api_and_official_keyword_names
+FAILED tests/test_exceptions_and_logging.py::test_no_bare_stdlib_raises_in_library
+FAILED tests/test_paper_aliases.py::test_video_depth_aliases_are_identity - A...
+FAILED tests/test_video_depth_skeletons.py::test_real_video_adapter_shape[da3-video-DA3-metric]
+4 failed, 1271 passed, 14 skipped, 3 deselected in 26.03s

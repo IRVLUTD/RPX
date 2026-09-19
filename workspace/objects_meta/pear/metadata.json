@@ -1,0 +1,12 @@
+{
+  "object_id": "pear",
+  "fewsol_id": "95",
+  "fewsol_dir": "95-pear",
+  "global_object_id": 47,
+  "source_catalog_id": "95",
+  "source_category_id": "95",
+  "source_instance_id": null,
+  "object_name": "pear",
+  "sos_data_path": "objects/pear/",
+  "questionnaire_path": "objects_meta/pear/questionnaire.json"
+}

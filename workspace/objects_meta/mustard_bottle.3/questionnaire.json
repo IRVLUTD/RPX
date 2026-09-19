@@ -1,0 +1,23 @@
+{
+  "object_id": "mustard_bottle.3",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "sauces"
+    ],
+    "What is the name of the object in these images?": [
+      "mustard",
+      "Heinz Mustard"
+    ]
+  },
+  "source": "sos/mustard_bottle.3/questionnaire.txt",
+  "global_object_id": 46,
+  "source_catalog_id": "89.3",
+  "source_category_id": "89",
+  "source_instance_id": "3",
+  "object_name": "mustard_bottle",
+  "sos_data_path": "objects/mustard_bottle.3/",
+  "questionnaire_path": "objects_meta/mustard_bottle.3/questionnaire.json",
+  "class_name": "mustard_bottle",
+  "sos_path": "objects/mustard_bottle.3/"
+}

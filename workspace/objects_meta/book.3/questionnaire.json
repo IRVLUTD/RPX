@@ -1,0 +1,26 @@
+{
+  "object_id": "book.3",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "stationary",
+      "book",
+      "books",
+      "hobby"
+    ],
+    "What is the name of the object in these images?": [
+      "book",
+      "coding interview textbook",
+      "programming textbook"
+    ]
+  },
+  "source": "sos/book.3/questionnaire.txt",
+  "global_object_id": 10,
+  "source_catalog_id": "17.3",
+  "source_category_id": "17",
+  "source_instance_id": "3",
+  "object_name": "book",
+  "sos_data_path": "objects/book.3/",
+  "questionnaire_path": "objects_meta/book.3/questionnaire.json",
+  "class_name": "book",
+  "sos_path": "objects/book.3/"
+}

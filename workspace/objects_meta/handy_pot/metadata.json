@@ -1,0 +1,12 @@
+{
+  "object_id": "handy_pot",
+  "fewsol_id": "65",
+  "fewsol_dir": "65-handy_pot",
+  "global_object_id": 28,
+  "source_catalog_id": "65",
+  "source_category_id": "65",
+  "source_instance_id": null,
+  "object_name": "handy_pot",
+  "sos_data_path": "objects/handy_pot/",
+  "questionnaire_path": "objects_meta/handy_pot/questionnaire.json"
+}

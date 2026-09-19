@@ -1,0 +1,25 @@
+{
+  "object_id": "candy_bar.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "wrapping",
+      "sweet",
+      "candy"
+    ],
+    "What is the name of the object in these images?": [
+      "candy bar",
+      "snickers candy bar"
+    ]
+  },
+  "source": "sos/candy_bar.1/questionnaire.txt",
+  "global_object_id": 14,
+  "source_catalog_id": "25.1",
+  "source_category_id": "25",
+  "source_instance_id": "1",
+  "object_name": "candy_bar",
+  "sos_data_path": "objects/candy_bar.1/",
+  "questionnaire_path": "objects_meta/candy_bar.1/questionnaire.json",
+  "class_name": "candy_bar",
+  "sos_path": "objects/candy_bar.1/"
+}

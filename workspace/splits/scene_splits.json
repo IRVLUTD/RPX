@@ -1,0 +1,2094 @@
+{
+  "schema_version": 2,
+  "primary_method": "mean_pn",
+  "scoring_version": "effort_stratified_v1",
+  "n_scenes": 100,
+  "tier_counts": {
+    "easy": 33,
+    "medium": 33,
+    "hard": 34
+  },
+  "aggregation": "mean of per-phase primary scores",
+  "splits": {
+    "easy": [
+      "scene011",
+      "scene012",
+      "scene013",
+      "scene015",
+      "scene022",
+      "scene023",
+      "scene024",
+      "scene026",
+      "scene029",
+      "scene030",
+      "scene031",
+      "scene032",
+      "scene034",
+      "scene035",
+      "scene037",
+      "scene038",
+      "scene004",
+      "scene051",
+      "scene053",
+      "scene054",
+      "scene055",
+      "scene057",
+      "scene059",
+      "scene060",
+      "scene066",
+      "scene068",
+      "scene071",
+      "scene073",
+      "scene075",
+      "scene008",
+      "scene092",
+      "scene093",
+      "scene094"
+    ],
+    "medium": [
+      "scene100",
+      "scene014",
+      "scene017",
+      "scene021",
+      "scene025",
+      "scene028",
+      "scene036",
+      "scene047",
+      "scene048",
+      "scene050",
+      "scene052",
+      "scene056",
+      "scene058",
+      "scene006",
+      "scene064",
+      "scene065",
+      "scene069",
+      "scene007",
+      "scene070",
+      "scene072",
+      "scene074",
+      "scene076",
+      "scene077",
+      "scene078",
+      "scene079",
+      "scene084",
+      "scene086",
+      "scene089",
+      "scene009",
+      "scene090",
+      "scene091",
+      "scene097",
+      "scene099"
+    ],
+    "hard": [
+      "scene001",
+      "scene010",
+      "scene016",
+      "scene018",
+      "scene019",
+      "scene002",
+      "scene020",
+      "scene027",
+      "scene003",
+      "scene033",
+      "scene039",
+      "scene040",
+      "scene041",
+      "scene042",
+      "scene043",
+      "scene044",
+      "scene045",
+      "scene046",
+      "scene049",
+      "scene005",
+      "scene061",
+      "scene062",
+      "scene063",
+      "scene067",
+      "scene080",
+      "scene081",
+      "scene082",
+      "scene083",
+      "scene085",
+      "scene087",
+      "scene088",
+      "scene095",
+      "scene096",
+      "scene098"
+    ]
+  },
+  "scene_detail": {
+    "scene001": {
+      "scene_tier": "hard",
+      "scene_score": 0.6319027777777777,
+      "phase_scores": [
+        0.6781083333333332,
+        0.62565,
+        0.59195
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene010": {
+      "scene_tier": "hard",
+      "scene_score": 0.5306916666666667,
+      "phase_scores": [
+        0.5944416666666666,
+        0.5763,
+        0.4213333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene100": {
+      "scene_tier": "medium",
+      "scene_score": 0.5233583333333333,
+      "phase_scores": [
+        0.5019666666666667,
+        0.52975,
+        0.5383583333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene011": {
+      "scene_tier": "easy",
+      "scene_score": 0.3555,
+      "phase_scores": [
+        0.3655333333333333,
+        0.3509333333333333,
+        0.3500333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene012": {
+      "scene_tier": "easy",
+      "scene_score": 0.4227083333333333,
+      "phase_scores": [
+        0.6357583333333334,
+        0.2865833333333333,
+        0.34578333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene013": {
+      "scene_tier": "easy",
+      "scene_score": 0.4482277777777777,
+      "phase_scores": [
+        0.49626666666666663,
+        0.47288333333333327,
+        0.3755333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene014": {
+      "scene_tier": "medium",
+      "scene_score": 0.5035861111111111,
+      "phase_scores": [
+        0.601375,
+        0.4925,
+        0.41688333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene015": {
+      "scene_tier": "easy",
+      "scene_score": 0.3395333333333333,
+      "phase_scores": [
+        0.2867333333333333,
+        0.3511333333333333,
+        0.3807333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene016": {
+      "scene_tier": "hard",
+      "scene_score": 0.5429416666666665,
+      "phase_scores": [
+        0.5958583333333333,
+        0.5927333333333333,
+        0.4402333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene017": {
+      "scene_tier": "medium",
+      "scene_score": 0.5299222222222222,
+      "phase_scores": [
+        0.5990333333333334,
+        0.3789333333333333,
+        0.6117999999999999
+      ],
+      "phase_tiers": [
+        "hard",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene018": {
+      "scene_tier": "hard",
+      "scene_score": 0.6263305555555555,
+      "phase_scores": [
+        0.5849000000000001,
+        0.6398166666666667,
+        0.6542749999999999
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene019": {
+      "scene_tier": "hard",
+      "scene_score": 0.5570805555555556,
+      "phase_scores": [
+        0.4341833333333333,
+        0.5895833333333333,
+        0.647475
+      ],
+      "phase_tiers": [
+        "easy",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene002": {
+      "scene_tier": "hard",
+      "scene_score": 0.6275027777777779,
+      "phase_scores": [
+        0.6586083333333334,
+        0.6376833333333333,
+        0.5862166666666667
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene020": {
+      "scene_tier": "hard",
+      "scene_score": 0.6435277777777778,
+      "phase_scores": [
+        0.6191666666666666,
+        0.6358,
+        0.6756166666666666
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene021": {
+      "scene_tier": "medium",
+      "scene_score": 0.4816805555555555,
+      "phase_scores": [
+        0.5527333333333333,
+        0.43192499999999995,
+        0.46038333333333326
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene022": {
+      "scene_tier": "easy",
+      "scene_score": 0.2918166666666666,
+      "phase_scores": [
+        0.3017333333333333,
+        0.29198333333333326,
+        0.28173333333333334
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene023": {
+      "scene_tier": "easy",
+      "scene_score": 0.4210138888888888,
+      "phase_scores": [
+        0.48018333333333324,
+        0.35945000000000005,
+        0.4234083333333332
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene024": {
+      "scene_tier": "easy",
+      "scene_score": 0.4120944444444445,
+      "phase_scores": [
+        0.46590000000000004,
+        0.31813333333333327,
+        0.45225
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene025": {
+      "scene_tier": "medium",
+      "scene_score": 0.4668444444444444,
+      "phase_scores": [
+        0.528975,
+        0.42824166666666663,
+        0.44331666666666664
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene026": {
+      "scene_tier": "easy",
+      "scene_score": 0.45669999999999994,
+      "phase_scores": [
+        0.5087333333333334,
+        0.3679333333333333,
+        0.4934333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene027": {
+      "scene_tier": "hard",
+      "scene_score": 0.5440027777777777,
+      "phase_scores": [
+        0.6427833333333333,
+        0.3943333333333333,
+        0.5948916666666667
+      ],
+      "phase_tiers": [
+        "hard",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene028": {
+      "scene_tier": "medium",
+      "scene_score": 0.5001166666666667,
+      "phase_scores": [
+        0.563925,
+        0.38213333333333327,
+        0.5542916666666667
+      ],
+      "phase_tiers": [
+        "hard",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene029": {
+      "scene_tier": "easy",
+      "scene_score": 0.413,
+      "phase_scores": [
+        0.4350333333333333,
+        0.33953333333333335,
+        0.4644333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene003": {
+      "scene_tier": "hard",
+      "scene_score": 0.5700472222222221,
+      "phase_scores": [
+        0.5515666666666666,
+        0.5897833333333332,
+        0.5687916666666667
+      ],
+      "phase_tiers": [
+        "medium",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene030": {
+      "scene_tier": "easy",
+      "scene_score": 0.43294999999999995,
+      "phase_scores": [
+        0.4621833333333333,
+        0.3562333333333333,
+        0.4804333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene031": {
+      "scene_tier": "easy",
+      "scene_score": 0.3632166666666667,
+      "phase_scores": [
+        0.4003333333333334,
+        0.33228333333333326,
+        0.3570333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene032": {
+      "scene_tier": "easy",
+      "scene_score": 0.38225,
+      "phase_scores": [
+        0.3633833333333333,
+        0.42373333333333335,
+        0.3596333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene033": {
+      "scene_tier": "hard",
+      "scene_score": 0.5445444444444445,
+      "phase_scores": [
+        0.5821833333333333,
+        0.49862500000000004,
+        0.5528250000000001
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene034": {
+      "scene_tier": "easy",
+      "scene_score": 0.43102777777777773,
+      "phase_scores": [
+        0.43706666666666666,
+        0.33563333333333334,
+        0.5203833333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene035": {
+      "scene_tier": "easy",
+      "scene_score": 0.41416388888888894,
+      "phase_scores": [
+        0.5147833333333334,
+        0.387975,
+        0.3397333333333334
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene036": {
+      "scene_tier": "medium",
+      "scene_score": 0.4922416666666667,
+      "phase_scores": [
+        0.4271833333333333,
+        0.42388333333333333,
+        0.6256583333333334
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene037": {
+      "scene_tier": "easy",
+      "scene_score": 0.4485861111111111,
+      "phase_scores": [
+        0.5372916666666666,
+        0.3791333333333333,
+        0.4293333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene038": {
+      "scene_tier": "easy",
+      "scene_score": 0.4534611111111111,
+      "phase_scores": [
+        0.4164333333333333,
+        0.3798333333333333,
+        0.5641166666666666
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene039": {
+      "scene_tier": "hard",
+      "scene_score": 0.5706722222222224,
+      "phase_scores": [
+        0.60945,
+        0.49693333333333334,
+        0.6056333333333334
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene004": {
+      "scene_tier": "easy",
+      "scene_score": 0.4592805555555555,
+      "phase_scores": [
+        0.4339333333333333,
+        0.551575,
+        0.3923333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene040": {
+      "scene_tier": "hard",
+      "scene_score": 0.5899694444444444,
+      "phase_scores": [
+        0.6053166666666666,
+        0.5594250000000001,
+        0.6051666666666667
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene041": {
+      "scene_tier": "hard",
+      "scene_score": 0.555911111111111,
+      "phase_scores": [
+        0.6246999999999998,
+        0.5631,
+        0.4799333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene042": {
+      "scene_tier": "hard",
+      "scene_score": 0.6370472222222222,
+      "phase_scores": [
+        0.5939166666666666,
+        0.6439083333333333,
+        0.6733166666666667
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene043": {
+      "scene_tier": "hard",
+      "scene_score": 0.6192222222222222,
+      "phase_scores": [
+        0.6347166666666667,
+        0.5523666666666666,
+        0.6705833333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene044": {
+      "scene_tier": "hard",
+      "scene_score": 0.5348361111111111,
+      "phase_scores": [
+        0.4839833333333333,
+        0.5523999999999999,
+        0.568125
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene045": {
+      "scene_tier": "hard",
+      "scene_score": 0.6184250000000001,
+      "phase_scores": [
+        0.6123166666666667,
+        0.6184916666666667,
+        0.6244666666666666
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene046": {
+      "scene_tier": "hard",
+      "scene_score": 0.5607888888888889,
+      "phase_scores": [
+        0.545,
+        0.59505,
+        0.5423166666666667
+      ],
+      "phase_tiers": [
+        "medium",
+        "hard",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene047": {
+      "scene_tier": "medium",
+      "scene_score": 0.5037444444444444,
+      "phase_scores": [
+        0.649875,
+        0.453725,
+        0.40763333333333335
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene048": {
+      "scene_tier": "medium",
+      "scene_score": 0.49618055555555546,
+      "phase_scores": [
+        0.5245749999999999,
+        0.5554333333333333,
+        0.4085333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene049": {
+      "scene_tier": "hard",
+      "scene_score": 0.5623416666666666,
+      "phase_scores": [
+        0.5380833333333332,
+        0.5545749999999999,
+        0.5943666666666666
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene005": {
+      "scene_tier": "hard",
+      "scene_score": 0.6023,
+      "phase_scores": [
+        0.6347333333333333,
+        0.6076666666666666,
+        0.5645
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene050": {
+      "scene_tier": "medium",
+      "scene_score": 0.5188805555555556,
+      "phase_scores": [
+        0.5092833333333333,
+        0.5228166666666667,
+        0.5245416666666667
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene051": {
+      "scene_tier": "easy",
+      "scene_score": 0.4262361111111111,
+      "phase_scores": [
+        0.40309999999999996,
+        0.433675,
+        0.4419333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene052": {
+      "scene_tier": "medium",
+      "scene_score": 0.47970555555555555,
+      "phase_scores": [
+        0.5043,
+        0.48013333333333336,
+        0.45468333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene053": {
+      "scene_tier": "easy",
+      "scene_score": 0.421325,
+      "phase_scores": [
+        0.3779833333333333,
+        0.47525833333333334,
+        0.41073333333333334
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene054": {
+      "scene_tier": "easy",
+      "scene_score": 0.407875,
+      "phase_scores": [
+        0.40526666666666666,
+        0.469125,
+        0.3492333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene055": {
+      "scene_tier": "easy",
+      "scene_score": 0.403175,
+      "phase_scores": [
+        0.3581833333333333,
+        0.4266333333333333,
+        0.42470833333333335
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene056": {
+      "scene_tier": "medium",
+      "scene_score": 0.47480277777777785,
+      "phase_scores": [
+        0.5204916666666667,
+        0.35708333333333336,
+        0.5468333333333334
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene057": {
+      "scene_tier": "easy",
+      "scene_score": 0.41448888888888885,
+      "phase_scores": [
+        0.42516666666666664,
+        0.42016666666666663,
+        0.39813333333333334
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene058": {
+      "scene_tier": "medium",
+      "scene_score": 0.509888888888889,
+      "phase_scores": [
+        0.5733333333333333,
+        0.5411,
+        0.4152333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene059": {
+      "scene_tier": "easy",
+      "scene_score": 0.42731388888888894,
+      "phase_scores": [
+        0.39533333333333337,
+        0.46447499999999997,
+        0.4221333333333334
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene006": {
+      "scene_tier": "medium",
+      "scene_score": 0.4895611111111111,
+      "phase_scores": [
+        0.5482416666666667,
+        0.41505,
+        0.5053916666666667
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene060": {
+      "scene_tier": "easy",
+      "scene_score": 0.41835833333333333,
+      "phase_scores": [
+        0.4056333333333333,
+        0.4658083333333333,
+        0.3836333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene061": {
+      "scene_tier": "hard",
+      "scene_score": 0.6655083333333334,
+      "phase_scores": [
+        0.6531666666666667,
+        0.6990416666666667,
+        0.6443166666666665
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene062": {
+      "scene_tier": "hard",
+      "scene_score": 0.6463611111111112,
+      "phase_scores": [
+        0.6344916666666667,
+        0.656925,
+        0.6476666666666667
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene063": {
+      "scene_tier": "hard",
+      "scene_score": 0.63785,
+      "phase_scores": [
+        0.7262,
+        0.6209749999999999,
+        0.5663750000000001
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene064": {
+      "scene_tier": "medium",
+      "scene_score": 0.47275,
+      "phase_scores": [
+        0.4711333333333333,
+        0.4714833333333333,
+        0.47563333333333335
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene065": {
+      "scene_tier": "medium",
+      "scene_score": 0.49124999999999996,
+      "phase_scores": [
+        0.5003333333333333,
+        0.5005833333333333,
+        0.4728333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene066": {
+      "scene_tier": "easy",
+      "scene_score": 0.4316166666666666,
+      "phase_scores": [
+        0.4320833333333333,
+        0.3977333333333333,
+        0.4650333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene067": {
+      "scene_tier": "hard",
+      "scene_score": 0.5530805555555555,
+      "phase_scores": [
+        0.5627666666666665,
+        0.51695,
+        0.579525
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene068": {
+      "scene_tier": "easy",
+      "scene_score": 0.4241,
+      "phase_scores": [
+        0.3925333333333333,
+        0.4436333333333333,
+        0.4361333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene069": {
+      "scene_tier": "medium",
+      "scene_score": 0.46578333333333344,
+      "phase_scores": [
+        0.41598333333333337,
+        0.42253333333333337,
+        0.5588333333333334
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene007": {
+      "scene_tier": "medium",
+      "scene_score": 0.5189361111111112,
+      "phase_scores": [
+        0.564525,
+        0.53335,
+        0.4589333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene070": {
+      "scene_tier": "medium",
+      "scene_score": 0.5124222222222222,
+      "phase_scores": [
+        0.4133833333333333,
+        0.56105,
+        0.5628333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene071": {
+      "scene_tier": "easy",
+      "scene_score": 0.3830972222222222,
+      "phase_scores": [
+        0.438075,
+        0.38138333333333335,
+        0.3298333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene072": {
+      "scene_tier": "medium",
+      "scene_score": 0.4814444444444444,
+      "phase_scores": [
+        0.41558333333333336,
+        0.5040666666666667,
+        0.5246833333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene073": {
+      "scene_tier": "easy",
+      "scene_score": 0.4608277777777778,
+      "phase_scores": [
+        0.45696666666666663,
+        0.4947,
+        0.43081666666666657
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene074": {
+      "scene_tier": "medium",
+      "scene_score": 0.4942722222222222,
+      "phase_scores": [
+        0.45802499999999996,
+        0.5460333333333333,
+        0.47875833333333334
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene075": {
+      "scene_tier": "easy",
+      "scene_score": 0.36883333333333335,
+      "phase_scores": [
+        0.3249333333333333,
+        0.3728333333333333,
+        0.4087333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene076": {
+      "scene_tier": "medium",
+      "scene_score": 0.5287722222222223,
+      "phase_scores": [
+        0.5760833333333333,
+        0.4530416666666667,
+        0.5571916666666666
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene077": {
+      "scene_tier": "medium",
+      "scene_score": 0.46187222222222224,
+      "phase_scores": [
+        0.5137916666666668,
+        0.4457916666666667,
+        0.4260333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene078": {
+      "scene_tier": "medium",
+      "scene_score": 0.49114444444444444,
+      "phase_scores": [
+        0.5320583333333334,
+        0.4732416666666666,
+        0.4681333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene079": {
+      "scene_tier": "medium",
+      "scene_score": 0.5231444444444445,
+      "phase_scores": [
+        0.51685,
+        0.4876916666666667,
+        0.5648916666666667
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene008": {
+      "scene_tier": "easy",
+      "scene_score": 0.4326388888888888,
+      "phase_scores": [
+        0.5396499999999999,
+        0.33193333333333336,
+        0.4263333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene080": {
+      "scene_tier": "hard",
+      "scene_score": 0.5662527777777778,
+      "phase_scores": [
+        0.5955833333333334,
+        0.5319666666666667,
+        0.5712083333333334
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene081": {
+      "scene_tier": "hard",
+      "scene_score": 0.6276083333333333,
+      "phase_scores": [
+        0.6868083333333332,
+        0.59095,
+        0.6050666666666666
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene082": {
+      "scene_tier": "hard",
+      "scene_score": 0.6168166666666668,
+      "phase_scores": [
+        0.6814833333333333,
+        0.5802,
+        0.5887666666666668
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene083": {
+      "scene_tier": "hard",
+      "scene_score": 0.5966527777777778,
+      "phase_scores": [
+        0.6264583333333333,
+        0.6313583333333335,
+        0.5321416666666666
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene084": {
+      "scene_tier": "medium",
+      "scene_score": 0.5270138888888889,
+      "phase_scores": [
+        0.5040833333333333,
+        0.6059249999999999,
+        0.4710333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "hard",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene085": {
+      "scene_tier": "hard",
+      "scene_score": 0.5577388888888889,
+      "phase_scores": [
+        0.592,
+        0.6117833333333332,
+        0.4694333333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene086": {
+      "scene_tier": "medium",
+      "scene_score": 0.5003722222222221,
+      "phase_scores": [
+        0.6167166666666666,
+        0.5006666666666667,
+        0.38373333333333337
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene087": {
+      "scene_tier": "hard",
+      "scene_score": 0.6168305555555555,
+      "phase_scores": [
+        0.6043833333333333,
+        0.64275,
+        0.6033583333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene088": {
+      "scene_tier": "hard",
+      "scene_score": 0.6028611111111112,
+      "phase_scores": [
+        0.5945583333333333,
+        0.6192,
+        0.594825
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene089": {
+      "scene_tier": "medium",
+      "scene_score": 0.5285944444444445,
+      "phase_scores": [
+        0.49651666666666666,
+        0.6020833333333333,
+        0.48718333333333325
+      ],
+      "phase_tiers": [
+        "medium",
+        "hard",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene009": {
+      "scene_tier": "medium",
+      "scene_score": 0.5295166666666666,
+      "phase_scores": [
+        0.6262583333333333,
+        0.5307583333333333,
+        0.4315333333333334
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene090": {
+      "scene_tier": "medium",
+      "scene_score": 0.4646083333333333,
+      "phase_scores": [
+        0.5522083333333332,
+        0.4321833333333333,
+        0.40943333333333337
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene091": {
+      "scene_tier": "medium",
+      "scene_score": 0.5136527777777777,
+      "phase_scores": [
+        0.5720333333333334,
+        0.3724416666666666,
+        0.5964833333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene092": {
+      "scene_tier": "easy",
+      "scene_score": 0.40691111111111106,
+      "phase_scores": [
+        0.4064833333333333,
+        0.35501666666666665,
+        0.4592333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene093": {
+      "scene_tier": "easy",
+      "scene_score": 0.41915277777777776,
+      "phase_scores": [
+        0.41473333333333334,
+        0.4181916666666667,
+        0.4245333333333333
+      ],
+      "phase_tiers": [
+        "easy",
+        "easy",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene094": {
+      "scene_tier": "easy",
+      "scene_score": 0.4509138888888889,
+      "phase_scores": [
+        0.5101916666666666,
+        0.2788833333333333,
+        0.5636666666666666
+      ],
+      "phase_tiers": [
+        "medium",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene095": {
+      "scene_tier": "hard",
+      "scene_score": 0.5366222222222222,
+      "phase_scores": [
+        0.6091749999999999,
+        0.4383083333333333,
+        0.5623833333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "easy",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene096": {
+      "scene_tier": "hard",
+      "scene_score": 0.5959888888888889,
+      "phase_scores": [
+        0.5952999999999999,
+        0.6239166666666668,
+        0.56875
+      ],
+      "phase_tiers": [
+        "hard",
+        "hard",
+        "hard"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene097": {
+      "scene_tier": "medium",
+      "scene_score": 0.4855277777777778,
+      "phase_scores": [
+        0.53715,
+        0.5043,
+        0.4151333333333333
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "easy"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene098": {
+      "scene_tier": "hard",
+      "scene_score": 0.5440666666666666,
+      "phase_scores": [
+        0.5893333333333333,
+        0.5139833333333332,
+        0.5288833333333333
+      ],
+      "phase_tiers": [
+        "hard",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    },
+    "scene099": {
+      "scene_tier": "medium",
+      "scene_score": 0.5283555555555556,
+      "phase_scores": [
+        0.5448000000000001,
+        0.5045499999999999,
+        0.5357166666666666
+      ],
+      "phase_tiers": [
+        "medium",
+        "medium",
+        "medium"
+      ],
+      "phase_indices": [
+        0,
+        1,
+        2
+      ]
+    }
+  },
+  "provenance": {
+    "input_sha256": "b9d1b95e3aa013b4ec1c2849cadf1c53a8e697ec7631e11fc6ec9286fa5e09e8",
+    "feature_set_version": "v1.0",
+    "scoring_version": "effort_stratified_v1",
+    "primary_method": "mean_pn",
+    "weights": {
+      "iter_mean": 0.125,
+      "iter_max": 0.125,
+      "obj_mean": 0.03,
+      "obj_std": 0.03,
+      "obj_consist": 0.03,
+      "occ_mean": 0.03,
+      "occ_p90": 0.03,
+      "occ_heavy": 0.03,
+      "depth_invalid": 0.03,
+      "depth_invalid_mask": 0.03,
+      "depth_std": 0.03,
+      "depth_std_mask": 0.03,
+      "specular": 0.03,
+      "dark": 0.03,
+      "area_cv": 0.03,
+      "area_drop": 0.03,
+      "vis_instability": 0.03,
+      "trans_mean": 0.03,
+      "trans_p90": 0.03,
+      "rot_mean": 0.03,
+      "rot_p90": 0.03,
+      "jerk": 0.03,
+      "fisheye_dark": 0.03,
+      "fisheye_bright": 0.03,
+      "fisheye_sharpness": 0.03,
+      "fisheye_corr": 0.03,
+      "fisheye_texture": 0.03
+    },
+    "feature_names": [
+      "iter_mean",
+      "iter_max",
+      "obj_mean",
+      "obj_std",
+      "obj_consist",
+      "occ_mean",
+      "occ_p90",
+      "occ_heavy",
+      "depth_invalid",
+      "depth_invalid_mask",
+      "depth_std",
+      "depth_std_mask",
+      "specular",
+      "dark",
+      "area_cv",
+      "area_drop",
+      "vis_instability",
+      "trans_mean",
+      "trans_p90",
+      "rot_mean",
+      "rot_p90",
+      "jerk",
+      "fisheye_dark",
+      "fisheye_bright",
+      "fisheye_sharpness",
+      "fisheye_corr",
+      "fisheye_texture"
+    ],
+    "n_entries": 300,
+    "generated_at_utc": "2026-05-11T16:09:57Z",
+    "script_version": "4a85b498912aeb821dc62d77615034e6cccf34e4",
+    "extra": {
+      "mi_metadata": {
+        "effort_alpha": 0.25
+      }
+    }
+  }
+}

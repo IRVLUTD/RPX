@@ -76,6 +76,7 @@ esd-fast = [
 # capture board through an equivalent OpenCV custom dictionary.
 ar-pose-audit = [
   "opencv-contrib-python-headless>=4.8",
+  "matplotlib>=3.7",
 ]
 # ESD-feature analysis helpers (PCA, k-means, GMM, correlation tests,
 # plots) used by `rpx_benchmark.data.esd_scoring`. Heavy deps kept out

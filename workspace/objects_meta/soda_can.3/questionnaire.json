@@ -1,0 +1,29 @@
+{
+  "object_id": "soda_can.3",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "can",
+      "bottle",
+      "cool drink",
+      "packaging",
+      "beverage"
+    ],
+    "What is the name of the object in these images?": [
+      "redbull can",
+      "can of redbull",
+      "soda can",
+      "redbull can"
+    ]
+  },
+  "source": "sos/soda_can.3/questionnaire.txt",
+  "global_object_id": 57,
+  "source_catalog_id": "120.3",
+  "source_category_id": "120",
+  "source_instance_id": "3",
+  "object_name": "soda_can",
+  "sos_data_path": "objects/soda_can.3/",
+  "questionnaire_path": "objects_meta/soda_can.3/questionnaire.json",
+  "class_name": "soda_can",
+  "sos_path": "objects/soda_can.3/"
+}

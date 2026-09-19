@@ -1,0 +1,26 @@
+{
+  "object_id": "glue_bottle.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "holding",
+      "liquid chemical",
+      "arts and crafts",
+      "school tools"
+    ],
+    "What is the name of the object in these images?": [
+      "glue",
+      "Elmer's Glue",
+      "Glue bottle"
+    ]
+  },
+  "source": "sos/glue_bottle.1/questionnaire.txt",
+  "global_object_id": 25,
+  "source_catalog_id": "58.1",
+  "source_category_id": "58",
+  "source_instance_id": "1",
+  "object_name": "glue_bottle",
+  "sos_data_path": "objects/glue_bottle.1/",
+  "questionnaire_path": "objects_meta/glue_bottle.1/questionnaire.json",
+  "class_name": "glue_bottle",
+  "sos_path": "objects/glue_bottle.1/"
+}

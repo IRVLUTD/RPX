@@ -1,0 +1,12 @@
+{
+  "object_id": "mouse.3",
+  "fewsol_id": "87.3",
+  "fewsol_dir": "87.3-mouse",
+  "global_object_id": 44,
+  "source_catalog_id": "87.3",
+  "source_category_id": "87",
+  "source_instance_id": "3",
+  "object_name": "mouse",
+  "sos_data_path": "objects/mouse.3/",
+  "questionnaire_path": "objects_meta/mouse.3/questionnaire.json"
+}

@@ -1,0 +1,25 @@
+{
+  "object_id": "food_bag",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "chips"
+    ],
+    "What is the name of the object in these images?": [
+      "lays snack chips bag",
+      "food bag",
+      "snack bag",
+      "layd chips bag"
+    ]
+  },
+  "source": "sos/food_bag/questionnaire.txt",
+  "global_object_id": 22,
+  "source_catalog_id": "50",
+  "source_category_id": "50",
+  "source_instance_id": null,
+  "object_name": "food_bag",
+  "sos_data_path": "objects/food_bag/",
+  "questionnaire_path": "objects_meta/food_bag/questionnaire.json",
+  "class_name": "food_bag",
+  "sos_path": "objects/food_bag/"
+}

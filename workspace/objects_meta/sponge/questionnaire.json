@@ -1,0 +1,25 @@
+{
+  "object_id": "sponge",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "cleaning tool",
+      "tool",
+      "scrubs and sponges",
+      "hygien material"
+    ],
+    "What is the name of the object in these images?": [
+      "sponge",
+      "dishwasher sponge"
+    ]
+  },
+  "source": "sos/sponge/questionnaire.txt",
+  "global_object_id": 61,
+  "source_catalog_id": "125",
+  "source_category_id": "125",
+  "source_instance_id": null,
+  "object_name": "sponge",
+  "sos_data_path": "objects/sponge/",
+  "questionnaire_path": "objects_meta/sponge/questionnaire.json",
+  "class_name": "sponge",
+  "sos_path": "objects/sponge/"
+}

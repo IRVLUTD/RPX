@@ -1,0 +1,59 @@
+{
+  "clips": 34,
+  "dataset": {
+    "manifest_name": "ego_object_tracking",
+    "manifest_sha256": "7c85f17bf58843d0cf533825c4feb9d1d608bff1e90e49960b980324618278d0",
+    "protocol": "ego",
+    "repo": "IRVLUTD/RPX",
+    "revision": "f082723002bad5800dd85e583115b4ea05734d31"
+  },
+  "dataset_protocol": "ego",
+  "evaluator_git_sha": "2b90d59d26a8692bb5d7e5a3a8cb72df2ba941f7",
+  "frames": 7878,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "edgetam",
+  "model_checkpoint": {
+    "filename": "edgetam.pt",
+    "repo": "facebook/EdgeTAM",
+    "revision": "14d7ecc48c656b94e5184519f698cd5386c5a2bf",
+    "sha256": "ed2d4850b8792c239689b043c47046ec239b6e808a3d9b6ae676c803fd8780df"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.8813267214729725,
+      "deta": 0.8413369846286111,
+      "hota": 0.8605388505565157,
+      "idf1": 0.914909738011997,
+      "idsw": 1.8529411764705883,
+      "mota": 0.8369183664762437
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 34,
+    "model_propagation_frames": 7844
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "open_vocabulary": false,
+    "scored_frames": "1_to_end (initialization frame excluded)",
+    "vocabulary": null,
+    "vocabulary_size": null
+  },
+  "rpx_git_sha": "2b90d59d26a8692bb5d7e5a3a8cb72df2ba941f7",
+  "split": "hard",
+  "task": "object_tracking"
+}

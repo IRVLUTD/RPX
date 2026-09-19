@@ -1,0 +1,12 @@
+{
+  "object_id": "power_drill",
+  "fewsol_id": "102",
+  "fewsol_dir": "102-power_drill",
+  "global_object_id": 49,
+  "source_catalog_id": "102",
+  "source_category_id": "102",
+  "source_instance_id": null,
+  "object_name": "power_drill",
+  "sos_data_path": "objects/power_drill/",
+  "questionnaire_path": "objects_meta/power_drill/questionnaire.json"
+}

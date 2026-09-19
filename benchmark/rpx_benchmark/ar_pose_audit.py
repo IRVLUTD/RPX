@@ -276,6 +276,62 @@ def _pearson(a: np.ndarray, b: np.ndarray) -> float | None:
     return float(np.corrcoef(a, b)[0, 1])
 
 
+def _distribution(values: Sequence[float]) -> dict[str, float | None]:
+    """Return robust, publication-friendly statistics for one error series."""
+
+    array = np.asarray(values, dtype=np.float64)
+    if not len(array):
+        return {key: None for key in ("rmse", "mean", "median", "std", "p95", "max")}
+    return {
+        "rmse": float(np.sqrt(np.mean(np.square(array)))),
+        "mean": float(np.mean(array)),
+        "median": float(np.median(array)),
+        "std": float(np.std(array)),
+        "p95": float(np.percentile(array, 95)),
+        "max": float(np.max(array)),
+    }
+
+
+def _robust_outliers(values: Sequence[float], *, z_threshold: float = 3.5) -> np.ndarray:
+    """Flag high residuals using a median/MAD threshold without assuming Gaussian noise."""
+
+    array = np.asarray(values, dtype=np.float64)
+    if not len(array):
+        return np.zeros(0, dtype=bool)
+    median = float(np.median(array))
+    mad = float(np.median(np.abs(array - median)))
+    if float(np.ptp(array)) < 1e-9:
+        return np.zeros(len(array), dtype=bool)
+    if mad < 1e-12:
+        return array > median + 1e-9
+    robust_z = (array - median) / (1.4826 * mad)
+    return robust_z > z_threshold
+
+
+def _slope_norm(frame_ids: Sequence[int], vectors: np.ndarray) -> float | None:
+    """Magnitude of a least-squares vector trend, expressed per source frame."""
+
+    if len(frame_ids) < 2:
+        return None
+    x = np.asarray(frame_ids, dtype=np.float64)
+    x -= x.mean()
+    denominator = float(x @ x)
+    if denominator < 1e-12:
+        return None
+    centred = np.asarray(vectors, dtype=np.float64) - np.mean(vectors, axis=0)
+    slope = (x[:, None] * centred).sum(axis=0) / denominator
+    return float(np.linalg.norm(slope))
+
+
+def _rotation_medoid(rotations: Rotation) -> Rotation:
+    """Choose the observed orientation with minimum median geodesic distance."""
+
+    quaternions = rotations.as_quat()
+    cosine_half_angles = np.clip(np.abs(quaternions @ quaternions.T), 0.0, 1.0)
+    distances = 2.0 * np.arccos(cosine_half_angles)
+    return rotations[int(np.argmin(np.median(distances, axis=1)))]
+
+
 def compare_pose_tracks(
     frame_ids: Sequence[int],
     cam_poses: Sequence[np.ndarray],
@@ -337,13 +393,18 @@ def compare_pose_tracks(
 
     step_translation_errors = []
     step_rotation_errors = []
+    step_translation_errors_per_frame = []
+    step_rotation_errors_per_frame = []
     step_gaps = []
     for index in range(1, len(frame_ids)):
         cam_step = relative_pose(cam_poses[index - 1], cam_poses[index])
         ar_step = relative_pose(ar_poses[index - 1], ar_poses[index])
         step_translation_errors.append(float(np.linalg.norm(cam_step[:3, 3] - ar_step[:3, 3])))
         step_rotation_errors.append(rotation_error_deg(cam_step, ar_step))
-        step_gaps.append(frame_ids[index] - frame_ids[index - 1])
+        gap = frame_ids[index] - frame_ids[index - 1]
+        step_gaps.append(gap)
+        step_translation_errors_per_frame.append(step_translation_errors[-1] / max(gap, 1))
+        step_rotation_errors_per_frame.append(step_rotation_errors[-1] / max(gap, 1))
 
     # If the frames are aligned and the board is static, this composition must
     # be constant.  No world-origin or hand-eye fit is involved.
@@ -355,6 +416,51 @@ def compare_pose_tracks(
         float(np.linalg.norm(pose[:3, 3] - board_anchor[:3, 3])) for pose in world_from_boards
     ]
     board_rotation_drift = [rotation_error_deg(board_anchor, pose) for pose in world_from_boards]
+
+    # Jitter is measured around a sequence-level central pose rather than the
+    # first observation, which may itself be noisy.  The translation median is
+    # robust to isolated PnP failures; the geodesic rotation medoid avoids
+    # quaternion sign ambiguity and is not pulled toward planar-PnP flips.
+    board_positions = np.asarray([pose[:3, 3] for pose in world_from_boards])
+    board_rotations = Rotation.from_matrix([pose[:3, :3] for pose in world_from_boards])
+    board_position_centre = np.median(board_positions, axis=0)
+    board_rotation_centre = _rotation_medoid(board_rotations)
+    board_translation_jitter = np.linalg.norm(
+        board_positions - board_position_centre[None, :], axis=1
+    )
+    board_rotation_jitter = np.degrees(
+        (board_rotation_centre.inv() * board_rotations).magnitude()
+    )
+    translation_outliers = _robust_outliers(board_translation_jitter)
+    rotation_outliers = _robust_outliers(board_rotation_jitter)
+    combined_outliers = translation_outliers | rotation_outliers
+    rotation_residual_vectors = (
+        board_rotation_centre.inv() * board_rotations
+    ).as_rotvec()
+
+    for row, position, pose, translation_jitter, rotation_jitter, is_outlier in zip(
+        frame_rows,
+        board_positions,
+        world_from_boards,
+        board_translation_jitter,
+        board_rotation_jitter,
+        combined_outliers,
+        strict=True,
+    ):
+        row.update(
+            {
+                "world_board_x_m": float(position[0]),
+                "world_board_y_m": float(position[1]),
+                "world_board_z_m": float(position[2]),
+                "world_board_qx": float(Rotation.from_matrix(pose[:3, :3]).as_quat()[0]),
+                "world_board_qy": float(Rotation.from_matrix(pose[:3, :3]).as_quat()[1]),
+                "world_board_qz": float(Rotation.from_matrix(pose[:3, :3]).as_quat()[2]),
+                "world_board_qw": float(Rotation.from_matrix(pose[:3, :3]).as_quat()[3]),
+                "static_board_translation_jitter_m": float(translation_jitter),
+                "static_board_rotation_jitter_deg": float(rotation_jitter),
+                "static_board_robust_outlier": bool(is_outlier),
+            }
+        )
 
     def mean(values: Sequence[float]) -> float | None:
         return float(np.mean(values)) if values else None
@@ -386,9 +492,28 @@ def compare_pose_tracks(
         "anchor_relative_rotation_rmse_deg": rmse(rotation_errors),
         "step_translation_rmse_m": rmse(step_translation_errors),
         "step_rotation_rmse_deg": rmse(step_rotation_errors),
+        "step_translation_rmse_m_per_frame": rmse(step_translation_errors_per_frame),
+        "step_rotation_rmse_deg_per_frame": rmse(step_rotation_errors_per_frame),
         "mean_detected_frame_gap": mean(step_gaps),
         "static_board_translation_drift_rmse_m": rmse(board_translation_drift),
         "static_board_rotation_drift_rmse_deg": rmse(board_rotation_drift),
+        "static_board_translation_jitter": _distribution(board_translation_jitter),
+        "static_board_rotation_jitter": _distribution(board_rotation_jitter),
+        "static_board_translation_jitter_robust_inliers": _distribution(
+            board_translation_jitter[~combined_outliers]
+        ),
+        "static_board_rotation_jitter_robust_inliers": _distribution(
+            board_rotation_jitter[~combined_outliers]
+        ),
+        "static_board_translation_drift_slope_m_per_frame": _slope_norm(
+            frame_ids, board_positions
+        ),
+        "static_board_rotation_drift_slope_deg_per_frame": (
+            None
+            if (slope := _slope_norm(frame_ids, rotation_residual_vectors)) is None
+            else float(np.degrees(slope))
+        ),
+        "static_board_robust_outlier_rate": float(np.mean(combined_outliers)),
         "mean_marker_count": mean([len(obs.marker_ids) for obs in board_observations]),
         "mean_reprojection_rmse_px": mean([obs.reprojection_rmse_px for obs in board_observations]),
     }
@@ -514,8 +639,13 @@ def aggregate_sequence_metrics(sequences: Sequence[Mapping[str, Any]]) -> dict[s
         "anchor_relative_rotation_rmse_deg",
         "step_translation_rmse_m",
         "step_rotation_rmse_deg",
+        "step_translation_rmse_m_per_frame",
+        "step_rotation_rmse_deg_per_frame",
         "static_board_translation_drift_rmse_m",
         "static_board_rotation_drift_rmse_deg",
+        "static_board_translation_drift_slope_m_per_frame",
+        "static_board_rotation_drift_slope_deg_per_frame",
+        "static_board_robust_outlier_rate",
         "mean_marker_count",
         "mean_reprojection_rmse_px",
     )
@@ -573,7 +703,37 @@ def write_results(
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    frame_rows = list(frame_rows)
     aggregate = aggregate_sequence_metrics(sequence_metrics)
+    valid_rows = [row for row in frame_rows if row.get("detected")]
+    for family, column in (
+        ("static_board_translation_jitter", "static_board_translation_jitter_m"),
+        ("static_board_rotation_jitter", "static_board_rotation_jitter_deg"),
+    ):
+        aggregate[family] = _distribution(
+            [float(row[column]) for row in valid_rows if row.get(column) is not None]
+        )
+    robust_inlier_rows = [
+        row for row in valid_rows if not bool(row.get("static_board_robust_outlier"))
+    ]
+    for family, column in (
+        (
+            "static_board_translation_jitter_robust_inliers",
+            "static_board_translation_jitter_m",
+        ),
+        (
+            "static_board_rotation_jitter_robust_inliers",
+            "static_board_rotation_jitter_deg",
+        ),
+    ):
+        aggregate[family] = _distribution(
+            [float(row[column]) for row in robust_inlier_rows if row.get(column) is not None]
+        )
+    aggregate["static_board_robust_outlier_rate"] = (
+        float(np.mean([bool(row.get("static_board_robust_outlier")) for row in valid_rows]))
+        if valid_rows
+        else None
+    )
     payload = {
         "protocol": dict(metadata),
         "aggregate": aggregate,
@@ -582,14 +742,22 @@ def write_results(
     (output_dir / "summary.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
     flattened = []
+    nested_families = (
+        "translation_correlation",
+        "rotation_vector_correlation",
+        "static_board_translation_jitter",
+        "static_board_rotation_jitter",
+        "static_board_translation_jitter_robust_inliers",
+        "static_board_rotation_jitter_robust_inliers",
+    )
     for item in sequence_metrics:
         row = {key: value for key, value in item.items() if not isinstance(value, Mapping)}
-        for family in ("translation_correlation", "rotation_vector_correlation"):
+        for family in nested_families:
             for key, value in item.get(family, {}).items():
                 row[f"{family}.{key}"] = value
         flattened.append(row)
     _write_csv(output_dir / "per_sequence.csv", flattened)
-    _write_csv(output_dir / "per_frame.csv", list(frame_rows))
+    _write_csv(output_dir / "per_frame.csv", frame_rows)
 
     def fmt(value: Any, digits: int = 4) -> str:
         return "n/a" if value is None else f"{float(value):.{digits}f}"
@@ -598,6 +766,7 @@ def write_results(
 
 ## Protocol
 
+- Dataset: `{metadata.get("dataset_repo", "unknown")}` at revision `{metadata.get("dataset_revision", "unknown")}`
 - Sequences: {aggregate["sequences"]} ({aggregate["sequences_with_detections"]} with detections)
 - Frames inspected: {aggregate["total_frames"]}
 - Frames with a valid AR-board pose: {aggregate["matched_frames"]} ({aggregate["detection_coverage"]:.1%})
@@ -620,10 +789,39 @@ def write_results(
 | Anchor-relative rotation RMSE | {fmt(aggregate["anchor_relative_rotation_rmse_deg"])} deg |
 | Step translation RMSE | {fmt(aggregate["step_translation_rmse_m"])} m |
 | Step rotation RMSE | {fmt(aggregate["step_rotation_rmse_deg"])} deg |
+| Gap-normalized step translation RMSE | {fmt(aggregate["step_translation_rmse_m_per_frame"])} m/frame |
+| Gap-normalized step rotation RMSE | {fmt(aggregate["step_rotation_rmse_deg_per_frame"])} deg/frame |
 | Static-board translation drift RMSE | {fmt(aggregate["static_board_translation_drift_rmse_m"])} m |
 | Static-board rotation drift RMSE | {fmt(aggregate["static_board_rotation_drift_rmse_deg"])} deg |
+| Static-board translation jitter, median / P95 | {fmt(aggregate["static_board_translation_jitter"]["median"])} / {fmt(aggregate["static_board_translation_jitter"]["p95"])} m |
+| Static-board rotation jitter, median / P95 | {fmt(aggregate["static_board_rotation_jitter"]["median"])} / {fmt(aggregate["static_board_rotation_jitter"]["p95"])} deg |
+| Robust-inlier translation jitter, median / P95 | {fmt(aggregate["static_board_translation_jitter_robust_inliers"]["median"])} / {fmt(aggregate["static_board_translation_jitter_robust_inliers"]["p95"])} m |
+| Robust-inlier rotation jitter, median / P95 | {fmt(aggregate["static_board_rotation_jitter_robust_inliers"]["median"])} / {fmt(aggregate["static_board_rotation_jitter_robust_inliers"]["p95"])} deg |
+| Translation drift slope | {fmt(aggregate["static_board_translation_drift_slope_m_per_frame"], 6)} m/frame |
+| Rotation drift slope | {fmt(aggregate["static_board_rotation_drift_slope_deg_per_frame"], 6)} deg/frame |
+| Robust residual outlier rate | {fmt(aggregate["static_board_robust_outlier_rate"])} |
 | Mean marker count | {fmt(aggregate["mean_marker_count"], 2)} |
 | Mean marker reprojection RMSE | {fmt(aggregate["mean_reprojection_rmse_px"])} px |
+
+## Automated finding
+
+The AR-derived and stored motion tracks are strongly correlated (translation
+`{fmt(aggregate["translation_correlation"]["all_components"])}`, rotation
+`{fmt(aggregate["rotation_vector_correlation"]["all_components"])}`). Across accepted frames,
+the fixed-board residual has median/P95 translation
+`{fmt(aggregate["static_board_translation_jitter"]["median"])} / {fmt(aggregate["static_board_translation_jitter"]["p95"])} m`
+and median/P95 rotation
+`{fmt(aggregate["static_board_rotation_jitter"]["median"])} / {fmt(aggregate["static_board_rotation_jitter"]["p95"])} deg`.
+After removing the automatically identified median/MAD residual outliers, those P95 values are
+`{fmt(aggregate["static_board_translation_jitter_robust_inliers"]["p95"])} m` and
+`{fmt(aggregate["static_board_rotation_jitter_robust_inliers"]["p95"])} deg`.
+
+These values show measurable disagreement, but they are an upper bound on T265 pose error rather
+than a pure T265 accuracy measurement. The released files do not contain the capture device's
+factory distortion coefficients or a numerical D435-to-T265 extrinsic. The residual therefore also
+contains tag-corner/PnP uncertainty, approximate-intrinsics error, synchronization error and any
+unmodelled sensor-frame offset. Large orientation branches in the per-sequence PDF should be
+treated as planar-PnP/reference failures until independently verified.
 
 ## Interpretation
 
@@ -632,6 +830,11 @@ D435-to-T265 transform. The static-board residual is an independent consistency 
 correct synchronization, conventions and the stated camera-frame alignment, the composed board
 pose should be constant. Review per-sequence and per-frame files before drawing conclusions from
 the aggregate correlations, especially where marker coverage or reprojection quality is low.
+
+The first-frame drift metrics are directly comparable to anchor-based ATE. The central-pose jitter
+metrics use the sequence median position and rotation medoid, making them less sensitive to one
+bad anchor. Gap-normalized step errors are the RPE-style local-motion measurements. A robust
+outlier is a translation or rotation residual more than 3.5 scaled MAD above its sequence median.
 """
     (output_dir / "report.md").write_text(report)
     return payload

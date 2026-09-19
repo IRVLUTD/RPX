@@ -1,0 +1,12 @@
+{
+  "object_id": "shampoo_bottle",
+  "fewsol_id": "114",
+  "fewsol_dir": "114-shampoo_bottle",
+  "global_object_id": 55,
+  "source_catalog_id": "114",
+  "source_category_id": "114",
+  "source_instance_id": null,
+  "object_name": "shampoo_bottle",
+  "sos_data_path": "objects/shampoo_bottle/",
+  "questionnaire_path": "objects_meta/shampoo_bottle/questionnaire.json"
+}

@@ -1,0 +1,69 @@
+{
+  "clips": 99,
+  "dataset": {
+    "manifest_sha256": "092980d23ee7a30de981c8dbf718cb05be8fa5209cc191bd116fd19439b2e72d",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "2bb9b919082727eb099f2b0824f97373a32a33d1",
+  "frames": 24750,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "sam2",
+  "model_checkpoint": {
+    "filename": "sam2_hiera_large.pt",
+    "repo": "facebook/sam2-hiera-large",
+    "revision": "e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251",
+    "sha256": "7442e4e9b732a508f80e141e7c2913437a3610ee0c77381a66658c3a445df87b"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9711251951671103,
+      "deta": 0.9566333520470118,
+      "hota": 0.9636297025165792,
+      "idf1": 0.9844830872337966,
+      "idsw": 0.8787878787878788,
+      "mota": 0.9696388789158771
+    },
+    "1": {
+      "assa": 0.9505734896193666,
+      "deta": 0.9064044158116623,
+      "hota": 0.9274707727680025,
+      "idf1": 0.9612189189636932,
+      "idsw": 0.8484848484848485,
+      "mota": 0.927803558895032
+    },
+    "2": {
+      "assa": 0.9729038811487131,
+      "deta": 0.9613968165531998,
+      "hota": 0.9669924207925829,
+      "idf1": 0.9885631813231734,
+      "idsw": 0.06060606060606061,
+      "mota": 0.9784475030238114
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 68,
+    "inferred_clips": 31,
+    "model_propagation_frames": 7719
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "scored_frames": "1_to_end (initialization frame excluded)"
+  },
+  "rpx_git_sha": "060b74b287a4d766d2fc1d298286527aad5549bb",
+  "split": "medium",
+  "task": "object_tracking"
+}

@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "started_utc": "2026-07-03T01:30:38.000649+00:00",
+  "command": [
+    "/opt/rpx-envs/transformers-image/bin/python",
+    "/opt/rpx/benchmark/scripts/run_depth.py",
+    "--model",
+    "da-v2-large",
+    "--split",
+    "easy",
+    "--repo",
+    "IRVLUTD/RPX",
+    "--revision",
+    "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+    "--device",
+    "cuda",
+    "--output-dir",
+    "/outputs/0f9609388b2a68601c79a3abe1e4876412a7ca54/rpx-docker-rtx5060/da-v2-large/micro/20260703T013036Z",
+    "--batch-size",
+    "1",
+    "--use-official",
+    "--save-predictions",
+    "--skip-flops",
+    "--max-samples",
+    "1"
+  ],
+  "model": "da-v2-large",
+  "task": "image",
+  "gate": "micro",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "rpx_git_sha": "0f9609388b2a68601c79a3abe1e4876412a7ca54",
+  "code_identity": "0f9609388b2a68601c79a3abe1e4876412a7ca54",
+  "git_dirty": false,
+  "upstream_git_shas": {},
+  "host": "rpx-docker-rtx5060",
+  "platform": "Linux-6.17.9-76061709-generic-x86_64-with-glibc2.36",
+  "python": {
+    "executable": "/opt/rpx-envs/transformers-image/bin/python",
+    "version": "3.11.15 (main, Jun 24 2026, 02:08:39) [GCC 12.2.0]"
+  },
+  "torch": {
+    "version": "2.10.0+cu128",
+    "cuda_runtime": "12.8",
+    "cuda_available": true,
+    "device_count": 1,
+    "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU"
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "memory_total_mib": 8151,
+      "memory_used_mib": 2,
+      "driver_version": "580.82.09"
+    }
+  ],
+  "gpu_processes_before_run": [],
+  "nvidia_smi": "/usr/bin/nvidia-smi",
+  "validation": {
+    "num_samples": 1,
+    "num_cells": 1,
+    "prediction_checked": "/outputs/0f9609388b2a68601c79a3abe1e4876412a7ca54/rpx-docker-rtx5060/da-v2-large/micro/20260703T013036Z/predictions/scene011/0/00000.npz",
+    "num_predictions": 1
+  },
+  "finished_utc": "2026-07-03T01:30:53.487268+00:00"
+}

@@ -1,0 +1,12 @@
+{
+  "object_id": "fry_pan.1",
+  "fewsol_id": "49.1",
+  "fewsol_dir": "49.1-fry_pan",
+  "global_object_id": 21,
+  "source_catalog_id": "49.1",
+  "source_category_id": "49",
+  "source_instance_id": "1",
+  "object_name": "fry_pan",
+  "sos_data_path": "objects/fry_pan.1/",
+  "questionnaire_path": "objects_meta/fry_pan.1/questionnaire.json"
+}

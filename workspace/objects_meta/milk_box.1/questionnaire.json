@@ -1,0 +1,25 @@
+{
+  "object_id": "milk_box.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "box",
+      "beverage"
+    ],
+    "What is the name of the object in these images?": [
+      "whole milk",
+      "milk box",
+      "milk"
+    ]
+  },
+  "source": "sos/milk_box.1/questionnaire.txt",
+  "global_object_id": 42,
+  "source_catalog_id": "85.1",
+  "source_category_id": "85",
+  "source_instance_id": "1",
+  "object_name": "milk_box",
+  "sos_data_path": "objects/milk_box.1/",
+  "questionnaire_path": "objects_meta/milk_box.1/questionnaire.json",
+  "class_name": "milk_box",
+  "sos_path": "objects/milk_box.1/"
+}

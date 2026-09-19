@@ -1,0 +1,12 @@
+{
+  "object_id": "ladle",
+  "fewsol_id": "78",
+  "fewsol_dir": "78-ladle",
+  "global_object_id": 38,
+  "source_catalog_id": "78",
+  "source_category_id": "78",
+  "source_instance_id": null,
+  "object_name": "ladle",
+  "sos_data_path": "objects/ladle/",
+  "questionnaire_path": "objects_meta/ladle/questionnaire.json"
+}

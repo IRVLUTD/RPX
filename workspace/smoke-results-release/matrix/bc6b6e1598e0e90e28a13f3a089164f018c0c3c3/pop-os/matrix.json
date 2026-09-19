@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "code_identity": "bc6b6e1598e0e90e28a13f3a089164f018c0c3c3",
+  "git_dirty": false,
+  "host": "pop-os",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "created_utc": "2026-07-02T17:41:19.514357+00:00",
+  "updated_utc": "2026-07-02T17:43:37.836454+00:00",
+  "selected_models": [
+    "depth-pro",
+    "unidepth-v2",
+    "moge-2-vit-l"
+  ],
+  "requested_gates": [
+    "micro",
+    "acceptance"
+  ],
+  "setups": {},
+  "models": {
+    "depth-pro": {
+      "task": "image",
+      "family": "transformers-image",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T17:41:19.518312+00:00",
+          "updated_utc": "2026-07-02T17:41:42.066344+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/depth-pro/micro/20260702T174119Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/depth-pro/micro/20260702T174119Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T17:41:41.779415+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T17:41:42.066534+00:00",
+          "updated_utc": "2026-07-02T17:42:24.013281+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/depth-pro/acceptance/20260702T174142Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/depth-pro/acceptance/20260702T174142Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T17:42:23.707268+00:00",
+          "return_code": 0
+        }
+      }
+    },
+    "unidepth-v2": {
+      "task": "image",
+      "family": "unidepth2",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T17:42:24.013528+00:00",
+          "updated_utc": "2026-07-02T17:42:40.255212+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/unidepth-v2/micro/20260702T174224Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/unidepth-v2/micro/20260702T174224Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T17:42:39.939354+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T17:42:40.255442+00:00",
+          "updated_utc": "2026-07-02T17:43:00.071346+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/unidepth-v2/acceptance/20260702T174240Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/unidepth-v2/acceptance/20260702T174240Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T17:42:59.793009+00:00",
+          "return_code": 0
+        }
+      }
+    },
+    "moge-2-vit-l": {
+      "task": "image",
+      "family": "moge2",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T17:43:00.071714+00:00",
+          "updated_utc": "2026-07-02T17:43:16.177213+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/moge-2-vit-l/micro/20260702T174300Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/moge-2-vit-l/micro/20260702T174300Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T17:43:15.847910+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T17:43:16.177484+00:00",
+          "updated_utc": "2026-07-02T17:43:37.836444+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/moge-2-vit-l/acceptance/20260702T174316Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-release/bc6b6e1598e0e90e28a13f3a089164f018c0c3c3/pop-os/moge-2-vit-l/acceptance/20260702T174316Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T17:43:37.489187+00:00",
+          "return_code": 0
+        }
+      }
+    }
+  }
+}

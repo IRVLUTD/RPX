@@ -1,0 +1,12 @@
+{
+  "object_id": "banana",
+  "fewsol_id": "9",
+  "fewsol_dir": "9-banana",
+  "global_object_id": 5,
+  "source_catalog_id": "9",
+  "source_category_id": "9",
+  "source_instance_id": null,
+  "object_name": "banana",
+  "sos_data_path": "objects/banana/",
+  "questionnaire_path": "objects_meta/banana/questionnaire.json"
+}

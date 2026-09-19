@@ -1,0 +1,12 @@
+{
+  "object_id": "game_controller",
+  "fewsol_id": "55",
+  "fewsol_dir": "55-game_controller",
+  "global_object_id": 23,
+  "source_catalog_id": "55",
+  "source_category_id": "55",
+  "source_instance_id": null,
+  "object_name": "game_controller",
+  "sos_data_path": "objects/game_controller/",
+  "questionnaire_path": "objects_meta/game_controller/questionnaire.json"
+}

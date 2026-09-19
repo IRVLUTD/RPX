@@ -1,0 +1,12 @@
+{
+  "object_id": "remote_controller",
+  "fewsol_id": "107",
+  "fewsol_dir": "107-remote_controller",
+  "global_object_id": 52,
+  "source_catalog_id": "107",
+  "source_category_id": "107",
+  "source_instance_id": null,
+  "object_name": "remote_controller",
+  "sos_data_path": "objects/remote_controller/",
+  "questionnaire_path": "objects_meta/remote_controller/questionnaire.json"
+}

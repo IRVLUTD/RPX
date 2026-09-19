@@ -1,0 +1,73 @@
+{
+  "clips": 99,
+  "dataset": {
+    "manifest_sha256": "0ba018a738383d23df239f1b138669dd1cc8261a730d41cb84ce1bde14f80c4a",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "2bb9b919082727eb099f2b0824f97373a32a33d1",
+  "finished_unix": 1786720479.0958734,
+  "frames": 24750,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "edgetam",
+  "model_checkpoint": {
+    "filename": "edgetam.pt",
+    "repo": "facebook/EdgeTAM",
+    "revision": "14d7ecc48c656b94e5184519f698cd5386c5a2bf",
+    "sha256": "ed2d4850b8792c239689b043c47046ec239b6e808a3d9b6ae676c803fd8780df"
+  },
+  "parameter_count": 13895794,
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9745374094106746,
+      "deta": 0.9670820046101144,
+      "hota": 0.9706562464943305,
+      "idf1": 0.9966444073619043,
+      "idsw": 0.0,
+      "mota": 0.9932884550228136
+    },
+    "1": {
+      "assa": 0.9426634518867454,
+      "deta": 0.9096356534685477,
+      "hota": 0.9252332793810801,
+      "idf1": 0.968056739666019,
+      "idsw": 0.18181818181818182,
+      "mota": 0.9384073137675591
+    },
+    "2": {
+      "assa": 0.9731973423573954,
+      "deta": 0.966771587728341,
+      "hota": 0.9698774400778208,
+      "idf1": 0.9967660254240273,
+      "idsw": 0.030303030303030304,
+      "mota": 0.9935466489535341
+    }
+  },
+  "pid": 115,
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 99,
+    "model_propagation_frames": 24651
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "scored_frames": "1_to_end (initialization frame excluded)"
+  },
+  "rpx_git_sha": "73e9f1309b0566003b924694ed646df574d5e531",
+  "split": "easy",
+  "started_unix": 1786716762.073319,
+  "task": "object_tracking"
+}

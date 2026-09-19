@@ -1,0 +1,76 @@
+{
+  "clips": 102,
+  "dataset": {
+    "manifest_sha256": "fbc3c01164696ffacfd8f09d202ab0880fe46ce5933af2daf3750a4ba3b7c6bc",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "67a9c210c73008e4bfbaeae86df8c442b93cf3ce",
+  "finished_unix": 1787176898.4892828,
+  "frames": 25500,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "dam4sam",
+  "model_checkpoint": {
+    "filename": "sam2.1_hiera_large.pt",
+    "repo": "facebook/sam2.1-hiera-large",
+    "revision": "665f8e2ad61cf5f53d65644ff27c8ee525124610",
+    "sha256": "2647878d5dfa5098f2f8649825738a9345572bae2d4350a2468587ece47dd318"
+  },
+  "parameter_count": 224446642,
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9649063659031545,
+      "deta": 0.9425418686321341,
+      "hota": 0.9533023379569134,
+      "idf1": 0.9771127899878732,
+      "idsw": 1.2941176470588236,
+      "mota": 0.9544125728222779
+    },
+    "1": {
+      "assa": 0.9176002824695518,
+      "deta": 0.848653355645051,
+      "hota": 0.8808692608899938,
+      "idf1": 0.9302470924767153,
+      "idsw": 3.411764705882353,
+      "mota": 0.8667802337267237
+    },
+    "2": {
+      "assa": 0.9686003384200274,
+      "deta": 0.954136066588506,
+      "hota": 0.9611546070869852,
+      "idf1": 0.9881411464639717,
+      "idsw": 0.4117647058823529,
+      "mota": 0.9769507764989082
+    }
+  },
+  "pid": 565,
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 102,
+    "model_propagation_frames": 25398
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "open_vocabulary": false,
+    "scored_frames": "1_to_end (initialization frame excluded)",
+    "vocabulary": null,
+    "vocabulary_size": null
+  },
+  "rpx_git_sha": "67a9c210c73008e4bfbaeae86df8c442b93cf3ce",
+  "split": "hard",
+  "started_unix": 1787165979.0982885,
+  "task": "object_tracking"
+}

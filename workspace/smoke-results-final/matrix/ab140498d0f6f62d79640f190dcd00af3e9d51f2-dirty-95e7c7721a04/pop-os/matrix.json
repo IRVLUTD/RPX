@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "code_identity": "ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-95e7c7721a04",
+  "git_dirty": true,
+  "host": "pop-os",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "created_utc": "2026-07-02T13:47:23.068087+00:00",
+  "updated_utc": "2026-07-02T14:09:31.016301+00:00",
+  "selected_models": [
+    "unidepth-v2"
+  ],
+  "requested_gates": [
+    "micro",
+    "acceptance"
+  ],
+  "models": {
+    "unidepth-v2": {
+      "task": "image",
+      "family": "unidepth2",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T13:47:23.068316+00:00",
+          "updated_utc": "2026-07-02T14:09:13.798195+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-95e7c7721a04/pop-os/unidepth-v2/micro/20260702T134723Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-95e7c7721a04/pop-os/unidepth-v2/micro/20260702T134723Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T14:09:13.506684+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T14:09:13.798660+00:00",
+          "updated_utc": "2026-07-02T14:09:31.016290+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-95e7c7721a04/pop-os/unidepth-v2/acceptance/20260702T140913Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-95e7c7721a04/pop-os/unidepth-v2/acceptance/20260702T140913Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T14:09:30.741989+00:00",
+          "return_code": 0
+        }
+      }
+    }
+  }
+}

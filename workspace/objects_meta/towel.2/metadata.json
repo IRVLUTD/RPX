@@ -1,0 +1,12 @@
+{
+  "object_id": "towel.2",
+  "fewsol_id": "144.2",
+  "fewsol_dir": "144.2-towel",
+  "global_object_id": 68,
+  "source_catalog_id": "144.2",
+  "source_category_id": "144",
+  "source_instance_id": "2",
+  "object_name": "towel",
+  "sos_data_path": "objects/towel.2/",
+  "questionnaire_path": "objects_meta/towel.2/questionnaire.json"
+}

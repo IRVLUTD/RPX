@@ -1,0 +1,24 @@
+{
+  "object_id": "marker.5",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "office tools",
+      "paper material",
+      "stationary"
+    ],
+    "What is the name of the object in these images?": [
+      "marker",
+      "highlighter"
+    ]
+  },
+  "source": "sos/marker.5/questionnaire.txt",
+  "global_object_id": 40,
+  "source_catalog_id": "83.5",
+  "source_category_id": "83",
+  "source_instance_id": "5",
+  "object_name": "marker",
+  "sos_data_path": "objects/marker.5/",
+  "questionnaire_path": "objects_meta/marker.5/questionnaire.json",
+  "class_name": "marker",
+  "sos_path": "objects/marker.5/"
+}

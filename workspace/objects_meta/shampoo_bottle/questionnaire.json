@@ -1,0 +1,24 @@
+{
+  "object_id": "shampoo_bottle",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "beauty",
+      "shampoo"
+    ],
+    "What is the name of the object in these images?": [
+      "head and sholders shampoo",
+      "shampoo bottle",
+      "shampoo"
+    ]
+  },
+  "source": "sos/shampoo_bottle/questionnaire.txt",
+  "global_object_id": 55,
+  "source_catalog_id": "114",
+  "source_category_id": "114",
+  "source_instance_id": null,
+  "object_name": "shampoo_bottle",
+  "sos_data_path": "objects/shampoo_bottle/",
+  "questionnaire_path": "objects_meta/shampoo_bottle/questionnaire.json",
+  "class_name": "shampoo_bottle",
+  "sos_path": "objects/shampoo_bottle/"
+}

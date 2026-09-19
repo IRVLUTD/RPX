@@ -1,0 +1,22 @@
+{
+  "object_id": "juice_pouch.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "container",
+      "beverage holder"
+    ],
+    "What is the name of the object in these images?": [
+      "juice bag"
+    ]
+  },
+  "source": "sos/juice_pouch.2/questionnaire.txt",
+  "global_object_id": 35,
+  "source_catalog_id": "73.2",
+  "source_category_id": "73",
+  "source_instance_id": "2",
+  "object_name": "juice_pouch",
+  "sos_data_path": "objects/juice_pouch.2/",
+  "questionnaire_path": "objects_meta/juice_pouch.2/questionnaire.json",
+  "class_name": "juice_pouch",
+  "sos_path": "objects/juice_pouch.2/"
+}

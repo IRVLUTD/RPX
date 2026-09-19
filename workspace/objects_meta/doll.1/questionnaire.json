@@ -1,0 +1,30 @@
+{
+  "object_id": "doll.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "toys",
+      "toy",
+      "playing",
+      "plushie"
+    ],
+    "What is the name of the object in these images?": [
+      "male toy",
+      "toys",
+      "toy",
+      "doll",
+      "plushie",
+      "wheres waldo toy",
+      "waldo"
+    ]
+  },
+  "source": "sos/doll.1/questionnaire.txt",
+  "global_object_id": 20,
+  "source_catalog_id": "43.1",
+  "source_category_id": "43",
+  "source_instance_id": "1",
+  "object_name": "doll",
+  "sos_data_path": "objects/doll.1/",
+  "questionnaire_path": "objects_meta/doll.1/questionnaire.json",
+  "class_name": "doll",
+  "sos_path": "objects/doll.1/"
+}

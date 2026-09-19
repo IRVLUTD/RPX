@@ -1,0 +1,262 @@
+[
+  {
+    "path": ".ar-pose-audit-env",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": ".cache",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": ".git",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": ".gitattributes",
+    "kind": "file",
+    "disposition": "Excluded: Hugging Face dataset LFS configuration, not GitHub code configuration"
+  },
+  {
+    "path": ".vscode",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "RCPE_HANDOVER.md",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "README.md",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "RPX-6.pdf",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "RPX_BENCHMARK_RESULTS.md",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "RPX_vqa_sample",
+    "kind": "directory",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "TRACKING_METRICS_HANDOFF.md",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "TRACKING_PER_SCENE_PHASE_RESULTS.md",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "__pycache__",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "assets",
+    "kind": "directory",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "create_depthsplat_flow_diagram.py",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "create_depthsplat_prediction_report.py",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "create_depthsplat_sos_report.py",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "depth-smoke-envs",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "docker-backups",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "docker-depth-smoke-cache",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "docker-tracking-smoke-cache",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "docker_mask_annotation_test",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "ego_example",
+    "kind": "directory",
+    "disposition": "Excluded: dataset payload; obtain from Hugging Face"
+  },
+  {
+    "path": "ego_release",
+    "kind": "directory",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "frame_budget_comparison.md",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "generate_benchmark_report.py",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "github_rpx",
+    "kind": "directory",
+    "disposition": "Git worktree: branch history consolidated; local code copied/applied; original checkout unchanged"
+  },
+  {
+    "path": "github_rpx_depth_smoke",
+    "kind": "directory",
+    "disposition": "Git worktree: branch history consolidated; local code copied/applied; original checkout unchanged"
+  },
+  {
+    "path": "github_rpx_tracking",
+    "kind": "directory",
+    "disposition": "Git worktree: branch history consolidated; local code copied/applied; original checkout unchanged"
+  },
+  {
+    "path": "github_rpx_tracking_text",
+    "kind": "directory",
+    "disposition": "Git worktree: branch history consolidated; local code copied/applied; original checkout unchanged"
+  },
+  {
+    "path": "github_rpx_video_temporal",
+    "kind": "directory",
+    "disposition": "Git worktree: branch history consolidated; local code copied/applied; original checkout unchanged"
+  },
+  {
+    "path": "github_rpx_vqa_prompt_fix",
+    "kind": "directory",
+    "disposition": "Git worktree: branch history consolidated; local code copied/applied; original checkout unchanged"
+  },
+  {
+    "path": "hf-smoke-cache",
+    "kind": "directory",
+    "disposition": "Excluded: repository internals, environments, upstream checkouts, caches, backups, or editor state"
+  },
+  {
+    "path": "latest-jumbo-with-masks-viz.webm",
+    "kind": "file",
+    "disposition": "Excluded: generated build log or duplicate visualization"
+  },
+  {
+    "path": "manifest",
+    "kind": "directory",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "objects",
+    "kind": "directory",
+    "disposition": "Excluded: dataset payload; obtain from Hugging Face"
+  },
+  {
+    "path": "objects_meta",
+    "kind": "directory",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "paper-metrics",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "preview",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "rerun_check",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "rpx_croissant.json",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "scenes",
+    "kind": "directory",
+    "disposition": "Excluded: dataset payload; obtain from Hugging Face"
+  },
+  {
+    "path": "smoke-results",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "smoke-results-docker",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "smoke-results-final",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "smoke-results-release",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "smoke-results-tracking",
+    "kind": "directory",
+    "disposition": "Source and text/JSON/CSV/TSV reports under 10 MiB copied to workspace; runtime caches and generated binary payload excluded"
+  },
+  {
+    "path": "splits",
+    "kind": "directory",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "tracking-smoke-env.sh",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "visualize_sos_camposes.py",
+    "kind": "file",
+    "disposition": "Copied to workspace as recorded in imported_files.json"
+  },
+  {
+    "path": "yoloe_tracking_final_build.log",
+    "kind": "file",
+    "disposition": "Excluded: generated build log or duplicate visualization"
+  },
+  {
+    "path": "yoloe_tracking_probe_build.log",
+    "kind": "file",
+    "disposition": "Excluded: generated build log or duplicate visualization"
+  }
+]

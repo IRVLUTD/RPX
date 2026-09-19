@@ -1,0 +1,69 @@
+{
+  "clips": 102,
+  "dataset": {
+    "manifest_sha256": "fbc3c01164696ffacfd8f09d202ab0880fe46ce5933af2daf3750a4ba3b7c6bc",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "2bb9b919082727eb099f2b0824f97373a32a33d1",
+  "frames": 25500,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "cutie",
+  "model_checkpoint": {
+    "filename": "cutie-base-mega.pth",
+    "repo": "hkchengrex/Cutie",
+    "revision": "v1.0",
+    "sha256": "9c05402ee36d3a356fb72715d263ba7e1ea06ad3bada48c1306491792da43023"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9385723050914817,
+      "deta": 0.9053207674878793,
+      "hota": 0.9211446455516272,
+      "idf1": 0.9718021252810257,
+      "idsw": 0.8529411764705882,
+      "mota": 0.9440138786127434
+    },
+    "1": {
+      "assa": 0.8916216743816733,
+      "deta": 0.8245862368003182,
+      "hota": 0.85557119983745,
+      "idf1": 0.9252576989813558,
+      "idsw": 2.3529411764705883,
+      "mota": 0.8582469938464159
+    },
+    "2": {
+      "assa": 0.947008225607153,
+      "deta": 0.929332618600624,
+      "hota": 0.9377783309565622,
+      "idf1": 0.9868452003596689,
+      "idsw": 0.4117647058823529,
+      "mota": 0.9743811328240064
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 102,
+    "model_propagation_frames": 25398
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "scored_frames": "1_to_end (initialization frame excluded)"
+  },
+  "rpx_git_sha": "ccd827ee74cec0d9c4e4f71903b24b5df0777b29",
+  "split": "hard",
+  "task": "object_tracking"
+}

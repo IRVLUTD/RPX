@@ -1,0 +1,12 @@
+{
+  "object_id": "peeler.2",
+  "fewsol_id": "96.2",
+  "fewsol_dir": "96.2-peeler",
+  "global_object_id": 48,
+  "source_catalog_id": "96.2",
+  "source_category_id": "96",
+  "source_instance_id": "2",
+  "object_name": "peeler",
+  "sos_data_path": "objects/peeler.2/",
+  "questionnaire_path": "objects_meta/peeler.2/questionnaire.json"
+}

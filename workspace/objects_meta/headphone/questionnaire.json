@@ -1,0 +1,25 @@
+{
+  "object_id": "headphone",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "technology",
+      "electronic",
+      "output devices"
+    ],
+    "What is the name of the object in these images?": [
+      "headphones",
+      "head phone",
+      "head phones"
+    ]
+  },
+  "source": "sos/headphone/questionnaire.txt",
+  "global_object_id": 30,
+  "source_catalog_id": "67",
+  "source_category_id": "67",
+  "source_instance_id": null,
+  "object_name": "headphone",
+  "sos_data_path": "objects/headphone/",
+  "questionnaire_path": "objects_meta/headphone/questionnaire.json",
+  "class_name": "headphone",
+  "sos_path": "objects/headphone/"
+}

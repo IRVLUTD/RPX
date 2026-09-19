@@ -1,0 +1,26 @@
+{
+  "object_id": "water_bottle.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "bottle",
+      "container",
+      "drinks",
+      "beverage",
+      "liquid storage"
+    ],
+    "What is the name of the object in these images?": [
+      "water bottle",
+      "UTD water bottle"
+    ]
+  },
+  "source": "sos/water_bottle.2/questionnaire.txt",
+  "global_object_id": 70,
+  "source_catalog_id": "148.2",
+  "source_category_id": "148",
+  "source_instance_id": "2",
+  "object_name": "water_bottle",
+  "sos_data_path": "objects/water_bottle.2/",
+  "questionnaire_path": "objects_meta/water_bottle.2/questionnaire.json",
+  "class_name": "water_bottle",
+  "sos_path": "objects/water_bottle.2/"
+}

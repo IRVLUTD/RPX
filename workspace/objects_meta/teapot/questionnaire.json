@@ -1,0 +1,22 @@
+{
+  "object_id": "teapot",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utensils",
+      "kitchen material"
+    ],
+    "What is the name of the object in these images?": [
+      "teapot"
+    ]
+  },
+  "source": "sos/teapot/questionnaire.txt",
+  "global_object_id": 65,
+  "source_catalog_id": "137",
+  "source_category_id": "137",
+  "source_instance_id": null,
+  "object_name": "teapot",
+  "sos_data_path": "objects/teapot/",
+  "questionnaire_path": "objects_meta/teapot/questionnaire.json",
+  "class_name": "teapot",
+  "sos_path": "objects/teapot/"
+}

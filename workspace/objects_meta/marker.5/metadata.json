@@ -1,0 +1,12 @@
+{
+  "object_id": "marker.5",
+  "fewsol_id": "83.5",
+  "fewsol_dir": "83.5-marker",
+  "global_object_id": 40,
+  "source_catalog_id": "83.5",
+  "source_category_id": "83",
+  "source_instance_id": "5",
+  "object_name": "marker",
+  "sos_data_path": "objects/marker.5/",
+  "questionnaire_path": "objects_meta/marker.5/questionnaire.json"
+}

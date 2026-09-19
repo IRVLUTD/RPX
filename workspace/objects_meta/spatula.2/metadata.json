@@ -1,0 +1,12 @@
+{
+  "object_id": "spatula.2",
+  "fewsol_id": "124.2",
+  "fewsol_dir": "124.2-spatula",
+  "global_object_id": 60,
+  "source_catalog_id": "124.2",
+  "source_category_id": "124",
+  "source_instance_id": "2",
+  "object_name": "spatula",
+  "sos_data_path": "objects/spatula.2/",
+  "questionnaire_path": "objects_meta/spatula.2/questionnaire.json"
+}

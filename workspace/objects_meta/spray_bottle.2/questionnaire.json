@@ -1,0 +1,28 @@
+{
+  "object_id": "spray_bottle.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tools",
+      "cleaning",
+      "bottle",
+      "cleaning device",
+      "home utensils"
+    ],
+    "What is the name of the object in these images?": [
+      "spray can",
+      "spary",
+      "spray bottle",
+      "spraying bottle"
+    ]
+  },
+  "source": "sos/spray_bottle.2/questionnaire.txt",
+  "global_object_id": 62,
+  "source_catalog_id": "127.2",
+  "source_category_id": "127",
+  "source_instance_id": "2",
+  "object_name": "spray_bottle",
+  "sos_data_path": "objects/spray_bottle.2/",
+  "questionnaire_path": "objects_meta/spray_bottle.2/questionnaire.json",
+  "class_name": "spray_bottle",
+  "sos_path": "objects/spray_bottle.2/"
+}

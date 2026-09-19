@@ -1,0 +1,22 @@
+{
+  "object_id": "cracker_box",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "box"
+    ],
+    "What is the name of the object in these images?": [
+      "cheez it box",
+      "cheez-it box"
+    ]
+  },
+  "source": "sos/cracker_box/questionnaire.txt",
+  "global_object_id": 18,
+  "source_catalog_id": "38",
+  "source_category_id": "38",
+  "source_instance_id": null,
+  "object_name": "cracker_box",
+  "sos_data_path": "objects/cracker_box/",
+  "questionnaire_path": "objects_meta/cracker_box/questionnaire.json",
+  "class_name": "cracker_box",
+  "sos_path": "objects/cracker_box/"
+}

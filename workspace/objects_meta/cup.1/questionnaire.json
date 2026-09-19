@@ -1,0 +1,25 @@
+{
+  "object_id": "cup.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food tool",
+      "food container",
+      "kitchen tool"
+    ],
+    "What is the name of the object in these images?": [
+      "cup",
+      "coffee cup",
+      "mcdonalds coffee cup"
+    ]
+  },
+  "source": "sos/cup.1/questionnaire.txt",
+  "global_object_id": 19,
+  "source_catalog_id": "40.1",
+  "source_category_id": "40",
+  "source_instance_id": "1",
+  "object_name": "cup",
+  "sos_data_path": "objects/cup.1/",
+  "questionnaire_path": "objects_meta/cup.1/questionnaire.json",
+  "class_name": "cup",
+  "sos_path": "objects/cup.1/"
+}

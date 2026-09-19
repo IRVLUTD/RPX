@@ -1,0 +1,23 @@
+{
+  "object_id": "kettle",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utensil",
+      "kitchen utensil",
+      "kitchen tool"
+    ],
+    "What is the name of the object in these images?": [
+      "kettle"
+    ]
+  },
+  "source": "sos/kettle/questionnaire.txt",
+  "global_object_id": 36,
+  "source_catalog_id": "74",
+  "source_category_id": "74",
+  "source_instance_id": null,
+  "object_name": "kettle",
+  "sos_data_path": "objects/kettle/",
+  "questionnaire_path": "objects_meta/kettle/questionnaire.json",
+  "class_name": "kettle",
+  "sos_path": "objects/kettle/"
+}

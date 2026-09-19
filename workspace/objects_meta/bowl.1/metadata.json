@@ -1,0 +1,12 @@
+{
+  "object_id": "bowl.1",
+  "fewsol_id": "20.1",
+  "fewsol_dir": "20.1-bowl",
+  "global_object_id": 12,
+  "source_catalog_id": "20.1",
+  "source_category_id": "20",
+  "source_instance_id": "1",
+  "object_name": "bowl",
+  "sos_data_path": "objects/bowl.1/",
+  "questionnaire_path": "objects_meta/bowl.1/questionnaire.json"
+}

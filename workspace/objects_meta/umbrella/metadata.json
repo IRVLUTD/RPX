@@ -1,0 +1,12 @@
+{
+  "object_id": "umbrella",
+  "fewsol_id": "147",
+  "fewsol_dir": "147-umbrella",
+  "global_object_id": 69,
+  "source_catalog_id": "147",
+  "source_category_id": "147",
+  "source_instance_id": null,
+  "object_name": "umbrella",
+  "sos_data_path": "objects/umbrella/",
+  "questionnaire_path": "objects_meta/umbrella/questionnaire.json"
+}

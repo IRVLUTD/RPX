@@ -1,0 +1,12 @@
+{
+  "object_id": "baking_tray.1",
+  "fewsol_id": "7.1",
+  "fewsol_dir": "7.1-baking_tray",
+  "global_object_id": 4,
+  "source_catalog_id": "7.1",
+  "source_category_id": "7",
+  "source_instance_id": "1",
+  "object_name": "baking_tray",
+  "sos_data_path": "objects/baking_tray.1/",
+  "questionnaire_path": "objects_meta/baking_tray.1/questionnaire.json"
+}

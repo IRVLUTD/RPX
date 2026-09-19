@@ -1,0 +1,12 @@
+{
+  "object_id": "jar",
+  "fewsol_id": "71",
+  "fewsol_dir": "71-jar",
+  "global_object_id": 33,
+  "source_catalog_id": "71",
+  "source_category_id": "71",
+  "source_instance_id": null,
+  "object_name": "jar",
+  "sos_data_path": "objects/jar/",
+  "questionnaire_path": "objects_meta/jar/questionnaire.json"
+}

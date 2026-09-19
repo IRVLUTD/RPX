@@ -1,0 +1,24 @@
+{
+  "object_id": "spatula.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utensil",
+      "kitchen set",
+      "utencil",
+      "kitchen tool"
+    ],
+    "What is the name of the object in these images?": [
+      "spatula"
+    ]
+  },
+  "source": "sos/spatula.2/questionnaire.txt",
+  "global_object_id": 60,
+  "source_catalog_id": "124.2",
+  "source_category_id": "124",
+  "source_instance_id": "2",
+  "object_name": "spatula",
+  "sos_data_path": "objects/spatula.2/",
+  "questionnaire_path": "objects_meta/spatula.2/questionnaire.json",
+  "class_name": "spatula",
+  "sos_path": "objects/spatula.2/"
+}

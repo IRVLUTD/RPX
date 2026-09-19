@@ -1,0 +1,22 @@
+{
+  "captures": [
+    {
+      "scene_id": "scene002",
+      "target_root": "scenes/scene002/ego",
+      "shard_counts": {
+        "rgb": 251,
+        "depth": 251,
+        "fisheye": 502,
+        "cam_pose": 251,
+        "masks": 251,
+        "masks_aux": 4761,
+        "sam2_meta": 5
+      }
+    }
+  ],
+  "ego_frame_rows": 251,
+  "frames_v2_rows": 110251,
+  "ego_mask_object_rows": 7,
+  "ego_preview_rows": 1,
+  "ego_contributes_to_esd": false
+}

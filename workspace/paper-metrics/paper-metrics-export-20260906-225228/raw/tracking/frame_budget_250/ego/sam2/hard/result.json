@@ -1,0 +1,59 @@
+{
+  "clips": 34,
+  "dataset": {
+    "manifest_name": "ego_object_tracking",
+    "manifest_sha256": "7c85f17bf58843d0cf533825c4feb9d1d608bff1e90e49960b980324618278d0",
+    "protocol": "ego",
+    "repo": "IRVLUTD/RPX",
+    "revision": "f082723002bad5800dd85e583115b4ea05734d31"
+  },
+  "dataset_protocol": "ego",
+  "evaluator_git_sha": "2b90d59d26a8692bb5d7e5a3a8cb72df2ba941f7",
+  "frames": 7878,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "sam2",
+  "model_checkpoint": {
+    "filename": "sam2_hiera_large.pt",
+    "repo": "facebook/sam2-hiera-large",
+    "revision": "e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251",
+    "sha256": "7442e4e9b732a508f80e141e7c2913437a3610ee0c77381a66658c3a445df87b"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9176233551054518,
+      "deta": 0.8751525176197273,
+      "hota": 0.8955220467538287,
+      "idf1": 0.9329255421773072,
+      "idsw": 2.0,
+      "mota": 0.8718547474567266
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 34,
+    "model_propagation_frames": 7844
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "open_vocabulary": false,
+    "scored_frames": "1_to_end (initialization frame excluded)",
+    "vocabulary": null,
+    "vocabulary_size": null
+  },
+  "rpx_git_sha": "2b90d59d26a8692bb5d7e5a3a8cb72df2ba941f7",
+  "split": "hard",
+  "task": "object_tracking"
+}

@@ -1,0 +1,26 @@
+{
+  "object_id": "game_controller",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "gaming",
+      "accessory",
+      "instrument",
+      "input device"
+    ],
+    "What is the name of the object in these images?": [
+      "joystick",
+      "game control",
+      "game pad"
+    ]
+  },
+  "source": "sos/game_controller/questionnaire.txt",
+  "global_object_id": 23,
+  "source_catalog_id": "55",
+  "source_category_id": "55",
+  "source_instance_id": null,
+  "object_name": "game_controller",
+  "sos_data_path": "objects/game_controller/",
+  "questionnaire_path": "objects_meta/game_controller/questionnaire.json",
+  "class_name": "game_controller",
+  "sos_path": "objects/game_controller/"
+}

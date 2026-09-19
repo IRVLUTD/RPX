@@ -1,0 +1,24 @@
+{
+  "object_id": "tong",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utensils",
+      "writing instrument",
+      "utensil",
+      "instrument"
+    ],
+    "What is the name of the object in these images?": [
+      "tong"
+    ]
+  },
+  "source": "sos/tong/questionnaire.txt",
+  "global_object_id": 66,
+  "source_catalog_id": "141",
+  "source_category_id": "141",
+  "source_instance_id": null,
+  "object_name": "tong",
+  "sos_data_path": "objects/tong/",
+  "questionnaire_path": "objects_meta/tong/questionnaire.json",
+  "class_name": "tong",
+  "sos_path": "objects/tong/"
+}

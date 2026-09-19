@@ -1,0 +1,25 @@
+{
+  "object_id": "pringles_can.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "chips"
+    ],
+    "What is the name of the object in these images?": [
+      "pringles",
+      "food package",
+      "pringles potatoes",
+      "sour cream and onion pringles"
+    ]
+  },
+  "source": "sos/pringles_can.2/questionnaire.txt",
+  "global_object_id": 50,
+  "source_catalog_id": "103.2",
+  "source_category_id": "103",
+  "source_instance_id": "2",
+  "object_name": "pringles_can",
+  "sos_data_path": "objects/pringles_can.2/",
+  "questionnaire_path": "objects_meta/pringles_can.2/questionnaire.json",
+  "class_name": "pringles_can",
+  "sos_path": "objects/pringles_can.2/"
+}

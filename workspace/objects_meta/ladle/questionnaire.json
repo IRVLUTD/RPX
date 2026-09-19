@@ -1,0 +1,28 @@
+{
+  "object_id": "ladle",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utensils",
+      "eating and stirring",
+      "utensil",
+      "kitchen utensil",
+      "kitchen tool"
+    ],
+    "What is the name of the object in these images?": [
+      "spoon",
+      "plastic spoon",
+      "ladel",
+      "soup ladel"
+    ]
+  },
+  "source": "sos/ladle/questionnaire.txt",
+  "global_object_id": 38,
+  "source_catalog_id": "78",
+  "source_category_id": "78",
+  "source_instance_id": null,
+  "object_name": "ladle",
+  "sos_data_path": "objects/ladle/",
+  "questionnaire_path": "objects_meta/ladle/questionnaire.json",
+  "class_name": "ladle",
+  "sos_path": "objects/ladle/"
+}

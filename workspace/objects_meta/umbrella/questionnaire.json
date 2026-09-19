@@ -1,0 +1,23 @@
+{
+  "object_id": "umbrella",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "accessory",
+      "safety tool or device",
+      "home appliances"
+    ],
+    "What is the name of the object in these images?": [
+      "umbrella"
+    ]
+  },
+  "source": "sos/umbrella/questionnaire.txt",
+  "global_object_id": 69,
+  "source_catalog_id": "147",
+  "source_category_id": "147",
+  "source_instance_id": null,
+  "object_name": "umbrella",
+  "sos_data_path": "objects/umbrella/",
+  "questionnaire_path": "objects_meta/umbrella/questionnaire.json",
+  "class_name": "umbrella",
+  "sos_path": "objects/umbrella/"
+}

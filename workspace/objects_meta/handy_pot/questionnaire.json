@@ -1,0 +1,23 @@
+{
+  "object_id": "handy_pot",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utensil",
+      "cooking utensil"
+    ],
+    "What is the name of the object in these images?": [
+      "pot",
+      "handy pot"
+    ]
+  },
+  "source": "sos/handy_pot/questionnaire.txt",
+  "global_object_id": 28,
+  "source_catalog_id": "65",
+  "source_category_id": "65",
+  "source_instance_id": null,
+  "object_name": "handy_pot",
+  "sos_data_path": "objects/handy_pot/",
+  "questionnaire_path": "objects_meta/handy_pot/questionnaire.json",
+  "class_name": "handy_pot",
+  "sos_path": "objects/handy_pot/"
+}

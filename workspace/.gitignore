@@ -1,0 +1,19 @@
+# Keep newly generated payloads out of this source/report snapshot.
+__pycache__/
+*.py[cod]
+*.log
+*.rrd
+*.tar
+*.tar.*
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+.venv/
+.cache/
+checkpoints/
+hf_cache/
+sample_scene/
+scenes/
+objects/
+ego_example/

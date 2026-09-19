@@ -1,0 +1,21 @@
+{
+  "object_id": "hammer.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tool"
+    ],
+    "What is the name of the object in these images?": [
+      "hammer"
+    ]
+  },
+  "source": "sos/hammer.2/questionnaire.txt",
+  "global_object_id": 27,
+  "source_catalog_id": "63.2",
+  "source_category_id": "63",
+  "source_instance_id": "2",
+  "object_name": "hammer",
+  "sos_data_path": "objects/hammer.2/",
+  "questionnaire_path": "objects_meta/hammer.2/questionnaire.json",
+  "class_name": "hammer",
+  "sos_path": "objects/hammer.2/"
+}

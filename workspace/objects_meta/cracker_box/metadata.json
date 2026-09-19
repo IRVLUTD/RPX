@@ -1,0 +1,12 @@
+{
+  "object_id": "cracker_box",
+  "fewsol_id": "38",
+  "fewsol_dir": "38-cracker_box",
+  "global_object_id": 18,
+  "source_catalog_id": "38",
+  "source_category_id": "38",
+  "source_instance_id": null,
+  "object_name": "cracker_box",
+  "sos_data_path": "objects/cracker_box/",
+  "questionnaire_path": "objects_meta/cracker_box/questionnaire.json"
+}

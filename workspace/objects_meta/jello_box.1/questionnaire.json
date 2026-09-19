@@ -1,0 +1,26 @@
+{
+  "object_id": "jello_box.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "box",
+      "food",
+      "packaging"
+    ],
+    "What is the name of the object in these images?": [
+      "jello box",
+      "jello",
+      "packaging  box",
+      "cherry jello"
+    ]
+  },
+  "source": "sos/jello_box.1/questionnaire.txt",
+  "global_object_id": 34,
+  "source_catalog_id": "72.1",
+  "source_category_id": "72",
+  "source_instance_id": "1",
+  "object_name": "jello_box",
+  "sos_data_path": "objects/jello_box.1/",
+  "questionnaire_path": "objects_meta/jello_box.1/questionnaire.json",
+  "class_name": "jello_box",
+  "sos_path": "objects/jello_box.1/"
+}

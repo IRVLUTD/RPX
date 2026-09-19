@@ -1,0 +1,12 @@
+{
+  "object_id": "root_beer_bottle",
+  "fewsol_id": "109",
+  "fewsol_dir": "109-root_beer_bottle",
+  "global_object_id": 53,
+  "source_catalog_id": "109",
+  "source_category_id": "109",
+  "source_instance_id": null,
+  "object_name": "root_beer_bottle",
+  "sos_data_path": "objects/root_beer_bottle/",
+  "questionnaire_path": "objects_meta/root_beer_bottle/questionnaire.json"
+}

@@ -1,0 +1,12 @@
+{
+  "object_id": "soft_scrub_cleanser_bottle",
+  "fewsol_id": "121",
+  "fewsol_dir": "121-soft_scrub_cleanser_bottle",
+  "global_object_id": 58,
+  "source_catalog_id": "121",
+  "source_category_id": "121",
+  "source_instance_id": null,
+  "object_name": "soft_scrub_cleanser_bottle",
+  "sos_data_path": "objects/soft_scrub_cleanser_bottle/",
+  "questionnaire_path": "objects_meta/soft_scrub_cleanser_bottle/questionnaire.json"
+}

@@ -1,0 +1,12 @@
+{
+  "object_id": "tape_measure",
+  "fewsol_id": "135",
+  "fewsol_dir": "135-tape_measure",
+  "global_object_id": 64,
+  "source_catalog_id": "135",
+  "source_category_id": "135",
+  "source_instance_id": null,
+  "object_name": "tape_measure",
+  "sos_data_path": "objects/tape_measure/",
+  "questionnaire_path": "objects_meta/tape_measure/questionnaire.json"
+}

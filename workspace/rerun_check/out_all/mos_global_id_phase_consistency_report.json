@@ -1,0 +1,34 @@
+{
+  "mos_mask_object_rows": 2100,
+  "scenes": 100,
+  "phases_checked": 300,
+  "missing_phases": [],
+  "global_id_set_mismatches_across_phases": [],
+  "local_mask_id_to_global_id_mismatches_across_phases": [],
+  "sam2_meta_manifest_mismatches": [],
+  "mask_pixel_local_id_mismatches": [],
+  "objects_per_scene_distribution": {
+    "6": 1,
+    "7": 98,
+    "8": 1
+  },
+  "local_id_count_distribution": {
+    "6": 3,
+    "7": 294,
+    "8": 3
+  },
+  "unique_global_object_ids_used_in_mos": 70,
+  "global_object_id_min": 1,
+  "global_object_id_max": 70,
+  "raw_local_mask_id_values_seen_in_manifest": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "status": "ok"
+}

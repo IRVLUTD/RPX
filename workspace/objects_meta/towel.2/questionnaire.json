@@ -1,0 +1,22 @@
+{
+  "object_id": "towel.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "cleaning tool",
+      "cleaning supply"
+    ],
+    "What is the name of the object in these images?": [
+      "towel"
+    ]
+  },
+  "source": "sos/towel.2/questionnaire.txt",
+  "global_object_id": 68,
+  "source_catalog_id": "144.2",
+  "source_category_id": "144",
+  "source_instance_id": "2",
+  "object_name": "towel",
+  "sos_data_path": "objects/towel.2/",
+  "questionnaire_path": "objects_meta/towel.2/questionnaire.json",
+  "class_name": "towel",
+  "sos_path": "objects/towel.2/"
+}

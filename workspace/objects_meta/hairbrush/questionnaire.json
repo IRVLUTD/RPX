@@ -1,0 +1,25 @@
+{
+  "object_id": "hairbrush",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "beauty",
+      "style",
+      "styling device",
+      "self care utensil"
+    ],
+    "What is the name of the object in these images?": [
+      "hairbrush",
+      "hair brush"
+    ]
+  },
+  "source": "sos/hairbrush/questionnaire.txt",
+  "global_object_id": 26,
+  "source_catalog_id": "62",
+  "source_category_id": "62",
+  "source_instance_id": null,
+  "object_name": "hair_brush",
+  "sos_data_path": "objects/hairbrush/",
+  "questionnaire_path": "objects_meta/hairbrush/questionnaire.json",
+  "class_name": "hair_brush",
+  "sos_path": "objects/hairbrush/"
+}

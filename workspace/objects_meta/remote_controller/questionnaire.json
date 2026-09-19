@@ -1,0 +1,24 @@
+{
+  "object_id": "remote_controller",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tool",
+      "electronics",
+      "gadget"
+    ],
+    "What is the name of the object in these images?": [
+      "remote control",
+      "remote controller"
+    ]
+  },
+  "source": "sos/remote_controller/questionnaire.txt",
+  "global_object_id": 52,
+  "source_catalog_id": "107",
+  "source_category_id": "107",
+  "source_instance_id": null,
+  "object_name": "remote_controller",
+  "sos_data_path": "objects/remote_controller/",
+  "questionnaire_path": "objects_meta/remote_controller/questionnaire.json",
+  "class_name": "remote_controller",
+  "sos_path": "objects/remote_controller/"
+}

@@ -1,0 +1,12 @@
+{
+  "object_id": "coffee_bottle",
+  "fewsol_id": "36",
+  "fewsol_dir": "36-coffee_bottle",
+  "global_object_id": 16,
+  "source_catalog_id": "36",
+  "source_category_id": "36",
+  "source_instance_id": null,
+  "object_name": "coffee_bottle",
+  "sos_data_path": "objects/coffee_bottle/",
+  "questionnaire_path": "objects_meta/coffee_bottle/questionnaire.json"
+}

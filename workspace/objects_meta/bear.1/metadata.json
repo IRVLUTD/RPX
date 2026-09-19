@@ -1,0 +1,12 @@
+{
+  "object_id": "bear.1",
+  "fewsol_id": "14.1",
+  "fewsol_dir": "14.1-bear",
+  "global_object_id": 9,
+  "source_catalog_id": "14.1",
+  "source_category_id": "14",
+  "source_instance_id": "1",
+  "object_name": "bear",
+  "sos_data_path": "objects/bear.1/",
+  "questionnaire_path": "objects_meta/bear.1/questionnaire.json"
+}

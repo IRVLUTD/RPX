@@ -9,7 +9,7 @@ import json
 import sys
 import tarfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 from PIL import Image
@@ -17,9 +17,14 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
-def _members(
-    archive: tarfile.TarFile, suffix: str | tuple[str, ...]
-) -> dict[int, tarfile.TarInfo]:
+PROTOCOLS = ("identity", "interpolation", "sliding-near", "far", "all")
+DEFAULT_WINDOW_STARTS = (0, 100, 200, 300)
+DEFAULT_CONTEXT_OFFSETS = (0, 49)
+DEFAULT_TARGET_OFFSETS = (55, 60, 70)
+METRIC_NAMES = ("psnr", "ssim", "depth_absrel", "depth_rmse", "depth_delta1")
+
+
+def _members(archive: tarfile.TarFile, suffix: str | tuple[str, ...]) -> dict[int, tarfile.TarInfo]:
     result = {}
     for member in archive.getmembers():
         if member.isfile() and member.name.endswith(suffix):
@@ -102,6 +107,137 @@ def _ar_comparison(pred: np.ndarray, gt: np.ndarray) -> dict[str, Any]:
     return row
 
 
+def _csv_ints(value: str) -> tuple[int, ...]:
+    try:
+        values = tuple(int(item.strip()) for item in value.split(",") if item.strip())
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            f"expected comma-separated integers, got {value!r}"
+        ) from error
+    if not values:
+        raise argparse.ArgumentTypeError("at least one integer is required")
+    return values
+
+
+def _local_samples(
+    frames: Sequence[int],
+    protocol: str,
+    window_starts: Sequence[int],
+    context_offsets: Sequence[int],
+    target_offsets: Sequence[int],
+    max_targets: int,
+) -> list[dict[str, Any]]:
+    if len(context_offsets) != 2:
+        raise ValueError(f"K=2 requires two context offsets, got {tuple(context_offsets)}")
+    frame_set = set(frames)
+    samples: list[dict[str, Any]] = []
+    for start in window_starts:
+        contexts = tuple(start + offset for offset in context_offsets)
+        if any(frame not in frame_set for frame in contexts):
+            continue
+        if protocol == "identity":
+            targets = (contexts[-1],)
+        elif protocol == "interpolation":
+            midpoint = int(round((contexts[0] + contexts[1]) / 2.0))
+            targets = (midpoint,)
+        elif protocol == "sliding-near":
+            targets = tuple(start + offset for offset in target_offsets[:max_targets])
+        else:  # pragma: no cover - guarded by the caller
+            raise ValueError(f"unsupported local protocol: {protocol}")
+        for target in targets:
+            if target not in frame_set:
+                continue
+            samples.append(
+                {
+                    "protocol": protocol,
+                    "window_start": int(start),
+                    "context_frames": list(contexts),
+                    "target_frame": int(target),
+                }
+            )
+    return samples
+
+
+def _far_samples(frames: Sequence[int], max_targets: int) -> list[dict[str, Any]]:
+    context_end = max(1, int(np.floor(0.40 * len(frames))) - 1)
+    contexts = [int(frames[0]), int(frames[context_end])]
+    target_start = min(len(frames) - 1, int(np.ceil(0.60 * len(frames))))
+    available = frames[target_start:]
+    positions = np.linspace(0, len(available) - 1, min(max_targets, len(available)), dtype=int)
+    return [
+        {
+            "protocol": "far",
+            "window_start": None,
+            "context_frames": contexts,
+            "target_frame": int(available[int(position)]),
+        }
+        for position in np.unique(positions)
+    ]
+
+
+def _protocol_samples(
+    frames: Sequence[int],
+    protocol: str,
+    *,
+    window_starts: Sequence[int] = DEFAULT_WINDOW_STARTS,
+    context_offsets: Sequence[int] = DEFAULT_CONTEXT_OFFSETS,
+    target_offsets: Sequence[int] = DEFAULT_TARGET_OFFSETS,
+    max_targets: int = 5,
+) -> list[dict[str, Any]]:
+    requested = (
+        ("identity", "interpolation", "sliding-near", "far") if protocol == "all" else (protocol,)
+    )
+    samples: list[dict[str, Any]] = []
+    for item in requested:
+        if item == "far":
+            samples.extend(_far_samples(frames, max_targets))
+        else:
+            samples.extend(
+                _local_samples(
+                    frames,
+                    item,
+                    window_starts,
+                    context_offsets,
+                    target_offsets,
+                    max_targets,
+                )
+            )
+    return samples
+
+
+def _rotation_error_deg(a: np.ndarray, b: np.ndarray) -> float:
+    relative = np.asarray(a)[:3, :3].T @ np.asarray(b)[:3, :3]
+    cosine = np.clip((np.trace(relative) - 1.0) / 2.0, -1.0, 1.0)
+    return float(np.degrees(np.arccos(cosine)))
+
+
+def _target_baseline(
+    context_ids: Sequence[int],
+    context_poses: Sequence[np.ndarray],
+    target_id: int,
+    target_pose: np.ndarray,
+) -> dict[str, Any]:
+    translations = [
+        float(np.linalg.norm(np.asarray(pose)[:3, 3] - np.asarray(target_pose)[:3, 3]))
+        for pose in context_poses
+    ]
+    nearest_index = int(np.argmin(translations))
+    return {
+        "nearest_context_frame": int(context_ids[nearest_index]),
+        "frame_gap": abs(int(target_id) - int(context_ids[nearest_index])),
+        "translation_m": translations[nearest_index],
+        "rotation_deg": _rotation_error_deg(context_poses[nearest_index], target_pose),
+    }
+
+
+def _aggregate(rows: Sequence[dict[str, Any]]) -> dict[str, float]:
+    return {
+        name: float(np.mean([row[name] for row in rows if row.get(name) is not None]))
+        for name in METRIC_NAMES
+        if any(row.get(name) is not None for row in rows)
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", default="depthsplat")
@@ -110,9 +246,38 @@ def main() -> None:
     parser.add_argument("--objects", nargs="*")
     parser.add_argument("--max-objects", type=int)
     parser.add_argument("--max-targets", type=int, default=5)
+    parser.add_argument("--protocol", choices=PROTOCOLS, default="sliding-near")
+    parser.add_argument(
+        "--window-starts",
+        type=_csv_ints,
+        default=DEFAULT_WINDOW_STARTS,
+        help="comma-separated local-window starts (default: 0,100,200,300)",
+    )
+    parser.add_argument(
+        "--context-offsets",
+        type=_csv_ints,
+        default=DEFAULT_CONTEXT_OFFSETS,
+        help="two K=2 offsets within each local window (default: 0,49)",
+    )
+    parser.add_argument(
+        "--target-offsets",
+        type=_csv_ints,
+        default=DEFAULT_TARGET_OFFSETS,
+        help="near-extrapolation offsets within each local window (default: 55,60,70)",
+    )
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--skip-ar-check", action="store_true")
     args = parser.parse_args()
+    if args.max_targets < 1:
+        parser.error("--max-targets must be at least 1")
+    if len(args.context_offsets) != 2:
+        parser.error("--context-offsets must contain exactly two values for K=2")
+    if args.context_offsets[0] >= args.context_offsets[1]:
+        parser.error("--context-offsets must be strictly increasing")
+    if args.protocol in ("sliding-near", "all") and any(
+        offset <= args.context_offsets[-1] for offset in args.target_offsets
+    ):
+        parser.error("near target offsets must be after the second context offset")
 
     from nvs_models import MODEL_DISPLAY_NAMES
     from run_nvs import _build_model
@@ -133,7 +298,7 @@ def main() -> None:
 
     adapter = _build_model(args.model, args.device)
     display = MODEL_DISPLAY_NAMES.get(args.model, args.model)
-    output = args.output_root / display / "sos"
+    output = args.output_root / display / "sos" / args.protocol
     rows = []
 
     for sequence in sequences:
@@ -151,22 +316,24 @@ def main() -> None:
             frames = sorted(set(rgb_members) & set(depth_members) & set(pose_members))
             if len(frames) < 3:
                 continue
-            # Explicit forward extrapolation: K=2 contexts come from the
-            # first 40% of the trial and targets from the final 40%, leaving
-            # a 20% temporal guard band.
-            context_end = max(1, int(np.floor(0.40 * len(frames))) - 1)
-            context_ids = [frames[0], frames[context_end]]
-            target_start = min(len(frames) - 1, int(np.ceil(0.60 * len(frames))))
-            available = frames[target_start:]
-            target_positions = np.linspace(
-                0, len(available) - 1, min(args.max_targets, len(available)), dtype=int
+            samples = _protocol_samples(
+                frames,
+                args.protocol,
+                window_starts=args.window_starts,
+                context_offsets=args.context_offsets,
+                target_offsets=args.target_offsets,
+                max_targets=args.max_targets,
             )
-            target_ids = [available[int(i)] for i in np.unique(target_positions)]
-            context_rgbs = [_rgb(_read(rgb_tar, rgb_members[i])) for i in context_ids]
-            context_depths = [_depth(_read(depth_tar, depth_members[i])) for i in context_ids]
-            context_poses = [_pose(_read(pose_tar, pose_members[i])) for i in context_ids]
-
-            for target_id in target_ids:
+            for sample in samples:
+                context_ids = sample["context_frames"]
+                target_id = sample["target_frame"]
+                print(
+                    f"[sos] object={sequence.parent.name} protocol={sample['protocol']} "
+                    f"context={context_ids} target={target_id}"
+                )
+                context_rgbs = [_rgb(_read(rgb_tar, rgb_members[i])) for i in context_ids]
+                context_depths = [_depth(_read(depth_tar, depth_members[i])) for i in context_ids]
+                context_poses = [_pose(_read(pose_tar, pose_members[i])) for i in context_ids]
                 gt_rgb = _rgb(_read(rgb_tar, rgb_members[target_id]))
                 gt_depth = _depth(_read(depth_tar, depth_members[target_id]))
                 target_pose = _pose(_read(pose_tar, pose_members[target_id]))
@@ -180,8 +347,13 @@ def main() -> None:
                 )
                 row: dict[str, Any] = {
                     "object_id": sequence.parent.name,
+                    "protocol": sample["protocol"],
+                    "window_start": sample["window_start"],
                     "target_frame": target_id,
                     "context_frames": context_ids,
+                    "target_baseline": _target_baseline(
+                        context_ids, context_poses, target_id, target_pose
+                    ),
                     **metrics,
                 }
                 if not args.skip_ar_check:
@@ -191,7 +363,7 @@ def main() -> None:
                         row["ar_tag_check"] = {"available": False, "reason": str(error)}
                 rows.append(row)
 
-                stem = f"{target_id:05d}"
+                stem = f"ctx{context_ids[0]:05d}_{context_ids[1]:05d}__tgt{target_id:05d}"
                 frame_dir = output / "prediction_frames" / sequence.parent.name
                 gt_dir = output / "target_frames" / sequence.parent.name
                 frame_dir.mkdir(parents=True, exist_ok=True)
@@ -201,18 +373,31 @@ def main() -> None:
 
     if not rows:
         raise SystemExit("No SOS samples were evaluated")
-    metric_names = ("psnr", "ssim", "depth_absrel", "depth_rmse", "depth_delta1")
-    aggregate = {
-        name: float(np.mean([row[name] for row in rows if row.get(name) is not None]))
-        for name in metric_names
-        if any(row.get(name) is not None for row in rows)
+    aggregate = _aggregate(rows)
+    by_protocol = {
+        protocol: _aggregate([row for row in rows if row["protocol"] == protocol])
+        for protocol in sorted({row["protocol"] for row in rows})
     }
     payload = {
         "model": args.model,
         "display_name": display,
         "dataset": "RPX single-object sequences",
         "num_samples": len(rows),
+        "sampling_protocol": {
+            "requested": args.protocol,
+            "context_count": 2,
+            "window_starts": list(args.window_starts),
+            "context_offsets": list(args.context_offsets),
+            "target_offsets": list(args.target_offsets),
+            "definitions": {
+                "identity": "target equals the second context; adapter sanity diagnostic",
+                "interpolation": "target is the temporal midpoint between two contexts",
+                "sliding-near": "target is shortly after the second context in four local windows",
+                "far": "contexts from the first 40% and targets from the final 40%",
+            },
+        },
         "aggregate": aggregate,
+        "by_protocol": by_protocol,
         "samples": rows,
     }
     output.mkdir(parents=True, exist_ok=True)

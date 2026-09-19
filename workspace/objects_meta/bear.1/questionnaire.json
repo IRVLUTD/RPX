@@ -1,0 +1,31 @@
+{
+  "object_id": "bear.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "toy",
+      "stuff toy",
+      "game",
+      "toys",
+      "stuffed animal",
+      "kid toy"
+    ],
+    "What is the name of the object in these images?": [
+      "bear toy",
+      "bear stuffed toy",
+      "toy",
+      "teddy toy",
+      "plush toy",
+      "plushie"
+    ]
+  },
+  "source": "sos/bear.1/questionnaire.txt",
+  "global_object_id": 9,
+  "source_catalog_id": "14.1",
+  "source_category_id": "14",
+  "source_instance_id": "1",
+  "object_name": "bear",
+  "sos_data_path": "objects/bear.1/",
+  "questionnaire_path": "objects_meta/bear.1/questionnaire.json",
+  "class_name": "bear",
+  "sos_path": "objects/bear.1/"
+}

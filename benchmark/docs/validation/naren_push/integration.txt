@@ -1,0 +1,7 @@
+........................................................................ [ 40%]
+s.............................................................s......... [ 80%]
+....................................                                     [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_vqa_smoke.py:645: bbox smoke manifest is generated from the pinned Hub revision
+SKIPPED [1] tests/test_ar_pose_audit.py:34: could not import 'cv2': No module named 'cv2'
+178 passed, 2 skipped, 1 deselected in 2.92s

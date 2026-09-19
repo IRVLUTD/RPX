@@ -1,0 +1,12 @@
+{
+  "object_id": "meat_can",
+  "fewsol_id": "84",
+  "fewsol_dir": "84-meat_can",
+  "global_object_id": 41,
+  "source_catalog_id": "84",
+  "source_category_id": "84",
+  "source_instance_id": null,
+  "object_name": "meat_can",
+  "sos_data_path": "objects/meat_can/",
+  "questionnaire_path": "objects_meta/meat_can/questionnaire.json"
+}

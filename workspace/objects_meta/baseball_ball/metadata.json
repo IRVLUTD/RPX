@@ -1,0 +1,12 @@
+{
+  "object_id": "baseball_ball",
+  "fewsol_id": "10",
+  "fewsol_dir": "10-baseball_ball",
+  "global_object_id": 6,
+  "source_catalog_id": "10",
+  "source_category_id": "10",
+  "source_instance_id": null,
+  "object_name": "baseball_ball",
+  "sos_data_path": "objects/baseball_ball/",
+  "questionnaire_path": "objects_meta/baseball_ball/questionnaire.json"
+}

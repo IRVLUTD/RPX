@@ -1,0 +1,12 @@
+{
+  "object_id": "cable",
+  "fewsol_id": "23",
+  "fewsol_dir": "23-cable",
+  "global_object_id": 13,
+  "source_catalog_id": "23",
+  "source_category_id": "23",
+  "source_instance_id": null,
+  "object_name": "cable",
+  "sos_data_path": "objects/cable/",
+  "questionnaire_path": "objects_meta/cable/questionnaire.json"
+}

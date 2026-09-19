@@ -1,0 +1,12 @@
+{
+  "object_id": "sponge",
+  "fewsol_id": "125",
+  "fewsol_dir": "125-sponge",
+  "global_object_id": 61,
+  "source_catalog_id": "125",
+  "source_category_id": "125",
+  "source_instance_id": null,
+  "object_name": "sponge",
+  "sos_data_path": "objects/sponge/",
+  "questionnaire_path": "objects_meta/sponge/questionnaire.json"
+}

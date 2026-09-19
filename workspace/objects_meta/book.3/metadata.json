@@ -1,0 +1,12 @@
+{
+  "object_id": "book.3",
+  "fewsol_id": "17.3",
+  "fewsol_dir": "17.3-book",
+  "global_object_id": 10,
+  "source_catalog_id": "17.3",
+  "source_category_id": "17",
+  "source_instance_id": "3",
+  "object_name": "book",
+  "sos_data_path": "objects/book.3/",
+  "questionnaire_path": "objects_meta/book.3/questionnaire.json"
+}

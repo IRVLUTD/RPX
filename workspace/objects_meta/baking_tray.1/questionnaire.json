@@ -1,0 +1,25 @@
+{
+  "object_id": "baking_tray.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "baking",
+      "kitchen utensils",
+      "utensil"
+    ],
+    "What is the name of the object in these images?": [
+      "tray",
+      "container",
+      "backing tray"
+    ]
+  },
+  "source": "sos/baking_tray.1/questionnaire.txt",
+  "global_object_id": 4,
+  "source_catalog_id": "7.1",
+  "source_category_id": "7",
+  "source_instance_id": "1",
+  "object_name": "baking_tray",
+  "sos_data_path": "objects/baking_tray.1/",
+  "questionnaire_path": "objects_meta/baking_tray.1/questionnaire.json",
+  "class_name": "baking_tray",
+  "sos_path": "objects/baking_tray.1/"
+}

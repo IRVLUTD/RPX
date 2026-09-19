@@ -1,0 +1,26 @@
+{
+  "object_id": "coffee_can.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "can",
+      "food",
+      "coffee"
+    ],
+    "What is the name of the object in these images?": [
+      "caned coffee",
+      "can",
+      "Fortnum & Mason coffee roast",
+      "coffee can"
+    ]
+  },
+  "source": "sos/coffee_can.1/questionnaire.txt",
+  "global_object_id": 17,
+  "source_catalog_id": "37.1",
+  "source_category_id": "37",
+  "source_instance_id": "1",
+  "object_name": "coffee_can",
+  "sos_data_path": "objects/coffee_can.1/",
+  "questionnaire_path": "objects_meta/coffee_can.1/questionnaire.json",
+  "class_name": "coffee_can",
+  "sos_path": "objects/coffee_can.1/"
+}

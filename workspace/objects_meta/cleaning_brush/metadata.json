@@ -1,0 +1,12 @@
+{
+  "object_id": "cleaning_brush",
+  "fewsol_id": "34",
+  "fewsol_dir": "34-cleaning_brush",
+  "global_object_id": 15,
+  "source_catalog_id": "34",
+  "source_category_id": "34",
+  "source_instance_id": null,
+  "object_name": "cleaning_brush",
+  "sos_data_path": "objects/cleaning_brush/",
+  "questionnaire_path": "objects_meta/cleaning_brush/questionnaire.json"
+}

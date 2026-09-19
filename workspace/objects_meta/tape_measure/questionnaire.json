@@ -1,0 +1,25 @@
+{
+  "object_id": "tape_measure",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tool",
+      "tools"
+    ],
+    "What is the name of the object in these images?": [
+      "measuring tape",
+      "chain",
+      "tape",
+      "tape measure"
+    ]
+  },
+  "source": "sos/tape_measure/questionnaire.txt",
+  "global_object_id": 64,
+  "source_catalog_id": "135",
+  "source_category_id": "135",
+  "source_instance_id": null,
+  "object_name": "tape_measure",
+  "sos_data_path": "objects/tape_measure/",
+  "questionnaire_path": "objects_meta/tape_measure/questionnaire.json",
+  "class_name": "tape_measure",
+  "sos_path": "objects/tape_measure/"
+}

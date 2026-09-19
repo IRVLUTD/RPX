@@ -1,0 +1,12 @@
+{
+  "object_id": "coffee_can.1",
+  "fewsol_id": "37.1",
+  "fewsol_dir": "37.1-coffee_can",
+  "global_object_id": 17,
+  "source_catalog_id": "37.1",
+  "source_category_id": "37",
+  "source_instance_id": "1",
+  "object_name": "coffee_can",
+  "sos_data_path": "objects/coffee_can.1/",
+  "questionnaire_path": "objects_meta/coffee_can.1/questionnaire.json"
+}

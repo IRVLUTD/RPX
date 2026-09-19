@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "started_utc": "2026-07-02T14:57:13.651792+00:00",
+  "command": [
+    "/media/naren/New Volume/rpx/depth-smoke-envs/transformers-image/bin/python",
+    "/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/run_depth.py",
+    "--model",
+    "depth-pro",
+    "--split",
+    "easy",
+    "--repo",
+    "IRVLUTD/RPX",
+    "--revision",
+    "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+    "--device",
+    "cuda",
+    "--output-dir",
+    "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-77f46fcd4cea/pop-os/depth-pro/micro/20260702T145712Z",
+    "--batch-size",
+    "1",
+    "--use-official",
+    "--save-predictions",
+    "--skip-flops",
+    "--max-samples",
+    "1"
+  ],
+  "model": "depth-pro",
+  "task": "image",
+  "gate": "micro",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "rpx_git_sha": "ab140498d0f6f62d79640f190dcd00af3e9d51f2",
+  "code_identity": "ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-77f46fcd4cea",
+  "git_dirty": true,
+  "upstream_git_shas": {},
+  "host": "pop-os",
+  "platform": "Linux-6.17.9-76061709-generic-x86_64-with-glibc2.42",
+  "python": {
+    "executable": "/media/naren/New Volume/rpx/depth-smoke-envs/transformers-image/bin/python",
+    "version": "3.11.15 (main, Mar 11 2026, 17:20:07) [GCC 14.3.0]"
+  },
+  "torch": {
+    "version": "2.10.0+cu128",
+    "cuda_runtime": "12.8",
+    "cuda_available": true,
+    "device_count": 1,
+    "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU"
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "memory_total_mib": 8151,
+      "memory_used_mib": 2,
+      "driver_version": "580.82.09"
+    }
+  ],
+  "gpu_processes_before_run": [],
+  "nvidia_smi": "/run/host/usr/bin/nvidia-smi",
+  "validation": {
+    "num_samples": 1,
+    "num_cells": 1,
+    "prediction_checked": "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-77f46fcd4cea/pop-os/depth-pro/micro/20260702T145712Z/predictions/scene011/0/00000.npz",
+    "num_predictions": 1
+  },
+  "finished_utc": "2026-07-02T14:58:32.300994+00:00"
+}

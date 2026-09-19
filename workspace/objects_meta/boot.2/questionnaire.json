@@ -1,0 +1,24 @@
+{
+  "object_id": "boot.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "apparel",
+      "footwear",
+      "outfit"
+    ],
+    "What is the name of the object in these images?": [
+      "shoe",
+      "boot"
+    ]
+  },
+  "source": "sos/boot.2/questionnaire.txt",
+  "global_object_id": 11,
+  "source_catalog_id": "18.2",
+  "source_category_id": "18",
+  "source_instance_id": "2",
+  "object_name": "boot",
+  "sos_data_path": "objects/boot.2/",
+  "questionnaire_path": "objects_meta/boot.2/questionnaire.json",
+  "class_name": "boot",
+  "sos_path": "objects/boot.2/"
+}

@@ -1,0 +1,12 @@
+{
+  "object_id": "toothpaste",
+  "fewsol_id": "142",
+  "fewsol_dir": "142-toothpaste",
+  "global_object_id": 67,
+  "source_catalog_id": "142",
+  "source_category_id": "142",
+  "source_instance_id": null,
+  "object_name": "toothpaste",
+  "sos_data_path": "objects/toothpaste/",
+  "questionnaire_path": "objects_meta/toothpaste/questionnaire.json"
+}

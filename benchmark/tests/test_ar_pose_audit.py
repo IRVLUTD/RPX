@@ -51,7 +51,27 @@ def test_identical_relative_tracks_have_perfect_agreement():
     assert metrics["anchor_relative_translation_rmse_m"] == pytest.approx(0.0, abs=1e-10)
     assert metrics["anchor_relative_rotation_rmse_deg"] == pytest.approx(0.0, abs=1e-6)
     assert metrics["static_board_translation_drift_rmse_m"] == pytest.approx(0.0, abs=1e-10)
+    assert metrics["static_board_translation_jitter"]["p95"] == pytest.approx(0.0, abs=1e-10)
+    assert metrics["static_board_rotation_jitter"]["p95"] == pytest.approx(0.0, abs=1e-6)
+    assert metrics["static_board_robust_outlier_rate"] == 0.0
+    assert all("world_board_x_m" in row for row in rows)
     assert len(rows) == 3
+
+
+def test_central_pose_jitter_is_not_biased_by_noisy_first_observation():
+    camera_poses = [_pose(), _pose(), _pose(), _pose()]
+    board_poses = [_pose((0.2, 0.0, 0.0)), _pose(), _pose(), _pose()]
+    observations = [
+        BoardObservation(np.linalg.inv(board_pose), (0, 1), 0.2, 8)
+        for board_pose in board_poses
+    ]
+    metrics, rows = compare_pose_tracks(
+        [0, 1, 2, 3], camera_poses, observations, pose_axis_convention="opencv"
+    )
+    assert metrics["static_board_translation_drift_rmse_m"] == pytest.approx(0.17320508)
+    assert metrics["static_board_translation_jitter"]["median"] == pytest.approx(0.0)
+    assert metrics["static_board_translation_jitter"]["p95"] == pytest.approx(0.17)
+    assert rows[0]["static_board_robust_outlier"] is True
 
 
 def test_world_origin_cancels_without_fitting_sensor_transform():

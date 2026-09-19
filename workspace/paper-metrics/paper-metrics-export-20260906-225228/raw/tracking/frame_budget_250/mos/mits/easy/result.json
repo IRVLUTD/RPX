@@ -1,0 +1,72 @@
+{
+  "clips": 99,
+  "dataset": {
+    "manifest_sha256": "0ba018a738383d23df239f1b138669dd1cc8261a730d41cb84ce1bde14f80c4a",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "fe57a310ee7c1a479c7eeefe79f253015160c6d0",
+  "frames": 24750,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "mits",
+  "model_checkpoint": {
+    "filename": "mits.pth",
+    "repo": "yoxu515/MITS",
+    "revision": "gdrive-1Db9DxXc-gyRkxhKs0AMXJ2RH6DyHWCfq",
+    "sha256": "9291f533b9e47b22803acedc941761fdffbcd023ceffe5c611d540e3509d3f22"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9465020837517722,
+      "deta": 0.9294427365263581,
+      "hota": 0.9375622539697877,
+      "idf1": 0.9891484145395082,
+      "idsw": 0.0,
+      "mota": 0.9783188890889077
+    },
+    "1": {
+      "assa": 0.9030199334610842,
+      "deta": 0.8331736766047891,
+      "hota": 0.8653116760896771,
+      "idf1": 0.931290846928055,
+      "idsw": 1.0606060606060606,
+      "mota": 0.8695649172493897
+    },
+    "2": {
+      "assa": 0.9617990863486368,
+      "deta": 0.9542638598793439,
+      "hota": 0.9578569685525699,
+      "idf1": 0.9970923332509101,
+      "idsw": 0.09090909090909091,
+      "mota": 0.9942081112613398
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 99,
+    "model_propagation_frames": 24651
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_box",
+    "metric_implementation": "TrackEval",
+    "open_vocabulary": false,
+    "scored_frames": "1_to_end (initialization frame excluded)",
+    "vocabulary": null,
+    "vocabulary_size": null
+  },
+  "rpx_git_sha": "fe57a310ee7c1a479c7eeefe79f253015160c6d0",
+  "split": "easy",
+  "task": "object_tracking"
+}

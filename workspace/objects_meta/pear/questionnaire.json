@@ -1,0 +1,22 @@
+{
+  "object_id": "pear",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "fruit",
+      "food"
+    ],
+    "What is the name of the object in these images?": [
+      "pear"
+    ]
+  },
+  "source": "sos/pear/questionnaire.txt",
+  "global_object_id": 47,
+  "source_catalog_id": "95",
+  "source_category_id": "95",
+  "source_instance_id": null,
+  "object_name": "pear",
+  "sos_data_path": "objects/pear/",
+  "questionnaire_path": "objects_meta/pear/questionnaire.json",
+  "class_name": "pear",
+  "sos_path": "objects/pear/"
+}

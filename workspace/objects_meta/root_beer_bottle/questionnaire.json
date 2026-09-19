@@ -1,0 +1,30 @@
+{
+  "object_id": "root_beer_bottle",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "drink",
+      "soda",
+      "souces and spices",
+      "beverage",
+      "sweet drink",
+      "soda bottle"
+    ],
+    "What is the name of the object in these images?": [
+      "a & w root beer",
+      "a&w bottle",
+      "sauce bottle",
+      "soda bottle",
+      "root beer bottle"
+    ]
+  },
+  "source": "sos/root_beer_bottle/questionnaire.txt",
+  "global_object_id": 53,
+  "source_catalog_id": "109",
+  "source_category_id": "109",
+  "source_instance_id": null,
+  "object_name": "root_beer_bottle",
+  "sos_data_path": "objects/root_beer_bottle/",
+  "questionnaire_path": "objects_meta/root_beer_bottle/questionnaire.json",
+  "class_name": "root_beer_bottle",
+  "sos_path": "objects/root_beer_bottle/"
+}

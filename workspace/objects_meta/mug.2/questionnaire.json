@@ -1,0 +1,24 @@
+{
+  "object_id": "mug.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "kitchen acessory",
+      "utensil",
+      "kitchen utensil",
+      "crockery"
+    ],
+    "What is the name of the object in these images?": [
+      "mug"
+    ]
+  },
+  "source": "sos/mug.2/questionnaire.txt",
+  "global_object_id": 45,
+  "source_catalog_id": "88.2",
+  "source_category_id": "88",
+  "source_instance_id": "2",
+  "object_name": "mug",
+  "sos_data_path": "objects/mug.2/",
+  "questionnaire_path": "objects_meta/mug.2/questionnaire.json",
+  "class_name": "mug",
+  "sos_path": "objects/mug.2/"
+}

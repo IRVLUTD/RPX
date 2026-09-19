@@ -1,0 +1,12 @@
+{
+  "object_id": "pump_bottle.2",
+  "fewsol_id": "105.2",
+  "fewsol_dir": "105.2-pump_bottle",
+  "global_object_id": 51,
+  "source_catalog_id": "105.2",
+  "source_category_id": "105",
+  "source_instance_id": "2",
+  "object_name": "pump_bottle",
+  "sos_data_path": "objects/pump_bottle.2/",
+  "questionnaire_path": "objects_meta/pump_bottle.2/questionnaire.json"
+}

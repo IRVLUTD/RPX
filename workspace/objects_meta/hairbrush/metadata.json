@@ -1,0 +1,12 @@
+{
+  "object_id": "hairbrush",
+  "fewsol_id": "62",
+  "fewsol_dir": "62-hairbrush",
+  "global_object_id": 26,
+  "source_catalog_id": "62",
+  "source_category_id": "62",
+  "source_instance_id": null,
+  "object_name": "hair_brush",
+  "sos_data_path": "objects/hairbrush/",
+  "questionnaire_path": "objects_meta/hairbrush/questionnaire.json"
+}

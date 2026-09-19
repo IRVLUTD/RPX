@@ -1,0 +1,65 @@
+{
+  "status": "failed",
+  "started_utc": "2026-07-02T13:37:03.418523+00:00",
+  "command": [
+    "/media/naren/New Volume/rpx/depth-smoke-envs/unidepth2/bin/python",
+    "/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/run_depth.py",
+    "--model",
+    "unidepth-v2",
+    "--split",
+    "easy",
+    "--repo",
+    "IRVLUTD/RPX",
+    "--revision",
+    "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+    "--device",
+    "cuda",
+    "--output-dir",
+    "/media/naren/New Volume/rpx/smoke-results-final/ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-61e7094dc395/pop-os/unidepth-v2/micro/20260702T133702Z",
+    "--batch-size",
+    "1",
+    "--use-official",
+    "--save-predictions",
+    "--skip-flops",
+    "--max-samples",
+    "1"
+  ],
+  "model": "unidepth-v2",
+  "task": "image",
+  "gate": "micro",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "rpx_git_sha": "ab140498d0f6f62d79640f190dcd00af3e9d51f2",
+  "code_identity": "ab140498d0f6f62d79640f190dcd00af3e9d51f2-dirty-61e7094dc395",
+  "git_dirty": true,
+  "upstream_git_shas": {
+    "/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2": "8d8cfe4c7ee15297099983607febf0d4f32eb3d6"
+  },
+  "host": "pop-os",
+  "platform": "Linux-6.17.9-76061709-generic-x86_64-with-glibc2.42",
+  "python": {
+    "executable": "/media/naren/New Volume/rpx/depth-smoke-envs/unidepth2/bin/python",
+    "version": "3.11.15 (main, Mar 11 2026, 17:20:07) [GCC 14.3.0]"
+  },
+  "torch": {
+    "version": "2.10.0+cu128",
+    "cuda_runtime": "12.8",
+    "cuda_available": true,
+    "device_count": 1,
+    "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU"
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "memory_total_mib": 8151,
+      "memory_used_mib": 2,
+      "driver_version": "580.82.09"
+    }
+  ],
+  "gpu_processes_before_run": [],
+  "nvidia_smi": "/run/host/usr/bin/nvidia-smi",
+  "failure_class": "dependency",
+  "error": "RuntimeError: smoke command exited with status 1\n\n \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2557  \u2588\u2588\u2557\n \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557 \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557 \u255a\u2588\u2588\u2557\u2588\u2588\u2554\u255d\n \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d  \u255a\u2588\u2588\u2588\u2554\u255d\n \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557 \u2588\u2588\u2554\u2550\u2550\u2550\u255d   \u2588\u2588\u2554\u2588\u2588\u2557\n \u2588\u2588\u2551  \u2588\u2588\u2551 \u2588\u2588\u2551      \u2588\u2588\u2554\u255d \u2588\u2588\u2557\n \u255a\u2550\u255d  \u255a\u2550\u255d \u255a\u2550\u255d      \u255a\u2550\u255d  \u255a\u2550\u255d\n\n  Monocular depth benchmark\n  model: unidepth-v2  \u00b7  split: easy\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Configuration \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n               model  :  unidepth-v2\n               split  :  easy\n                repo  :  IRVLUTD/RPX\n            revision  :  2e2a387f7f93e98c177b2e039c141eacda94e5fc\n              device  :  cuda\n        require-cuda  :  True\n          skip-flops  :  True\n          batch-size  :  1\n         max-samples  :  1\n           alignment  :  auto\n    save-predictions  :  True\n       comprehensive  :  False\n        use-official  :  True\n       upload-to-box  :  False\n/media/naren/New Volume/rpx/depth-smoke-envs/unidepth2/lib/python3.11/site-packages/timm/models/layers/__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers\n  warnings.warn(f\"Importing from {__name__} is deprecated, please import via timm.layers\", FutureWarning)\n/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/utils/chamfer_distance.py:9: UserWarning: !! To run evaluation you need KNN. Please compile KNN: `cd unidepth/ops/knn with && bash compile.sh`.\n  warnings.warn(\n\u2717 Loading adapter 'unidepth-v2' (may fetch weights) (failed after 1.10 s)\nTraceback (most recent call last):\n  File \"/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/depth_models/unidepth_v2.py\", line 59, in __init__\n    from unidepth.models import UniDepthV2 as _UniDepthV2Backbone\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/models/__init__.py\", line 1, in <module>\n    from .unidepthv1 import UniDepthV1\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/models/unidepthv1/__init__.py\", line 1, in <module>\n    from .unidepthv1 import UniDepthV1\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/models/unidepthv1/unidepthv1.py\", line 17, in <module>\n    from unidepth.models.unidepthv1.decoder import Decoder\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/models/unidepthv1/decoder.py\", line 14, in <module>\n    from unidepth.layers import (MLP, AttentionBlock, ConvUpsample, NystromBlock,\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/layers/__init__.py\", line 2, in <module>\n    from .attention import AttentionBlock, AttentionDecoderBlock, AttentionLayer\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/layers/attention.py\", line 14, in <module>\n    from .mlp import MLP\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/layers/mlp.py\", line 4, in <module>\n    from unidepth.utils.misc import default\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/utils/__init__.py\", line 12, in <module>\n    from .visualization import colorize, image_grid, log_train_artifacts\n  File \"/media/naren/New Volume/rpx/depth-smoke-envs/sources/unidepth2/unidepth/utils/visualization.py\", line 8, in <module>\n    import matplotlib.pyplot as plt\nModuleNotFoundError: No module named 'matplotlib'\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/run_depth.py\", line 808, in <module>\n    main()\n  File \"/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/run_depth.py\", line 680, in main\n    model, adapter = _build_model(\n                     ^^^^^^^^^^^^^\n  File \"/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/run_depth.py\", line 277, in _build_model\n    adapter = factory(**kwargs)\n              ^^^^^^^^^^^^^^^^^\n  File \"/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/depth_models/__init__.py\", line 71, in _build_unidepth_v2\n    return UniDepthV2(device=device, batch_size=batch_size, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/media/naren/New Volume/rpx/github_rpx_depth_smoke/benchmark/scripts/depth_models/unidepth_v2.py\", line 61, in __init__\n    raise ImportError(\nImportError: UniDepthV2 needs `unidepth`. Install with: pip install unidepth torch timm pillow huggingface-hub",
+  "finished_utc": "2026-07-02T13:37:06.099462+00:00"
+}

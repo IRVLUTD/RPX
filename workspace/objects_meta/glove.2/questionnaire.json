@@ -1,0 +1,25 @@
+{
+  "object_id": "glove.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "clothing accessory",
+      "clothes",
+      "work clothes"
+    ],
+    "What is the name of the object in these images?": [
+      "gloves",
+      "winter gloves",
+      "outside gloves"
+    ]
+  },
+  "source": "sos/glove.2/questionnaire.txt",
+  "global_object_id": 24,
+  "source_catalog_id": "57.2",
+  "source_category_id": "57",
+  "source_instance_id": "2",
+  "object_name": "glove",
+  "sos_data_path": "objects/glove.2/",
+  "questionnaire_path": "objects_meta/glove.2/questionnaire.json",
+  "class_name": "glove",
+  "sos_path": "objects/glove.2/"
+}

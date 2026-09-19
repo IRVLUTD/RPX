@@ -1,0 +1,63 @@
+{
+  "clips": 33,
+  "dataset": {
+    "manifest_name": "ego_object_tracking",
+    "manifest_sha256": "6de360a644255f65a44f921197fa083ee66d5e24f45e93afa76dcd6f34f30ab5",
+    "protocol": "ego",
+    "repo": "IRVLUTD/RPX",
+    "revision": "f082723002bad5800dd85e583115b4ea05734d31"
+  },
+  "dataset_protocol": "ego",
+  "evaluator_git_sha": "2b90d59d26a8692bb5d7e5a3a8cb72df2ba941f7",
+  "finished_unix": 1788018931.7977767,
+  "frames": 7691,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "mits",
+  "model_checkpoint": {
+    "filename": "mits.pth",
+    "repo": "yoxu515/MITS",
+    "revision": "gdrive-1Db9DxXc-gyRkxhKs0AMXJ2RH6DyHWCfq",
+    "sha256": "9291f533b9e47b22803acedc941761fdffbcd023ceffe5c611d540e3509d3f22"
+  },
+  "parameter_count": 32743472,
+  "phase_metrics": {
+    "0": {
+      "assa": 0.8547351743232173,
+      "deta": 0.818432068113788,
+      "hota": 0.8343172762141163,
+      "idf1": 0.8966412712386104,
+      "idsw": 2.878787878787879,
+      "mota": 0.8124584814076723
+    }
+  },
+  "pid": 289,
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 33,
+    "model_propagation_frames": 7658
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_box",
+    "metric_implementation": "TrackEval",
+    "open_vocabulary": false,
+    "scored_frames": "1_to_end (initialization frame excluded)",
+    "vocabulary": null,
+    "vocabulary_size": null
+  },
+  "rpx_git_sha": "2b90d59d26a8692bb5d7e5a3a8cb72df2ba941f7",
+  "split": "medium",
+  "started_unix": 1788015976.2726178,
+  "task": "object_tracking"
+}

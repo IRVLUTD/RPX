@@ -1,0 +1,28 @@
+{
+  "object_id": "pump_bottle.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "beauty product",
+      "personal hygiene",
+      "beauty",
+      "self care"
+    ],
+    "What is the name of the object in these images?": [
+      "moisturizer",
+      "cetaphil moisturizing lotion",
+      "hydrating",
+      "cleanser",
+      "handwash pump"
+    ]
+  },
+  "source": "sos/pump_bottle.2/questionnaire.txt",
+  "global_object_id": 51,
+  "source_catalog_id": "105.2",
+  "source_category_id": "105",
+  "source_instance_id": "2",
+  "object_name": "pump_bottle",
+  "sos_data_path": "objects/pump_bottle.2/",
+  "questionnaire_path": "objects_meta/pump_bottle.2/questionnaire.json",
+  "class_name": "pump_bottle",
+  "sos_path": "objects/pump_bottle.2/"
+}

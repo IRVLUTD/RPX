@@ -1,0 +1,12 @@
+{
+  "object_id": "teapot",
+  "fewsol_id": "137",
+  "fewsol_dir": "137-teapot",
+  "global_object_id": 65,
+  "source_catalog_id": "137",
+  "source_category_id": "137",
+  "source_instance_id": null,
+  "object_name": "teapot",
+  "sos_data_path": "objects/teapot/",
+  "questionnaire_path": "objects_meta/teapot/questionnaire.json"
+}

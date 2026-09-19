@@ -1,0 +1,233 @@
+rpx_benchmark/vqa/canonical.py:53:23: error: Missing type arguments for generic
+type "dict"  [type-arg]
+    def semantic_key(row: dict) -> tuple:
+                          ^
+rpx_benchmark/vqa/canonical.py:53:32: error: Missing type arguments for generic
+type "tuple"  [type-arg]
+    def semantic_key(row: dict) -> tuple:
+                                   ^
+rpx_benchmark/vqa/contract.py:64:19: error: Need type annotation for
+"ATTRIBUTE_TYPES"  [var-annotated]
+    ATTRIBUTE_TYPES = frozenset()
+                      ^~~~~~~~~~~
+rpx_benchmark/vqa/contract.py:178:50: error: Argument 1 to "int" has
+incompatible type "Any | None"; expected
+"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+                phase=None if is_null_phase else int(raw_phase),
+                                                     ^~~~~~~~~
+rpx_benchmark/vqa/contract.py:186:25: error: Argument "answer_bbox" to
+"VQASample" has incompatible type "tuple[int, ...] | None"; expected
+"tuple[int, int, int, int] | None"  [arg-type]
+                answer_bbox=None if bbox is None else tuple(int(v) for v i...
+                            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+rpx_benchmark/vqa/contract.py:191:17: error: Argument "reference_crop_bbox" to
+"VQASample" has incompatible type "tuple[int, ...] | None"; expected
+"tuple[int, int, int, int] | None"  [arg-type]
+                    None if reference_crop_bbox is None else tuple(int(v) ...
+                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+rpx_benchmark/vqa/sampling.py:36:5: error: Returning Any from function declared
+to return "bool"  [no-any-return]
+        return 0.25 <= cx <= 0.75 and 0.25 <= cy <= 0.75
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/sampling.py:48:38: error: Missing type arguments for generic
+type "tuple"  [type-arg]
+            self.used_semantic_keys: set[tuple] = set()
+                                         ^
+rpx_benchmark/vqa/sampling.py:51:49: error: Missing type arguments for generic
+type "tuple"  [type-arg]
+        def _rank_key(self, row: dict[str, Any]) -> tuple:
+                                                    ^
+rpx_benchmark/vqa/outputs.py:97:31: error: Missing type arguments for generic
+type "dict"  [type-arg]
+    def _json_object(raw: str) -> dict:
+                                  ^
+rpx_benchmark/vqa/outputs.py:110:47: error: Missing type arguments for generic
+type "dict"  [type-arg]
+    def _cosmos_bbox_candidates(raw: str) -> list[dict]:
+                                                  ^
+rpx_benchmark/vqa/outputs.py:126:22: error: Missing type arguments for generic
+type "dict"  [type-arg]
+        candidates: list[dict] = []
+                         ^
+rpx_benchmark/vqa/outputs.py:196:21: error: Incompatible types in assignment
+(expression has type "str | None", variable has type "str")  [assignment]
+                label = normalize_label(str(value.get("label", ""))) or No...
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/outputs.py:224:21: error: Incompatible types in assignment
+(expression has type "str | None", variable has type "str")  [assignment]
+                label = normalize_label(prefix.splitlines()[-1]) or None
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/outputs.py:271:17: error: Incompatible types in assignment
+(expression has type "Match[str] | None", variable has type "Match[str]") 
+[assignment]
+            match = _LOC_RE.search(raw)
+                    ^~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/outputs.py:288:21: error: Incompatible types in assignment
+(expression has type "str | None", variable has type "str")  [assignment]
+                label = normalize_label(raw[match.end() :].split("<", 1)[0...
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+rpx_benchmark/vqa/outputs.py:370:21: error: Incompatible types in assignment
+(expression has type "str | None", variable has type "str")  [assignment]
+                label = normalize_label(str(value.get("label", ""))) or No...
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:187:5: error: Incompatible types in assignment
+(expression has type "list[dict[str, float]]", variable has type "list[float]") 
+[assignment]
+        for question_type, values in sorted(detailed_by_type.items()):
+        ^
+rpx_benchmark/vqa/metrics.py:190:34: error: Value of type "float" is not
+indexable  [index]
+                "parse_rate": _mean([value["valid"] for value in values]),
+                                     ^~~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:191:42: error: Value of type "float" is not
+indexable  [index]
+                "bbox_validity_rate": _mean([value["bbox_valid"] for value...
+                                             ^~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:192:37: error: Value of type "float" is not
+indexable  [index]
+                "bbox_mean_iou": _mean([value["iou"] for value in values])...
+                                        ^~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:193:38: error: Value of type "float" is not
+indexable  [index]
+                "bbox_mean_giou": _mean([value["giou"] for value in values...
+                                         ^~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:195:18: error: Value of type "float" is not
+indexable  [index]
+                    [value["giou"] for value in values if value["bbox_vali...
+                     ^~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:198:18: error: Value of type "float" is not
+indexable  [index]
+                    [value["center_in_gt"] for value in values]
+                     ^~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:201:24: error: Value of type "float" is not
+indexable  [index]
+                    [float(value["iou"] >= 0.25) for value in values]
+                           ^~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:204:24: error: Value of type "float" is not
+indexable  [index]
+                    [float(value["iou"] >= 0.5) for value in values]
+                           ^~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:207:24: error: Value of type "float" is not
+indexable  [index]
+                    [float(value["iou"] >= 0.75) for value in values]
+                           ^~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:210:18: error: Value of type "float" is not
+indexable  [index]
+                    [value["label_exact"] for value in values]
+                     ^~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/metrics.py:212:38: error: Value of type "float" is not
+indexable  [index]
+                "label_token_f1": _mean([value["label_token_f1"] for value...
+                                         ^~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/temporal_budget_sweep.py:137:37: error: Missing type arguments
+for generic type "dict"  [type-arg]
+        cells_by_budget: Dict[int, List[dict]],
+                                        ^
+rpx_benchmark/temporal_budget_sweep.py:189:12: error: Function "has_spec" could
+always be true in boolean context  [truthy-function]
+            if has_spec and has_spec(mkey):
+               ^~~~~~~~
+rpx_benchmark/temporal_budget_sweep.py:246: error: Unused "type: ignore"
+comment  [unused-ignore]
+                        from scipy.stats import wilcoxon  # type: ignore[i...
+                        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+rpx_benchmark/temporal_budget_sweep.py:274:1: error: Function is missing a type
+annotation for one or more parameters  [no-untyped-def]
+    def run_budget_sweep(
+    ^~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/temporal_budget_sweep.py:283:27: error: Missing type arguments
+for generic type "dict"  [type-arg]
+    ) -> Tuple[Dict[int, List[dict]], List[DegradationResult]]:
+                              ^
+rpx_benchmark/temporal_budget_sweep.py:304:37: error: Missing type arguments
+for generic type "dict"  [type-arg]
+        cells_by_budget: Dict[int, List[dict]] = {}
+                                        ^
+rpx_benchmark/temporal_budget_sweep.py:315: error: Unused "type: ignore"
+comment  [unused-ignore]
+                    import pyarrow.parquet as pq  # type: ignore[import-un...
+                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~...
+rpx_benchmark/pose_conventions.py:31:5: error: Returning Any from function
+declared to return "ndarray[tuple[Any, ...], dtype[Any]]"  [no-any-return]
+        return np.linalg.inv(a) @ b
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/phi.py:82:5: error: Returning Any from function declared to
+return "ndarray[tuple[Any, ...], dtype[Any]]"  [no-any-return]
+        return z.reshape(N, P, K)
+        ^~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/phi.py:125:31: error: No overload variant of "__getitem__" of
+"Sequence" matches argument type "signedinteger[_32Bit | _64Bit]" 
+[call-overload]
+            return f"worst pair: ({metric_names[i]!r}, {metric_names[j]!r}...
+                                  ^~~~~~~~~~~~~~~~
+rpx_benchmark/phi.py:125:31: note: Possible overload variants:
+rpx_benchmark/phi.py:125:31: note:     def __getitem__(self, int, /) -> str
+rpx_benchmark/phi.py:125:31: note:     def __getitem__(self, slice[int | None, int | None, int | None], /) -> Sequence[str]
+rpx_benchmark/phi.py:687:5: error: Returning Any from function declared to
+return "list[float]"  [no-any-return]
+        return adjusted.tolist()
+        ^~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/ar_pose_audit.py:262:5: error: Returning Any from function
+declared to return "ndarray[tuple[Any, ...], dtype[Any]]"  [no-any-return]
+        return np.linalg.inv(reference) @ current
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/phi_jedi_summary.py:170:5: error: Name "keys" already defined on
+line 158  [no-redef]
+        keys: List[str] = []
+        ^~~~
+rpx_benchmark/phi_jedi_summary.py:207:19: error: Missing type arguments for
+generic type "tuple"  [type-arg]
+        buckets: Dict[tuple, Dict[Any, List[List[float]]]] = {}
+                      ^
+rpx_benchmark/phi_jedi_summary.py:208:18: error: Missing type arguments for
+generic type "set"  [type-arg]
+        phases_seen: set = set()
+                     ^
+rpx_benchmark/phi_jedi_summary.py:293:5: error: Returning Any from function
+declared to return "ndarray[tuple[Any, ...], dtype[Any]]"  [no-any-return]
+        return out
+        ^~~~~~~~~~
+rpx_benchmark/phi_jedi_summary.py:421:65: error: Argument 2 to
+"compute_phi_mixed_design" has incompatible type "list[str | None]"; expected
+"Sequence[str]"  [arg-type]
+    ...        summary.phi_mixed = compute_phi_mixed_design(z, tier_by_scene)
+                                                               ^~~~~~~~~~~~~
+rpx_benchmark/vqa/hub_rgb.py:78:5: error: Function is missing a return type
+annotation  [no-untyped-def]
+        def _open(self, request: urllib.request.Request):
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/hub_rgb.py:116:24: error: Argument 1 of "readinto" is
+incompatible with supertype "_io._RawIOBase"; supertype defines the argument
+type as "Buffer"  [override]
+        def readinto(self, buffer: bytearray) -> int:
+                           ^~~~~~~~~~~~~~~~~
+rpx_benchmark/vqa/hub_rgb.py:116:24: note: This violates the Liskov substitution principle
+rpx_benchmark/vqa/hub_rgb.py:116:24: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#incompatible-overrides
+rpx_benchmark/paper_depth_analysis.py:203:5: error: Returning Any from function
+declared to return "list[float]"  [no-any-return]
+        return adjusted.tolist()
+        ^~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/paper_depth_analysis.py:272:24: error: Argument 1 to
+"merge_cells" has incompatible type "Sequence[str | Path]"; expected
+"Iterable[PathLike[Any]]"  [arg-type]
+        rows = merge_cells(paths)
+                           ^~~~~
+rpx_benchmark/paper_depth_analysis.py:310:19: error: Incompatible types in
+assignment (expression has type "dict[str, Any] | None", variable has type
+"dict[str, Any]")  [assignment]
+                row = by_key.get((scene, phase))
+                      ^~~~~~~~~~~~~~~~~~~~~~~~~~
+rpx_benchmark/paper_depth_analysis.py:350:30: error: List comprehension has
+incompatible type List[object]; expected List[float]  [misc]
+        adjusted = _holm_adjust([item["p_value_raw"] for item in transitio...
+                                 ^~~~~~~~~~~~~~~~~~~
+rpx_benchmark/paper_tracking_analysis.py:174:5: error: Incompatible types in
+assignment (expression has type "dict[str, Any]", variable has type "float") 
+[assignment]
+        for value, adjusted_p in zip(transitions, adjusted, strict=True):
+        ^
+rpx_benchmark/paper_tracking_analysis.py:175:9: error: Unsupported target for
+indexed assignment ("float")  [index]
+            value["p_value_holm"] = adjusted_p
+            ^~~~~~~~~~~~~~~~~~~~~
+Found 54 errors in 13 files (checked 110 source files)

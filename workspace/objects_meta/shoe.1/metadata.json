@@ -1,0 +1,12 @@
+{
+  "object_id": "shoe.1",
+  "fewsol_id": "117.1",
+  "fewsol_dir": "117.1-shoe",
+  "global_object_id": 56,
+  "source_catalog_id": "117.1",
+  "source_category_id": "117",
+  "source_instance_id": "1",
+  "object_name": "shoe",
+  "sos_data_path": "objects/shoe.1/",
+  "questionnaire_path": "objects_meta/shoe.1/questionnaire.json"
+}

@@ -1,0 +1,26 @@
+{
+  "object_id": "t-handle.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tool",
+      "tools"
+    ],
+    "What is the name of the object in these images?": [
+      "corkscrew",
+      "screwdriver",
+      "chisel",
+      "screw tighter",
+      "husky t-handle"
+    ]
+  },
+  "source": "sos/t-handle.2/questionnaire.txt",
+  "global_object_id": 63,
+  "source_catalog_id": "133.2",
+  "source_category_id": "133",
+  "source_instance_id": "2",
+  "object_name": "t-handle",
+  "sos_data_path": "objects/t-handle.2/",
+  "questionnaire_path": "objects_meta/t-handle.2/questionnaire.json",
+  "class_name": "t-handle",
+  "sos_path": "objects/t-handle.2/"
+}

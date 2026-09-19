@@ -1,0 +1,12 @@
+{
+  "object_id": "soup_can.1",
+  "fewsol_id": "122.1",
+  "fewsol_dir": "122.1-soup_can",
+  "global_object_id": 59,
+  "source_catalog_id": "122.1",
+  "source_category_id": "122",
+  "source_instance_id": "1",
+  "object_name": "soup_can",
+  "sos_data_path": "objects/soup_can.1/",
+  "questionnaire_path": "objects_meta/soup_can.1/questionnaire.json"
+}

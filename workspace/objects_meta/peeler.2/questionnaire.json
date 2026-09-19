@@ -1,0 +1,26 @@
+{
+  "object_id": "peeler.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "kitchen tool",
+      "kitchen set",
+      "kitchen tools"
+    ],
+    "What is the name of the object in these images?": [
+      "peeler",
+      "vegetable trimmer",
+      "vegetable scraper",
+      "vegetable peeler"
+    ]
+  },
+  "source": "sos/peeler.2/questionnaire.txt",
+  "global_object_id": 48,
+  "source_catalog_id": "96.2",
+  "source_category_id": "96",
+  "source_instance_id": "2",
+  "object_name": "peeler",
+  "sos_data_path": "objects/peeler.2/",
+  "questionnaire_path": "objects_meta/peeler.2/questionnaire.json",
+  "class_name": "peeler",
+  "sos_path": "objects/peeler.2/"
+}

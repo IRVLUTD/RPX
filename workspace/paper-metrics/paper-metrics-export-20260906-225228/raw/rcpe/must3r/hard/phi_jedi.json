@@ -1,0 +1,51 @@
+{
+  "status": "computed",
+  "phi": {
+    "phi_wilks": 0.9212100983994204,
+    "phi_pillai": 0.9212100983994217,
+    "phi_conservative": 0.9212100983994204,
+    "p_value": 0.47489234325007823,
+    "n_eff": 34,
+    "K": 3,
+    "s": 1,
+    "wilks_lambda": 0.9212100983994204,
+    "pillai_V": 0.07878990160057826
+  },
+  "phi_per_transition": {},
+  "phi_interpretation": "medium",
+  "phi_mixed": null,
+  "jedi": {
+    "jedi": 0.28074395893666704,
+    "per_phase": {
+      "clutter": 0.2484222190927972,
+      "clean": 0.3130656987805369
+    },
+    "n_cells": 68,
+    "n_out_of_bounds": 0
+  },
+  "metrics_used": [
+    "auc_5deg",
+    "auc_10deg",
+    "auc_20deg"
+  ],
+  "n_eff": 34,
+  "n_dropped": 0,
+  "notes": [
+    "compute_phi_per_transition failed: transition (1, 2) out of range for P=2",
+    "mixed-design MANOVA skipped: only 1 tier(s) present."
+  ],
+  "per_phase_metric_means": {
+    "auc_5deg": {
+      "clutter": 0.1049774411072314,
+      "clean": 0.14663871470390558
+    },
+    "auc_10deg": {
+      "clutter": 0.29006224877831055,
+      "clean": 0.36060464886596544
+    },
+    "auc_20deg": {
+      "clutter": 0.5334257861173953,
+      "clean": 0.6091016823871068
+    }
+  }
+}

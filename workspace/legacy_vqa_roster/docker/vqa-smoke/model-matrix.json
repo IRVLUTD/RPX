@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "This is the common three-subtask VQA roster from image2.png.",
+    "All model variants run directional binary, spatial bbox and attribute composition.",
+    "Variants in one dependency_group share an environment; weights and immutable revisions are added when that family Docker stage is implemented."
+  ],
+  "subtasks": [
+    "directional_binary",
+    "spatial_bbox",
+    "attribute_composition"
+  ],
+  "models": [
+    {"order": 1, "id": "paligemma-2-3b", "size": "3B", "dependency_group": "paligemma-2", "bbox_output": "native_loc"},
+    {"order": 2, "id": "paligemma-2-10b", "size": "10B", "dependency_group": "paligemma-2", "bbox_output": "native_loc"},
+    {"order": 3, "id": "gemma-4-4b", "size": "4B", "dependency_group": "gemma-4", "bbox_output": "prompted"},
+    {"order": 4, "id": "gemma-4-12b", "size": "12B", "dependency_group": "gemma-4", "bbox_output": "prompted"},
+    {"order": 5, "id": "qwen2.5-vl-3b", "size": "3B", "dependency_group": "qwen2.5-vl", "bbox_output": "native_box"},
+    {"order": 6, "id": "qwen2.5-vl-7b", "size": "7B", "dependency_group": "qwen2.5-vl", "bbox_output": "native_box"},
+    {"order": 7, "id": "internvl-2.5-8b", "size": "8B", "dependency_group": "internvl-2.5", "bbox_output": "prompted"},
+    {"order": 8, "id": "llava-onevision-7b", "size": "7B", "dependency_group": "llava-onevision", "bbox_output": "prompted"},
+    {"order": 9, "id": "phi-3.5-vision-4.2b", "size": "4.2B", "dependency_group": "phi-3.5-vision", "bbox_output": "prompted"},
+    {"order": 10, "id": "idefics3-8b", "size": "8B", "dependency_group": "idefics3", "bbox_output": "prompted"}
+  ]
+}

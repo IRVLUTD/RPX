@@ -1,0 +1,29 @@
+{
+  "object_id": "air_duster_can",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "utilities",
+      "cleaner",
+      "supplies",
+      "packaging",
+      "spray"
+    ],
+    "What is the name of the object in these images?": [
+      "cleaner",
+      "cleaning duster container",
+      "office depot cleaning duster",
+      "cleaning duster",
+      "insect spray"
+    ]
+  },
+  "source": "sos/air_duster_can/questionnaire.txt",
+  "global_object_id": 1,
+  "source_catalog_id": "1",
+  "source_category_id": "1",
+  "source_instance_id": null,
+  "object_name": "air_duster_can",
+  "sos_data_path": "objects/air_duster_can/",
+  "questionnaire_path": "objects_meta/air_duster_can/questionnaire.json",
+  "class_name": "air_duster_can",
+  "sos_path": "objects/air_duster_can/"
+}

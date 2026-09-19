@@ -1,0 +1,12 @@
+{
+  "object_id": "water_bottle.2",
+  "fewsol_id": "148.2",
+  "fewsol_dir": "148.2-water_bottle",
+  "global_object_id": 70,
+  "source_catalog_id": "148.2",
+  "source_category_id": "148",
+  "source_instance_id": "2",
+  "object_name": "water_bottle",
+  "sos_data_path": "objects/water_bottle.2/",
+  "questionnaire_path": "objects_meta/water_bottle.2/questionnaire.json"
+}

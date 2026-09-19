@@ -1,0 +1,12 @@
+{
+  "object_id": "instant_noodle_packet",
+  "fewsol_id": "70",
+  "fewsol_dir": "70-instant_noodle_packet",
+  "global_object_id": 32,
+  "source_catalog_id": "70",
+  "source_category_id": "70",
+  "source_instance_id": null,
+  "object_name": "instant_noodle_packet",
+  "sos_data_path": "objects/instant_noodle_packet/",
+  "questionnaire_path": "objects_meta/instant_noodle_packet/questionnaire.json"
+}

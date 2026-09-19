@@ -1,0 +1,24 @@
+{
+  "object_id": "apple",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "food",
+      "fruit",
+      "toy"
+    ],
+    "What is the name of the object in these images?": [
+      "apple",
+      "toy apple"
+    ]
+  },
+  "source": "sos/apple/questionnaire.txt",
+  "global_object_id": 3,
+  "source_catalog_id": "5",
+  "source_category_id": "5",
+  "source_instance_id": null,
+  "object_name": "apple",
+  "sos_data_path": "objects/apple/",
+  "questionnaire_path": "objects_meta/apple/questionnaire.json",
+  "class_name": "apple",
+  "sos_path": "objects/apple/"
+}

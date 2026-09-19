@@ -218,6 +218,8 @@ Adapter contracts (module resolution, `build(device)` signature, verified
 
 ## 8. Cross-references
 
+- Server commands for the 50/100/150/200/250-frame experiment:
+  [`video_depth_frame_budget_server_runbook.md`](./video_depth_frame_budget_server_runbook.md)
 - Framework design + literature grounding: [`../../SESSION_HANDOFF.md`](../../SESSION_HANDOFF.md)
 - Per-metric bounds + direction registry: [`../rpx_benchmark/metrics/specs.py`](../rpx_benchmark/metrics/specs.py)
 - Φ MANOVA machinery: [`../rpx_benchmark/phi.py`](../rpx_benchmark/phi.py)

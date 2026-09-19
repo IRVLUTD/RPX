@@ -1,0 +1,24 @@
+{
+  "object_id": "basting_brush.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "office tools",
+      "cooking utensil",
+      "kitchen tool"
+    ],
+    "What is the name of the object in these images?": [
+      "brush",
+      "kitchen brush"
+    ]
+  },
+  "source": "sos/basting_brush.1/questionnaire.txt",
+  "global_object_id": 7,
+  "source_catalog_id": "11.1",
+  "source_category_id": "11",
+  "source_instance_id": "1",
+  "object_name": "basting_brush",
+  "sos_data_path": "objects/basting_brush.1/",
+  "questionnaire_path": "objects_meta/basting_brush.1/questionnaire.json",
+  "class_name": "basting_brush",
+  "sos_path": "objects/basting_brush.1/"
+}

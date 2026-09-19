@@ -1,0 +1,25 @@
+{
+  "object_id": "knife.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "kitchen accessories",
+      "utensil",
+      "utensils",
+      "kitchen tool"
+    ],
+    "What is the name of the object in these images?": [
+      "knife",
+      "butter knife"
+    ]
+  },
+  "source": "sos/knife.1/questionnaire.txt",
+  "global_object_id": 37,
+  "source_catalog_id": "77.1",
+  "source_category_id": "77",
+  "source_instance_id": "1",
+  "object_name": "knife",
+  "sos_data_path": "objects/knife.1/",
+  "questionnaire_path": "objects_meta/knife.1/questionnaire.json",
+  "class_name": "knife",
+  "sos_path": "objects/knife.1/"
+}

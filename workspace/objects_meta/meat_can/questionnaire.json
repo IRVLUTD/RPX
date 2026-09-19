@@ -1,0 +1,25 @@
+{
+  "object_id": "meat_can",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "can",
+      "packing",
+      "packaging",
+      "food"
+    ],
+    "What is the name of the object in these images?": [
+      "spam meat can",
+      "spam can"
+    ]
+  },
+  "source": "sos/meat_can/questionnaire.txt",
+  "global_object_id": 41,
+  "source_catalog_id": "84",
+  "source_category_id": "84",
+  "source_instance_id": null,
+  "object_name": "meat_can",
+  "sos_data_path": "objects/meat_can/",
+  "questionnaire_path": "objects_meta/meat_can/questionnaire.json",
+  "class_name": "meat_can",
+  "sos_path": "objects/meat_can/"
+}

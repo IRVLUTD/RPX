@@ -1,0 +1,12 @@
+{
+  "object_id": "candy_bar.1",
+  "fewsol_id": "25.1",
+  "fewsol_dir": "25.1-candy_bar",
+  "global_object_id": 14,
+  "source_catalog_id": "25.1",
+  "source_category_id": "25",
+  "source_instance_id": "1",
+  "object_name": "candy_bar",
+  "sos_data_path": "objects/candy_bar.1/",
+  "questionnaire_path": "objects_meta/candy_bar.1/questionnaire.json"
+}

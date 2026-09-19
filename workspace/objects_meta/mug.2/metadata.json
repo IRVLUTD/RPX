@@ -1,0 +1,12 @@
+{
+  "object_id": "mug.2",
+  "fewsol_id": "88.2",
+  "fewsol_dir": "88.2-mug",
+  "global_object_id": 45,
+  "source_catalog_id": "88.2",
+  "source_category_id": "88",
+  "source_instance_id": "2",
+  "object_name": "mug",
+  "sos_data_path": "objects/mug.2/",
+  "questionnaire_path": "objects_meta/mug.2/questionnaire.json"
+}

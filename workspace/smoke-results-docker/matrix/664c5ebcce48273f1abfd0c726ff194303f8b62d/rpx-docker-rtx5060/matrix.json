@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "code_identity": "664c5ebcce48273f1abfd0c726ff194303f8b62d",
+  "git_dirty": false,
+  "host": "rpx-docker-rtx5060",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "created_utc": "2026-07-02T18:41:28.176677+00:00",
+  "updated_utc": "2026-07-02T19:01:04.888725+00:00",
+  "selected_models": [
+    "da-v2-large",
+    "depth-pro",
+    "unidepth-v2",
+    "moge-2-vit-l"
+  ],
+  "requested_gates": [
+    "micro",
+    "acceptance"
+  ],
+  "setups": {},
+  "models": {
+    "da-v2-large": {
+      "task": "image",
+      "family": "transformers-image",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 2,
+          "started_utc": "2026-07-02T18:41:47.416247+00:00",
+          "updated_utc": "2026-07-02T18:55:40.340340+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/da-v2-large/micro/20260702T184147Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/da-v2-large/micro/20260702T184147Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T18:55:40.024814+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "failure_class": null,
+          "requires": "micro",
+          "updated_utc": "2026-07-02T18:56:21.266083+00:00",
+          "started_utc": "2026-07-02T18:55:40.340548+00:00",
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/da-v2-large/acceptance/20260702T185540Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/da-v2-large/acceptance/20260702T185540Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T18:56:20.936380+00:00",
+          "return_code": 0
+        }
+      }
+    },
+    "depth-pro": {
+      "task": "image",
+      "family": "transformers-image",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T18:56:34.831337+00:00",
+          "updated_utc": "2026-07-02T18:57:19.273621+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/depth-pro/micro/20260702T185634Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/depth-pro/micro/20260702T185634Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T18:57:18.908464+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T18:57:19.273871+00:00",
+          "updated_utc": "2026-07-02T18:58:05.696378+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/depth-pro/acceptance/20260702T185719Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/depth-pro/acceptance/20260702T185719Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T18:58:05.363981+00:00",
+          "return_code": 0
+        }
+      }
+    },
+    "unidepth-v2": {
+      "task": "image",
+      "family": "unidepth2",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T18:58:15.126454+00:00",
+          "updated_utc": "2026-07-02T18:59:20.607542+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/unidepth-v2/micro/20260702T185815Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/unidepth-v2/micro/20260702T185815Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T18:59:20.272009+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T18:59:20.607878+00:00",
+          "updated_utc": "2026-07-02T18:59:40.021404+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/unidepth-v2/acceptance/20260702T185920Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/unidepth-v2/acceptance/20260702T185920Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T18:59:39.699053+00:00",
+          "return_code": 0
+        }
+      }
+    },
+    "moge-2-vit-l": {
+      "task": "image",
+      "family": "moge2",
+      "blocked": false,
+      "gates": {
+        "micro": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T18:59:48.523614+00:00",
+          "updated_utc": "2026-07-02T19:00:05.740341+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/moge-2-vit-l/micro/20260702T185948Z/run_metadata.json",
+          "validation": {
+            "num_samples": 1,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/moge-2-vit-l/micro/20260702T185948Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 1
+          },
+          "finished_utc": "2026-07-02T19:00:05.457625+00:00",
+          "return_code": 0
+        },
+        "acceptance": {
+          "status": "passed",
+          "attempts": 1,
+          "started_utc": "2026-07-02T19:00:05.740616+00:00",
+          "updated_utc": "2026-07-02T19:00:27.321230+00:00",
+          "failure_class": null,
+          "error": null,
+          "metadata_path": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/moge-2-vit-l/acceptance/20260702T190005Z/run_metadata.json",
+          "validation": {
+            "num_samples": 25,
+            "num_cells": 1,
+            "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/moge-2-vit-l/acceptance/20260702T190005Z/predictions/scene011/0/00000.npz",
+            "num_predictions": 25
+          },
+          "finished_utc": "2026-07-02T19:00:27.034486+00:00",
+          "return_code": 0
+        }
+      }
+    }
+  }
+}

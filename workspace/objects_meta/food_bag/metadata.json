@@ -1,0 +1,12 @@
+{
+  "object_id": "food_bag",
+  "fewsol_id": "50",
+  "fewsol_dir": "50-food_bag",
+  "global_object_id": 22,
+  "source_catalog_id": "50",
+  "source_category_id": "50",
+  "source_instance_id": null,
+  "object_name": "food_bag",
+  "sos_data_path": "objects/food_bag/",
+  "questionnaire_path": "objects_meta/food_bag/questionnaire.json"
+}

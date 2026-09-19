@@ -1,0 +1,67 @@
+{
+  "status": "passed",
+  "started_utc": "2026-07-02T18:57:20.519379+00:00",
+  "command": [
+    "/opt/rpx-envs/transformers-image/bin/python",
+    "/opt/rpx/benchmark/scripts/run_depth.py",
+    "--model",
+    "depth-pro",
+    "--split",
+    "easy",
+    "--repo",
+    "IRVLUTD/RPX",
+    "--revision",
+    "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+    "--device",
+    "cuda",
+    "--output-dir",
+    "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/depth-pro/acceptance/20260702T185719Z",
+    "--batch-size",
+    "1",
+    "--use-official",
+    "--save-predictions",
+    "--skip-flops",
+    "--max-samples",
+    "25"
+  ],
+  "model": "depth-pro",
+  "task": "image",
+  "gate": "acceptance",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "rpx_git_sha": "664c5ebcce48273f1abfd0c726ff194303f8b62d",
+  "code_identity": "664c5ebcce48273f1abfd0c726ff194303f8b62d",
+  "git_dirty": false,
+  "upstream_git_shas": {},
+  "host": "rpx-docker-rtx5060",
+  "platform": "Linux-6.17.9-76061709-generic-x86_64-with-glibc2.36",
+  "python": {
+    "executable": "/opt/rpx-envs/transformers-image/bin/python",
+    "version": "3.11.15 (main, Jun 24 2026, 02:08:39) [GCC 12.2.0]"
+  },
+  "torch": {
+    "version": "2.10.0+cu128",
+    "cuda_runtime": "12.8",
+    "cuda_available": true,
+    "device_count": 1,
+    "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU"
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "memory_total_mib": 8151,
+      "memory_used_mib": 2,
+      "driver_version": "580.82.09"
+    }
+  ],
+  "gpu_processes_before_run": [],
+  "nvidia_smi": "/usr/bin/nvidia-smi",
+  "validation": {
+    "num_samples": 25,
+    "num_cells": 1,
+    "prediction_checked": "/outputs/664c5ebcce48273f1abfd0c726ff194303f8b62d/rpx-docker-rtx5060/depth-pro/acceptance/20260702T185719Z/predictions/scene011/0/00000.npz",
+    "num_predictions": 25
+  },
+  "finished_utc": "2026-07-02T18:58:05.363981+00:00"
+}

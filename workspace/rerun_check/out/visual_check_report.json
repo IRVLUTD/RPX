@@ -1,0 +1,213 @@
+{
+  "repo_root": "/media/naren/New Volume/rpx",
+  "rows_csv": "/media/naren/New Volume/rpx/preview/data_studio_preview.csv",
+  "samples_checked": 5,
+  "unique_scenes": 3,
+  "scene_phase_mode": "all_scene_phases",
+  "rrd_path": null,
+  "contact_sheet_path": "/media/naren/New Volume/rpx/rerun_check/out/rpx_visual_contact_sheet.jpg",
+  "warnings": 0,
+  "warning_scene_phases": [],
+  "results": [
+    {
+      "index": 0,
+      "scene_phase": "scene010.phase2",
+      "scene_id": "scene010",
+      "phase_index": 2,
+      "difficulty": "easy",
+      "rgb_path": "/media/naren/New Volume/rpx/scenes/scene010/2/rgb.tar",
+      "depth_path": "/media/naren/New Volume/rpx/scenes/scene010/2/depth.tar",
+      "mask_path": "/media/naren/New Volume/rpx/scenes/scene010/2/labels/masks/v1.tar",
+      "rgb_frames": 250,
+      "depth_frames": 250,
+      "mask_frames": 250,
+      "frame_index": 125,
+      "rgb_size": [
+        640,
+        480
+      ],
+      "depth_size": [
+        640,
+        480
+      ],
+      "mask_size": [
+        640,
+        480
+      ],
+      "depth_min": 0,
+      "depth_max": 65535,
+      "depth_nonzero_fraction": 0.8657259114583333,
+      "depth_zero_fraction": 0.13427408854166667,
+      "depth_saturated_fraction": 0.00032877604166666667,
+      "depth_valid_fraction": 0.8653971354166666,
+      "depth_valid_min_m": 0.7760000228881836,
+      "depth_valid_max_m": 61.97700119018555,
+      "depth_valid_mean_m": 3.32761287689209,
+      "depth_valid_p50_m": 2.0500001907348633,
+      "mask_instance_count": 7,
+      "mask_nonzero_fraction": 0.07174153645833334,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "index": 1,
+      "scene_phase": "scene011.phase0",
+      "scene_id": "scene011",
+      "phase_index": 0,
+      "difficulty": "easy",
+      "rgb_path": "/media/naren/New Volume/rpx/scenes/scene011/0/rgb.tar",
+      "depth_path": "/media/naren/New Volume/rpx/scenes/scene011/0/depth.tar",
+      "mask_path": "/media/naren/New Volume/rpx/scenes/scene011/0/labels/masks/v1.tar",
+      "rgb_frames": 250,
+      "depth_frames": 250,
+      "mask_frames": 250,
+      "frame_index": 125,
+      "rgb_size": [
+        640,
+        480
+      ],
+      "depth_size": [
+        640,
+        480
+      ],
+      "mask_size": [
+        640,
+        480
+      ],
+      "depth_min": 0,
+      "depth_max": 7946,
+      "depth_nonzero_fraction": 0.98546875,
+      "depth_zero_fraction": 0.01453125,
+      "depth_saturated_fraction": 0.0,
+      "depth_valid_fraction": 0.98546875,
+      "depth_valid_min_m": 0.6320000290870667,
+      "depth_valid_max_m": 7.946000576019287,
+      "depth_valid_mean_m": 1.9517548084259033,
+      "depth_valid_p50_m": 1.4260001182556152,
+      "mask_instance_count": 7,
+      "mask_nonzero_fraction": 0.12766927083333332,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "index": 2,
+      "scene_phase": "scene011.phase1",
+      "scene_id": "scene011",
+      "phase_index": 1,
+      "difficulty": "easy",
+      "rgb_path": "/media/naren/New Volume/rpx/scenes/scene011/1/rgb.tar",
+      "depth_path": "/media/naren/New Volume/rpx/scenes/scene011/1/depth.tar",
+      "mask_path": "/media/naren/New Volume/rpx/scenes/scene011/1/labels/masks/v1.tar",
+      "rgb_frames": 250,
+      "depth_frames": 250,
+      "mask_frames": 250,
+      "frame_index": 125,
+      "rgb_size": [
+        640,
+        480
+      ],
+      "depth_size": [
+        640,
+        480
+      ],
+      "mask_size": [
+        640,
+        480
+      ],
+      "depth_min": 0,
+      "depth_max": 7291,
+      "depth_nonzero_fraction": 0.9880305989583333,
+      "depth_zero_fraction": 0.011969401041666666,
+      "depth_saturated_fraction": 0.0,
+      "depth_valid_fraction": 0.9880305989583333,
+      "depth_valid_min_m": 0.625,
+      "depth_valid_max_m": 7.2910003662109375,
+      "depth_valid_mean_m": 1.437130331993103,
+      "depth_valid_p50_m": 1.2980000972747803,
+      "mask_instance_count": 7,
+      "mask_nonzero_fraction": 0.12052408854166667,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "index": 3,
+      "scene_phase": "scene011.phase2",
+      "scene_id": "scene011",
+      "phase_index": 2,
+      "difficulty": "easy",
+      "rgb_path": "/media/naren/New Volume/rpx/scenes/scene011/2/rgb.tar",
+      "depth_path": "/media/naren/New Volume/rpx/scenes/scene011/2/depth.tar",
+      "mask_path": "/media/naren/New Volume/rpx/scenes/scene011/2/labels/masks/v1.tar",
+      "rgb_frames": 250,
+      "depth_frames": 250,
+      "mask_frames": 250,
+      "frame_index": 125,
+      "rgb_size": [
+        640,
+        480
+      ],
+      "depth_size": [
+        640,
+        480
+      ],
+      "mask_size": [
+        640,
+        480
+      ],
+      "depth_min": 0,
+      "depth_max": 15494,
+      "depth_nonzero_fraction": 0.9906803385416667,
+      "depth_zero_fraction": 0.009319661458333333,
+      "depth_saturated_fraction": 0.0,
+      "depth_valid_fraction": 0.9906803385416667,
+      "depth_valid_min_m": 0.593000054359436,
+      "depth_valid_max_m": 15.494000434875488,
+      "depth_valid_mean_m": 1.8642135858535767,
+      "depth_valid_p50_m": 1.5130001306533813,
+      "mask_instance_count": 7,
+      "mask_nonzero_fraction": 0.07439778645833334,
+      "status": "ok",
+      "notes": []
+    },
+    {
+      "index": 4,
+      "scene_phase": "scene012.phase1",
+      "scene_id": "scene012",
+      "phase_index": 1,
+      "difficulty": "easy",
+      "rgb_path": "/media/naren/New Volume/rpx/scenes/scene012/1/rgb.tar",
+      "depth_path": "/media/naren/New Volume/rpx/scenes/scene012/1/depth.tar",
+      "mask_path": "/media/naren/New Volume/rpx/scenes/scene012/1/labels/masks/v1.tar",
+      "rgb_frames": 250,
+      "depth_frames": 250,
+      "mask_frames": 250,
+      "frame_index": 125,
+      "rgb_size": [
+        640,
+        480
+      ],
+      "depth_size": [
+        640,
+        480
+      ],
+      "mask_size": [
+        640,
+        480
+      ],
+      "depth_min": 0,
+      "depth_max": 6076,
+      "depth_nonzero_fraction": 0.98845703125,
+      "depth_zero_fraction": 0.01154296875,
+      "depth_saturated_fraction": 0.0,
+      "depth_valid_fraction": 0.98845703125,
+      "depth_valid_min_m": 0.6230000257492065,
+      "depth_valid_max_m": 6.076000213623047,
+      "depth_valid_mean_m": 1.4184964895248413,
+      "depth_valid_p50_m": 1.3010001182556152,
+      "mask_instance_count": 7,
+      "mask_nonzero_fraction": 0.04137044270833334,
+      "status": "ok",
+      "notes": []
+    }
+  ]
+}

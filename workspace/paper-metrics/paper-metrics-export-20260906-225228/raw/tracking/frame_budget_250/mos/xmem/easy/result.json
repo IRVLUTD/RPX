@@ -1,0 +1,72 @@
+{
+  "clips": 99,
+  "dataset": {
+    "manifest_sha256": "0ba018a738383d23df239f1b138669dd1cc8261a730d41cb84ce1bde14f80c4a",
+    "repo": "IRVLUTD/RPX",
+    "revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
+  },
+  "evaluator_git_sha": "537fea4f83244d9076768cb69b2f44c1026a1c52",
+  "frames": 24750,
+  "hardware": {
+    "gpu_compute_capability": [
+      8,
+      9
+    ],
+    "gpu_name": "NVIDIA RTX 6000 Ada Generation",
+    "gpu_total_memory_bytes": 50865307648,
+    "torch_cuda_version": "12.8",
+    "torch_version": "2.7.1+cu128"
+  },
+  "model": "xmem",
+  "model_checkpoint": {
+    "filename": "XMem.pth",
+    "repo": "hkchengrex/XMem",
+    "revision": "v1.0",
+    "sha256": "27776291d2f0639b4e6b372a67651579b51180aa4d8f8f89bbff2dcc09ebf6f9"
+  },
+  "phase_metrics": {
+    "0": {
+      "assa": 0.9614252038934114,
+      "deta": 0.9480382419318706,
+      "hota": 0.9543521233761062,
+      "idf1": 0.9957051627812089,
+      "idsw": 0.0,
+      "mota": 0.9914104550963301
+    },
+    "1": {
+      "assa": 0.9178542006716283,
+      "deta": 0.8569355210990223,
+      "hota": 0.8855792274456152,
+      "idf1": 0.9392069634988021,
+      "idsw": 0.21212121212121213,
+      "mota": 0.8852731397628714
+    },
+    "2": {
+      "assa": 0.9668206908300276,
+      "deta": 0.9587173604689141,
+      "hota": 0.9626079347454709,
+      "idf1": 0.9968826875749915,
+      "idsw": 0.09090909090909091,
+      "mota": 0.9937853655530567
+    }
+  },
+  "prediction_stats": {
+    "complete_clip_cache_hits": 0,
+    "inferred_clips": 99,
+    "model_propagation_frames": 24651
+  },
+  "protocol": {
+    "association_iou_threshold": 0.5,
+    "association_representation": "tight_boxes_derived_from_instance_masks",
+    "hota": "mean_over_0.05_to_0.95",
+    "initialization": "ground_truth_first_frame_mask",
+    "metric_implementation": "TrackEval",
+    "open_vocabulary": false,
+    "scored_frames": "1_to_end (initialization frame excluded)",
+    "vocabulary": null,
+    "vocabulary_size": null
+  },
+  "rpx_git_sha": "537fea4f83244d9076768cb69b2f44c1026a1c52",
+  "split": "easy",
+  "task": "object_tracking"
+}

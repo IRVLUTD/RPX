@@ -1,0 +1,12 @@
+{
+  "object_id": "boot.2",
+  "fewsol_id": "18.2",
+  "fewsol_dir": "18.2-boot",
+  "global_object_id": 11,
+  "source_catalog_id": "18.2",
+  "source_category_id": "18",
+  "source_instance_id": "2",
+  "object_name": "boot",
+  "sos_data_path": "objects/boot.2/",
+  "questionnaire_path": "objects_meta/boot.2/questionnaire.json"
+}

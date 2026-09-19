@@ -1,0 +1,12 @@
+{
+  "object_id": "headphone",
+  "fewsol_id": "67",
+  "fewsol_dir": "67-headphone",
+  "global_object_id": 30,
+  "source_catalog_id": "67",
+  "source_category_id": "67",
+  "source_instance_id": null,
+  "object_name": "headphone",
+  "sos_data_path": "objects/headphone/",
+  "questionnaire_path": "objects_meta/headphone/questionnaire.json"
+}

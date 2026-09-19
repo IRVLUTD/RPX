@@ -2,6 +2,9 @@
 
 # RPX
 
+For the `naren/push` consolidated code and local workspace snapshot, see the
+[consolidation inventory](benchmark/docs/naren_push_consolidation.md).
+
 **A real-world RGB-D benchmark for the perception models that actually
 ship in robot learning stacks.**
 

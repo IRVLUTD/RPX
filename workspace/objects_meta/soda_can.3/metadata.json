@@ -1,0 +1,12 @@
+{
+  "object_id": "soda_can.3",
+  "fewsol_id": "120.3",
+  "fewsol_dir": "120.3-soda_can",
+  "global_object_id": 57,
+  "source_catalog_id": "120.3",
+  "source_category_id": "120",
+  "source_instance_id": "3",
+  "object_name": "soda_can",
+  "sos_data_path": "objects/soda_can.3/",
+  "questionnaire_path": "objects_meta/soda_can.3/questionnaire.json"
+}

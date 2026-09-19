@@ -23,6 +23,12 @@ def _arguments() -> argparse.Namespace:
         "--dataset-root", type=Path, required=True, help="RPX dataset checkout/snapshot root"
     )
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--dataset-repo", default="IRVLUTD/RPX")
+    parser.add_argument(
+        "--dataset-revision",
+        default="2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+        help="Pinned Hugging Face dataset revision represented by --dataset-root",
+    )
     parser.add_argument(
         "--objects", nargs="*", help="Optional object IDs; default is every objects/*/0 sequence"
     )
@@ -116,6 +122,9 @@ def main() -> None:
     sequence_metrics.sort(key=lambda item: str(item["object_id"]))
     frame_rows.sort(key=lambda item: (str(item["object_id"]), int(item["frame_idx"])))
     metadata = {
+        "dataset_repo": args.dataset_repo,
+        "dataset_revision": args.dataset_revision,
+        "dataset_root": str(args.dataset_root.resolve()),
         "sensor_frame_assumption": "D435 RGB and saved T265 pose are already aligned",
         "sensor_transform_fitted": False,
         "pose_axis_convention": args.pose_axis_convention,

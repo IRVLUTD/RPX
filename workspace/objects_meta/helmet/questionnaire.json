@@ -1,0 +1,24 @@
+{
+  "object_id": "helmet",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "safety",
+      "tools",
+      "motorcycle helmets",
+      "safety product"
+    ],
+    "What is the name of the object in these images?": [
+      "helmet"
+    ]
+  },
+  "source": "sos/helmet/questionnaire.txt",
+  "global_object_id": 31,
+  "source_catalog_id": "68",
+  "source_category_id": "68",
+  "source_instance_id": null,
+  "object_name": "helmet",
+  "sos_data_path": "objects/helmet/",
+  "questionnaire_path": "objects_meta/helmet/questionnaire.json",
+  "class_name": "helmet",
+  "sos_path": "objects/helmet/"
+}

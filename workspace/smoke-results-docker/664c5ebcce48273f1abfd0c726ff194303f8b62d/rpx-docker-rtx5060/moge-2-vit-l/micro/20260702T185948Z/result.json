@@ -1,0 +1,91 @@
+{
+  "task": "monocular_depth",
+  "model": "MoGe-2 ViT-L",
+  "split": "easy",
+  "repo_id": "IRVLUTD/RPX",
+  "num_samples": 1,
+  "aggregated": {
+    "rmse": 0.4503636062145233,
+    "absrel": 0.155398428440094,
+    "delta1": 0.9316601755708821,
+    "delta2": 0.9892049502964229,
+    "delta3": 0.9943240382686415,
+    "latency_ms": 931.6260619998502
+  },
+  "per_sample": [
+    {
+      "rmse": 0.4503636062145233,
+      "absrel": 0.155398428440094,
+      "delta1": 0.9316601755708821,
+      "delta2": 0.9892049502964229,
+      "delta3": 0.9943240382686415,
+      "id": "scene011__0__00000",
+      "phase": "clutter",
+      "difficulty": "easy",
+      "scene": "scene011",
+      "latency_ms": 931.6260619998502
+    }
+  ],
+  "robustness": {
+    "weighted_phase_score": {
+      "clutter": {
+        "easy": 0.155398428440094,
+        "medium": null,
+        "hard": null,
+        "metric_key": "absrel"
+      },
+      "interaction": {
+        "easy": null,
+        "medium": null,
+        "hard": null,
+        "metric_key": "absrel"
+      },
+      "clean": {
+        "easy": null,
+        "medium": null,
+        "hard": null,
+        "metric_key": "absrel"
+      }
+    },
+    "temporal_stability": {
+      "ts_score": 1.0,
+      "num_pairs": 0,
+      "per_pair": []
+    },
+    "state_transition": {
+      "str_c_to_i": -0.155398428440094,
+      "str_i_to_l": 0.0,
+      "metric_clutter": 0.155398428440094,
+      "metric_interaction": 0.0,
+      "metric_clean": 0.0
+    },
+    "geometric_coherence": null
+  },
+  "compute_cost": {
+    "params_m": null,
+    "flops_g": null,
+    "macs_g": null,
+    "actmem_gb_fp16": null,
+    "memory_traffic_gb": null,
+    "arithmetic_intensity": null,
+    "roofline": null,
+    "latency_ms_per_sample": 931.626,
+    "peak_memory_mb": 2925.216,
+    "system_card": {
+      "gpu_name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "gpu_memory_gb": 7.5,
+      "gpu_count": 1,
+      "cpu_name": "x86_64",
+      "ram_gb": 30.4,
+      "cuda_version": "12.8",
+      "pytorch_version": "2.10.0+cu128",
+      "python_version": "3.11.15",
+      "precision": "fp16",
+      "batch_size": 1,
+      "input_resolution": "640x480",
+      "os": "Linux 6.17.9-76061709-generic",
+      "driver_version": ""
+    },
+    "operating_point": null
+  }
+}

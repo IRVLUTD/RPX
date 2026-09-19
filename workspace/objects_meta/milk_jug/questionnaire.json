@@ -1,0 +1,26 @@
+{
+  "object_id": "milk_jug",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "container",
+      "household essentials",
+      "drink",
+      "beverages"
+    ],
+    "What is the name of the object in these images?": [
+      "milk jug",
+      "almond milk jug",
+      "milk bottle"
+    ]
+  },
+  "source": "sos/milk_jug/questionnaire.txt",
+  "global_object_id": 43,
+  "source_catalog_id": "86",
+  "source_category_id": "86",
+  "source_instance_id": null,
+  "object_name": "milk_jug",
+  "sos_data_path": "objects/milk_jug/",
+  "questionnaire_path": "objects_meta/milk_jug/questionnaire.json",
+  "class_name": "milk_jug",
+  "sos_path": "objects/milk_jug/"
+}

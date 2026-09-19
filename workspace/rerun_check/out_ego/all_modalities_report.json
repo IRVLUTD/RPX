@@ -1,0 +1,1055 @@
+{
+  "repo_root": "/media/naren/New Volume/rpx",
+  "sample_policy": "endpoints",
+  "status": "ok",
+  "units_checked": 1,
+  "unit_counts": {
+    "ego": 1
+  },
+  "error_count": 0,
+  "warning_count": 0,
+  "global": {
+    "errors": [],
+    "warnings": [],
+    "current_json": {
+      "schema_version": "v2",
+      "label_versions": {
+        "masks": "v1",
+        "masks_aux": "v1",
+        "sam2_meta": "v1",
+        "cam_pose": "v1"
+      },
+      "mos": {
+        "schema_version": "v2",
+        "scene_count": 100,
+        "phase_count": 300,
+        "mask_object_row_count": 2100,
+        "local_mask_id_scope": "scene_id + phase",
+        "raw_mask_object_map": "manifest/mos_raw_mask_object_map_v1.csv",
+        "mask_object_map_csv": "manifest/mos_mask_object_map_v1.csv",
+        "mask_object_map_parquet": "manifest/mos_mask_object_map_v1.parquet",
+        "raw_source": "scenes/<scene_id>/<phase_index>/labels/sam2_meta/v1.tar:sam2/mask_to_object.json",
+        "phase_values": [
+          "phase0",
+          "phase1",
+          "phase2"
+        ],
+        "phase_directory_values": [
+          "0",
+          "1",
+          "2"
+        ],
+        "joins_to_sos": {
+          "selected_objects": "manifest/selected_sos_objects_v1.csv",
+          "object_catalog": "manifest/object_catalog_v1.json",
+          "objects_meta_index": "objects_meta/_index.json"
+        },
+        "ego_directory_value": "ego",
+        "ego_contributes_to_esd": false,
+        "ego_view_count": 1,
+        "ego_frame_count": 251,
+        "ego_mask_object_row_count": 7,
+        "ego_frames": "manifest/ego_frames_v1.parquet",
+        "ego_mask_object_map_csv": "manifest/mos_ego_mask_object_map_v1.csv",
+        "ego_mask_object_map_parquet": "manifest/mos_ego_mask_object_map_v1.parquet",
+        "ego_raw_source": "scenes/<scene_id>/ego/labels/sam2_meta/v1.tar:sam2/mask_to_object.json",
+        "view_directory_values": [
+          "0",
+          "1",
+          "2",
+          "ego"
+        ]
+      },
+      "sos": {
+        "schema_version": "v1",
+        "selected_object_count": 70,
+        "objects_dir": "objects",
+        "objects_meta_dir": "objects_meta",
+        "selected_objects": "manifest/selected_sos_objects_v1.csv",
+        "object_catalog": "manifest/object_catalog_v1.json",
+        "objects_meta_index": "objects_meta/_index.json"
+      }
+    },
+    "phase_splits": {
+      "rows": 300,
+      "unique_phase_ids": 300,
+      "split_counts": {
+        "easy": 100,
+        "medium": 100,
+        "hard": 100
+      },
+      "difficulty_counts": {
+        "easy": 100,
+        "medium": 100,
+        "hard": 100
+      }
+    },
+    "scene_splits_json": {
+      "n_scenes": 100,
+      "primary_method": "mean_pn",
+      "scoring_version": "effort_stratified_v1",
+      "feature_count": 27,
+      "weight_count": 27,
+      "weight_sum": 1.0,
+      "tier_counts": {
+        "easy": 33,
+        "medium": 33,
+        "hard": 34
+      }
+    },
+    "data_studio_preview": {
+      "rows": 300,
+      "unique_scene_phases": 300,
+      "image_decode_errors": 0,
+      "image_sizes": {
+        "(1280, 720)": 300
+      }
+    },
+    "selected_sos_objects": {
+      "rows": 70,
+      "unique_object_ids": 70,
+      "global_id_min": 1,
+      "global_id_max": 70
+    },
+    "object_catalog": {
+      "objects": 70
+    },
+    "objects_meta_index": {
+      "selected_object_count": 70,
+      "object_ids": 70
+    },
+    "mos_mask_object_map": {
+      "rows": 2100,
+      "unique_scene_phases": 300
+    },
+    "ego_frames": {
+      "rows": 251,
+      "unique_scenes": 1
+    },
+    "mos_ego_mask_object_map": {
+      "rows": 7,
+      "unique_scenes": 1
+    },
+    "ego_preview": {
+      "rows": 1,
+      "unique_scenes": 1
+    },
+    "teaser_image": {
+      "size": [
+        3839,
+        1438
+      ],
+      "mode": "RGB"
+    },
+    "parquet": {
+      "manifest/frames_v1.parquet": {
+        "rows": 110000,
+        "columns": [
+          "scene_id",
+          "scene_type",
+          "phase",
+          "frame_idx",
+          "frame_filename",
+          "split",
+          "has_rgb",
+          "has_depth",
+          "has_fisheye",
+          "has_cam_pose",
+          "has_masks",
+          "has_masks_aux",
+          "has_sam2_meta",
+          "shard_rgb",
+          "shard_depth",
+          "shard_fisheye",
+          "shard_cam_pose",
+          "shard_masks",
+          "shard_masks_aux",
+          "shard_sam2_meta"
+        ],
+        "unit_frame_count_mismatches": [],
+        "false_modality_flags": {}
+      },
+      "preview/mos_phase_preview.parquet": {
+        "rows": 300,
+        "columns": [
+          "image",
+          "scene_phase",
+          "scene_id",
+          "phase_index",
+          "phase_name",
+          "difficulty",
+          "rpx_ds",
+          "scene_tier",
+          "scene_score",
+          "source_rgb_shard",
+          "source_depth_shard",
+          "source_mask_shard",
+          "caption"
+        ]
+      },
+      "manifest/selected_sos_objects_v1.parquet": {
+        "rows": 70,
+        "columns": [
+          "source_catalog_id",
+          "object_name",
+          "object_id",
+          "global_object_id",
+          "sos_data_path",
+          "questionnaire_path"
+        ]
+      },
+      "splits/easy.parquet": {
+        "rows": 100,
+        "columns": [
+          "scene_phase",
+          "scene_id",
+          "phase_index",
+          "phase_name",
+          "difficulty",
+          "rpx_ds",
+          "scene_tier",
+          "scene_score"
+        ]
+      },
+      "splits/medium.parquet": {
+        "rows": 100,
+        "columns": [
+          "scene_phase",
+          "scene_id",
+          "phase_index",
+          "phase_name",
+          "difficulty",
+          "rpx_ds",
+          "scene_tier",
+          "scene_score"
+        ]
+      },
+      "splits/hard.parquet": {
+        "rows": 100,
+        "columns": [
+          "scene_phase",
+          "scene_id",
+          "phase_index",
+          "phase_name",
+          "difficulty",
+          "rpx_ds",
+          "scene_tier",
+          "scene_score"
+        ]
+      },
+      "manifest/ego_frames_v1.parquet": {
+        "rows": 251,
+        "columns": [
+          "scene_id",
+          "scene_type",
+          "view",
+          "capture_id",
+          "frame_idx",
+          "frame_filename",
+          "split",
+          "has_rgb",
+          "has_depth",
+          "has_fisheye",
+          "has_cam_pose",
+          "has_masks",
+          "has_masks_aux",
+          "has_sam2_meta",
+          "shard_rgb",
+          "shard_depth",
+          "shard_fisheye",
+          "shard_cam_pose",
+          "shard_masks",
+          "shard_masks_aux",
+          "shard_sam2_meta"
+        ]
+      },
+      "manifest/frames_v2.parquet": {
+        "rows": 110251,
+        "columns": [
+          "scene_id",
+          "scene_type",
+          "phase",
+          "frame_idx",
+          "frame_filename",
+          "split",
+          "has_rgb",
+          "has_depth",
+          "has_fisheye",
+          "has_cam_pose",
+          "has_masks",
+          "has_masks_aux",
+          "has_sam2_meta",
+          "shard_rgb",
+          "shard_depth",
+          "shard_fisheye",
+          "shard_cam_pose",
+          "shard_masks",
+          "shard_masks_aux",
+          "shard_sam2_meta",
+          "view",
+          "capture_id",
+          "phase_index",
+          "phase_name",
+          "difficulty",
+          "rpx_ds"
+        ]
+      },
+      "manifest/mos_ego_mask_object_map_v1.parquet": {
+        "rows": 7,
+        "columns": [
+          "scene_id",
+          "view",
+          "capture_id",
+          "local_mask_id",
+          "object_id",
+          "global_object_id",
+          "source_catalog_id",
+          "object_name",
+          "class_name",
+          "questionnaire_path",
+          "sos_path",
+          "sos_data_path",
+          "mask_source"
+        ]
+      },
+      "preview/ego_preview.parquet": {
+        "rows": 1,
+        "columns": [
+          "image",
+          "scene_id",
+          "view",
+          "capture_id",
+          "frame_count",
+          "preview_frame_index",
+          "source_rgb_shard",
+          "source_depth_shard",
+          "source_fisheye_shard",
+          "source_cam_pose_shard",
+          "source_mask_shard",
+          "source_mask_aux_shard",
+          "source_sam2_meta_shard",
+          "caption"
+        ]
+      }
+    },
+    "status": "ok"
+  },
+  "errors_by_unit": [],
+  "warnings_by_unit": [],
+  "rrd_path": null,
+  "contact_sheet_path": "/media/naren/New Volume/rpx/rerun_check/out_ego/all_modalities_contact_sheet.jpg",
+  "results": [
+    {
+      "unit_id": "scene002.ego",
+      "kind": "ego",
+      "view": "ego",
+      "root": "scenes/scene002/ego",
+      "expected_frames": 251,
+      "errors": [],
+      "warnings": [],
+      "shards": {
+        "rgb": {
+          "path": "scenes/scene002/ego/rgb.tar",
+          "file_count": 251,
+          "prefix": "rgb",
+          "count": 251,
+          "first": 0,
+          "last": 250,
+          "missing_count": 0,
+          "extra_count": 0,
+          "duplicate_count": 0,
+          "malformed_count": 0,
+          "sampled": [
+            {
+              "name": "rgb/00000.png",
+              "mode": "RGB",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint8",
+              "min": 0.0,
+              "max": 255.0,
+              "mean": 105.57688151041667,
+              "std": 50.13709378728233,
+              "nonzero_fraction": 0.9999229600694445
+            },
+            {
+              "name": "rgb/00125.png",
+              "mode": "RGB",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint8",
+              "min": 0.0,
+              "max": 255.0,
+              "mean": 114.78933485243056,
+              "std": 55.415525408951176,
+              "nonzero_fraction": 0.9999793836805555
+            },
+            {
+              "name": "rgb/00250.png",
+              "mode": "RGB",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint8",
+              "min": 0.0,
+              "max": 255.0,
+              "mean": 106.8430642361111,
+              "std": 42.3968605535184,
+              "nonzero_fraction": 0.9999880642361111
+            }
+          ]
+        },
+        "depth": {
+          "path": "scenes/scene002/ego/depth.tar",
+          "file_count": 251,
+          "prefix": "depth",
+          "count": 251,
+          "first": 0,
+          "last": 250,
+          "missing_count": 0,
+          "extra_count": 0,
+          "duplicate_count": 0,
+          "malformed_count": 0,
+          "sampled": [
+            {
+              "name": "depth/00000.png",
+              "mode": "I;16",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint16",
+              "min": 0.0,
+              "max": 65535.0,
+              "mean": 5503.2569140625,
+              "std": 6880.6700804926195,
+              "nonzero_fraction": 0.9399934895833333
+            },
+            {
+              "name": "depth/00125.png",
+              "mode": "I;16",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint16",
+              "min": 0.0,
+              "max": 10873.0,
+              "mean": 2763.9340104166668,
+              "std": 1845.081838844037,
+              "nonzero_fraction": 0.946484375
+            },
+            {
+              "name": "depth/00250.png",
+              "mode": "I;16",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint16",
+              "min": 0.0,
+              "max": 26946.0,
+              "mean": 3697.772255859375,
+              "std": 2495.582414725919,
+              "nonzero_fraction": 0.9719173177083333
+            }
+          ]
+        },
+        "fisheye": {
+          "path": "scenes/scene002/ego/fisheye.tar",
+          "file_count": 502,
+          "left": {
+            "prefix": "fisheye/left",
+            "count": 251,
+            "first": 0,
+            "last": 250,
+            "missing_count": 0,
+            "extra_count": 0,
+            "duplicate_count": 0,
+            "malformed_count": 0,
+            "sampled": [
+              {
+                "name": "fisheye/left/00000.png",
+                "mode": "L",
+                "size": [
+                  848,
+                  800
+                ],
+                "dtype": "uint8",
+                "min": 0.0,
+                "max": 255.0,
+                "mean": 72.19667158018868,
+                "std": 73.17494838719595,
+                "nonzero_fraction": 0.9952889150943396
+              },
+              {
+                "name": "fisheye/left/00125.png",
+                "mode": "L",
+                "size": [
+                  848,
+                  800
+                ],
+                "dtype": "uint8",
+                "min": 0.0,
+                "max": 255.0,
+                "mean": 75.5025766509434,
+                "std": 76.3021119432021,
+                "nonzero_fraction": 0.9952889150943396
+              },
+              {
+                "name": "fisheye/left/00250.png",
+                "mode": "L",
+                "size": [
+                  848,
+                  800
+                ],
+                "dtype": "uint8",
+                "min": 0.0,
+                "max": 255.0,
+                "mean": 72.38415241745282,
+                "std": 72.4314576311527,
+                "nonzero_fraction": 0.9952889150943396
+              }
+            ]
+          },
+          "right": {
+            "prefix": "fisheye/right",
+            "count": 251,
+            "first": 0,
+            "last": 250,
+            "missing_count": 0,
+            "extra_count": 0,
+            "duplicate_count": 0,
+            "malformed_count": 0,
+            "sampled": [
+              {
+                "name": "fisheye/right/00000.png",
+                "mode": "L",
+                "size": [
+                  848,
+                  800
+                ],
+                "dtype": "uint8",
+                "min": 0.0,
+                "max": 255.0,
+                "mean": 73.52275648584906,
+                "std": 73.92606259610413,
+                "nonzero_fraction": 0.9952889150943396
+              },
+              {
+                "name": "fisheye/right/00125.png",
+                "mode": "L",
+                "size": [
+                  848,
+                  800
+                ],
+                "dtype": "uint8",
+                "min": 0.0,
+                "max": 255.0,
+                "mean": 75.17420695754717,
+                "std": 77.02177673745544,
+                "nonzero_fraction": 0.9952889150943396
+              },
+              {
+                "name": "fisheye/right/00250.png",
+                "mode": "L",
+                "size": [
+                  848,
+                  800
+                ],
+                "dtype": "uint8",
+                "min": 0.0,
+                "max": 255.0,
+                "mean": 71.81651385613208,
+                "std": 72.4624632535448,
+                "nonzero_fraction": 0.9952889150943396
+              }
+            ]
+          }
+        },
+        "masks": {
+          "path": "scenes/scene002/ego/labels/masks/v1.tar",
+          "file_count": 251,
+          "prefix": "sam2/masks",
+          "count": 251,
+          "first": 0,
+          "last": 250,
+          "missing_count": 0,
+          "extra_count": 0,
+          "duplicate_count": 0,
+          "malformed_count": 0,
+          "sampled": [
+            {
+              "name": "sam2/masks/00000.png",
+              "mode": "I;16",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint16",
+              "min": 0.0,
+              "max": 7.0,
+              "mean": 0.16816080729166666,
+              "std": 0.9065444580103881,
+              "nonzero_fraction": 0.041516927083333335,
+              "nonzero_instance_ids": 7
+            },
+            {
+              "name": "sam2/masks/00125.png",
+              "mode": "I;16",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint16",
+              "min": 0.0,
+              "max": 7.0,
+              "mean": 0.24470052083333332,
+              "std": 1.032198699429473,
+              "nonzero_fraction": 0.06461588541666667,
+              "nonzero_instance_ids": 7
+            },
+            {
+              "name": "sam2/masks/00250.png",
+              "mode": "I;16",
+              "size": [
+                640,
+                480
+              ],
+              "dtype": "uint16",
+              "min": 0.0,
+              "max": 7.0,
+              "mean": 0.13050455729166666,
+              "std": 0.7995175583757409,
+              "nonzero_fraction": 0.03260091145833333,
+              "nonzero_instance_ids": 7
+            }
+          ]
+        },
+        "masks_aux": {
+          "path": "scenes/scene002/ego/labels/masks_aux/v1.tar",
+          "file_count": 4761,
+          "group_counts": {
+            "sam2/bbox_overlay": 2,
+            "sam2/contour_gt_masks": 251,
+            "sam2/dino_output": 3514,
+            "sam2/masks_contour_with_hidden": 251,
+            "sam2/masks_verified": 241,
+            "sam2/palette": 251,
+            "sam2/rgb_and_mask": 251
+          },
+          "decoded_groups": {
+            "sam2/contour_gt_masks": {
+              "count": 251,
+              "first": 0,
+              "last": 250,
+              "missing_count": 0,
+              "extra_count": 0,
+              "duplicate_count": 0,
+              "malformed_count": 0,
+              "sampled": [
+                {
+                  "name": "sam2/contour_gt_masks/00000.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 65.18575520833333,
+                  "std": 37.8992294238645,
+                  "nonzero_fraction": 0.9999066840277778
+                },
+                {
+                  "name": "sam2/contour_gt_masks/00125.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 70.14653754340277,
+                  "std": 40.939254855985155,
+                  "nonzero_fraction": 0.9999989149305556
+                },
+                {
+                  "name": "sam2/contour_gt_masks/00250.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 65.51520833333333,
+                  "std": 33.01474406328536,
+                  "nonzero_fraction": 0.9999967447916667
+                }
+              ]
+            },
+            "sam2/palette": {
+              "count": 251,
+              "first": 0,
+              "last": 250,
+              "missing_count": 0,
+              "extra_count": 0,
+              "duplicate_count": 0,
+              "malformed_count": 0,
+              "sampled": [
+                {
+                  "name": "sam2/palette/00000.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 128.0,
+                  "mean": 3.0372222222222223,
+                  "std": 19.481779323698436,
+                  "nonzero_fraction": 0.02372829861111111
+                },
+                {
+                  "name": "sam2/palette/00125.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 128.0,
+                  "mean": 4.379722222222222,
+                  "std": 23.26848679438818,
+                  "nonzero_fraction": 0.03421657986111111
+                },
+                {
+                  "name": "sam2/palette/00250.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 128.0,
+                  "mean": 2.368333333333333,
+                  "std": 17.24928009769941,
+                  "nonzero_fraction": 0.018502604166666665
+                }
+              ]
+            },
+            "sam2/rgb_and_mask": {
+              "count": 251,
+              "first": 0,
+              "last": 250,
+              "missing_count": 0,
+              "extra_count": 0,
+              "duplicate_count": 0,
+              "malformed_count": 0,
+              "sampled": [
+                {
+                  "name": "sam2/rgb_and_mask/00000.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 115.0,
+                  "mean": 42.0765625,
+                  "std": 20.730738889026185,
+                  "nonzero_fraction": 0.9999034288194445
+                },
+                {
+                  "name": "sam2/rgb_and_mask/00125.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 115.0,
+                  "mean": 45.43425998263889,
+                  "std": 22.804610343149808,
+                  "nonzero_fraction": 0.9999989149305556
+                },
+                {
+                  "name": "sam2/rgb_and_mask/00250.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 115.0,
+                  "mean": 42.49966796875,
+                  "std": 17.631609093122268,
+                  "nonzero_fraction": 0.9999967447916667
+                }
+              ]
+            },
+            "sam2/masks_contour_with_hidden": {
+              "count": 251,
+              "first": 0,
+              "last": 250,
+              "missing_count": 0,
+              "extra_count": 0,
+              "duplicate_count": 0,
+              "malformed_count": 0,
+              "sampled": [
+                {
+                  "name": "sam2/masks_contour_with_hidden/00000.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 65.18575520833333,
+                  "std": 37.8992294238645,
+                  "nonzero_fraction": 0.9999066840277778
+                },
+                {
+                  "name": "sam2/masks_contour_with_hidden/00125.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 70.14653754340277,
+                  "std": 40.939254855985155,
+                  "nonzero_fraction": 0.9999989149305556
+                },
+                {
+                  "name": "sam2/masks_contour_with_hidden/00250.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 65.51520833333333,
+                  "std": 33.01474406328536,
+                  "nonzero_fraction": 0.9999967447916667
+                }
+              ]
+            },
+            "sam2/bbox_overlay": {
+              "count": 2,
+              "sampled": [
+                {
+                  "name": "sam2/bbox_overlay/00010.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 109.37538845486111,
+                  "std": 55.350624625581105,
+                  "nonzero_fraction": 0.999931640625
+                },
+                {
+                  "name": "sam2/bbox_overlay/00250.png",
+                  "mode": "RGB",
+                  "size": [
+                    640,
+                    480
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 107.09536458333334,
+                  "std": 45.81210718952859,
+                  "nonzero_fraction": 0.9999717881944444
+                }
+              ]
+            },
+            "sam2/dino_output": {
+              "count": 3514,
+              "png_count": 3263,
+              "json_count": 251,
+              "sampled": [
+                {
+                  "name": "sam2/dino_output/crop_masks/00000_mask1.png",
+                  "mode": "RGB",
+                  "size": [
+                    1028,
+                    512
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 27.4991076675989,
+                  "std": 60.236678471163025,
+                  "nonzero_fraction": 0.22115150778210116
+                },
+                {
+                  "name": "sam2/dino_output/crop_masks/00000_mask2.png",
+                  "mode": "RGB",
+                  "size": [
+                    1028,
+                    512
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 46.854926637483786,
+                  "std": 87.42353143455634,
+                  "nonzero_fraction": 0.2752645965061608
+                },
+                {
+                  "name": "sam2/dino_output/crop_masks/00000_mask3.png",
+                  "mode": "RGB",
+                  "size": [
+                    1028,
+                    512
+                  ],
+                  "dtype": "uint8",
+                  "min": 0.0,
+                  "max": 255.0,
+                  "mean": 43.16760776386187,
+                  "std": 85.49287638394195,
+                  "nonzero_fraction": 0.24161688857814526
+                }
+              ]
+            }
+          }
+        },
+        "sam2_meta": {
+          "path": "scenes/scene002/ego/labels/sam2_meta/v1.tar",
+          "file_count": 5,
+          "files": [
+            "sam2/iter1_faulty.txt",
+            "sam2/iter2_faulty.txt",
+            "sam2/iter6_faulty.txt",
+            "sam2/mask_to_object.json",
+            "sam2/verified_masks.txt"
+          ],
+          "mask_to_object_count": 7,
+          "text_line_counts": {
+            "sam2/iter1_faulty.txt": 0,
+            "sam2/iter2_faulty.txt": 0,
+            "sam2/iter6_faulty.txt": 0,
+            "sam2/verified_masks.txt": 251
+          }
+        },
+        "cam_pose": {
+          "path": "scenes/scene002/ego/labels/cam_pose/v1.tar",
+          "file_count": 251,
+          "count": 251,
+          "first": 0,
+          "last": 250,
+          "missing_count": 0,
+          "extra_count": 0,
+          "duplicate_count": 0,
+          "malformed_count": 0,
+          "sampled": [
+            {
+              "name": "cam_pose/00000.npz",
+              "fields": [
+                "orientation",
+                "position"
+              ],
+              "position": {
+                "shape": [
+                  3
+                ],
+                "dtype": "float64",
+                "finite": true,
+                "norm": 0.9772810043452504
+              },
+              "orientation": {
+                "shape": [
+                  4
+                ],
+                "dtype": "float64",
+                "finite": true,
+                "norm": 0.9999999972713929
+              }
+            },
+            {
+              "name": "cam_pose/00125.npz",
+              "fields": [
+                "orientation",
+                "position"
+              ],
+              "position": {
+                "shape": [
+                  3
+                ],
+                "dtype": "float64",
+                "finite": true,
+                "norm": 1.769692311974256
+              },
+              "orientation": {
+                "shape": [
+                  4
+                ],
+                "dtype": "float64",
+                "finite": true,
+                "norm": 1.0000000574452599
+              }
+            },
+            {
+              "name": "cam_pose/00250.npz",
+              "fields": [
+                "orientation",
+                "position"
+              ],
+              "position": {
+                "shape": [
+                  3
+                ],
+                "dtype": "float64",
+                "finite": true,
+                "norm": 1.3080915412499883
+              },
+              "orientation": {
+                "shape": [
+                  4
+                ],
+                "dtype": "float64",
+                "finite": true,
+                "norm": 1.000000064518078
+              }
+            }
+          ]
+        }
+      },
+      "frame_counts": {
+        "rgb": 251,
+        "depth": 251,
+        "masks": 251,
+        "cam_pose": 251,
+        "fisheye_left": 251,
+        "fisheye_right": 251
+      },
+      "status": "ok"
+    }
+  ]
+}

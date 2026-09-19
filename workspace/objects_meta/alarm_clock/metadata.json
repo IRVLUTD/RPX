@@ -1,0 +1,12 @@
+{
+  "object_id": "alarm_clock",
+  "fewsol_id": "3",
+  "fewsol_dir": "3-alarm_clock",
+  "global_object_id": 2,
+  "source_catalog_id": "3",
+  "source_category_id": "3",
+  "source_instance_id": null,
+  "object_name": "alarm_clock",
+  "sos_data_path": "objects/alarm_clock/",
+  "questionnaire_path": "objects_meta/alarm_clock/questionnaire.json"
+}

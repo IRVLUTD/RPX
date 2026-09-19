@@ -1,0 +1,24 @@
+{
+  "object_id": "power_drill",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tool",
+      "home utensil",
+      "tools"
+    ],
+    "What is the name of the object in these images?": [
+      "drill",
+      "drilling machine"
+    ]
+  },
+  "source": "sos/power_drill/questionnaire.txt",
+  "global_object_id": 49,
+  "source_catalog_id": "102",
+  "source_category_id": "102",
+  "source_instance_id": null,
+  "object_name": "power_drill",
+  "sos_data_path": "objects/power_drill/",
+  "questionnaire_path": "objects_meta/power_drill/questionnaire.json",
+  "class_name": "power_drill",
+  "sos_path": "objects/power_drill/"
+}

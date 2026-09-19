@@ -1,0 +1,24 @@
+{
+  "object_id": "scissors.1",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "tool",
+      "stationary",
+      "scissors/office supplies"
+    ],
+    "What is the name of the object in these images?": [
+      "scissors",
+      "scissor"
+    ]
+  },
+  "source": "sos/scissors.1/questionnaire.txt",
+  "global_object_id": 54,
+  "source_catalog_id": "113.1",
+  "source_category_id": "113",
+  "source_instance_id": "1",
+  "object_name": "scissors",
+  "sos_data_path": "objects/scissors.1/",
+  "questionnaire_path": "objects_meta/scissors.1/questionnaire.json",
+  "class_name": "scissors",
+  "sos_path": "objects/scissors.1/"
+}

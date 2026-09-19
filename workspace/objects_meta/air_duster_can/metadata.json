@@ -1,0 +1,12 @@
+{
+  "object_id": "air_duster_can",
+  "fewsol_id": "1",
+  "fewsol_dir": "1-air_duster_can",
+  "global_object_id": 1,
+  "source_catalog_id": "1",
+  "source_category_id": "1",
+  "source_instance_id": null,
+  "object_name": "air_duster_can",
+  "sos_data_path": "objects/air_duster_can/",
+  "questionnaire_path": "objects_meta/air_duster_can/questionnaire.json"
+}

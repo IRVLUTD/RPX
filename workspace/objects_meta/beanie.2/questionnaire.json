@@ -1,0 +1,25 @@
+{
+  "object_id": "beanie.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "clothing",
+      "cloathing",
+      "clothes"
+    ],
+    "What is the name of the object in these images?": [
+      "beanie",
+      "hat",
+      "hood"
+    ]
+  },
+  "source": "sos/beanie.2/questionnaire.txt",
+  "global_object_id": 8,
+  "source_catalog_id": "13.2",
+  "source_category_id": "13",
+  "source_instance_id": "2",
+  "object_name": "beanie",
+  "sos_data_path": "objects/beanie.2/",
+  "questionnaire_path": "objects_meta/beanie.2/questionnaire.json",
+  "class_name": "beanie",
+  "sos_path": "objects/beanie.2/"
+}

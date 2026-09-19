@@ -1,0 +1,12 @@
+{
+  "object_id": "apple",
+  "fewsol_id": "5",
+  "fewsol_dir": "5-apple",
+  "global_object_id": 3,
+  "source_catalog_id": "5",
+  "source_category_id": "5",
+  "source_instance_id": null,
+  "object_name": "apple",
+  "sos_data_path": "objects/apple/",
+  "questionnaire_path": "objects_meta/apple/questionnaire.json"
+}

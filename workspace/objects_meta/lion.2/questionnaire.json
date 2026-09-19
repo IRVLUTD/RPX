@@ -1,0 +1,26 @@
+{
+  "object_id": "lion.2",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "toys",
+      "toy. animal toy"
+    ],
+    "What is the name of the object in these images?": [
+      "lion",
+      "toy lion",
+      "lion toy",
+      "big toy lion",
+      "big lion"
+    ]
+  },
+  "source": "sos/lion.2/questionnaire.txt",
+  "global_object_id": 39,
+  "source_catalog_id": "82.2",
+  "source_category_id": "82",
+  "source_instance_id": "2",
+  "object_name": "lion",
+  "sos_data_path": "objects/lion.2/",
+  "questionnaire_path": "objects_meta/lion.2/questionnaire.json",
+  "class_name": "lion",
+  "sos_path": "objects/lion.2/"
+}

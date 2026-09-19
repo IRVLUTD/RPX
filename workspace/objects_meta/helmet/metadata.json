@@ -1,0 +1,12 @@
+{
+  "object_id": "helmet",
+  "fewsol_id": "68",
+  "fewsol_dir": "68-helmet",
+  "global_object_id": 31,
+  "source_catalog_id": "68",
+  "source_category_id": "68",
+  "source_instance_id": null,
+  "object_name": "helmet",
+  "sos_data_path": "objects/helmet/",
+  "questionnaire_path": "objects_meta/helmet/questionnaire.json"
+}

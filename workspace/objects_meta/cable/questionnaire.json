@@ -1,0 +1,26 @@
+{
+  "object_id": "cable",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "accessories",
+      "cable",
+      "electrical",
+      "electronic accessories"
+    ],
+    "What is the name of the object in these images?": [
+      "ethernet cable",
+      "internet cable",
+      "cable"
+    ]
+  },
+  "source": "sos/cable/questionnaire.txt",
+  "global_object_id": 13,
+  "source_catalog_id": "23",
+  "source_category_id": "23",
+  "source_instance_id": null,
+  "object_name": "cable",
+  "sos_data_path": "objects/cable/",
+  "questionnaire_path": "objects_meta/cable/questionnaire.json",
+  "class_name": "cable",
+  "sos_path": "objects/cable/"
+}

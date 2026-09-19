@@ -1,0 +1,29 @@
+{
+  "object_id": "toothpaste",
+  "questions": {
+    "What is the category of the object in these images?": [
+      "health",
+      "hygiene",
+      "toothpaste",
+      "self care",
+      "storage"
+    ],
+    "What is the name of the object in these images?": [
+      "paste",
+      "toothpaste",
+      "colgate triple action toothpaste",
+      "tube",
+      "colgate toothpase"
+    ]
+  },
+  "source": "sos/toothpaste/questionnaire.txt",
+  "global_object_id": 67,
+  "source_catalog_id": "142",
+  "source_category_id": "142",
+  "source_instance_id": null,
+  "object_name": "toothpaste",
+  "sos_data_path": "objects/toothpaste/",
+  "questionnaire_path": "objects_meta/toothpaste/questionnaire.json",
+  "class_name": "toothpaste",
+  "sos_path": "objects/toothpaste/"
+}
