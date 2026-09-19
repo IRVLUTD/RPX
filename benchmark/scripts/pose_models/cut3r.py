@@ -60,10 +60,10 @@ class CUT3R:
         return self._model
 
     def _infer_pair(self, pair: dict) -> dict:
-        from PIL import Image
         from dust3r.inference import inference
         from dust3r.utils.camera import pose_encoding_to_camera
         from dust3r.utils.image import load_images
+        from PIL import Image
 
         rgb_a, rgb_b = validate_pair(pair)
         torch = self._torch

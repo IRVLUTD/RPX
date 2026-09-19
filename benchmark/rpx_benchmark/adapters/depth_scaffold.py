@@ -178,9 +178,9 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
     "da3-video": DepthModelCard(
         name="DA3",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
+        depth_output_kind="relative",
         install_hint=(
-            "pip install depth-anything-3; same weights as da3-metric-l, "
+            "pip install depth-anything-3; depth-anything/DA3-LARGE, "
             "fed per-clip instead of per-frame"
         ),
         paper_ref="yang2024depth",

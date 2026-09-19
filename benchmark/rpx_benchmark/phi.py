@@ -122,7 +122,7 @@ def _worst_correlated_pair(
     i, j = np.unravel_index(int(np.argmax(np.abs(C))), C.shape)
     r = float(C[i, j])
     if metric_names is not None and len(metric_names) == K:
-        return f"worst pair: ({metric_names[i]!r}, {metric_names[j]!r}) with |r|={abs(r):.3f}"
+        return f"worst pair: ({metric_names[int(i)]!r}, {metric_names[int(j)]!r}) with |r|={abs(r):.3f}"
     return f"worst pair: (column {i}, column {j}) with |r|={abs(r):.3f}"
 
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .exceptions import ConfigError
+
 # librealsense T265: X right, Y up, Z back.
 # OpenCV/VGGT:       X right, Y down, Z forward.
 T265_TO_OPENCV = np.diag([1.0, -1.0, -1.0, 1.0])
@@ -19,7 +21,7 @@ def t265_c2w_to_opencv(pose: np.ndarray) -> np.ndarray:
 
     transform = np.asarray(pose, dtype=np.float64)
     if transform.shape != (4, 4):
-        raise ValueError(f"expected a 4x4 pose, got {transform.shape}")
+        raise ConfigError(f"expected a 4x4 pose, got {transform.shape}")
     return T265_TO_OPENCV @ transform @ T265_TO_OPENCV
 
 

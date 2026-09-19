@@ -277,6 +277,7 @@ def cell_from_metrics(
     metric_keys: Optional[Sequence[str]] = None,
     timestamp_utc: Optional[str] = None,
     frame_budget: int = 0,
+    system_card: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Build one canonical (scene, phase) cell from *pre-aggregated* metrics.
 
@@ -310,7 +311,20 @@ def cell_from_metrics(
     def _label(v: Any) -> Optional[str]:
         return None if v is None else str(v.value if hasattr(v, "value") else v)
 
+    if system_card is None:
+        sc = {}
+    elif hasattr(system_card, "to_dict"):
+        sc = system_card.to_dict()
+    elif isinstance(system_card, Mapping):
+        sc = system_card
+    else:
+        raise ConfigTypeError("system_card must be a SystemCard, a dict, or None")
+
     cell: Dict[str, Any] = {
+        "gpu_name": sc.get("gpu_name") or None,
+        "gpu_memory_gb": sc.get("gpu_memory_gb"),
+        "precision": sc.get("precision") or None,
+        "batch_size": sc.get("batch_size"),
         "model_name": model_name,
         "task": task,
         "scene_id": str(scene_id),

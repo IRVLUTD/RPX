@@ -56,7 +56,6 @@ from .api import (
     DetectionGroundTruth,
     Difficulty,
     KeypointCorrespondenceGroundTruth,
-    NovelViewSynthesisGroundTruth,
     Phase,
     RelativePoseGroundTruth,
     Sample,
@@ -317,7 +316,10 @@ class RPXDataset:
             camera_pose = self._load_pose(entry["pose"])
 
         # Fisheye images — stored in metadata if present
-        metadata: Dict[str, Any] = entry.get("metadata") or {}
+        metadata: Dict[str, Any] = dict(entry.get("metadata") or {})
+        scene = entry.get("scene_id") or entry.get("scene")
+        if scene is not None:
+            metadata["scene_id"] = scene
         if "fisheye_left" in entry:
             metadata["fisheye_left"] = self._load_gray(entry["fisheye_left"])
         if "fisheye_right" in entry:
@@ -365,8 +367,6 @@ class RPXDataset:
         if task == TaskType.SPARSE_DEPTH:
             return self._load_sparse_depth(entry)
 
-        if task == TaskType.NOVEL_VIEW_SYNTHESIS:
-            return self._load_nvs(entry)
 
         if task == TaskType.KEYPOINT_MATCHING:
             return self._load_keypoints(entry)
@@ -445,12 +445,6 @@ class RPXDataset:
         depths = self._load_array_or_inline(entry["depths"]).astype(np.float32)
         return SparseDepthGroundTruth(coordinates=coordinates, depths=depths)
 
-    def _load_nvs(self, entry: Dict[str, Any]) -> NovelViewSynthesisGroundTruth:
-        rgb = self._load_rgb(entry["target_rgb"])
-        camera_pose: Any = entry.get("target_pose") or entry.get("camera_pose")
-        if isinstance(camera_pose, str):
-            camera_pose = self._load_pose(camera_pose)
-        return NovelViewSynthesisGroundTruth(rgb=rgb, camera_pose=camera_pose)
 
     def _load_keypoints(self, entry: Dict[str, Any]) -> KeypointCorrespondenceGroundTruth:
         points0 = self._load_array_or_inline(entry["points0"]).astype(np.float32)

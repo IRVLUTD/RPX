@@ -26,6 +26,8 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+from .exceptions import ConfigError
+
 # ALVAR MarkerData IDs 0--17, sampled from the canonical marker generator.
 _ALVAR_5X5_BITS = (
     "1101111011101011111111111",
@@ -101,12 +103,12 @@ def _cv2() -> Any:
     try:
         import cv2
     except ImportError as exc:  # pragma: no cover - environment-dependent
-        raise RuntimeError(
+        raise ConfigError(
             "AR pose auditing requires OpenCV contrib; install "
             "`pip install 'rpx-benchmark[ar-pose-audit]'`."
         ) from exc
     if not hasattr(cv2, "aruco"):
-        raise RuntimeError(
+        raise ConfigError(
             "OpenCV was installed without the aruco module; use opencv-contrib-python-headless."
         )
     return cv2
@@ -141,7 +143,7 @@ def marker_object_corners(marker_id: int) -> np.ndarray:
     """Return TL, TR, BR, BL corners in the board-centred coordinate frame."""
 
     if not 0 <= marker_id < len(_MARKER_CENTRES_CM):
-        raise ValueError(f"unknown FewSOL marker id: {marker_id}")
+        raise ConfigError(f"unknown FewSOL marker id: {marker_id}")
     x_cm, y_cm = _MARKER_CENTRES_CM[marker_id]
     cx = x_cm * 0.01 - BOARD_WIDTH_M / 2.0
     cy = BOARD_HEIGHT_M / 2.0 - y_cm * 0.01
@@ -342,14 +344,14 @@ def compare_pose_tracks(
     """Compare AR and saved motion without estimating a sensor transform."""
 
     if not (len(frame_ids) == len(cam_poses) == len(board_observations)):
-        raise ValueError("frame, camera-pose and board-observation counts differ")
+        raise ConfigError("frame, camera-pose and board-observation counts differ")
     if not frame_ids:
         return {"matched_frames": 0}, []
 
     if pose_axis_convention == "t265":
         cam_poses = [t265_to_opencv_pose(pose) for pose in cam_poses]
     elif pose_axis_convention != "opencv":
-        raise ValueError("pose_axis_convention must be 't265' or 'opencv'")
+        raise ConfigError("pose_axis_convention must be 't265' or 'opencv'")
 
     ar_poses = [np.linalg.inv(observation.camera_from_board) for observation in board_observations]
     cam_anchor, ar_anchor = cam_poses[0], ar_poses[0]

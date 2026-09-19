@@ -30,7 +30,7 @@ PRIMARY_METRIC = "absrel"
 # safely below N (scenes) and metrics inside must not be collinear or the
 # within-phase SSCP E becomes singular. See :func:`rpx_benchmark.phi.compute_phi_oneway`.
 #
-# Locked K-vectors — RGB-D-only constraint (see SESSION_HANDOFF.md):
+# Locked K-vectors — RGB-D-only constraint (see benchmark/README.md):
 #
 # Depth-estimation tasks in RPX use RGB-D only. Even though the dataset
 # captures T265 poses, fisheye stereo, and other modalities, the depth
@@ -93,6 +93,49 @@ def run_video_depth(cfg: VideoDepthRunConfig) -> PipelineResult:
         primary_metric=PRIMARY_METRIC,
         cfg=cfg,
     )
+
+
+def evaluate_video_depth_clip(pred_seq, clip, *, flow_fn=None):
+    """Score metric-depth predictions for a PhaseClip without downloading data.
+
+    Pose/flow metrics are diagnostics when those inputs are supplied; the
+    headline RGB-D-only K-vector remains unchanged. Non-release image sizes
+    yield NaN for the fixed-intrinsics paper F-score.
+    """
+    import numpy as np
+
+    from ..exceptions import MetricError
+    from ..metrics.depth_temporal import compute_temporal_depth_metrics
+    from ..metrics.video_depth import _per_frame_error_metrics
+
+    pred = np.asarray(pred_seq, dtype=np.float32)
+    gt = np.asarray(clip.depth_gt_seq, dtype=np.float32)
+    if pred.shape != gt.shape or pred.ndim != 3:
+        raise MetricError(f"Expected depth clip shape {gt.shape}, got {pred.shape}")
+    if np.asarray(clip.valid_mask_seq).shape != gt.shape:
+        raise MetricError("Clip validity mask must match ground-truth depth")
+    metrics = _per_frame_error_metrics(pred, gt, np.asarray(clip.valid_mask_seq, dtype=bool))
+    k = np.asarray(clip.intrinsics)
+    metrics.update(compute_temporal_depth_metrics(
+        pred, gt_seq=gt, poses=clip.poses, rgb_seq=clip.rgb_seq, flow_fn=flow_fn,
+        fx=float(k[0, 0]), fy=float(k[1, 1]), cx=float(k[0, 2]), cy=float(k[1, 2]),
+    ))
+    return metrics
+
+
+def video_depth_cell_row(pred_seq, clip, *, model_name, flow_fn=None):
+    """Evaluate a PhaseClip and return the common per-scene/phase cell schema."""
+    from ..cell_log import cell_from_metrics
+
+    return cell_from_metrics(
+        evaluate_video_depth_clip(pred_seq, clip, flow_fn=flow_fn),
+        model_name=model_name, task=VIDEO_DEPTH_TASK, scene_id=clip.scene_id,
+        phase=clip.phase, n_samples=clip.num_frames, difficulty=clip.difficulty,
+    )
+
+
+evaluate_d1v_clip = evaluate_video_depth_clip
+d1v_cell_row = video_depth_cell_row
 
 
 TASK_SPEC = TaskSpec(

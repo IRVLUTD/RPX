@@ -355,7 +355,7 @@ class VideoDepthDataset:
                 "are relative to a different root (e.g. an HF cache "
                 "snapshot or a staged dataset tree), set the 'root' field "
                 "explicitly in the manifest. See "
-                "benchmark/docs/team_run_guide.md for the manifest schema.",
+                "benchmark/README.md for the manifest schema.",
                 manifest_path,
                 manifest_path.parent,
             )

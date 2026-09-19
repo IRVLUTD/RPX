@@ -25,7 +25,6 @@ inference rows: they carry no sample_id, no question, no answer.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -164,7 +163,7 @@ def build_mos(streams: dict, seed: int):
     report_cells = []
     for scene, phase in scenes_phases:
         cell = f"mos:{scene}:{phase}"
-        frame_key = lambda frame: (scene, phase, frame)  # noqa: E731
+        frame_key = lambda frame, scene=scene, phase=phase: (scene, phase, frame)  # noqa: E731
         joint = {
             frame
             for (s, p, frame) in streams["ng"]
@@ -237,7 +236,7 @@ def build_ego(streams: dict, seed: int):
         if len(joint) < FRAMES_PER_EGO_SCENE:
             raise SystemExit(f"{cell}: only {len(joint)} joint (ng & ig) frames, need {FRAMES_PER_EGO_SCENE}")
         frames = _ranked_frames(joint, seed, f"egoframes:{cell}", FRAMES_PER_EGO_SCENE)
-        frame_key = lambda frame: (scene, None, frame)  # noqa: E731
+        frame_key = lambda frame, scene=scene: (scene, None, frame)  # noqa: E731
         general_rows, general_counts = _balanced_assign(
             frames, {f: streams["ego_ng"][frame_key(f)] for f in frames}, NORMAL_GENERAL_TYPES, seed, f"egng:{cell}"
         )

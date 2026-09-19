@@ -171,8 +171,8 @@ def analyze_tracking_cells(
             }
         )
     adjusted = _holm_adjust([value["p_value_raw"] for value in transitions])
-    for value, adjusted_p in zip(transitions, adjusted, strict=True):
-        value["p_value_holm"] = adjusted_p
+    for transition, adjusted_p in zip(transitions, adjusted, strict=True):
+        transition["p_value_holm"] = adjusted_p
 
     tier_array = np.asarray(difficulties)
     per_tier = {

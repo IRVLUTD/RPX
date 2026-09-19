@@ -72,9 +72,9 @@ class MUSt3R:
         return self._torch.nn.ModuleList([self._encoder, self._decoder])
 
     def _infer_pair(self, pair: dict) -> dict:
-        from PIL import Image
         from dust3r.utils.image import load_images
         from must3r.engine.inference import inference, postprocess
+        from PIL import Image
 
         rgb_a, rgb_b = validate_pair(pair)
         with tempfile.TemporaryDirectory() as temporary:

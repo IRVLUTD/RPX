@@ -37,6 +37,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 import numpy as np
 import pandas as pd
 
+from .exceptions import ConfigError
 from .logging_utils import get_logger
 
 log = get_logger(__name__)
@@ -136,7 +137,7 @@ def _load_pose_file(path: Path) -> tuple[np.ndarray, np.ndarray]:
     if path.suffix.lower() == ".npy":
         values = np.asarray(data, dtype=np.float64)
         if values.shape != (7,):
-            raise ValueError(f"camera pose {path} must have shape (7,), got {values.shape}")
+            raise ConfigError(f"camera pose {path} must have shape (7,), got {values.shape}")
         translation = values[:3]
         quaternion = values[3:]
     else:
@@ -230,7 +231,7 @@ class PosePairGenerator:
         self.split = split
         self.cfg = config or PairConfig()
         if self.cfg.cross_pairs_per_bin != 0:
-            raise ValueError(
+            raise ConfigError(
                 "cross-phase RCPE pairs are invalid because each phase has an "
                 "unrelated T265 local world frame; cross_pairs_per_bin must be 0"
             )

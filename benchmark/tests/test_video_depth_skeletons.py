@@ -121,7 +121,7 @@ REAL_VIDEO_ADAPTERS = [
     ("chrono-depth",   "ChronoDepth",          "relative"),
     ("monst3r",        "MonST3R",              "relative"),
     ("vggt-omega",     "VGGT-Ω",               "relative"),
-    ("da3-video",      "DA3",                  "metric"),
+    ("da3-video",      "DA3",                  "relative"),
     ("vigeo",          "ViGeo",                "relative"),
     ("gem-depth",      "GemDepth",             "relative"),
     ("dvd",            "DVD v1.1",             "relative"),

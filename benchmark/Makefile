@@ -7,13 +7,13 @@
 PKG := rpx_benchmark
 PY  := python
 
-.PHONY: help install test cov lint fmt type check docs serve smoke visualize visualize-phases visualize-save visualize-lite visualize-headless clean
+.PHONY: help install test cov lint fmt type check smoke visualize visualize-phases visualize-save visualize-lite visualize-headless clean
 
 help:  ## List every target
 	@awk 'BEGIN{FS=":.*##"; printf "\nTargets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install:  ## Editable install with every dev + runtime extra
-	$(PY) -m pip install -e '.[dev,hub,hf-datasets,schemas,docs]'
+	$(PY) -m pip install -e '.[dev,hub,hf-datasets,schemas]'
 	pre-commit install
 
 test:  ## Run the test suite
@@ -36,12 +36,6 @@ type:  ## Mypy with the pyproject-configured strict overlay
 	mypy $(PKG)
 
 check: lint type cov  ## Everything CI runs, locally (lint + type + coverage)
-
-docs:  ## Build the MkDocs site under ./site/
-	mkdocs build --clean
-
-serve:  ## Serve the docs with live reload at localhost:8000
-	mkdocs serve
 
 smoke:  ## Run the minimal BYO-model example at examples/run_depth.py
 	$(PY) examples/run_depth.py

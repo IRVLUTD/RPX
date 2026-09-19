@@ -35,7 +35,7 @@ For now, model adapter registration is left to the contributor: the
 20 canonical models live in ``rpx_benchmark.adapters.video_depth``
 (skeletons) and ``scripts/depth_models/`` (Image Depth implementations the
 video models will eventually port to). See
-``benchmark/docs/team_run_guide.md`` for the team handoff workflow.
+``benchmark/README.md`` for the team handoff workflow.
 """
 
 from __future__ import annotations
@@ -99,7 +99,7 @@ def _load_model(name: str, device: str, *, acknowledge_unverified: bool = False)
         f"No model adapter resolved for --model {name!r}. "
         f"Tried: {candidate_modules}. "
         f"Last error: {last_err}. "
-        f"See benchmark/docs/team_run_guide.md for how to add an adapter."
+        f"See benchmark/README.md for how to add an adapter."
     )
 
 

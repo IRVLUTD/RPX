@@ -148,8 +148,9 @@ def _parameter_information(
 def _load_image_inputs(
     args: argparse.Namespace,
 ) -> tuple[Any, list[tuple[str, Forward]], int, str]:
-    from rpx_benchmark.loader import RPXDataset
     from run_depth import _build_model
+
+    from rpx_benchmark.loader import RPXDataset
 
     _placeholder, adapter = _build_model(
         args.model,
@@ -198,8 +199,9 @@ def _load_image_inputs(
 def _load_video_inputs(
     args: argparse.Namespace,
 ) -> tuple[Any, list[tuple[str, Forward]], int, str]:
-    from rpx_benchmark.video_loader import VideoDepthDataset
     from run_video_depth import _load_model
+
+    from rpx_benchmark.video_loader import VideoDepthDataset
 
     model = _load_model(
         args.model,

@@ -178,7 +178,7 @@ docker/tracking-smoke/build_sam2_rpx.sh --push
 The default base is
 `sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa`.
 Override it only with `--base-image` and another digest-pinned cumulative SAM2
-image. See `benchmark/docs/tracking_runbook.md` for the sequential smoke,
+image. See `benchmark/README.md` for the sequential smoke,
 micro, and acceptance commands.
 
 The next cumulative milestone adds EdgeTAM directly on that SAM2 RPX image:
@@ -338,5 +338,5 @@ The target pins:
   `e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251`
 - TrackEval commit `12c8791b303e0a0b50f753af204249e622d0281a`
 
-See `benchmark/docs/tracking_runbook.md` for the dataset, smoke, production
+See `benchmark/README.md` for the dataset, smoke, production
 and resume protocol.

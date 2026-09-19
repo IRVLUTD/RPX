@@ -1,28 +1,29 @@
 # ----------------------------------------------------------------------------------------------------
-# Interactive Mask → Object Mapper (Indexed Masks 1–7)
+# Interactive Mask → Object Mapper (Indexed Masks)
 # Same cosmetics as your latest script, now uses indexed masks instead of palette colors
 # ----------------------------------------------------------------------------------------------------
 import argparse
 import json
+import os
+import shutil
+import tempfile
 from pathlib import Path
 import numpy as np
 from PIL import Image
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import cv2
 from collections import OrderedDict
 
-try:
-    matplotlib.use("TkAgg")
-except ImportError:
-    pass
 
 
 def load_indexed_mask(mask_path):
     """Load an indexed mask (0=background, 1–7=objects)."""
-    mask_img = Image.open(mask_path).convert("L")
-    return np.array(mask_img, dtype=np.uint8)
+    with Image.open(mask_path) as image:
+        arr = np.array(image)
+    if arr.ndim != 2 or arr.dtype.kind not in "ui":
+        raise ValueError(f"Expected an indexed integer mask: {mask_path}")
+    return arr
 
 
 def overlay_mask_indexed(rgb_img, mask_array, obj_idx):
@@ -60,12 +61,20 @@ def load_existing_mapping(iter_dir):
 
 
 def interactive_label_masks(iter_dir, objects):
-    mask_path = sorted((iter_dir / "sam2/masks").glob("*.png"))[0]
-    rgb_path = sorted((iter_dir / "rgb").glob("*.png"))[0]
-
-    mask_array = load_indexed_mask(mask_path)
-    rgb_img = Image.open(rgb_path)
-    object_indices = list(range(1, 8))  # masks 1–7
+    mask_files = sorted((iter_dir / "sam2/masks").glob("*.png"))
+    if not mask_files:
+        raise ValueError(f"No masks in {iter_dir}")
+    # Include IDs that only appear later in the clip. Show their first frame.
+    representative = {}
+    for path in mask_files:
+        for label in np.unique(load_indexed_mask(path)):
+            if label:
+                representative.setdefault(int(label), path)
+    object_indices = sorted(representative)
+    if not object_indices:
+        raise ValueError("Masks contain no foreground objects")
+    if len(objects) > 9:
+        raise ValueError("The keyboard mapper supports at most nine scene objects")
 
     existing_map = load_existing_mapping(iter_dir)
     mapping = OrderedDict(existing_map)
@@ -78,6 +87,11 @@ def interactive_label_masks(iter_dir, objects):
         fig.clf()
         idx = current_idx[0]
         obj_idx = object_indices[idx]
+
+        mask_path = representative[obj_idx]
+        rgb_path = iter_dir / "rgb" / mask_path.name
+        mask_array = load_indexed_mask(mask_path)
+        rgb_img = Image.open(rgb_path)
 
         # --- Layout Panels ---
         ax_orig = fig.add_axes([0.05, 0.15, 0.35, 0.7])
@@ -99,11 +113,11 @@ def interactive_label_masks(iter_dir, objects):
         ax_mask.axis("off")
         ax_mask.add_patch(mpatches.Rectangle((0, 0), rgb_img.width, rgb_img.height,
                                              fill=False, edgecolor="Gray", linewidth=10))
-        ax_mask.set_title(f"Mask {idx+1}/7", fontsize=12, weight="bold",
+        ax_mask.set_title(f"Mask {obj_idx} ({idx+1}/{len(object_indices)})", fontsize=12, weight="bold",
                           backgroundcolor="black", color="white")
 
         # Display object name at centroid
-        # current_object = mapping.get(idx, {}).get("name", None)
+        # current_object = mapping.get(obj_idx - 1, {}).get("name", None)
         # ys, xs = np.where(obj_mask > 0)
         # if len(xs) > 0:
         #     cx, cy = xs.mean(), ys.mean()
@@ -115,7 +129,7 @@ def interactive_label_masks(iter_dir, objects):
 
         # --- Object List (Compact with Highlight) ---
         start_y, step_y = 0.7, 0.06
-        current_name = mapping.get(idx, {}).get("name", None)
+        current_name = mapping.get(obj_idx - 1, {}).get("name", None)
 
         for i, obj in enumerate(objects):
             y = start_y - i * step_y
@@ -129,7 +143,7 @@ def interactive_label_masks(iter_dir, objects):
                 ax_list.text(0, y, label_text, color="Black", fontsize=7,
                              transform=ax_list.transAxes)
 
-        fig.suptitle("Mask → Object Mapping | Press ←/→ to navigate | 1–7 to assign | Q to quit",
+        fig.suptitle("Mask → Object Mapping | Press ←/→ to navigate | 1–9 to assign | Q to quit",
                      fontsize=13, weight="bold", color="Black", backgroundcolor="White")
         plt.draw()
 
@@ -141,10 +155,10 @@ def interactive_label_masks(iter_dir, objects):
         elif event.key == "left":
             current_idx[0] = max(idx - 1, 0)
             draw_frame()
-        elif event.key.isdigit():
+        elif event.key and event.key.isdigit():
             choice = int(event.key) - 1
             if 0 <= choice < len(objects):
-                mapping[idx] = objects[choice]
+                mapping[object_indices[idx] - 1] = objects[choice]
                 print(f"[✔] Mask {idx+1} → {objects[choice]['name']} ({objects[choice]['id']})")
                 current_idx[0] = min(idx + 1, len(object_indices) - 1)
                 draw_frame()
@@ -155,43 +169,68 @@ def interactive_label_masks(iter_dir, objects):
     draw_frame()
     plt.show()
 
-    # --- Canonicalize: phase-local pixel index → scene-level ref_idx ---
-    # `objects` is the same list/order for every phase of this scene, so its
-    # position IS the canonical ref_idx. Remapping here means every phase's
-    # mask_to_object.json (and mask pixels) agree from the moment they're
-    # authored — no downstream cross-phase realignment pass needed.
-    canon_ref = {obj["id"]: i + 1 for i, obj in enumerate(objects)}
-    remap = {}
-    for i in range(len(object_indices)):
-        old_px = i + 1
-        obj = mapping.get(i)
-        new_px = canon_ref.get(obj["id"]) if obj else None
-        remap[old_px] = new_px if new_px is not None else old_px  # unlabeled: leave as-is
-
-    if any(old != new for old, new in remap.items()):
-        masks_dir = iter_dir / "sam2" / "masks"
-        mask_files = sorted(masks_dir.glob("*.png"))
-        for mp in mask_files:
-            arr = np.array(Image.open(mp))
-            new_arr = np.zeros_like(arr)
-            for old_px, new_px in remap.items():
-                new_arr[arr == old_px] = new_px
-            Image.fromarray(new_arr.astype(arr.dtype)).save(mp)
-        print(f"[↔] Canonicalized {len(mask_files)} masks in {iter_dir.name}: {remap}")
-
-    # --- Save Mapping (canonical keys) ---
+    # Validate the entire clip before touching any original file.
+    assignments = {label: mapping.get(label - 1) for label in object_indices}
+    remap = build_canonical_remap(object_indices, assignments, objects)
     mask_map = {
-        str(remap[i + 1]): {
-            "mask_index": remap[i + 1],
-            "object": mapping.get(i, {"id": "unknown", "name": "unlabeled"})
-        }
-        for i in range(len(object_indices))
+        str(remap[label]): {"mask_index": remap[label], "object": assignments[label]}
+        for label in object_indices
     }
+    masks_dir = iter_dir / "sam2" / "masks"
+    if any(old != new for old, new in remap.items()):
+        backup = masks_dir.with_name("masks_before_canonicalization")
+        if backup.exists():
+            raise ValueError(f"Preserve or move existing backup before relabeling: {backup}")
+        staging = Path(tempfile.mkdtemp(prefix=".canonical-masks-", dir=masks_dir.parent))
+        try:
+            for path in mask_files:
+                Image.fromarray(remap_mask(load_indexed_mask(path), remap)).save(staging / path.name)
+            masks_dir.rename(backup)
+            try:
+                staging.rename(masks_dir)
+            except BaseException:
+                backup.rename(masks_dir)
+                raise
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging)
+        print(f"Canonicalized masks; originals preserved at {backup}")
 
     out_path = iter_dir / "sam2" / "mask_to_object.json"
-    with open(out_path, "w") as f:
-        json.dump(mask_map, f, indent=2)
-    print(f"[✅] Saved mapping to {out_path}")
+    temporary = out_path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(mask_map, indent=2) + "\n")
+    os.replace(temporary, out_path)
+    print(f"Saved mapping to {out_path}")
+
+
+def build_canonical_remap(labels, assignments, objects):
+    """Reject incomplete/non-injective mappings before mask files are changed."""
+    ids = [obj["id"] for obj in objects]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Scene object IDs must be unique")
+    canonical = {obj_id: index + 1 for index, obj_id in enumerate(ids)}
+    remap = {}
+    for label in labels:
+        obj = assignments.get(label)
+        if not obj or obj.get("id") not in canonical:
+            raise ValueError(f"Mask {label} must be assigned to a known scene object")
+        remap[label] = canonical[obj["id"]]
+    if len(set(remap.values())) != len(remap):
+        raise ValueError("Each mask must map to a different scene object")
+    return remap
+
+
+def remap_mask(arr, remap):
+    """Apply a simultaneous label permutation, preserving background and dtype."""
+    missing = set(np.unique(arr)) - {0} - set(remap)
+    if missing:
+        raise ValueError(f"Unmapped mask IDs: {sorted(missing)}")
+    if max(remap.values(), default=0) > np.iinfo(arr.dtype).max:
+        raise ValueError("Canonical IDs exceed the mask dtype")
+    result = np.zeros_like(arr)
+    for old, new in remap.items():
+        result[arr == old] = new
+    return result
 
 
 def main(scene_dir, json_file=None, objects_json=None):
@@ -213,7 +252,7 @@ def main(scene_dir, json_file=None, objects_json=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Interactive Mask → Object Mapper (Indexed 1–7)")
+    parser = argparse.ArgumentParser(description="Interactive Mask → Object Mapper (Indexed Masks)")
     parser.add_argument("--scene_dir", required=True, help="Path to scene folder")
     parser.add_argument("--json", help="Path to scenes.json (with scene_id lookup)")
     parser.add_argument("--objects_json", help="Path to flat objects list JSON [{id, name}, ...] — bypasses scenes.json")

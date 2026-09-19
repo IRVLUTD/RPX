@@ -269,7 +269,7 @@ def analyze_depth_cells(
     provenance: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     """Validate, merge and analyze three RPX D1-F split cell logs."""
-    rows = merge_cells(paths)
+    rows = merge_cells(Path(path) for path in paths)
     rows = [
         row
         for row in rows
@@ -307,9 +307,9 @@ def analyze_depth_cells(
     for scene_index, scene in enumerate(scenes):
         scene_difficulties = set()
         for phase_index, phase in enumerate(PHASES):
-            row = by_key.get((scene, phase))
-            if row is None:
+            if (scene, phase) not in by_key:
                 raise DatasetError(f"Missing scene-phase cell: {scene}/{phase}")
+            row = by_key[(scene, phase)]
             difficulty = str(row.get("difficulty") or "").lower()
             if difficulty not in DIFFICULTIES:
                 raise DatasetError(f"Invalid difficulty for {scene}/{phase}: {difficulty!r}")
@@ -335,7 +335,7 @@ def analyze_depth_cells(
     standardized = ((flat - np.mean(flat, axis=0)) / std).reshape(oriented.shape)
 
     overall = _repeated_phase_test(standardized)
-    transitions = []
+    transitions: list[dict[str, Any]] = []
     for label, first, second in (
         ("clutter_to_interaction", 0, 1),
         ("interaction_to_clean", 1, 2),

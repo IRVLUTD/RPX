@@ -178,7 +178,7 @@ class BenchmarkRunner:
     The returned ``DeploymentReadinessReport`` carries the per-axis
     components (scene-change robustness + compute cost). RPX no longer
     combines those into a single composite — see
-    ``benchmark/SHARED_CONTEXT.md`` for the three-axis policy.
+    ``benchmark/README.md`` for the three-axis policy.
     """
 
     def __init__(
@@ -293,7 +293,7 @@ class BenchmarkRunner:
 
         The returned report carries the scene-change-robustness and
         compute-cost components. RPX never combines these into a
-        single composite — see ``benchmark/SHARED_CONTEXT.md`` for the
+        single composite — see ``benchmark/README.md`` for the
         three-axis policy.
 
         Args:
@@ -636,7 +636,7 @@ class BenchmarkRunner:
 
         # Build an OperatingPoint for this run (the precision × accuracy ×
         # cost triple). RPX reports operating points but never combines
-        # them into a composite score — see SHARED_CONTEXT.md.
+        # them into a composite score — see benchmark/README.md.
         higher_is_better = bool(getattr(spec, "higher_is_better", True))
         from .deployment import OperatingPoint  # noqa: PLC0415
 

@@ -9,7 +9,7 @@ T265 camera poses — they do not fit the per-sample
 :class:`~rpx_benchmark.metrics.registry.MetricCalculator` interface, so
 they live here as standalone sequence functions.
 
-Locked MANOVA temporal tuple for Video Depth (``benchmark/docs/depth_metric_decisions.md``):
+Locked MANOVA temporal tuple for Video Depth (``benchmark/README.md``):
 
 * ``tae`` — Temporal Alignment Error (pose-based geometric consistency).
   In the K = 7 MANOVA vector.
@@ -283,7 +283,7 @@ def optical_flow_warping_error(
             hint=(
                 "OPW needs dense optical flow. RPX pins RAFT (raft-sintel.pth, "
                 "Teed & Deng 2020). Pass flow_fn=<raft backward-flow callable>. "
-                "See benchmark/docs/depth_metric_decisions.md §2 (optical-flow "
+                "See benchmark/README.md §2 (optical-flow "
                 "recommendation)."
             ),
         )

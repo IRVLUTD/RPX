@@ -122,7 +122,7 @@ def resolve_device(requested: str, *, require_cuda: bool = False) -> str:
                 "GPU-only run requires a CUDA-enabled PyTorch installation.",
                 hint="Install the PyTorch wheel matching this host, then rerun.",
             ) from exc
-        return requested
+        return "cpu"
     if torch.cuda.is_available():
         return requested
     if require_cuda:

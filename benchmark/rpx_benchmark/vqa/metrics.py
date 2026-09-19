@@ -184,32 +184,32 @@ def score_predictions(
             )
         by_type[sample.question_type].append(score)
     per_type_detailed = {}
-    for question_type, values in sorted(detailed_by_type.items()):
+    for question_type, detail_rows in sorted(detailed_by_type.items()):
         per_type_detailed[question_type] = {
-            "count": len(values),
-            "parse_rate": _mean([value["valid"] for value in values]),
-            "bbox_validity_rate": _mean([value["bbox_valid"] for value in values]),
-            "bbox_mean_iou": _mean([value["iou"] for value in values]),
-            "bbox_mean_giou": _mean([value["giou"] for value in values]),
+            "count": len(detail_rows),
+            "parse_rate": _mean([value["valid"] for value in detail_rows]),
+            "bbox_validity_rate": _mean([value["bbox_valid"] for value in detail_rows]),
+            "bbox_mean_iou": _mean([value["iou"] for value in detail_rows]),
+            "bbox_mean_giou": _mean([value["giou"] for value in detail_rows]),
             "bbox_mean_giou_valid": _mean(
-                [value["giou"] for value in values if value["bbox_valid"]]
+                [value["giou"] for value in detail_rows if value["bbox_valid"]]
             ),
             "bbox_center_in_gt_accuracy": _mean(
-                [value["center_in_gt"] for value in values]
+                [value["center_in_gt"] for value in detail_rows]
             ),
             "bbox_accuracy_at_0_25": _mean(
-                [float(value["iou"] >= 0.25) for value in values]
+                [float(value["iou"] >= 0.25) for value in detail_rows]
             ),
             "bbox_accuracy_at_0_5": _mean(
-                [float(value["iou"] >= 0.5) for value in values]
+                [float(value["iou"] >= 0.5) for value in detail_rows]
             ),
             "bbox_accuracy_at_0_75": _mean(
-                [float(value["iou"] >= 0.75) for value in values]
+                [float(value["iou"] >= 0.75) for value in detail_rows]
             ),
             "label_normalized_exact_match": _mean(
-                [value["label_exact"] for value in values]
+                [value["label_exact"] for value in detail_rows]
             ),
-            "label_token_f1": _mean([value["label_token_f1"] for value in values]),
+            "label_token_f1": _mean([value["label_token_f1"] for value in detail_rows]),
         }
     return {
         "count": len(rows),

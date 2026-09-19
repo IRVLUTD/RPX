@@ -218,7 +218,7 @@ def _augment_result_with_timing(json_path, *, timing) -> None:
     `DeploymentReadinessReport` carries the full Tier 1/2/3 picture
     natively, and `write_json` serialises all of it under the
     `compute_cost` and `robustness` top-level blocks (see
-    `SHARED_CONTEXT.md` for the three-axis policy). This helper is
+    `benchmark/README.md` for the three-axis policy). This helper is
     now timing-only.
     """
     import json as _json

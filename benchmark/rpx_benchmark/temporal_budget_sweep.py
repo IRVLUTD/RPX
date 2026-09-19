@@ -178,15 +178,12 @@ def degradation_analysis(
         )
 
     # Determine metric direction from specs registry (best-effort).
-    try:
-        from .metrics.specs import get_spec, has_spec
-    except ImportError:
-        get_spec = has_spec = None  # type: ignore[assignment]
+    from .metrics.specs import get_spec, has_spec
 
     results = []
     for mkey in metric_keys:
         direction = "lower"
-        if has_spec and has_spec(mkey):
+        if has_spec(mkey):
             direction = get_spec(mkey).direction
 
         # Collect per-budget mean and per-scene values.

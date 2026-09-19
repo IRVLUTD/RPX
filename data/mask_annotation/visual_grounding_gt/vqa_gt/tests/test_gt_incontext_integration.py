@@ -9,10 +9,10 @@ import random
 
 import pytest
 
-STAGED_PHASE0 = "/home/rpx/Desktop/RPX/data/mask_annotation/visual_grounding_gt/pilot/staged/scene001/0"
-STAGED_EGO = "/home/rpx/Desktop/RPX/data/mask_annotation/visual_grounding_gt/pilot/staged/scene001/ego"
-REF_MANIFEST = "/home/rpx/Desktop/RPX/data/mask_annotation/visual_grounding_gt/pilot/out/reference_crops/reference_crops_v1.parquet"
-SOS_ROOT = "/metadisk/itaykadosh/RPX/maskgen_2_scene_holder_for_refining/scenes_current_best/single_objects/sos_wrapped"
+STAGED_PHASE0 = os.environ.get("RPX_TEST_STAGED_PHASE0", "/data/rpx/staged/scene001/0")
+STAGED_EGO = os.environ.get("RPX_TEST_STAGED_EGO", "/data/rpx/staged/scene001/ego")
+REF_MANIFEST = os.environ.get("RPX_TEST_REFERENCE_MANIFEST", "/data/rpx/reference_crops/reference_crops_v1.parquet")
+SOS_ROOT = os.environ.get("RPX_TEST_SOS_ROOT", "/data/rpx/sos")
 
 pytestmark = pytest.mark.skipif(
     not (os.path.isdir(STAGED_PHASE0) and os.path.exists(REF_MANIFEST)),

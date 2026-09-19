@@ -293,47 +293,11 @@ def test_sparse_depth_pipeline_end_to_end(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# Novel view synthesis
 # --------------------------------------------------------------------------- #
 
 
-def _nvs_dataset(tmp_path: Path) -> rpx.RPXDataset:
-    _write_rgb(tmp_path / "rgb" / "src.png", value=64)
-    _write_rgb(tmp_path / "rgb" / "tgt.png", value=200)
-    _write_pose(tmp_path / "pose" / "tgt.npz", x=0.3)
-    manifest = _manifest(
-        tmp_path,
-        "novel_view_synthesis",
-        [
-            {
-                "id": "n0",
-                "rgb": "rgb/src.png",
-                "target_rgb": "rgb/tgt.png",
-                "target_pose": "pose/tgt.npz",
-                "phase": "clutter",
-                "difficulty": "hard",
-            }
-        ],
-    )
-    return rpx.RPXDataset.from_manifest(manifest, batch_size=1)
 
 
-def test_nvs_pipeline_end_to_end(tmp_path):
-    def perfect_nvs(rgb, target_pose):
-        # Return an all-200 image that matches the target.
-        return np.full_like(rgb, 200)
-
-    bm = rpx.make_numpy_nvs_model(perfect_nvs)
-    ds = _nvs_dataset(tmp_path)
-    runner = BenchmarkRunner(bm, ds, MetricSuite.for_task(TaskType.NOVEL_VIEW_SYNTHESIS))
-    result, _ = runner.run_with_report(
-        primary_metric="psnr",
-        model_name="nvs",
-        compute_ts=False,
-        compute_sgc_flag=False,
-    )
-    # Identical frames → high PSNR (sentinel value).
-    assert result.aggregated["psnr"] >= 99.0
 
 
 # --------------------------------------------------------------------------- #
@@ -410,7 +374,6 @@ def test_all_new_tasks_registered():
         "relative_camera_pose",
         "keypoint_matching",
         "sparse_depth",
-        "novel_view_synthesis",
     ):
         assert t in registered, f"{t} is not in the task registry"
 

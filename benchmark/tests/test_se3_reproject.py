@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from rpx_benchmark.deployment import se3_reproject_depth
 

@@ -16,7 +16,6 @@ from PIL import Image
 
 from rpx_benchmark.api import (
     KeypointCorrespondenceGroundTruth,
-    NovelViewSynthesisGroundTruth,
     RelativePoseGroundTruth,
     SparseDepthGroundTruth,
     TrackletGroundTruth,
@@ -209,54 +208,11 @@ def test_load_sparse_depth_inline_arrays(tmp_path: Path):
 
 
 # --------------------------------------------------------------------------- #
-# Novel view synthesis → _load_nvs
 # --------------------------------------------------------------------------- #
 
 
-def test_load_nvs_reads_target_rgb(tmp_path: Path):
-    _write_rgb(tmp_path / "rgb" / "source.png")
-    _write_rgb(tmp_path / "rgb" / "target.png")
-
-    manifest = _manifest(
-        tmp_path,
-        "novel_view_synthesis",
-        [
-            {
-                "id": "nvs0",
-                "rgb": "rgb/source.png",
-                "target_rgb": "rgb/target.png",
-            }
-        ],
-    )
-    ds = RPXDataset.from_manifest(manifest, batch_size=1)
-    gt = next(iter(ds))[0].ground_truth
-    assert isinstance(gt, NovelViewSynthesisGroundTruth)
-    assert gt.rgb.shape == (20, 30, 3)
 
 
-def test_load_nvs_target_pose_from_npz(tmp_path: Path):
-    _write_rgb(tmp_path / "rgb" / "source.png")
-    _write_rgb(tmp_path / "rgb" / "target.png")
-    _write_pose(tmp_path / "pose" / "target.npz", position=(0.5, 0, 0))
-
-    manifest = _manifest(
-        tmp_path,
-        "novel_view_synthesis",
-        [
-            {
-                "id": "nvs0",
-                "rgb": "rgb/source.png",
-                "target_rgb": "rgb/target.png",
-                "target_pose": "pose/target.npz",
-            }
-        ],
-    )
-    ds = RPXDataset.from_manifest(manifest, batch_size=1)
-    gt = next(iter(ds))[0].ground_truth
-    pose = gt.camera_pose
-    assert pose is not None
-    assert pose.shape == (4, 4)
-    assert abs(pose[0, 3] - 0.5) < 1e-6
 
 
 # --------------------------------------------------------------------------- #

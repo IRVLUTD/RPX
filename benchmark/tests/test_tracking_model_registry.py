@@ -16,14 +16,14 @@ from tracking_models import (  # noqa: E402
     CutieTracker,
     DAM4SAMTracker,
     EdgeTAMTracker,
+    GroundedSAM2Tracker,
     MITSTracker,
     OVTRTracker,
     SAM2LongTracker,
     SAM2PlusTracker,
     SAM2Tracker,
-    XMemTracker,
-    GroundedSAM2Tracker,
     SAM31Tracker,
+    XMemTracker,
 )
 from tracking_models.masa_tracker import MASATracker  # noqa: E402
 from tracking_models.motip_tracker import MOTIPTracker  # noqa: E402

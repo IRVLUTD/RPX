@@ -664,6 +664,8 @@ def _warp_depth_approx(
     pose_t1: np.ndarray,
 ) -> np.ndarray:
     """Approximate depth warp (same in-plane rotation proxy as mask warp)."""
+    if not np.isfinite(pose_t).all() or not np.isfinite(pose_t1).all():
+        return depth.copy()
     try:
         import cv2
 

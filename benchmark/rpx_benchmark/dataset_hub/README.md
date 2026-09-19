@@ -1,14 +1,10 @@
-# RPX Dataset Hub — team guide
+# RPX Dataset Hub
 
 > Uploads the RPX captures to
 > [`IRVLUTD/RPX`](https://huggingface.co/datasets/IRVLUTD/RPX) on
 > HuggingFace, and lets users download only the slice they need
 > (by task + split) instead of pulling the full ~890 GB.
 
-> **Status**: end-to-end pipeline works on synthetic data; tests green.
-> Real upload pending team arranging captures into the wireframe layout
-> (see [§3](#3-how-the-captures-must-be-arranged-on-disk)) on the
-> target system.
 
 ## Contents
 
@@ -22,7 +18,6 @@
 - [8. Troubleshooting](#8-troubleshooting)
 - [9. Where the code lives](#9-where-the-code-lives)
 - [10. Tests](#10-tests)
-- [Owners](#owners)
 
 ---
 
@@ -134,8 +129,9 @@ downloaders will not find a `split` column to filter on.
 ## 3. How the captures must be arranged on disk
 
 The pipeline expects this directory shape under your data root. There's
-a fully-populated wireframe at `benchmark/templates/rpx_capture_wireframe/`
-that the team can copy as a starting template.
+a layout reference at `benchmark/templates/rpx_capture_wireframe/`
+describing the source layout. Generate synthetic captures with the
+`rpx_benchmark.dataset_hub.mock` helpers when testing ingestion.
 
 ```
 DATA/
@@ -393,12 +389,3 @@ If you change layout or the recipe table, re-run; the suite catches the
 common breakages (wrong tar paths, missing modalities, stale tests).
 
 ---
-
-## Owners
-
-| Area | Owner |
-|---|---|
-| Source layout / wireframe conformance | the team member who arranges captures on disk |
-| Pipeline code + tests | jishnu |
-| HF repo permissions | jishnu |
-| Label re-releases (cam_pose v2, vqa v1) | TBD when the data lands |

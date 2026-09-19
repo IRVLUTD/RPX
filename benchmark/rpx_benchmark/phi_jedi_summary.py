@@ -167,7 +167,7 @@ def _select_metric_keys(
     if not per_sample_metrics:
         return []
     row0 = per_sample_metrics[0]
-    keys: List[str] = []
+    keys = []
     for k, v in row0.items():
         if k in metadata:
             continue
@@ -418,7 +418,7 @@ def summarize_phi_jedi(
         tier_by_scene = [scene_difficulty.get(s) for s in scene_ids]
         if all(t is not None for t in tier_by_scene) and len(set(tier_by_scene)) >= 2:
             try:
-                summary.phi_mixed = compute_phi_mixed_design(z, tier_by_scene)
+                summary.phi_mixed = compute_phi_mixed_design(z, [t for t in tier_by_scene if t is not None])
             except MetricError as e:
                 summary.notes.append(f"compute_phi_mixed_design failed: {e}")
         else:

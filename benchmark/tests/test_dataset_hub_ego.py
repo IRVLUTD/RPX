@@ -265,7 +265,7 @@ def test_manifest_assigns_split_to_ego_scene_matching_mos_sibling(tmp_path: Path
 
     rows = list(
         zip(table["scene_id"].to_pylist(), table["scene_type"].to_pylist(),
-            table["split"].to_pylist())
+            table["split"].to_pylist(), strict=True)
     )
     ego_splits = {sid: sp for sid, st, sp in rows if st == SceneType.EGO.value}
     assert ego_splits.get("scene1") == "easy"

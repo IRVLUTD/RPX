@@ -208,7 +208,6 @@ TASK_MODALITIES: Dict[TaskType, List[str]] = {
     # the historical TRACKLETS entry therefore could never be downloaded.
     TaskType.OBJECT_TRACKING: [RGB, MASK, SAM2_META],
     TaskType.RELATIVE_CAMERA_POSE: [RGB, POSE],
-    TaskType.NOVEL_VIEW_SYNTHESIS: [RGB, DEPTH, POSE],
     TaskType.VISUAL_GROUNDING: [RGB, QUESTIONNAIRES, SPATIAL_QA],
     TaskType.KEYPOINT_MATCHING: [RGB, KEYPOINTS_DIR],
 }

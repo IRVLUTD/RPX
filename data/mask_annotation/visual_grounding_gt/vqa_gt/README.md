@@ -94,3 +94,11 @@ Types: `inctx_attr_single_color`, `inctx_attr_single_material`, `inctx_attr_sing
 ## Environment
 
 `--sos-root` (or the `RPX_SOS_ROOT` environment variable) must point at a local checkout of the SOS catalog (`single_objects/sos_wrapped/<object>/questionnaire.txt` layout) -- there's no safe machine-independent default. Everything else resolves relative to `--staged-root` or Hugging Face. The in-context tasks additionally reach Hugging Face directly (`sos_catalog.py`, `sos_reference.py`) for the official 70-object catalog and its published rgb/mask tars -- there is no local-only path for these two modules.
+
+## Tests
+
+Run `python -m pytest tests -q` from this directory. Offline unit tests use
+synthetic masks and catalogs. Optional integration fixtures are selected with
+`RPX_TEST_STAGED_PHASE0`, `RPX_TEST_STAGED_EGO`, `RPX_TEST_REFERENCE_MANIFEST`,
+`RPX_TEST_SPATIAL_PARQUET` and `RPX_TEST_SOS_ROOT`; those tests skip when the
+corresponding released data or reference crops are absent.

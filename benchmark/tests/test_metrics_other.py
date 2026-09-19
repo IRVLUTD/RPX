@@ -13,8 +13,6 @@ from rpx_benchmark.api import (
     DetectionPrediction,
     KeypointCorrespondenceGroundTruth,
     KeypointCorrespondencePrediction,
-    NovelViewSynthesisGroundTruth,
-    NovelViewSynthesisPrediction,
     RelativePoseGroundTruth,
     RelativePosePrediction,
     SegmentationGroundTruth,
@@ -194,26 +192,11 @@ def test_sparse_depth_empty_gt_returns_zero():
 
 
 # --------------------------------------------------------------------------- #
-# Novel view synthesis
 # --------------------------------------------------------------------------- #
 
 
-def test_nvs_identical_frames_have_high_psnr():
-    rgb = np.random.default_rng(0).uniform(0, 255, size=(8, 8, 3)).astype(np.uint8)
-    pred = NovelViewSynthesisPrediction(rgb=rgb.copy())
-    gt = NovelViewSynthesisGroundTruth(rgb=rgb.copy())
-    out = compute_metrics(TaskType.NOVEL_VIEW_SYNTHESIS, pred, gt)
-    assert out["psnr"] >= 99.0
-    assert out["ssim"] > 0.99
 
 
-def test_nvs_different_frames_lower_psnr():
-    rgb_gt = np.full((8, 8, 3), 100, dtype=np.uint8)
-    rgb_pred = np.full((8, 8, 3), 200, dtype=np.uint8)  # constant offset
-    pred = NovelViewSynthesisPrediction(rgb=rgb_pred)
-    gt = NovelViewSynthesisGroundTruth(rgb=rgb_gt)
-    out = compute_metrics(TaskType.NOVEL_VIEW_SYNTHESIS, pred, gt)
-    assert out["psnr"] < 30.0
 
 
 # --------------------------------------------------------------------------- #

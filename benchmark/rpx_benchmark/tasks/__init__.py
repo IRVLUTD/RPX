@@ -29,13 +29,6 @@ from .monocular_depth import (
     MonocularDepthRunConfig,
     run_monocular_depth,
 )
-from .novel_view_synthesis import (
-    TASK_SPEC as NOVEL_VIEW_SYNTHESIS_SPEC,
-)
-from .novel_view_synthesis import (
-    NovelViewSynthesisRunConfig,
-    run_novel_view_synthesis,
-)
 from .registry import (
     TaskRunResult,
     TaskSpec,
@@ -90,7 +83,6 @@ __all__ = [
     "RelativePoseRunConfig",
     "KeypointMatchingRunConfig",
     "SparseDepthRunConfig",
-    "NovelViewSynthesisRunConfig",
     "ObjectTrackingRunConfig",
     # Runners
     "run_monocular_depth",
@@ -101,7 +93,6 @@ __all__ = [
     "run_relative_pose",
     "run_keypoint_matching",
     "run_sparse_depth",
-    "run_novel_view_synthesis",
     "run_object_tracking",
     # Specs
     "MONOCULAR_DEPTH_SPEC",
@@ -112,7 +103,6 @@ __all__ = [
     "RELATIVE_POSE_SPEC",
     "KEYPOINT_MATCHING_SPEC",
     "SPARSE_DEPTH_SPEC",
-    "NOVEL_VIEW_SYNTHESIS_SPEC",
     "OBJECT_TRACKING_SPEC",
     # Shared
     "TaskRunConfig",

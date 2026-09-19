@@ -25,11 +25,13 @@ from rpx_benchmark.vqa.outputs import parse_output
 from rpx_benchmark.vqa.sampling import DeterministicSelector, is_centered
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
-from vqa_models.vllm_backend import VLLMVQARunner  # noqa: E402
 from vqa_models.paligemma_backend import (  # noqa: E402
     ImageGeometry as PaliImageGeometry,
+)
+from vqa_models.paligemma_backend import (
     PaliGemmaVQARunner,
 )
+from vqa_models.vllm_backend import VLLMVQARunner  # noqa: E402
 
 
 def incontext_row(**overrides) -> dict:

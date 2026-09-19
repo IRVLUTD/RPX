@@ -8,7 +8,7 @@ from ..api import TaskType
 from ._pipeline import PipelineResult, TaskRunConfig, run_pipeline
 from .registry import TaskSpec, register_task
 
-PRIMARY_METRIC = "map"
+PRIMARY_METRIC = "f1"
 
 
 @dataclass

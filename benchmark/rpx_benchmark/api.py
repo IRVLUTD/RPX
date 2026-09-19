@@ -62,8 +62,6 @@ class TaskType(str, Enum):
         Referring expression → bounding box on the image.
     SPARSE_DEPTH
         Depth values at a sparse set of image locations only.
-    NOVEL_VIEW_SYNTHESIS
-        RGB synthesis from a held-out target pose.
     KEYPOINT_MATCHING
         Dense/sparse correspondences between two images.
 
@@ -85,7 +83,6 @@ class TaskType(str, Enum):
     OPEN_VOCAB_DETECTION = "open_vocab_detection"
     VISUAL_GROUNDING = "visual_grounding"
     SPARSE_DEPTH = "sparse_depth"
-    NOVEL_VIEW_SYNTHESIS = "novel_view_synthesis"
     KEYPOINT_MATCHING = "keypoint_matching"
 
 
@@ -218,10 +215,6 @@ class SparseDepthGroundTruth:
     depths: np.ndarray  # N float depths (m)
 
 
-@dataclass
-class NovelViewSynthesisGroundTruth:
-    rgb: np.ndarray  # H x W x 3 uint8
-    camera_pose: Dict[str, Any] | None = None
 
 
 @dataclass
@@ -373,9 +366,6 @@ class SparseDepthPrediction:
     depths: np.ndarray  # N
 
 
-@dataclass
-class NovelViewSynthesisPrediction:
-    rgb: np.ndarray  # H x W x 3 uint8
 
 
 @dataclass
@@ -547,7 +537,7 @@ def validate_prediction(task: TaskType, prediction: Any, sample: Sample | None =
         _check_shape(prediction.depth_map, 2, "Depth map")
         return
 
-    if task == TaskType.OBJECT_DETECTION:
+    if task in (TaskType.OBJECT_DETECTION, TaskType.OPEN_VOCAB_DETECTION):
         if not isinstance(prediction, DetectionPrediction):
             raise _type_error("DetectionPrediction")
         boxes = prediction.boxes
@@ -600,10 +590,6 @@ def validate_prediction(task: TaskType, prediction: Any, sample: Sample | None =
             raise _type_error("SparseDepthPrediction")
         return
 
-    if task == TaskType.NOVEL_VIEW_SYNTHESIS:
-        if not isinstance(prediction, NovelViewSynthesisPrediction):
-            raise _type_error("NovelViewSynthesisPrediction")
-        return
 
     if task == TaskType.KEYPOINT_MATCHING:
         if not isinstance(prediction, KeypointCorrespondencePrediction):

@@ -18,7 +18,7 @@ import urllib.error
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 
 from PIL import Image
 
@@ -113,7 +113,7 @@ class HTTPRangeReader(io.RawIOBase):
         self.position = offset
         return offset
 
-    def readinto(self, buffer: bytearray) -> int:
+    def readinto(self, buffer: Any) -> int:
         data = self.read(len(buffer))
         buffer[: len(data)] = data
         return len(data)
@@ -184,10 +184,10 @@ def _write_rgb_payload(sample: VQASample, target: Path, payload: bytes) -> None:
 def _write_reference_payload(sample: VQASample, target: Path, payload: bytes) -> None:
     assert sample.reference_crop_bbox is not None
     x0, y0, x1, y1 = sample.reference_crop_bbox
-    with Image.open(io.BytesIO(payload)) as raw:
-        raw.verify()
-    with Image.open(io.BytesIO(payload)) as raw:
-        raw = raw.convert("RGB")
+    with Image.open(io.BytesIO(payload)) as verified:
+        verified.verify()
+    with Image.open(io.BytesIO(payload)) as source:
+        raw = source.convert("RGB")
         if not (0 <= x0 <= x1 < raw.width and 0 <= y0 <= y1 < raw.height):
             raise DownloadError(
                 f"{sample.sample_id}: reference_crop_bbox {sample.reference_crop_bbox} "

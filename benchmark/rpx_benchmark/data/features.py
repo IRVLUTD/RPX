@@ -156,14 +156,6 @@ def _sparse_depth_features() -> Features:
     )
 
 
-def _nvs_features() -> Features:
-    return Features(
-        {
-            **_shared_columns(),
-            "target_rgb": Image(decode=True),
-            "target_pose": Sequence(Value("float32"), length=16),
-        }
-    )
 
 
 def _keypoint_features() -> Features:
@@ -189,7 +181,6 @@ RPX_FEATURES: Dict[TaskType, Features] = {
     TaskType.RELATIVE_CAMERA_POSE: _relative_pose_features(),
     TaskType.VISUAL_GROUNDING: _visual_grounding_features(),
     TaskType.SPARSE_DEPTH: _sparse_depth_features(),
-    TaskType.NOVEL_VIEW_SYNTHESIS: _nvs_features(),
     TaskType.KEYPOINT_MATCHING: _keypoint_features(),
 }
 

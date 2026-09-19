@@ -250,7 +250,7 @@ Examples:
     )
     ap.add_argument(
         "--repo",
-        default="itaykadosh/rpx-test",
+        default="IRVLUTD/RPX",
         help="HuggingFace dataset repo (default: %(default)s)",
     )
     ap.add_argument("--scene", default=None, help="scene id (default: first available in cache)")

@@ -1,3 +1,4 @@
+import os
 """Test 18 (spec §13): deterministic crop hashes, plus the pure scoring/
 selection logic, using small synthetic fixtures -- no network needed for the
 synthetic tests. The cache-hash-stability test uses the real, already-built
@@ -62,7 +63,7 @@ def test_pad_and_clamp_stays_in_bounds():
     assert padded[2] >= bbox[2] and padded[3] >= bbox[3]
 
 
-REF_MANIFEST = "/home/rpx/Desktop/RPX/data/mask_annotation/visual_grounding_gt/pilot/out/reference_crops/reference_crops_v1.parquet"
+REF_MANIFEST = os.environ.get("RPX_TEST_REFERENCE_MANIFEST", "/data/rpx/reference_crops/reference_crops_v1.parquet")
 
 
 @pytest.mark.skipif(not __import__("os").path.exists(REF_MANIFEST), reason="requires the built reference-crop cache")

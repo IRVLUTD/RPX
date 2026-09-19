@@ -54,11 +54,6 @@ hub = [
   "huggingface_hub[hf_xet]>=0.26",
   "pyarrow>=14",
 ]
-# NVS pair generation reads the authoritative per-frame Parquet manifest
-# through pandas. Keep this separate from the heavier general analysis stack.
-nvs = [
-  "pandas>=2.0,<3",
-]
 # One-line `datasets.load_dataset(...)` + PyTorch DataLoader bridge.
 hf-datasets = [
   "datasets>=2.18",
@@ -106,19 +101,12 @@ dev = [
   "pydantic>=2.5",
   "types-requests",   # box_upload.py uses requests; mypy emits import-untyped without stubs
 ]
-docs = [
-  "mkdocs>=1.6",
-  "mkdocs-material>=9.5",
-  "mkdocstrings[python]>=0.26",
-  "pymdown-extensions>=10.8",
-]
 
 [project.urls]
 Homepage = "https://github.com/IRVLUTD/RPX"
-Documentation = "https://irvlutd.github.io/RPX/"
+Documentation = "https://github.com/IRVLUTD/RPX/tree/naren/all/benchmark#readme"
 Repository = "https://github.com/IRVLUTD/RPX"
 Issues = "https://github.com/IRVLUTD/RPX/issues"
-Changelog = "https://github.com/IRVLUTD/RPX/blob/main/benchmark/CHANGELOG.md"
 
 [tool.setuptools.packages.find]
 include = ["rpx_benchmark*"]
@@ -199,7 +187,10 @@ disallow_untyped_decorators = true
 no_implicit_optional = true
 warn_return_any = true
 strict_equality = true
-strict = true
+# Explicit per-module options: `strict` itself changes global mypy defaults.
+disallow_any_generics = true
+disallow_untyped_calls = true
+warn_unused_ignores = true
 # Silence error codes that catch a class of issues we can't fix
 # without invasive churn:
 #   type-arg     — np.ndarray annotations don't carry generic args
@@ -246,14 +237,10 @@ module = [
   # full type pass is a TODO alongside the rest of the codebase.
   "rpx_benchmark.adapters.batched_depth",
   "rpx_benchmark.adapters.batched_multimodal",
-  # Parallel-session RCPE + NVS modules — same story (pre-existing
+  # Parallel-session RCPE modules — same story (pre-existing
   # untyped defs / generic-shape annotations); ride the same overlay
   # until the typing pass reaches them.
-  "rpx_benchmark.active_perception_metrics",
   "rpx_benchmark.model_profiler",
-  "rpx_benchmark.nvs_eval",
-  "rpx_benchmark.nvs_metrics",
-  "rpx_benchmark.nvs_pairs",
   "rpx_benchmark.pose_metrics",
   "rpx_benchmark.pose_pairs",
 ]

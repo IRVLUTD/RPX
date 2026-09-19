@@ -14,18 +14,14 @@ Locks the contracts of :mod:`rpx_benchmark.jedi`:
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from rpx_benchmark.exceptions import MetricError
 from rpx_benchmark.jedi import (
-    JEDIResult,
     aggregate_jedi,
     compute_jedi,
 )
-from rpx_benchmark.metrics.specs import MetricSpec, clear_registry, register_spec
-
+from rpx_benchmark.metrics.specs import MetricSpec, clear_registry
 
 # --------------------------------------------------------------------------- #
 # Fixtures
@@ -72,8 +68,8 @@ class TestDirectionAwareness:
         assert r.score == 0.0
 
     def test_mixed_direction(self):
-        # NVS: psnr higher-is-better, lpips lower-is-better.
-        r = compute_jedi({"psnr": 30.0, "ssim": 0.8, "lpips": 0.2})
+        # Accuracy is higher-is-better; depth error is lower-is-better.
+        r = compute_jedi({"delta1": 0.8, "absrel": 0.2})
         # All three are at decent-but-not-optimal levels; J should be > 0
         # and < 1 with the geometric mean dragging towards the worst.
         assert 0.0 < r.score < 1.0
@@ -86,16 +82,16 @@ class TestDirectionAwareness:
 
 class TestOutOfBoundsClipping:
     def test_value_above_higher_better_best(self):
-        # PSNR best=40; passing 50 should clip d_k to 1 and flag oob.
-        r = compute_jedi({"psnr": 50.0, "ssim": 1.0, "lpips": 0.0})
-        assert r.individual["psnr"] == pytest.approx(1.0)
-        assert "psnr" in r.out_of_bounds
+        # Accuracy above one clips to one and flags the observation.
+        r = compute_jedi({"ap50": 1.5})
+        assert r.individual["ap50"] == pytest.approx(1.0)
+        assert "ap50" in r.out_of_bounds
 
     def test_value_below_higher_better_worst(self):
-        # PSNR worst=10; passing 5 should clip to 0 and flag oob.
-        r = compute_jedi({"psnr": 5.0, "ssim": 1.0, "lpips": 0.0})
-        assert r.individual["psnr"] == 0.0
-        assert "psnr" in r.out_of_bounds
+        # Accuracy below zero clips to zero and flags the observation.
+        r = compute_jedi({"ap50": -0.5})
+        assert r.individual["ap50"] == 0.0
+        assert "ap50" in r.out_of_bounds
         assert r.score == 0.0  # geometric-mean zero by design
 
     def test_value_below_lower_better_best(self):
@@ -232,8 +228,8 @@ class TestAggregation:
 
     def test_aggregate_counts_oob(self):
         per_cell = [
-            ("clu", compute_jedi({"psnr": 50.0, "ssim": 1.0, "lpips": 0.0})),  # psnr oob
-            ("int", compute_jedi({"psnr": 30.0, "ssim": 1.0, "lpips": 0.0})),  # ok
+            ("clu", compute_jedi({"ap50": 1.5})),  # ap50 out of bounds
+            ("int", compute_jedi({"ap50": 0.8})),  # ok
         ]
         agg = aggregate_jedi(per_cell)
         assert agg.n_out_of_bounds == 1

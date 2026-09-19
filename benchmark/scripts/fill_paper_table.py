@@ -42,7 +42,6 @@ Per-task column layouts (must match 05_experiments.tex)
   detection  Model & Prompt & J & AP_clu & AP_int & AP_cln & Φ & p & Params & Lat.
   tracking   Model & Init & J & MOTA_clu & MOTA_int & MOTA_cln & IDF1_int & Φ & p & Params & Lat.
   pose       Model & J & AUC@10° & M-AUC & Cross-Δ & Φ & Params & Lat.
-  nvs        Model & J & PSNR & SSIM & LPIPS & Φ & Params & Lat.
 
 QA (D4/D5) is dual-task and is not emitted by this script — fill manually
 or extend with a dedicated layout.
@@ -134,16 +133,6 @@ def _layout_pose() -> List[ColumnSpec]:
     ]
 
 
-def _layout_nvs() -> List[ColumnSpec]:
-    return [
-        ColumnSpec("phi_jedi.jedi.jedi", "{:.2f}"),
-        ColumnSpec("phi_jedi._per_cell_mean.psnr.clu", "{:.1f}"),
-        ColumnSpec("phi_jedi._per_cell_mean.ssim.clu", "{:.3f}"),
-        ColumnSpec("phi_jedi._per_cell_mean.lpips.clu", "{:.3f}"),
-        ColumnSpec("phi_jedi.phi.phi_conservative", "{:.2f}"),
-        ColumnSpec("params_m", "{:.0f}M"),
-        ColumnSpec("latency_ms_per_sample", "{:.0f}ms"),
-    ]
 
 
 LAYOUTS: Dict[str, Any] = {
@@ -151,7 +140,6 @@ LAYOUTS: Dict[str, Any] = {
     "detection": _layout_detection,
     "tracking": _layout_tracking,
     "pose": _layout_pose,
-    "nvs": _layout_nvs,
 }
 
 
@@ -244,7 +232,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--task",
         required=True,
         choices=sorted(LAYOUTS.keys()),
-        help="Which task's row layout to emit (depth/detection/tracking/pose/nvs).",
+        help="Which task's row layout to emit (depth/detection/tracking/pose).",
     )
     p.add_argument(
         "--reports",

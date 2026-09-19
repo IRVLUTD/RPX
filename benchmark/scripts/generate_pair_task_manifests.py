@@ -3,7 +3,6 @@
 
 Covers:
   * ``relative_camera_pose`` — frame pairs with a meaningful baseline
-  * ``novel_view_synthesis`` — (source, target) frame pairs
 
 Both walk per-(scene, phase) pose streams and sample pairs whose relative
 transform satisfies configurable translation/rotation bounds, so models
@@ -19,7 +18,7 @@ Usage::
 
     python scripts/generate_pair_task_manifests.py \\
         --local-root /data/rpx \\
-        --tasks relative_camera_pose novel_view_synthesis
+        --tasks relative_camera_pose
 """
 
 from __future__ import annotations
@@ -34,7 +33,7 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 
 PHASE_NAMES = {"0": "clutter", "1": "interaction", "2": "clean"}
-PAIR_TASKS = ("relative_camera_pose", "novel_view_synthesis")
+PAIR_TASKS = ("relative_camera_pose",)
 CANDIDATE_OFFSETS = (5, 10, 15, 20, 30, 45)
 
 
@@ -179,25 +178,6 @@ def build_rel_pose_entry(
     }
 
 
-def build_nvs_entry(
-    scene: str,
-    phase: str,
-    phase_name: str,
-    frame_src: str,
-    frame_tgt: str,
-    difficulty: str,
-) -> Dict[str, Any]:
-    return {
-        "id": f"{scene}_{phase_name}_{frame_src}_to_{frame_tgt}",
-        "scene": scene,
-        "phase": phase_name,
-        "difficulty": difficulty,
-        "rgb": _rel(scene, phase, "rgb", frame_src, "png"),
-        "depth": _rel(scene, phase, "depth", frame_src, "png"),
-        "pose": _rel(scene, phase, "pose", frame_src, "npz"),
-        "target_rgb": _rel(scene, phase, "rgb", frame_tgt, "png"),
-        "target_pose": _rel(scene, phase, "pose", frame_tgt, "npz"),
-    }
 
 
 def build_manifests(
@@ -252,23 +232,6 @@ def build_manifests(
                     )
                 )
 
-        if "novel_view_synthesis" in tasks:
-            # NVS also needs the source depth, so skip phases missing depth.
-            if not (phase_dir / "depth").is_dir():
-                continue
-            m = manifests[("novel_view_synthesis", difficulty)]
-            m["scenes"].append(scene_entry)
-            for i, j in pairs:
-                m["samples"].append(
-                    build_nvs_entry(
-                        scene,
-                        phase,
-                        phase_name,
-                        frame_ids[i],
-                        frame_ids[j],
-                        difficulty,
-                    )
-                )
 
     return {k: v for k, v in manifests.items() if v["samples"]}
 

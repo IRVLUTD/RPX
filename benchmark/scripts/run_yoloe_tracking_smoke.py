@@ -222,6 +222,7 @@ def main() -> None:
             scores,
             class_ids,
             track_ids,
+            strict=True,
         ):
             x1, y1, x2, y2 = [
                 float(value) for value in box

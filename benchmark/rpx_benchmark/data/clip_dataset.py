@@ -10,7 +10,7 @@ yields a :class:`PhaseClip` per group, decoding every modality through the
 *existing* ``RPXDataset`` loaders — no duplicate IO code, one source of
 truth for how RGB / depth / pose are read.
 
-Design notes (``benchmark/docs/depth_metric_decisions.md`` §3):
+Design notes (``benchmark/README.md`` §3):
 
 * Iteration order is ``outer = scene (sorted), inner = phase (0, 1, 2)``,
   which matches the cell-log grouping key ``(model, task, scene, phase)``.

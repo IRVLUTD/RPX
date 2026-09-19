@@ -54,7 +54,6 @@ __all__ = [
     "RelativePoseSampleEntry",
     "VisualGroundingSampleEntry",
     "SparseDepthSampleEntry",
-    "NovelViewSynthesisSampleEntry",
     "KeypointMatchingSampleEntry",
     "Manifest",
     "SAMPLE_MODELS",
@@ -178,10 +177,6 @@ class SparseDepthSampleEntry(BaseSampleEntry):
     depths: str | List[float]
 
 
-class NovelViewSynthesisSampleEntry(BaseSampleEntry):
-    target_rgb: str
-    target_pose: str | None = None
-    camera_pose: str | None = None
 
 
 class KeypointMatchingSampleEntry(BaseSampleEntry):
@@ -202,7 +197,6 @@ SAMPLE_MODELS: Dict[TaskType, Type[BaseSampleEntry]] = {
     TaskType.RELATIVE_CAMERA_POSE: RelativePoseSampleEntry,
     TaskType.VISUAL_GROUNDING: VisualGroundingSampleEntry,
     TaskType.SPARSE_DEPTH: SparseDepthSampleEntry,
-    TaskType.NOVEL_VIEW_SYNTHESIS: NovelViewSynthesisSampleEntry,
     TaskType.KEYPOINT_MATCHING: KeypointMatchingSampleEntry,
 }
 
@@ -219,7 +213,6 @@ AnySampleEntry = Union[
     RelativePoseSampleEntry,
     VisualGroundingSampleEntry,
     SparseDepthSampleEntry,
-    NovelViewSynthesisSampleEntry,
     KeypointMatchingSampleEntry,
 ]
 

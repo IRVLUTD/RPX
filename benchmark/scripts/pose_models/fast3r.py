@@ -99,9 +99,9 @@ class Fast3R:
         return np.stack(camera_poses)
 
     def _infer_pair(self, pair: dict) -> dict:
-        from PIL import Image
         from fast3r.dust3r.inference_multiview import inference
         from fast3r.dust3r.utils.image import load_images
+        from PIL import Image
 
         rgb_a, rgb_b = validate_pair(pair)
         with tempfile.TemporaryDirectory() as temporary:

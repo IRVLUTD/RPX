@@ -8,7 +8,7 @@
 > **Most users do not need this directory.** Mask generation is how
 > the RPX ground truth was *created*. To *benchmark* a model against
 > the already-published RPX dataset (which already has masks),
-> use [`../benchmark/`](../benchmark/README.md) instead. You only
+> use [`../benchmark/`](../../benchmark/README.md) instead. You only
 > come here if you're producing GT masks for newly captured scenes,
 > on a CUDA-capable annotation box.
 
@@ -284,7 +284,6 @@ python -m visual_grounding_gt.mask_to_object \
 | Script | Purpose |
 |---|---|
 | `maskgen_pipeline/interactive_gsam2.py` | **Iter 1.** Interactive bbox curation + SAM2 propagation. |
-| `maskgen_pipeline/interactive_gsam2_rdd_refinement.py` | Variant using RDD (Robust Deformable Detector) for tighter bboxes on small objects. |
 | `maskgen_pipeline/interactive_gsam2_refine_pp_1.py` | Refinement variant: bbox-then-point-prompt on faulty frames. |
 | `maskgen_pipeline/refine_masks.py` / `refine_masks_flow.py` | **Iter 2.** Automatic refinement of faulty frames (no UI). |
 | `maskgen_pipeline/review_faulty_masks.py` | Visualize generated masks; tag faulty frames for the next iter. |

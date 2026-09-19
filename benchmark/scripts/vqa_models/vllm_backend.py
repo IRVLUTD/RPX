@@ -28,7 +28,6 @@ from typing import Any, Sequence
 
 from PIL import Image
 
-
 _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS: dict[str, Any] = {
     # deepseek-ai/deepseek-vl2's nested language_config omits these fields,
     # even though the official DeepseekV2Config supplies them as constructor
@@ -379,7 +378,7 @@ class VLLMVQARunner:
                     # floating-point cannot serialize 999 as
                     # 1000.0000000000001 and fail RPX's strict range check.
                     scale = 1000.0 / 999.0
-                    to_rpx_coordinate = lambda value: min(1000.0, value * scale)
+                    to_rpx_coordinate = lambda value, scale=scale: min(1000.0, value * scale)
                     candidates.append(
                         {
                             "label": (match.group("label") or "").strip(),

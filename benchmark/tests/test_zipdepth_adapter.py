@@ -11,6 +11,7 @@ SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 from depth_models.zipdepth import ZipDepthAdapter
+
 from rpx_benchmark.exceptions import AdapterError
 from rpx_benchmark.metrics.depth_alignment import align_pred_to_gt_pooled
 

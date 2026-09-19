@@ -1,5 +1,5 @@
 """Comprehensive monocular-depth metrics per
-``docs/methods/comprehensive_metrics.md`` spec.
+``benchmark/README.md`` spec.
 
 Runs **after** BenchmarkRunner finishes, reads the per-frame ``.npz`` predictions
 (saved by ``run_depth.py --save-predictions``) and the GT depth + (optional)

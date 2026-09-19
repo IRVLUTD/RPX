@@ -28,7 +28,6 @@ from ..api import (
     DepthPrediction,
     DetectionPrediction,
     KeypointCorrespondencePrediction,
-    NovelViewSynthesisPrediction,
     RelativePosePrediction,
     Sample,
     SegmentationPrediction,
@@ -853,84 +852,15 @@ def make_numpy_sparse_depth_model(
 
 
 # --------------------------------------------------------------------------- #
-# Novel view synthesis — fn(rgb, target_pose) -> rgb
 # --------------------------------------------------------------------------- #
 
 
-class _NumpyNVSInput:
-    """NVS input: source RGB + target camera pose (4x4)."""
-
-    def prepare(self, sample: Sample) -> PreparedInput:
-        rgb_src = np.asarray(sample.rgb, dtype=np.uint8)
-        target_pose = getattr(sample.ground_truth, "camera_pose", None)
-        if target_pose is None:
-            raise AdapterError(
-                "NVS ground truth missing `camera_pose` (target pose).",
-                hint="Use a manifest that sets `target_pose` so the loader "
-                "populates ground_truth.camera_pose.",
-            )
-        return PreparedInput(
-            payload={"rgb": rgb_src, "target_pose": np.asarray(target_pose)},
-            context={"target_hw": rgb_src.shape[:2]},
-        )
 
 
-class _NumpyNVSOutput:
-    def finalize(
-        self,
-        model_output: Any,
-        context: Dict[str, Any],
-        sample: Sample,
-    ) -> NovelViewSynthesisPrediction:
-        rgb = np.asarray(model_output)
-        if rgb.ndim != 3 or rgb.shape[-1] != 3:
-            raise AdapterError(
-                f"NVS model must return a (H, W, 3) RGB array; got shape {rgb.shape}",
-            )
-        if rgb.dtype != np.uint8:
-            rgb = rgb.clip(0, 255).astype(np.uint8)
-        target_hw = context.get("target_hw")
-        if target_hw is not None and rgb.shape[:2] != target_hw:
-            from PIL import Image
-
-            pil = Image.fromarray(rgb)
-            pil = pil.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
-            rgb = np.asarray(pil, dtype=np.uint8)
-        return NovelViewSynthesisPrediction(rgb=rgb)
 
 
-def _nvs_invoker(model: Any, payload: Dict[str, Any]) -> Any:
-    return model(payload["rgb"], payload["target_pose"])
 
 
-def make_numpy_nvs_model(
-    fn: Callable[[np.ndarray, np.ndarray], np.ndarray],
-    *,
-    name: str = "numpy_nvs_model",
-) -> BenchmarkableModel:
-    """Wrap a novel-view-synthesis callable as a :class:`BenchmarkableModel`.
-
-    The callable takes ``(rgb_uint8, target_pose)`` where the target
-    pose is a 4×4 SE(3) camera-to-world matrix (float64). It
-    returns an RGB image for the target viewpoint. Non-uint8 output
-    is clipped and cast; shape mismatches are bilinearly resized.
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> import rpx_benchmark as rpx
-    >>> def my_nvs(rgb, target_pose):
-    ...     return rgb  # identity baseline
-    >>> bm = rpx.make_numpy_nvs_model(my_nvs)
-    """
-    return BenchmarkableModel(
-        task=TaskType.NOVEL_VIEW_SYNTHESIS,
-        input_adapter=_NumpyNVSInput(),
-        model=fn,
-        output_adapter=_NumpyNVSOutput(),
-        invoker=_nvs_invoker,
-        name=name,
-    )
 
 
 # --------------------------------------------------------------------------- #

@@ -8,9 +8,9 @@ import html
 import json
 from pathlib import Path
 
+from build_vqa_acceptance_gallery import _native_candidates, _overlay, _to_data_uri
 from PIL import Image, ImageDraw
 
-from build_vqa_acceptance_gallery import _native_candidates, _overlay, _to_data_uri
 from rpx_benchmark.vqa.contract import load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_images
 from rpx_benchmark.vqa.prompts import display_question

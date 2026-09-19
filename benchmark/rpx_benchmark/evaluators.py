@@ -299,17 +299,6 @@ def sparse_depth_metrics(
     }
 
 
-def nvs_metrics(pred_rgb: np.ndarray, gt_rgb: np.ndarray) -> Dict[str, float]:
-    """PSNR and SSIM for novel-view synthesis."""
-    pred = np.asarray(pred_rgb, dtype=np.float32)
-    gt = np.asarray(gt_rgb, dtype=np.float32)
-
-    mse = float(np.mean((pred - gt) ** 2))
-    psnr = float(10 * np.log10(255.0**2 / mse)) if mse > 0 else 100.0
-
-    ssim = _ssim(pred, gt)
-
-    return {"psnr": psnr, "ssim": ssim}
 
 
 def keypoint_metrics(
@@ -381,18 +370,3 @@ def _quat_to_rotmat(q: np.ndarray) -> np.ndarray:
         ],
         dtype=np.float64,
     )
-
-
-def _ssim(
-    pred: np.ndarray, gt: np.ndarray, k1: float = 0.01, k2: float = 0.03, L: float = 255.0
-) -> float:
-    """Simplified global SSIM (no sliding window) for NVS evaluation."""
-    c1 = (k1 * L) ** 2
-    c2 = (k2 * L) ** 2
-    mu_pred, mu_gt = pred.mean(), gt.mean()
-    sigma_pred = pred.std()
-    sigma_gt = gt.std()
-    sigma_pred_gt = float(np.mean((pred - mu_pred) * (gt - mu_gt)))
-    numerator = (2 * mu_pred * mu_gt + c1) * (2 * sigma_pred_gt + c2)
-    denominator = (mu_pred**2 + mu_gt**2 + c1) * (sigma_pred**2 + sigma_gt**2 + c2)
-    return float(numerator / denominator) if denominator > 0 else 1.0

@@ -12,9 +12,6 @@ Locks the contracts of :mod:`rpx_benchmark.cell_log`:
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pytest
 
 from rpx_benchmark.cell_log import (
@@ -27,7 +24,6 @@ from rpx_benchmark.cell_log import (
     read_cells,
     write_cells,
 )
-
 
 # --------------------------------------------------------------------------- #
 # Fixtures
@@ -167,7 +163,7 @@ class TestJsonlRoundTrip:
         loaded = read_cells(path)
         assert len(loaded) == len(cells)
         # Same metric values survive the round trip.
-        for orig, back in zip(cells, loaded):
+        for orig, back in zip(cells, loaded, strict=True):
             assert orig["metric:absrel"] == back["metric:absrel"]
             assert orig["scene_id"] == back["scene_id"]
 
@@ -199,7 +195,7 @@ class TestParquetRoundTrip:
 
         loaded = read_cells(path)
         assert len(loaded) == len(cells)
-        for orig, back in zip(cells, loaded):
+        for orig, back in zip(cells, loaded, strict=True):
             assert orig["metric:absrel"] == back["metric:absrel"]
             assert orig["phase"] == back["phase"]
 

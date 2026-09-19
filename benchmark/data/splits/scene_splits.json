@@ -11,114 +11,114 @@
   "aggregation": "mean of per-phase primary scores",
   "splits": {
     "easy": [
-      "scene11.ecss.4f.sofa",
-      "scene12.ecss.4f.sofa",
-      "scene13.ecss.4f.sofa",
-      "scene15.ecss.4f.sofa",
-      "scene22.jo.4f",
-      "scene23.jo.4f",
-      "scene24.jo.4f",
-      "scene26.gaming2.JUMBOTRONSTAGE",
-      "scene29.gaming2.JUMBOTRONSTAGE",
-      "scene30.gaming2.JUMBOTRONSTAGE",
-      "scene31.ecss.3f.sofaNchairs",
-      "scene32.ecss.3f.sofaNchairs",
-      "scene34.ecss.3f.sofaNchairs",
-      "scene35.ecss.3f.sofaNchairs",
-      "scene37.jo.4f",
-      "scene38.jo.4f",
-      "scene4.library.fountain",
-      "scene51.TENNISCOURTS.Ground",
-      "scene53.TENNISCOURTS.Ground",
-      "scene54.TENNISCOURTS.Ground",
-      "scene55.TENNISCOURTS.Ground",
-      "scene57.rec.in",
-      "scene59.rec.in",
-      "scene60.rec.in",
-      "scene66.ecsw.3f.dept",
-      "scene68.ecsw.3f.dept",
-      "scene71.ecsw.atriumStairs",
-      "scene73.ecsw.atriumStairs",
-      "scene75.ecsw.atriumStairs",
-      "scene8.ecsn.4f.sofa",
-      "scene92.ad.out",
-      "scene93.ad.out",
-      "scene94.ad.out"
+      "scene011",
+      "scene012",
+      "scene013",
+      "scene015",
+      "scene022",
+      "scene023",
+      "scene024",
+      "scene026",
+      "scene029",
+      "scene030",
+      "scene031",
+      "scene032",
+      "scene034",
+      "scene035",
+      "scene037",
+      "scene038",
+      "scene004",
+      "scene051",
+      "scene053",
+      "scene054",
+      "scene055",
+      "scene057",
+      "scene059",
+      "scene060",
+      "scene066",
+      "scene068",
+      "scene071",
+      "scene073",
+      "scene075",
+      "scene008",
+      "scene092",
+      "scene093",
+      "scene094"
     ],
     "medium": [
-      "scene100.jsom.rocks",
-      "scene14.ecss.4f.sofa",
-      "scene17.SU.CHECKERBOARD",
-      "scene21.jo.4f",
-      "scene25.jo.4f",
-      "scene28.gaming2.JUMBOTRONSTAGE",
-      "scene36.jo.4f",
-      "scene47.ecss.out.stairs",
-      "scene48.ecss.out.stairs",
-      "scene50.ecss.out.stairs",
-      "scene52.TENNISCOURTS.Ground",
-      "scene56.rec.in",
-      "scene58.rec.in",
-      "scene6.ecsn.4f.sofa",
-      "scene64.ecsw.axxess-atrium",
-      "scene65.ecsw.axxess-atrium",
-      "scene69.ecsw.3f.dept",
-      "scene7.ecsn.4f.sofa",
-      "scene70.ecsw.3f.dept",
-      "scene72.ecsw.atriumStairs",
-      "scene74.ecsw.atriumStairs",
-      "scene76.gaming2",
-      "scene77.gaming2",
-      "scene78.gaming2",
-      "scene79.gaming2",
-      "scene84.jsom.garden.pot",
-      "scene86.jsom.atrium",
-      "scene89.jsom.atrium",
-      "scene9.ecsn.4f.sofa",
-      "scene90.jsom.atrium",
-      "scene91.ad.out",
-      "scene97.jsom.rocks",
-      "scene99.jsom.rocks"
+      "scene100",
+      "scene014",
+      "scene017",
+      "scene021",
+      "scene025",
+      "scene028",
+      "scene036",
+      "scene047",
+      "scene048",
+      "scene050",
+      "scene052",
+      "scene056",
+      "scene058",
+      "scene006",
+      "scene064",
+      "scene065",
+      "scene069",
+      "scene007",
+      "scene070",
+      "scene072",
+      "scene074",
+      "scene076",
+      "scene077",
+      "scene078",
+      "scene079",
+      "scene084",
+      "scene086",
+      "scene089",
+      "scene009",
+      "scene090",
+      "scene091",
+      "scene097",
+      "scene099"
     ],
     "hard": [
-      "scene1.library.fountain",
-      "scene10.ecsn.4f.sofa",
-      "scene16.SU.CHECKERBOARD",
-      "scene18.su.CHECKERBOARD",
-      "scene19.su.CHECKERBOARD",
-      "scene2.library.fountain",
-      "scene20.su.CHECKERBOARD",
-      "scene27.gaming2.JUMBOTRONSTAGE",
-      "scene3.library.fountain",
-      "scene33.ecss.3f.sofaNchairs",
-      "scene39.jo.4f",
-      "scene40.jo.4f",
-      "scene41.gh.out",
-      "scene42.gh.out",
-      "scene43.gh.out",
-      "scene44.gh.out",
-      "scene45.gh.out",
-      "scene46.ecss.out.stairs",
-      "scene49.ecss.out.stairs",
-      "scene5.library.fountain",
-      "scene61.ecsw.axxess-atrium",
-      "scene62.ecsw.axxess-atrium",
-      "scene63.ecsw.axxess-atrium",
-      "scene67.ecsw.3f.dept",
-      "scene80.gaming2",
-      "scene81.jsom.garden.pot",
-      "scene82.jsom.garden.pot",
-      "scene83.jsom.garden.pot",
-      "scene85.jsom.garden.pot",
-      "scene87.jsom.atrium",
-      "scene88.jsom.atrium",
-      "scene95.ad.out",
-      "scene96.jsom.rocks",
-      "scene98.jsom.rocks"
+      "scene001",
+      "scene010",
+      "scene016",
+      "scene018",
+      "scene019",
+      "scene002",
+      "scene020",
+      "scene027",
+      "scene003",
+      "scene033",
+      "scene039",
+      "scene040",
+      "scene041",
+      "scene042",
+      "scene043",
+      "scene044",
+      "scene045",
+      "scene046",
+      "scene049",
+      "scene005",
+      "scene061",
+      "scene062",
+      "scene063",
+      "scene067",
+      "scene080",
+      "scene081",
+      "scene082",
+      "scene083",
+      "scene085",
+      "scene087",
+      "scene088",
+      "scene095",
+      "scene096",
+      "scene098"
     ]
   },
   "scene_detail": {
-    "scene1.library.fountain": {
+    "scene001": {
       "scene_tier": "hard",
       "scene_score": 0.6319027777777777,
       "phase_scores": [
@@ -137,7 +137,7 @@
         2
       ]
     },
-    "scene10.ecsn.4f.sofa": {
+    "scene010": {
       "scene_tier": "hard",
       "scene_score": 0.5306916666666667,
       "phase_scores": [
@@ -156,7 +156,7 @@
         2
       ]
     },
-    "scene100.jsom.rocks": {
+    "scene100": {
       "scene_tier": "medium",
       "scene_score": 0.5233583333333333,
       "phase_scores": [
@@ -175,7 +175,7 @@
         2
       ]
     },
-    "scene11.ecss.4f.sofa": {
+    "scene011": {
       "scene_tier": "easy",
       "scene_score": 0.3555,
       "phase_scores": [
@@ -194,7 +194,7 @@
         2
       ]
     },
-    "scene12.ecss.4f.sofa": {
+    "scene012": {
       "scene_tier": "easy",
       "scene_score": 0.4227083333333333,
       "phase_scores": [
@@ -213,7 +213,7 @@
         2
       ]
     },
-    "scene13.ecss.4f.sofa": {
+    "scene013": {
       "scene_tier": "easy",
       "scene_score": 0.4482277777777777,
       "phase_scores": [
@@ -232,7 +232,7 @@
         2
       ]
     },
-    "scene14.ecss.4f.sofa": {
+    "scene014": {
       "scene_tier": "medium",
       "scene_score": 0.5035861111111111,
       "phase_scores": [
@@ -251,7 +251,7 @@
         2
       ]
     },
-    "scene15.ecss.4f.sofa": {
+    "scene015": {
       "scene_tier": "easy",
       "scene_score": 0.3395333333333333,
       "phase_scores": [
@@ -270,7 +270,7 @@
         2
       ]
     },
-    "scene16.SU.CHECKERBOARD": {
+    "scene016": {
       "scene_tier": "hard",
       "scene_score": 0.5429416666666665,
       "phase_scores": [
@@ -289,7 +289,7 @@
         2
       ]
     },
-    "scene17.SU.CHECKERBOARD": {
+    "scene017": {
       "scene_tier": "medium",
       "scene_score": 0.5299222222222222,
       "phase_scores": [
@@ -308,7 +308,7 @@
         2
       ]
     },
-    "scene18.su.CHECKERBOARD": {
+    "scene018": {
       "scene_tier": "hard",
       "scene_score": 0.6263305555555555,
       "phase_scores": [
@@ -327,7 +327,7 @@
         2
       ]
     },
-    "scene19.su.CHECKERBOARD": {
+    "scene019": {
       "scene_tier": "hard",
       "scene_score": 0.5570805555555556,
       "phase_scores": [
@@ -346,7 +346,7 @@
         2
       ]
     },
-    "scene2.library.fountain": {
+    "scene002": {
       "scene_tier": "hard",
       "scene_score": 0.6275027777777779,
       "phase_scores": [
@@ -365,7 +365,7 @@
         2
       ]
     },
-    "scene20.su.CHECKERBOARD": {
+    "scene020": {
       "scene_tier": "hard",
       "scene_score": 0.6435277777777778,
       "phase_scores": [
@@ -384,7 +384,7 @@
         2
       ]
     },
-    "scene21.jo.4f": {
+    "scene021": {
       "scene_tier": "medium",
       "scene_score": 0.4816805555555555,
       "phase_scores": [
@@ -403,7 +403,7 @@
         2
       ]
     },
-    "scene22.jo.4f": {
+    "scene022": {
       "scene_tier": "easy",
       "scene_score": 0.2918166666666666,
       "phase_scores": [
@@ -422,7 +422,7 @@
         2
       ]
     },
-    "scene23.jo.4f": {
+    "scene023": {
       "scene_tier": "easy",
       "scene_score": 0.4210138888888888,
       "phase_scores": [
@@ -441,7 +441,7 @@
         2
       ]
     },
-    "scene24.jo.4f": {
+    "scene024": {
       "scene_tier": "easy",
       "scene_score": 0.4120944444444445,
       "phase_scores": [
@@ -460,7 +460,7 @@
         2
       ]
     },
-    "scene25.jo.4f": {
+    "scene025": {
       "scene_tier": "medium",
       "scene_score": 0.4668444444444444,
       "phase_scores": [
@@ -479,7 +479,7 @@
         2
       ]
     },
-    "scene26.gaming2.JUMBOTRONSTAGE": {
+    "scene026": {
       "scene_tier": "easy",
       "scene_score": 0.45669999999999994,
       "phase_scores": [
@@ -498,7 +498,7 @@
         2
       ]
     },
-    "scene27.gaming2.JUMBOTRONSTAGE": {
+    "scene027": {
       "scene_tier": "hard",
       "scene_score": 0.5440027777777777,
       "phase_scores": [
@@ -517,7 +517,7 @@
         2
       ]
     },
-    "scene28.gaming2.JUMBOTRONSTAGE": {
+    "scene028": {
       "scene_tier": "medium",
       "scene_score": 0.5001166666666667,
       "phase_scores": [
@@ -536,7 +536,7 @@
         2
       ]
     },
-    "scene29.gaming2.JUMBOTRONSTAGE": {
+    "scene029": {
       "scene_tier": "easy",
       "scene_score": 0.413,
       "phase_scores": [
@@ -555,7 +555,7 @@
         2
       ]
     },
-    "scene3.library.fountain": {
+    "scene003": {
       "scene_tier": "hard",
       "scene_score": 0.5700472222222221,
       "phase_scores": [
@@ -574,7 +574,7 @@
         2
       ]
     },
-    "scene30.gaming2.JUMBOTRONSTAGE": {
+    "scene030": {
       "scene_tier": "easy",
       "scene_score": 0.43294999999999995,
       "phase_scores": [
@@ -593,7 +593,7 @@
         2
       ]
     },
-    "scene31.ecss.3f.sofaNchairs": {
+    "scene031": {
       "scene_tier": "easy",
       "scene_score": 0.3632166666666667,
       "phase_scores": [
@@ -612,7 +612,7 @@
         2
       ]
     },
-    "scene32.ecss.3f.sofaNchairs": {
+    "scene032": {
       "scene_tier": "easy",
       "scene_score": 0.38225,
       "phase_scores": [
@@ -631,7 +631,7 @@
         2
       ]
     },
-    "scene33.ecss.3f.sofaNchairs": {
+    "scene033": {
       "scene_tier": "hard",
       "scene_score": 0.5445444444444445,
       "phase_scores": [
@@ -650,7 +650,7 @@
         2
       ]
     },
-    "scene34.ecss.3f.sofaNchairs": {
+    "scene034": {
       "scene_tier": "easy",
       "scene_score": 0.43102777777777773,
       "phase_scores": [
@@ -669,7 +669,7 @@
         2
       ]
     },
-    "scene35.ecss.3f.sofaNchairs": {
+    "scene035": {
       "scene_tier": "easy",
       "scene_score": 0.41416388888888894,
       "phase_scores": [
@@ -688,7 +688,7 @@
         2
       ]
     },
-    "scene36.jo.4f": {
+    "scene036": {
       "scene_tier": "medium",
       "scene_score": 0.4922416666666667,
       "phase_scores": [
@@ -707,7 +707,7 @@
         2
       ]
     },
-    "scene37.jo.4f": {
+    "scene037": {
       "scene_tier": "easy",
       "scene_score": 0.4485861111111111,
       "phase_scores": [
@@ -726,7 +726,7 @@
         2
       ]
     },
-    "scene38.jo.4f": {
+    "scene038": {
       "scene_tier": "easy",
       "scene_score": 0.4534611111111111,
       "phase_scores": [
@@ -745,7 +745,7 @@
         2
       ]
     },
-    "scene39.jo.4f": {
+    "scene039": {
       "scene_tier": "hard",
       "scene_score": 0.5706722222222224,
       "phase_scores": [
@@ -764,7 +764,7 @@
         2
       ]
     },
-    "scene4.library.fountain": {
+    "scene004": {
       "scene_tier": "easy",
       "scene_score": 0.4592805555555555,
       "phase_scores": [
@@ -783,7 +783,7 @@
         2
       ]
     },
-    "scene40.jo.4f": {
+    "scene040": {
       "scene_tier": "hard",
       "scene_score": 0.5899694444444444,
       "phase_scores": [
@@ -802,7 +802,7 @@
         2
       ]
     },
-    "scene41.gh.out": {
+    "scene041": {
       "scene_tier": "hard",
       "scene_score": 0.555911111111111,
       "phase_scores": [
@@ -821,7 +821,7 @@
         2
       ]
     },
-    "scene42.gh.out": {
+    "scene042": {
       "scene_tier": "hard",
       "scene_score": 0.6370472222222222,
       "phase_scores": [
@@ -840,7 +840,7 @@
         2
       ]
     },
-    "scene43.gh.out": {
+    "scene043": {
       "scene_tier": "hard",
       "scene_score": 0.6192222222222222,
       "phase_scores": [
@@ -859,7 +859,7 @@
         2
       ]
     },
-    "scene44.gh.out": {
+    "scene044": {
       "scene_tier": "hard",
       "scene_score": 0.5348361111111111,
       "phase_scores": [
@@ -878,7 +878,7 @@
         2
       ]
     },
-    "scene45.gh.out": {
+    "scene045": {
       "scene_tier": "hard",
       "scene_score": 0.6184250000000001,
       "phase_scores": [
@@ -897,7 +897,7 @@
         2
       ]
     },
-    "scene46.ecss.out.stairs": {
+    "scene046": {
       "scene_tier": "hard",
       "scene_score": 0.5607888888888889,
       "phase_scores": [
@@ -916,7 +916,7 @@
         2
       ]
     },
-    "scene47.ecss.out.stairs": {
+    "scene047": {
       "scene_tier": "medium",
       "scene_score": 0.5037444444444444,
       "phase_scores": [
@@ -935,7 +935,7 @@
         2
       ]
     },
-    "scene48.ecss.out.stairs": {
+    "scene048": {
       "scene_tier": "medium",
       "scene_score": 0.49618055555555546,
       "phase_scores": [
@@ -954,7 +954,7 @@
         2
       ]
     },
-    "scene49.ecss.out.stairs": {
+    "scene049": {
       "scene_tier": "hard",
       "scene_score": 0.5623416666666666,
       "phase_scores": [
@@ -973,7 +973,7 @@
         2
       ]
     },
-    "scene5.library.fountain": {
+    "scene005": {
       "scene_tier": "hard",
       "scene_score": 0.6023,
       "phase_scores": [
@@ -992,7 +992,7 @@
         2
       ]
     },
-    "scene50.ecss.out.stairs": {
+    "scene050": {
       "scene_tier": "medium",
       "scene_score": 0.5188805555555556,
       "phase_scores": [
@@ -1011,7 +1011,7 @@
         2
       ]
     },
-    "scene51.TENNISCOURTS.Ground": {
+    "scene051": {
       "scene_tier": "easy",
       "scene_score": 0.4262361111111111,
       "phase_scores": [
@@ -1030,7 +1030,7 @@
         2
       ]
     },
-    "scene52.TENNISCOURTS.Ground": {
+    "scene052": {
       "scene_tier": "medium",
       "scene_score": 0.47970555555555555,
       "phase_scores": [
@@ -1049,7 +1049,7 @@
         2
       ]
     },
-    "scene53.TENNISCOURTS.Ground": {
+    "scene053": {
       "scene_tier": "easy",
       "scene_score": 0.421325,
       "phase_scores": [
@@ -1068,7 +1068,7 @@
         2
       ]
     },
-    "scene54.TENNISCOURTS.Ground": {
+    "scene054": {
       "scene_tier": "easy",
       "scene_score": 0.407875,
       "phase_scores": [
@@ -1087,7 +1087,7 @@
         2
       ]
     },
-    "scene55.TENNISCOURTS.Ground": {
+    "scene055": {
       "scene_tier": "easy",
       "scene_score": 0.403175,
       "phase_scores": [
@@ -1106,7 +1106,7 @@
         2
       ]
     },
-    "scene56.rec.in": {
+    "scene056": {
       "scene_tier": "medium",
       "scene_score": 0.47480277777777785,
       "phase_scores": [
@@ -1125,7 +1125,7 @@
         2
       ]
     },
-    "scene57.rec.in": {
+    "scene057": {
       "scene_tier": "easy",
       "scene_score": 0.41448888888888885,
       "phase_scores": [
@@ -1144,7 +1144,7 @@
         2
       ]
     },
-    "scene58.rec.in": {
+    "scene058": {
       "scene_tier": "medium",
       "scene_score": 0.509888888888889,
       "phase_scores": [
@@ -1163,7 +1163,7 @@
         2
       ]
     },
-    "scene59.rec.in": {
+    "scene059": {
       "scene_tier": "easy",
       "scene_score": 0.42731388888888894,
       "phase_scores": [
@@ -1182,7 +1182,7 @@
         2
       ]
     },
-    "scene6.ecsn.4f.sofa": {
+    "scene006": {
       "scene_tier": "medium",
       "scene_score": 0.4895611111111111,
       "phase_scores": [
@@ -1201,7 +1201,7 @@
         2
       ]
     },
-    "scene60.rec.in": {
+    "scene060": {
       "scene_tier": "easy",
       "scene_score": 0.41835833333333333,
       "phase_scores": [
@@ -1220,7 +1220,7 @@
         2
       ]
     },
-    "scene61.ecsw.axxess-atrium": {
+    "scene061": {
       "scene_tier": "hard",
       "scene_score": 0.6655083333333334,
       "phase_scores": [
@@ -1239,7 +1239,7 @@
         2
       ]
     },
-    "scene62.ecsw.axxess-atrium": {
+    "scene062": {
       "scene_tier": "hard",
       "scene_score": 0.6463611111111112,
       "phase_scores": [
@@ -1258,7 +1258,7 @@
         2
       ]
     },
-    "scene63.ecsw.axxess-atrium": {
+    "scene063": {
       "scene_tier": "hard",
       "scene_score": 0.63785,
       "phase_scores": [
@@ -1277,7 +1277,7 @@
         2
       ]
     },
-    "scene64.ecsw.axxess-atrium": {
+    "scene064": {
       "scene_tier": "medium",
       "scene_score": 0.47275,
       "phase_scores": [
@@ -1296,7 +1296,7 @@
         2
       ]
     },
-    "scene65.ecsw.axxess-atrium": {
+    "scene065": {
       "scene_tier": "medium",
       "scene_score": 0.49124999999999996,
       "phase_scores": [
@@ -1315,7 +1315,7 @@
         2
       ]
     },
-    "scene66.ecsw.3f.dept": {
+    "scene066": {
       "scene_tier": "easy",
       "scene_score": 0.4316166666666666,
       "phase_scores": [
@@ -1334,7 +1334,7 @@
         2
       ]
     },
-    "scene67.ecsw.3f.dept": {
+    "scene067": {
       "scene_tier": "hard",
       "scene_score": 0.5530805555555555,
       "phase_scores": [
@@ -1353,7 +1353,7 @@
         2
       ]
     },
-    "scene68.ecsw.3f.dept": {
+    "scene068": {
       "scene_tier": "easy",
       "scene_score": 0.4241,
       "phase_scores": [
@@ -1372,7 +1372,7 @@
         2
       ]
     },
-    "scene69.ecsw.3f.dept": {
+    "scene069": {
       "scene_tier": "medium",
       "scene_score": 0.46578333333333344,
       "phase_scores": [
@@ -1391,7 +1391,7 @@
         2
       ]
     },
-    "scene7.ecsn.4f.sofa": {
+    "scene007": {
       "scene_tier": "medium",
       "scene_score": 0.5189361111111112,
       "phase_scores": [
@@ -1410,7 +1410,7 @@
         2
       ]
     },
-    "scene70.ecsw.3f.dept": {
+    "scene070": {
       "scene_tier": "medium",
       "scene_score": 0.5124222222222222,
       "phase_scores": [
@@ -1429,7 +1429,7 @@
         2
       ]
     },
-    "scene71.ecsw.atriumStairs": {
+    "scene071": {
       "scene_tier": "easy",
       "scene_score": 0.3830972222222222,
       "phase_scores": [
@@ -1448,7 +1448,7 @@
         2
       ]
     },
-    "scene72.ecsw.atriumStairs": {
+    "scene072": {
       "scene_tier": "medium",
       "scene_score": 0.4814444444444444,
       "phase_scores": [
@@ -1467,7 +1467,7 @@
         2
       ]
     },
-    "scene73.ecsw.atriumStairs": {
+    "scene073": {
       "scene_tier": "easy",
       "scene_score": 0.4608277777777778,
       "phase_scores": [
@@ -1486,7 +1486,7 @@
         2
       ]
     },
-    "scene74.ecsw.atriumStairs": {
+    "scene074": {
       "scene_tier": "medium",
       "scene_score": 0.4942722222222222,
       "phase_scores": [
@@ -1505,7 +1505,7 @@
         2
       ]
     },
-    "scene75.ecsw.atriumStairs": {
+    "scene075": {
       "scene_tier": "easy",
       "scene_score": 0.36883333333333335,
       "phase_scores": [
@@ -1524,7 +1524,7 @@
         2
       ]
     },
-    "scene76.gaming2": {
+    "scene076": {
       "scene_tier": "medium",
       "scene_score": 0.5287722222222223,
       "phase_scores": [
@@ -1543,7 +1543,7 @@
         2
       ]
     },
-    "scene77.gaming2": {
+    "scene077": {
       "scene_tier": "medium",
       "scene_score": 0.46187222222222224,
       "phase_scores": [
@@ -1562,7 +1562,7 @@
         2
       ]
     },
-    "scene78.gaming2": {
+    "scene078": {
       "scene_tier": "medium",
       "scene_score": 0.49114444444444444,
       "phase_scores": [
@@ -1581,7 +1581,7 @@
         2
       ]
     },
-    "scene79.gaming2": {
+    "scene079": {
       "scene_tier": "medium",
       "scene_score": 0.5231444444444445,
       "phase_scores": [
@@ -1600,7 +1600,7 @@
         2
       ]
     },
-    "scene8.ecsn.4f.sofa": {
+    "scene008": {
       "scene_tier": "easy",
       "scene_score": 0.4326388888888888,
       "phase_scores": [
@@ -1619,7 +1619,7 @@
         2
       ]
     },
-    "scene80.gaming2": {
+    "scene080": {
       "scene_tier": "hard",
       "scene_score": 0.5662527777777778,
       "phase_scores": [
@@ -1638,7 +1638,7 @@
         2
       ]
     },
-    "scene81.jsom.garden.pot": {
+    "scene081": {
       "scene_tier": "hard",
       "scene_score": 0.6276083333333333,
       "phase_scores": [
@@ -1657,7 +1657,7 @@
         2
       ]
     },
-    "scene82.jsom.garden.pot": {
+    "scene082": {
       "scene_tier": "hard",
       "scene_score": 0.6168166666666668,
       "phase_scores": [
@@ -1676,7 +1676,7 @@
         2
       ]
     },
-    "scene83.jsom.garden.pot": {
+    "scene083": {
       "scene_tier": "hard",
       "scene_score": 0.5966527777777778,
       "phase_scores": [
@@ -1695,7 +1695,7 @@
         2
       ]
     },
-    "scene84.jsom.garden.pot": {
+    "scene084": {
       "scene_tier": "medium",
       "scene_score": 0.5270138888888889,
       "phase_scores": [
@@ -1714,7 +1714,7 @@
         2
       ]
     },
-    "scene85.jsom.garden.pot": {
+    "scene085": {
       "scene_tier": "hard",
       "scene_score": 0.5577388888888889,
       "phase_scores": [
@@ -1733,7 +1733,7 @@
         2
       ]
     },
-    "scene86.jsom.atrium": {
+    "scene086": {
       "scene_tier": "medium",
       "scene_score": 0.5003722222222221,
       "phase_scores": [
@@ -1752,7 +1752,7 @@
         2
       ]
     },
-    "scene87.jsom.atrium": {
+    "scene087": {
       "scene_tier": "hard",
       "scene_score": 0.6168305555555555,
       "phase_scores": [
@@ -1771,7 +1771,7 @@
         2
       ]
     },
-    "scene88.jsom.atrium": {
+    "scene088": {
       "scene_tier": "hard",
       "scene_score": 0.6028611111111112,
       "phase_scores": [
@@ -1790,7 +1790,7 @@
         2
       ]
     },
-    "scene89.jsom.atrium": {
+    "scene089": {
       "scene_tier": "medium",
       "scene_score": 0.5285944444444445,
       "phase_scores": [
@@ -1809,7 +1809,7 @@
         2
       ]
     },
-    "scene9.ecsn.4f.sofa": {
+    "scene009": {
       "scene_tier": "medium",
       "scene_score": 0.5295166666666666,
       "phase_scores": [
@@ -1828,7 +1828,7 @@
         2
       ]
     },
-    "scene90.jsom.atrium": {
+    "scene090": {
       "scene_tier": "medium",
       "scene_score": 0.4646083333333333,
       "phase_scores": [
@@ -1847,7 +1847,7 @@
         2
       ]
     },
-    "scene91.ad.out": {
+    "scene091": {
       "scene_tier": "medium",
       "scene_score": 0.5136527777777777,
       "phase_scores": [
@@ -1866,7 +1866,7 @@
         2
       ]
     },
-    "scene92.ad.out": {
+    "scene092": {
       "scene_tier": "easy",
       "scene_score": 0.40691111111111106,
       "phase_scores": [
@@ -1885,7 +1885,7 @@
         2
       ]
     },
-    "scene93.ad.out": {
+    "scene093": {
       "scene_tier": "easy",
       "scene_score": 0.41915277777777776,
       "phase_scores": [
@@ -1904,7 +1904,7 @@
         2
       ]
     },
-    "scene94.ad.out": {
+    "scene094": {
       "scene_tier": "easy",
       "scene_score": 0.4509138888888889,
       "phase_scores": [
@@ -1923,7 +1923,7 @@
         2
       ]
     },
-    "scene95.ad.out": {
+    "scene095": {
       "scene_tier": "hard",
       "scene_score": 0.5366222222222222,
       "phase_scores": [
@@ -1942,7 +1942,7 @@
         2
       ]
     },
-    "scene96.jsom.rocks": {
+    "scene096": {
       "scene_tier": "hard",
       "scene_score": 0.5959888888888889,
       "phase_scores": [
@@ -1961,7 +1961,7 @@
         2
       ]
     },
-    "scene97.jsom.rocks": {
+    "scene097": {
       "scene_tier": "medium",
       "scene_score": 0.4855277777777778,
       "phase_scores": [
@@ -1980,7 +1980,7 @@
         2
       ]
     },
-    "scene98.jsom.rocks": {
+    "scene098": {
       "scene_tier": "hard",
       "scene_score": 0.5440666666666666,
       "phase_scores": [
@@ -1999,7 +1999,7 @@
         2
       ]
     },
-    "scene99.jsom.rocks": {
+    "scene099": {
       "scene_tier": "medium",
       "scene_score": 0.5283555555555556,
       "phase_scores": [

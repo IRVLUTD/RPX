@@ -84,7 +84,7 @@ def write_json(
     }
     if dr_report is not None:
         # Split the report into the three top-level RPX axes (no
-        # composite score; see SHARED_CONTEXT.md for the policy).
+        # composite score; see benchmark/README.md for the policy).
         dr_json = _to_jsonable(dr_report)
         payload["robustness"] = {
             "weighted_phase_score": dr_json.get("weighted_phase_score"),

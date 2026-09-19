@@ -7,6 +7,7 @@ from .contract import (
     VQASample,
     load_manifest,
 )
+from .evaluate import evaluate_vqa
 from .metrics import score_predictions
 from .outputs import ParsedOutput, parse_output
 from .prompts import PromptSpec, build_prompt
@@ -21,6 +22,7 @@ __all__ = [
     "ParsedOutput",
     "PromptSpec",
     "VQASample",
+    "evaluate_vqa",
     "build_prompt",
     "load_manifest",
     "parse_output",

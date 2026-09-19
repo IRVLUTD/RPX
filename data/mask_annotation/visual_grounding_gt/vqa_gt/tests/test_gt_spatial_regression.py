@@ -16,8 +16,8 @@ import random
 
 import pytest
 
-STAGED_PHASE0 = "/home/rpx/Desktop/RPX/data/mask_annotation/visual_grounding_gt/pilot/staged/scene001/0"
-PUBLISHED_SPATIAL_BBOX = "/home/rpx/Desktop/RPX/data/mask_annotation/visual_grounding_gt/pilot/out/vqa_parquet/spatial_bbox.parquet"
+STAGED_PHASE0 = os.environ.get("RPX_TEST_STAGED_PHASE0", "/data/rpx/staged/scene001/0")
+PUBLISHED_SPATIAL_BBOX = os.environ.get("RPX_TEST_SPATIAL_PARQUET", "/data/rpx/spatial_bbox.parquet")
 
 pytestmark = pytest.mark.skipif(
     not (os.path.isdir(STAGED_PHASE0) and os.path.exists(PUBLISHED_SPATIAL_BBOX)),

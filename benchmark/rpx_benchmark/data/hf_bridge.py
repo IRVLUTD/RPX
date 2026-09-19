@@ -28,7 +28,6 @@ from ..api import (
     DetectionGroundTruth,
     Difficulty,
     KeypointCorrespondenceGroundTruth,
-    NovelViewSynthesisGroundTruth,
     Phase,
     RelativePoseGroundTruth,
     Sample,
@@ -189,11 +188,6 @@ def _gt_sparse_depth(row: Dict[str, Any]) -> SparseDepthGroundTruth:
     return SparseDepthGroundTruth(coordinates=coords, depths=depths)
 
 
-def _gt_nvs(row: Dict[str, Any]) -> NovelViewSynthesisGroundTruth:
-    return NovelViewSynthesisGroundTruth(
-        rgb=_decode_image(row["target_rgb"]),
-        camera_pose={"pose": _unflatten_pose(row["target_pose"])},
-    )
 
 
 def _gt_keypoints(row: Dict[str, Any]) -> KeypointCorrespondenceGroundTruth:
@@ -213,7 +207,6 @@ _GT_BUILDERS = {
     TaskType.RELATIVE_CAMERA_POSE: _gt_relative_pose,
     TaskType.VISUAL_GROUNDING: _gt_visual_grounding,
     TaskType.SPARSE_DEPTH: _gt_sparse_depth,
-    TaskType.NOVEL_VIEW_SYNTHESIS: _gt_nvs,
     TaskType.KEYPOINT_MATCHING: _gt_keypoints,
 }
 

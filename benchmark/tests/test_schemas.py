@@ -55,11 +55,6 @@ _MIN_SAMPLES = {
         "coordinates": [[1.0, 2.0]],
         "depths": [0.5],
     },
-    TaskType.NOVEL_VIEW_SYNTHESIS: {
-        "id": "s0",
-        "rgb": "rgb/0.png",
-        "target_rgb": "rgb/target.png",
-    },
     TaskType.KEYPOINT_MATCHING: {
         "id": "s0",
         "rgb": "rgb/0.png",

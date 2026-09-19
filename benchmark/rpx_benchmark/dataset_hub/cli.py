@@ -261,7 +261,12 @@ def _rehydrate_pack_result(scan, staging):
     import hashlib
     import tarfile
 
-    from .packer import PackedShard, PackResult, SCENE_ROOT_BY_TYPE, phase_segment  # local import to avoid cycles
+    from .packer import (  # local import to avoid cycles
+        SCENE_ROOT_BY_TYPE,
+        PackedShard,
+        PackResult,
+        phase_segment,
+    )
 
     def _file_sha256(path: Path) -> str:
         h = hashlib.sha256()

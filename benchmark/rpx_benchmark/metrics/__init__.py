@@ -48,7 +48,6 @@ from . import depth as _depth  # noqa: F401 — triggers registration
 from . import detection as _detection  # noqa: F401
 from . import grounding as _grounding  # noqa: F401
 from . import keypoints as _keypoints  # noqa: F401
-from . import nvs as _nvs  # noqa: F401
 from . import pose as _pose  # noqa: F401
 from . import segmentation as _segmentation  # noqa: F401
 from . import sparse_depth as _sparse_depth  # noqa: F401

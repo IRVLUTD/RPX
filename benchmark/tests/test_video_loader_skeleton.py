@@ -4,7 +4,7 @@ These tests assert the **contract** is in place — types importable,
 TaskType / recipe / dataclass shapes correct — without exercising the
 iteration logic that's intentionally deferred until Feynman's
 depth-metric study finalises the temporal metric tuple
-(:file:`benchmark/docs/depth_metric_decisions.md`).
+(:file:`benchmark/README.md`).
 
 When the iteration is implemented, the ``NotImplementedError`` checks
 here should flip into real round-trip checks against a mock clip.

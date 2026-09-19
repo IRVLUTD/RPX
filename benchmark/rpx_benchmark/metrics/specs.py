@@ -315,15 +315,6 @@ POSE_SPECS = (
                description="Joint rotation × metric-translation AUC"),
 )
 
-# Novel View Synthesis (D7) — K=3
-NVS_SPECS = (
-    MetricSpec("psnr",   "higher", best=40.0, worst=10.0, theoretical=False,
-               description="Peak signal-to-noise ratio (dB)"),
-    MetricSpec("ssim",   "higher", best=1.0,  worst=0.0,  theoretical=True,
-               description="Structural similarity index"),
-    MetricSpec("lpips",  "lower",  best=0.0,  worst=1.0,  theoretical=True,
-               description="Learned perceptual image-patch similarity"),
-)
 
 
 def _register_builtins() -> None:
@@ -334,7 +325,6 @@ def _register_builtins() -> None:
         TRACKING_SPECS,
         QA_SPECS,
         POSE_SPECS,
-        NVS_SPECS,
     ):
         register_specs(batch)
 
@@ -356,5 +346,4 @@ __all__ = [
     "TRACKING_SPECS",
     "QA_SPECS",
     "POSE_SPECS",
-    "NVS_SPECS",
 ]

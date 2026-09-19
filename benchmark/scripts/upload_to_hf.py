@@ -45,7 +45,7 @@ from typing import Any, Dict, List, Tuple
 PHASE_NAMES = {"0": "clutter", "1": "interaction", "2": "clean"}
 
 # Tasks the upload script can auto-generate manifests for from on-disk files.
-# Pair-based tasks (relative_pose, NVS, keypoint_matching, sparse_depth) require
+# Pair-based tasks (relative_pose, keypoint_matching, sparse_depth) require
 # a separate pair-selection step and are handled by a follow-up script.
 SINGLE_FRAME_TASKS: Dict[str, Dict[str, Any]] = {
     "monocular_depth": {

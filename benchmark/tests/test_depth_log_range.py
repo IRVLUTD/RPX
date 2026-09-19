@@ -5,9 +5,8 @@ from __future__ import annotations
 import math
 
 import numpy as np
-import pytest
 
-from rpx_benchmark.api import DepthGroundTruth, DepthPrediction, TaskType
+from rpx_benchmark.api import DepthGroundTruth, DepthPrediction
 from rpx_benchmark.metrics.depth import DepthLogMetrics, DepthRangeStratified
 
 

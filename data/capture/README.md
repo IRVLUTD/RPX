@@ -7,7 +7,7 @@
 > [!IMPORTANT]
 > **Most users do not need this directory.** Capture is how the RPX
 > dataset was *created*. To *benchmark* a model against the
-> already-captured dataset, use [`../benchmark/`](../benchmark/README.md)
+> already-captured dataset, use [`../benchmark/`](../../benchmark/README.md)
 > instead. You only come here if you're physically plugging two Intel
 > RealSense cameras into a machine to record new scenes.
 
@@ -44,7 +44,7 @@ modality per frame. The benchmark loader reads exactly this layout.
 - **Intel RealSense T265** (6-DoF VIO, mandatory)
 - `librealsense2 == 2.47.0` and `pyrealsense2 == 2.47.0.3313` — **pinned**
   because T265 support was removed in librealsense > 2.47.0. Install
-  instructions are in the [root README](../README.md#-data-capture-prerequisites).
+  use the pinned capture image in [Docker](../../docker/README.md) or build that SDK release on the capture host.
 
 Verify both devices enumerate:
 
@@ -82,14 +82,14 @@ out-of-the-box.
 ## 🐳 Docker
 
 A pre-built Docker image with all RealSense dependencies is available
-under [`../docker/`](../docker/README.md). Use it if you don't want to
+under [`../docker/`](../../docker/README.md). Use it if you don't want to
 deal with the librealsense pin on your host.
 
 ---
 
 ## 🔗 Related
 
-- [`../benchmark/`](../benchmark/README.md) — benchmark a model against
+- [`../benchmark/`](../../benchmark/README.md) — benchmark a model against
   already-captured RPX scenes (the common case; doesn't need any of these
   scripts).
 - [`../mask_annotation/`](../mask_annotation/README.md) — generate

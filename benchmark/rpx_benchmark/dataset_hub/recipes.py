@@ -107,7 +107,7 @@ MULTI_OBJECT_TASK_RECIPES: Dict[str, TaskRecipe] = {
             "depth sequence. Same scenes and GT as monocular_depth; "
             "differs in iteration unit and metric set (per-frame metrics "
             "+ temporal metrics — TODO: finalise from Feynman's research "
-            "in benchmark/docs/depth_metric_decisions.md)."
+            "in benchmark/README.md)."
         ),
     ),
     "rgbd_segmentation": TaskRecipe(

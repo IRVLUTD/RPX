@@ -46,52 +46,23 @@ def _subsample(pts: np.ndarray, max_n: int, rng: np.random.Generator) -> np.ndar
     return pts[idx]
 
 
+def _nearest_distances(a: np.ndarray, b: np.ndarray, *, p: int = 2) -> np.ndarray:
+    """Exact nearest-neighbour distances without quadratic temporary arrays."""
+    from scipy.spatial import cKDTree
+
+    return cKDTree(b).query(a, k=1, p=p, workers=1)[0]
+
+
 def _chamfer_l1(a: np.ndarray, b: np.ndarray) -> float:
-    """Symmetric Chamfer-L1 distance between two point clouds.
-
-    Uses brute-force nearest-neighbour (OK for ≤50K points).
-    """
-    # a→b
-    # Chunked to avoid OOM on large clouds
-    chunk = 5000
-    dists_a = np.empty(len(a), dtype=np.float64)
-    for i in range(0, len(a), chunk):
-        end = min(i + chunk, len(a))
-        diff = a[i:end, None, :] - b[None, :, :]  # (chunk, M, 3)
-        dists_a[i:end] = np.min(np.sum(np.abs(diff), axis=-1), axis=1)
-
-    dists_b = np.empty(len(b), dtype=np.float64)
-    for i in range(0, len(b), chunk):
-        end = min(i + chunk, len(b))
-        diff = b[i:end, None, :] - a[None, :, :]
-        dists_b[i:end] = np.min(np.sum(np.abs(diff), axis=-1), axis=1)
-
-    return float(np.mean(dists_a) + np.mean(dists_b))
+    """Symmetric mean nearest-neighbour L1 distance (sum of both directions)."""
+    return float(_nearest_distances(a, b, p=1).mean() + _nearest_distances(b, a, p=1).mean())
 
 
 def _fscore(a: np.ndarray, b: np.ndarray, threshold: float) -> float:
-    """F-score: fraction of points in each cloud within *threshold* of the other."""
-    chunk = 5000
-
-    # a→b distances (L2)
-    dists_a = np.empty(len(a), dtype=np.float64)
-    for i in range(0, len(a), chunk):
-        end = min(i + chunk, len(a))
-        diff = a[i:end, None, :] - b[None, :, :]
-        dists_a[i:end] = np.min(np.sqrt(np.sum(diff ** 2, axis=-1)), axis=1)
-
-    # b→a
-    dists_b = np.empty(len(b), dtype=np.float64)
-    for i in range(0, len(b), chunk):
-        end = min(i + chunk, len(b))
-        diff = b[i:end, None, :] - a[None, :, :]
-        dists_b[i:end] = np.min(np.sqrt(np.sum(diff ** 2, axis=-1)), axis=1)
-
-    precision = float(np.mean(dists_a < threshold))
-    recall = float(np.mean(dists_b < threshold))
-    if precision + recall < 1e-12:
-        return 0.0
-    return float(2 * precision * recall / (precision + recall))
+    """Harmonic mean of bidirectional Euclidean matches below the threshold."""
+    precision = float(np.mean(_nearest_distances(a, b) < threshold))
+    recall = float(np.mean(_nearest_distances(b, a) < threshold))
+    return 0.0 if precision + recall < 1e-12 else 2 * precision * recall / (precision + recall)
 
 
 @register_metric(TaskType.MONOCULAR_DEPTH)

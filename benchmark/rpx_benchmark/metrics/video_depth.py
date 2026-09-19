@@ -22,7 +22,7 @@ What the final metric tuple is
 The full set this module exposes is intentionally broader than what
 the paper's headline Φ MANOVA uses. The final K-metric tuple (5? 6?
 8?) for Video Depth Φ is being decided in Feynman's depth-metric study
-(:file:`benchmark/docs/depth_metric_decisions.md`); the downstream
+(:file:`benchmark/README.md`); the downstream
 selection happens in :mod:`rpx_benchmark.analyze_experiment` from the
 cell-log column subset, not by deleting calculators here.
 """

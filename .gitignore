@@ -223,11 +223,11 @@ cython_debug/
 # Coordination / working notes between independent contributor sessions
 # on this repo — strictly local-only working state, NEVER to land in
 # GitHub on this or any future commit. If you need to put something on
-# GitHub, write a real doc under benchmark/docs/ instead. Do NOT
+# GitHub, update the relevant README instead. Do NOT
 # `git add -f` paths matching these patterns.
 #
 # Patterns are intentionally broad: catch every casing, suffix, and
-# nesting depth (SHARED_CONTEXT.md, SHARED_CONTEXT_NVS.md, .txt,
+# nesting depth (SHARED_CONTEXT.md, SHARED_CONTEXT_TASK.md, .txt,
 # nested .shared_context/ folders, lowercase aliases, etc.).
 **/.shared_context/
 **/.shared_context
@@ -244,3 +244,17 @@ ckpts/
 *.pth
 *.pt
 *.onnx
+
+# Benchmark outputs and local assistant notes
+rpx_results/
+results/
+*.rrd
+AGENTS.md
+CLAUDE.md
+*HANDOFF*.md
+*HANDOVER*.md
+
+# Public documentation is README-only.
+*.md
+!README.md
+!**/README.md

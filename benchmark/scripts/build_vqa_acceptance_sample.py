@@ -126,7 +126,7 @@ def build(parquet_dir: Path, seed: int = SEED) -> list[dict]:
     labels = ("normal_general", "normal_spatial", "incontext_general", "incontext_spatial")
     rows: list[dict] = []
     counts: dict[str, int] = {}
-    for label, by_cell in zip(labels, groups):
+    for label, by_cell in zip(labels, groups, strict=True):
         selected = selector.select(by_cell, lambda _cell: QUOTA_PER_CELL)
         under_quota = {cell: len(picked) for cell, picked in selected.items() if len(picked) < QUOTA_PER_CELL}
         if under_quota:

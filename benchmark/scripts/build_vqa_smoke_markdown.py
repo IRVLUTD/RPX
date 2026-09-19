@@ -13,7 +13,6 @@ from PIL import Image, ImageDraw
 from rpx_benchmark.vqa.contract import load_manifest
 from rpx_benchmark.vqa.hub_rgb import fetch_images
 
-
 GT_COLOR = (46, 204, 113)
 PRED_COLOR = (231, 76, 60)
 MAX_WIDTH = 960

@@ -7,9 +7,8 @@ only need to touch the *model* -- the input and output adapters shipped
 here handle the plumbing for common model families.
 
 See :mod:`rpx_benchmark.adapters.base` for the core types and
-:mod:`rpx_benchmark.adapters.depth_hf` for a reference implementation
-that works with any HuggingFace ``AutoModelForDepthEstimation``
-checkpoint.
+the repository script ``scripts/depth_models/hf_pipeline.py`` for a
+Hugging Face depth-pipeline wrapper.
 """
 
 from .base import (
@@ -24,7 +23,6 @@ from .base import (
     make_numpy_grounding_model,
     make_numpy_keypoint_model,
     make_numpy_mask_model,
-    make_numpy_nvs_model,
     make_numpy_pose_model,
     make_numpy_sparse_depth_model,
     make_numpy_tracking_model,
@@ -54,7 +52,6 @@ __all__ = [
     "make_numpy_grounding_model",
     "make_numpy_keypoint_model",
     "make_numpy_mask_model",
-    "make_numpy_nvs_model",
     "make_numpy_pose_model",
     "make_numpy_sparse_depth_model",
     "make_numpy_tracking_model",

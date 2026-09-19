@@ -367,7 +367,7 @@ def run_video_pipeline(
     # Auto-detect SystemCard (GPU / precision / batch_size) so every
     # cell row carries the host hardware context. Required for
     # downstream cross-host aggregation per
-    # benchmark/docs/adapter_status.md publication gate.
+    # benchmark/README.md publication gate.
     from ..profiler import SystemCard
 
     system_card = SystemCard.auto_detect(

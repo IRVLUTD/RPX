@@ -70,11 +70,11 @@ class MASt3R:
         return self._model
 
     def _infer_pair(self, pair: dict) -> dict:
-        from PIL import Image
         from dust3r.cloud_opt import GlobalAlignerMode, global_aligner
         from dust3r.inference import inference
         from dust3r.utils.image import load_images
         from mast3r.image_pairs import make_pairs
+        from PIL import Image
 
         rgb_a, rgb_b = validate_pair(pair)
         with tempfile.TemporaryDirectory() as temporary:

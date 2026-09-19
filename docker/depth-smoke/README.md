@@ -73,8 +73,8 @@ SHAs, executed command, validation result, and failure classification.
 ## 2. Model inventory
 
 The canonical roster contains 20 rows: 10 image and 10 video. The current final
-Docker stage bakes 16 of them. Three are intentionally blocked because official
-weights have not been verified, and DepthLM still needs a Docker environment.
+Docker stage bakes 16 of them. The dedicated FE2E, ZipDepth, DVD and GEMDepth overlays extend the cumulative
+image. Use their own READMEs and run acceptance for the exact image you build.
 
 | Model | Task | Environment | Current Docker status |
 | --- | --- | --- | --- |
@@ -92,7 +92,7 @@ weights have not been verified, and DepthLM still needs a Docker environment.
 | `dvd` | video | `docker/depth-dvd/Dockerfile` | Official DVD v1.1 + Wan2.1; relative inverse depth |
 | `da3-video` | video | `da3` | Baked and matrix-ready |
 | `depth-crafter` | video | `depthcrafter` | Baked and import-checked; matrix readiness marker still needs to be added |
-| `gem-depth` | video | — | Blocked: official weights unverified |
+| `gem-depth` | video | `docker/depth-gemdepth` | Dedicated pinned source/checkpoint overlay |
 | `monst3r` | video | `monst3r` | Baked and matrix-ready |
 | `rolling-depth` | video | `rolling` (`rollingdepth` backing env) | Baked and matrix-ready |
 | `vggt-omega` | video | `vggt` (`geometry-video` backing env) | Baked and matrix-ready |
@@ -617,5 +617,5 @@ an OOM, a diagnostic quantized configuration, or a micro pass alone.
 | Matrix says `missing_environment` | Confirm both `<family>/bin/python` and `<family>/rpx-environment.json` exist under `/opt/rpx-envs` |
 | A changed image reruns passed gates | Expected: matrix state is isolated by exact code identity |
 
-For the host-venv workflow and the full Easy handoff, see
-[`benchmark/docs/depth_smoke_runbook.md`](../../benchmark/docs/depth_smoke_runbook.md).
+For custom models and test instructions, see the
+[benchmark README](../../benchmark/README.md).

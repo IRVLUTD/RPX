@@ -10,7 +10,6 @@ import numpy as np
 import pytest
 
 from rpx_benchmark.metrics.depth_temporal import (
-    DEPTH_RANGE_BINS,
     compute_temporal_depth_metrics,
     range_stratified_per_frame_metrics,
     range_stratified_tae,
@@ -18,7 +17,6 @@ from rpx_benchmark.metrics.depth_temporal import (
     temporal_gradient_squared_error,
     temporal_motion_consistency,
 )
-
 
 # --------------------------------------------------------------------------- #
 # Helpers
@@ -75,7 +73,9 @@ class TestTGSE:
         assert val == pytest.approx(0.04, abs=1e-6)
 
     def test_mismatched_shapes_raises(self):
-        with pytest.raises(Exception):
+        from rpx_benchmark.exceptions import MetricError
+
+        with pytest.raises(MetricError):
             temporal_gradient_squared_error(np.zeros((3, 10, 10)), np.zeros((3, 10, 20)))
 
 
@@ -152,7 +152,7 @@ class TestRangeStratifiedTAE:
         # 1.0m is exactly at the near/mid boundary → falls in mid bin [1.0, 2.5)
         assert "tae_mid" in result
         # With identity poses and constant depth, reprojected depth = pred → TAE = 0.
-        for k, v in result.items():
+        for _k, v in result.items():
             if np.isfinite(v):
                 assert v == pytest.approx(0.0, abs=0.01)
 

@@ -22,7 +22,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from common import (
     EGO_TRACKING_REVISION,
     MOS_TRACKING_REVISION,

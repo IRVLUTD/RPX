@@ -78,17 +78,16 @@ class DVDAdapter(VideoDepthAdapterBase):
         try:
             import torch
             from accelerate import Accelerator
-            from huggingface_hub import hf_hub_download
-            from omegaconf import OmegaConf
-            from safetensors.torch import load_file
-
-            from examples.wanvideo.model_training.WanTrainingModule import (
-                WanTrainingModule,
-            )
             from diffsynth.pipelines.wan_video_new_determine import (
                 ModelConfig,
                 WanVideoPipeline,
             )
+            from examples.wanvideo.model_training.WanTrainingModule import (
+                WanTrainingModule,
+            )
+            from huggingface_hub import hf_hub_download
+            from omegaconf import OmegaConf
+            from safetensors.torch import load_file
             from test_script.test_single_video import generate_depth_sliced
         except ImportError as exc:
             raise AdapterError(

@@ -24,7 +24,7 @@ def test_video_depth_aliases_are_identity():
 
 
 def test_metric_tuple_K_values():
-    # Locked K-vectors per SESSION_HANDOFF.md (RGB-D-only constraint):
+    # Locked K-vectors per benchmark/README.md (RGB-D-only constraint):
     #   Image Depth K=5 = (absrel, rmse, delta1, silog, fscore_5cm).
     #   Video Depth K=6 = (absrel, rmse, delta1, silog, tgm, tgse).
     # TAE and OPW dropped (need poses / external RAFT). fscore_5cm stays

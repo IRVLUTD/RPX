@@ -41,9 +41,9 @@ class HyDen:
             from huggingface_hub import hf_hub_download
 
             if model_id == self.METRIC_MODEL_ID:
-                from metadepth.mogev2 import MODEL_CONFIGS, HyDenMoGe
-
                 from copy import deepcopy
+
+                from metadepth.mogev2 import MODEL_CONFIGS, HyDenMoGe
                 model_config = deepcopy(MODEL_CONFIGS["vitl_dinov2"])
                 # Metric-point checkpoint does not contain the surface-normal head.
                 model_config.pop("normal_head", None)

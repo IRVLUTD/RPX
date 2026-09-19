@@ -19,7 +19,6 @@ from rpx_benchmark.metrics.video_depth import (
     _per_frame_error_metrics,
 )
 
-
 # --------------------------------------------------------------------------- #
 # Fixture: 640×480 clip so F@5cm is well-defined (D435 intrinsics)
 # --------------------------------------------------------------------------- #

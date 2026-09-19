@@ -61,7 +61,7 @@ INCONTEXT_GENERAL_BBOX_TYPES = frozenset(
 INCONTEXT_SPATIAL_BBOX_TYPES = frozenset({"inctx_spatial_farthest"})
 INCONTEXT_BBOX_TYPES = INCONTEXT_GENERAL_BBOX_TYPES | INCONTEXT_SPATIAL_BBOX_TYPES
 BBOX_TYPES = GENERAL_BBOX_TYPES | SPATIAL_BBOX_TYPES | INCONTEXT_BBOX_TYPES
-ATTRIBUTE_TYPES = frozenset()
+ATTRIBUTE_TYPES: frozenset[str] = frozenset()
 TASK_TYPES = BINARY_TYPES | BBOX_TYPES | ATTRIBUTE_TYPES
 
 _REQUIRED_LOCATOR_KEYS = frozenset({"repo_id", "revision", "shard", "member"})
@@ -106,6 +106,12 @@ def image_locator(row: dict[str, Any]) -> dict[str, str]:
         "shard": f"scenes/{scene}/{partition}/rgb.tar",
         "member": f"rgb/{frame}.webp",
     }
+
+
+def _bbox_tuple(values: Any) -> tuple[int, int, int, int]:
+    if len(values) != 4:
+        raise ManifestError("Bounding boxes must contain exactly four coordinates")
+    return int(values[0]), int(values[1]), int(values[2]), int(values[3])
 
 
 @dataclass(frozen=True)
@@ -175,7 +181,7 @@ class VQASample:
             sample_id=str(row.get("sample_id") or stable_sample_id(row)),
             scene_id=str(row["scene_id"]),
             kind=str(row["kind"]),
-            phase=None if is_null_phase else int(raw_phase),
+            phase=None if raw_phase is None or is_null_phase else int(raw_phase),
             frame=str(row["frame"]),
             image=dict(target_locator),
             img_w=int(row["img_w"]),
@@ -183,12 +189,12 @@ class VQASample:
             question_type=question_type,
             question=str(row["question"]),
             answer=str(row["answer"]),
-            answer_bbox=None if bbox is None else tuple(int(v) for v in bbox),
+            answer_bbox=None if bbox is None else _bbox_tuple(bbox),
             evidence=evidence,
             schema_version=str(row.get("schema_version", SCHEMA_VERSION)),
             reference_image=dict(reference_locator) if reference_locator is not None else None,
             reference_crop_bbox=(
-                None if reference_crop_bbox is None else tuple(int(v) for v in reference_crop_bbox)
+                None if reference_crop_bbox is None else _bbox_tuple(reference_crop_bbox)
             ),
             reference_crop_sha256=(
                 None

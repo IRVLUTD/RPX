@@ -541,35 +541,18 @@ def test_monst3r_reads_pred1_points_from_official_schema(monkeypatch) -> None:
 def test_rolling_depth_uses_path_api_and_official_keyword_names(monkeypatch) -> None:
     sample = _sample()
 
-    class Stream:
-        width = 0
-        height = 0
-        pix_fmt = ""
+    import imageio.v2 as imageio
 
-        def encode(self, frame):
-            del frame
-            return [object()]
+    def write_video(path, frames, **kwargs):
+        assert len(frames) == sample.rgb_seq.shape[0]
+        Path(path).touch()
 
-    class Container:
-        def add_stream(self, codec, rate):
-            assert (codec, rate) == ("ffv1", 30)
-            return Stream()
-
-        def mux(self, packet):
-            del packet
-
-        def close(self):
-            pass
-
-    fake_av = types.ModuleType("av")
-    fake_av.open = lambda *args, **kwargs: Container()
-    fake_av.VideoFrame = SimpleNamespace(from_ndarray=lambda frame, format: frame)
-    monkeypatch.setitem(sys.modules, "av", fake_av)
+    monkeypatch.setattr(imageio, "mimsave", write_video)
 
     class Pipe:
         def __call__(self, **kwargs):
             assert Path(kwargs["input_video_path"]).is_file()
-            assert kwargs["snippet_lengths"] == [10]
+            assert kwargs["snippet_lengths"] == [sample.rgb_seq.shape[0]]
             assert kwargs["restore_res"] is True
             return SimpleNamespace(depth_pred=np.ones((3, 1, 16, 24), dtype=np.float32))
 

@@ -29,10 +29,10 @@ from .adapters import (
     make_numpy_grounding_model,
     make_numpy_keypoint_model,
     make_numpy_mask_model,
-    make_numpy_nvs_model,
     make_numpy_pose_model,
     make_numpy_sparse_depth_model,
     make_numpy_tracking_model,
+    make_numpy_video_depth_model,
 )
 from .api import (
     ESD_WEIGHTS,
@@ -44,8 +44,6 @@ from .api import (
     Difficulty,
     KeypointCorrespondenceGroundTruth,
     KeypointCorrespondencePrediction,
-    NovelViewSynthesisGroundTruth,
-    NovelViewSynthesisPrediction,
     Phase,
     RelativePoseGroundTruth,
     RelativePosePrediction,
@@ -128,10 +126,6 @@ from .tasks.detection import (
 )
 from .tasks.keypoint_matching import KeypointMatchingRunConfig, run_keypoint_matching
 from .tasks.monocular_depth import MonocularDepthRunConfig, run_monocular_depth
-from .tasks.novel_view_synthesis import (
-    NovelViewSynthesisRunConfig,
-    run_novel_view_synthesis,
-)
 from .tasks.relative_pose import RelativePoseRunConfig, run_relative_pose
 from .tasks.segmentation import SegmentationRunConfig, run_segmentation
 from .tasks.sparse_depth import SparseDepthRunConfig, run_sparse_depth
@@ -176,8 +170,6 @@ __all__ = [
     "RelativePosePrediction",
     "SparseDepthGroundTruth",
     "SparseDepthPrediction",
-    "NovelViewSynthesisGroundTruth",
-    "NovelViewSynthesisPrediction",
     "KeypointCorrespondenceGroundTruth",
     "KeypointCorrespondencePrediction",
     # Model base
@@ -234,11 +226,11 @@ __all__ = [
     "OutputAdapter",
     "PreparedInput",
     "make_numpy_depth_model",
+    "make_numpy_video_depth_model",
     "make_numpy_detection_model",
     "make_numpy_grounding_model",
     "make_numpy_keypoint_model",
     "make_numpy_mask_model",
-    "make_numpy_nvs_model",
     "make_numpy_pose_model",
     "make_numpy_sparse_depth_model",
     "make_numpy_tracking_model",
@@ -265,8 +257,6 @@ __all__ = [
     "run_keypoint_matching",
     "SparseDepthRunConfig",
     "run_sparse_depth",
-    "NovelViewSynthesisRunConfig",
-    "run_novel_view_synthesis",
     "ObjectTrackingRunConfig",
     "run_object_tracking",
     "format_markdown_summary",

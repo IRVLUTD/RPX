@@ -87,7 +87,9 @@ def test_world_origin_cancels_without_fitting_sensor_transform():
 
 
 def test_track_length_mismatch_is_rejected():
-    with pytest.raises(ValueError, match="counts differ"):
+    from rpx_benchmark.exceptions import ConfigError
+
+    with pytest.raises(ConfigError, match="counts differ"):
         compare_pose_tracks([0], [_pose()], [], pose_axis_convention="opencv")
 
 

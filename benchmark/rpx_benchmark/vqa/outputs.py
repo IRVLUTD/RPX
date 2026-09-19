@@ -154,6 +154,8 @@ def parse_output(
     *,
     paligemma_target_only: bool = False,
 ) -> ParsedOutput:
+    label: str | None
+    match: re.Match[str] | None
     if sample.question_type in BINARY_TYPES:
         token = normalize_label(raw)
         if token not in {"yes", "no"}:

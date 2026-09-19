@@ -102,3 +102,62 @@ class DepthErrorMetrics(MetricCalculator):
             "delta2": delta2,
             "delta3": delta3,
         }
+
+
+def _log_depth_pair(prediction: DepthPrediction, ground_truth: DepthGroundTruth):
+    from .depth_alignment import default_valid_mask
+
+    if not isinstance(prediction, DepthPrediction) or not isinstance(ground_truth, DepthGroundTruth):
+        raise MetricError("Expected DepthPrediction and DepthGroundTruth")
+    pred = np.asarray(prediction.depth_map, dtype=np.float64)
+    gt = np.asarray(ground_truth.depth_map, dtype=np.float64)
+    if pred.shape != gt.shape:
+        raise MetricError(f"Depth shape mismatch: {pred.shape} != {gt.shape}")
+    return pred, gt, default_valid_mask(pred, gt)
+
+
+def _log_scores(pred: np.ndarray, gt: np.ndarray) -> Dict[str, float]:
+    if not pred.size:
+        return {"rmselog": 0.0, "silog": 0.0}
+    error = np.log(pred) - np.log(gt)
+    return {"rmselog": float(np.sqrt(np.mean(error ** 2))),
+            "silog": float(100.0 * np.std(error))}
+
+
+@register_metric(TaskType.MONOCULAR_DEPTH)
+class DepthLogMetrics(MetricCalculator):
+    """Natural-log RMSE and SILog (100 times the log-error standard deviation).
+
+    Uses the shared 0.3 < GT < 5 m validity mask. Empty frames retain the
+    historical zero sentinel; callers should filter empty GT frames upstream.
+    """
+
+    name = "depth_log_metrics"
+
+    def compute(self, prediction: DepthPrediction, ground_truth: DepthGroundTruth) -> Dict[str, float]:
+        pred, gt, valid = _log_depth_pair(prediction, ground_truth)
+        return _log_scores(pred[valid], gt[valid])
+
+
+@register_metric(TaskType.MONOCULAR_DEPTH)
+class DepthRangeStratified(MetricCalculator):
+    """Depth quality in near/mid/far bins; fewer than 100 pixels yields NaN."""
+
+    name = "depth_range_stratified"
+
+    def compute(self, prediction: DepthPrediction, ground_truth: DepthGroundTruth) -> Dict[str, float]:
+        from .depth_temporal import DEPTH_RANGE_BINS
+
+        pred, gt, valid = _log_depth_pair(prediction, ground_truth)
+        result: Dict[str, float] = {}
+        for name, (lo, hi) in DEPTH_RANGE_BINS.items():
+            selected = valid & (gt >= lo) & (gt < hi)
+            values = dict.fromkeys(("absrel", "rmse", "rmselog", "silog", "delta1"), float("nan"))
+            if selected.sum() >= 100:
+                p, g = pred[selected], gt[selected]
+                values.update(_log_scores(p, g))
+                values.update(absrel=float(np.mean(np.abs(p-g)/g)),
+                              rmse=float(np.sqrt(np.mean((p-g)**2))),
+                              delta1=float(np.mean(np.maximum(p/g, g/p) < 1.25)))
+            result.update({f"{metric}_{name}": value for metric, value in values.items()})
+        return result

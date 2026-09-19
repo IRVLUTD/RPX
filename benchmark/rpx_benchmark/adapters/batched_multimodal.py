@@ -6,7 +6,7 @@ the underlying adapter still sees one sample per call. ``BatchedDepthBenchmarkMo
 fixes that for monocular depth specifically.
 
 This module generalises the pattern so every other task (segmentation,
-relative pose, NVS, sparse depth, keypoint matching, ...) can opt into
+relative pose, sparse depth, keypoint matching, ...) can opt into
 true-batched dispatch without each one having to re-implement the
 batch-extraction loop, the per-sample save logic, and the prediction-
 wrapping ceremony.

@@ -31,7 +31,6 @@ from rpx_benchmark.phi import (
     standardise,
 )
 
-
 # --------------------------------------------------------------------------- #
 # Standardisation
 # --------------------------------------------------------------------------- #
@@ -446,7 +445,7 @@ class TestMixedDesign:
         assert "phi_interaction" in d
         assert "p_interaction" in d
         # phi_per_tier entries should be dict-shaped (from PhiOneway.to_dict).
-        for tier, entry in d["phi_per_tier"].items():
+        for _tier, entry in d["phi_per_tier"].items():
             assert "phi_conservative" in entry
             assert "p_value" in entry
 
