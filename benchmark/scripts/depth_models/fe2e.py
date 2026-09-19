@@ -5,8 +5,8 @@ As of 2026-06-25 there is no verified-official HF or GitHub release:
 the candidate found on HF is ``exander/FE2E`` (community handle,
 empty README, no documented lineage to the FE2E paper authors).
 
-This adapter ships with the same safety-rail pattern as the Video
-Depth side's D4RT / GemDepth wrappers: building succeeds, but
+This adapter ships with the same safety-rail pattern as other
+unverified-model wrappers: building succeeds, but
 ``__init__`` raises :class:`UnverifiedAdapterError` unless the caller
 passes ``acknowledge_unverified=True``.
 
@@ -22,7 +22,6 @@ from typing import Optional, Sequence, Union
 import numpy as np
 
 from rpx_benchmark.exceptions import AdapterError, UnverifiedAdapterError
-
 
 _CANDIDATE_HF = "exander/FE2E"
 

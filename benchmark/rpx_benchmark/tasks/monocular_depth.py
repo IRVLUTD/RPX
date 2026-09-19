@@ -13,7 +13,7 @@ PRIMARY_METRIC = "absrel"
 
 @dataclass
 class MonocularDepthRunConfig(TaskRunConfig):
-    pass
+    compute_temporal_stability: bool = True
 
 
 def run_monocular_depth(cfg: MonocularDepthRunConfig) -> PipelineResult:
@@ -21,7 +21,7 @@ def run_monocular_depth(cfg: MonocularDepthRunConfig) -> PipelineResult:
         task=TaskType.MONOCULAR_DEPTH,
         primary_metric=PRIMARY_METRIC,
         cfg=cfg,
-        compute_ts=True,
+        compute_ts=cfg.compute_temporal_stability,
     )
 
 

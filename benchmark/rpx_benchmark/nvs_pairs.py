@@ -42,6 +42,7 @@ Usage
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
@@ -135,8 +136,41 @@ class NVSSample:
         }
 
 
-def _modality_path(scene: str, phase: int, modality: str, frame_idx: int) -> str:
-    return f"scenes/{scene}/{phase}/{modality}/{frame_idx:05d}.{'npz' if modality == 'cam_pose' else 'png'}"
+DEFAULT_MODALITY_EXTENSIONS = {
+    "rgb": ".png",
+    "depth": ".png",
+    "cam_pose": ".npz",
+}
+
+
+def _modality_path(
+    scene: str,
+    phase: int,
+    modality: str,
+    frame_idx: int,
+    extensions: Dict[str, str] | None = None,
+) -> str:
+    extension = (extensions or DEFAULT_MODALITY_EXTENSIONS)[modality]
+    return f"scenes/{scene}/{phase}/{modality}/{frame_idx:05d}{extension}"
+
+
+def _load_modality_extensions(parquet_path: Path) -> Dict[str, str]:
+    """Resolve v1/v2 on-disk suffixes from the snapshot's current.json."""
+    extensions = dict(DEFAULT_MODALITY_EXTENSIONS)
+    current_path = parquet_path.parent / "current.json"
+    if not current_path.is_file():
+        return extensions
+    try:
+        payload = json.loads(current_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return extensions
+    declared = payload.get("modality_extensions") or {}
+    if isinstance(declared, dict):
+        for modality in extensions:
+            value = declared.get(modality)
+            if isinstance(value, str) and value.startswith("."):
+                extensions[modality] = value
+    return extensions
 
 
 def _is_valid(scene: str, phase: int) -> bool:
@@ -170,18 +204,26 @@ class NVSPairGenerator:
         self.cfg = config or NVSConfig()
         self._snapshot_root = Path(snapshot_root) if snapshot_root else None
         self._repo_id = repo_id
+        parquet_path = Path(parquet_path)
+        self._modality_extensions = _load_modality_extensions(parquet_path)
 
         self._sequences: Dict[Tuple[str, int], List[int]] = {}
         self._cross_scenes: List[str] = []
-        self._load_metadata(Path(parquet_path))
+        self._load_metadata(parquet_path)
 
     def _load_metadata(self, parquet_path: Path) -> None:
         """Load frame indices per (scene, phase). Lightweight — no pixel data."""
         df = pd.read_parquet(parquet_path)
 
-        scene_split = df.groupby("scene_id")["split"].agg(
-            lambda s: s.value_counts().idxmax()
-        )
+        # The authoritative frames manifest also contains single-object
+        # sequences, whose split is intentionally null. Collapse only
+        # non-null multi-object tiers to scene level and let the inner merge
+        # exclude un-tiered SOS rows from this multi-object generator.
+        def _mode_split(series: pd.Series) -> str | None:
+            counts = series.dropna().value_counts()
+            return str(counts.idxmax()) if len(counts) else None
+
+        scene_split = df.groupby("scene_id")["split"].agg(_mode_split).dropna()
         df = df.drop(columns=["split"]).merge(
             scene_split.rename("split"), left_on="scene_id", right_index=True
         )
@@ -223,36 +265,52 @@ class NVSPairGenerator:
         if n_context >= n:
             return []
 
-        # Evenly space context views across the sequence
-        context_positions = np.linspace(0, n - 1, n_context, dtype=int)
-        context_idxs = [frame_idxs[p] for p in context_positions]
-        context_set = set(context_positions)
-
-        # Available targets: all frames NOT in context
-        available = [i for i in range(n) if i not in context_set]
-        if not available:
-            return []
-
-        # Split into interpolation (between first and last context) and
-        # extrapolation (outside context span)
-        interp = [i for i in available if context_positions[0] < i < context_positions[-1]]
-        extrap = [i for i in available if i <= context_positions[0] or i >= context_positions[-1]]
-
         results = []
 
-        # Interpolation targets
-        n_interp = min(len(interp), n_targets // 2) if interp else 0
-        if n_interp > 0:
-            sel = rng.choice(len(interp), size=n_interp, replace=False)
-            for idx in sel:
-                results.append((context_idxs, frame_idxs[interp[idx]], "interpolation"))
+        # Interpolation trial: contexts span the whole capture and targets
+        # are strictly between them.
+        interp_context = np.linspace(0, n - 1, n_context, dtype=int)
+        interp_candidates = [
+            i for i in range(n) if interp_context[0] < i < interp_context[-1]
+            and i not in set(interp_context)
+        ]
+        n_interp = min(len(interp_candidates), n_targets // 2)
+        if n_interp:
+            selected = rng.choice(interp_candidates, size=n_interp, replace=False)
+            context_idxs = [frame_idxs[p] for p in interp_context]
+            results.extend(
+                (context_idxs, frame_idxs[int(position)], "interpolation")
+                for position in selected
+            )
 
-        # Extrapolation targets
-        n_extrap = min(len(extrap), n_targets - n_interp) if extrap else 0
-        if n_extrap > 0:
-            sel = rng.choice(len(extrap), size=n_extrap, replace=False)
-            for idx in sel:
-                results.append((context_idxs, frame_idxs[extrap[idx]], "extrapolation"))
+        # Extrapolation trials use disjoint temporal regions. Half look
+        # forward (early contexts -> late targets), half backward. A 20%
+        # guard band prevents a target adjacent to the context boundary from
+        # being mislabeled as meaningful extrapolation.
+        n_extrap = n_targets - n_interp
+        context_width = max(n_context, int(np.floor(0.40 * n)))
+        guard_start = min(n - 1, int(np.ceil(0.60 * n)))
+        forward_context = np.linspace(0, context_width - 1, n_context, dtype=int)
+        forward_targets = [i for i in range(guard_start, n)]
+
+        backward_context = np.linspace(n - context_width, n - 1, n_context, dtype=int)
+        backward_targets = [i for i in range(0, max(0, n - guard_start))]
+
+        n_forward = (n_extrap + 1) // 2
+        n_backward = n_extrap // 2
+        for context_positions, candidates, budget in (
+            (forward_context, forward_targets, n_forward),
+            (backward_context, backward_targets, n_backward),
+        ):
+            count = min(len(candidates), budget)
+            if not count:
+                continue
+            selected = rng.choice(candidates, size=count, replace=False)
+            context_idxs = [frame_idxs[int(p)] for p in context_positions]
+            results.extend(
+                (context_idxs, frame_idxs[int(position)], "extrapolation")
+                for position in selected
+            )
 
         return results
 
@@ -280,17 +338,29 @@ class NVSPairGenerator:
                         phase_target=phase,
                         n_context=n_ctx,
                         context_rgb_paths=[
-                            _modality_path(scene, phase, "rgb", c) for c in ctx_idxs
+                            _modality_path(
+                                scene, phase, "rgb", c, self._modality_extensions
+                            ) for c in ctx_idxs
                         ],
                         context_depth_paths=[
-                            _modality_path(scene, phase, "depth", c) for c in ctx_idxs
+                            _modality_path(
+                                scene, phase, "depth", c, self._modality_extensions
+                            ) for c in ctx_idxs
                         ],
                         context_pose_paths=[
-                            _modality_path(scene, phase, "cam_pose", c) for c in ctx_idxs
+                            _modality_path(
+                                scene, phase, "cam_pose", c, self._modality_extensions
+                            ) for c in ctx_idxs
                         ],
-                        target_rgb_path=_modality_path(scene, phase, "rgb", tgt_idx),
-                        target_depth_path=_modality_path(scene, phase, "depth", tgt_idx),
-                        target_pose_path=_modality_path(scene, phase, "cam_pose", tgt_idx),
+                        target_rgb_path=_modality_path(
+                            scene, phase, "rgb", tgt_idx, self._modality_extensions
+                        ),
+                        target_depth_path=_modality_path(
+                            scene, phase, "depth", tgt_idx, self._modality_extensions
+                        ),
+                        target_pose_path=_modality_path(
+                            scene, phase, "cam_pose", tgt_idx, self._modality_extensions
+                        ),
                         sample_type=stype,
                         context_frame_idxs=ctx_idxs,
                         target_frame_idx=tgt_idx,
@@ -325,17 +395,29 @@ class NVSPairGenerator:
                             phase_target=2,
                             n_context=n_ctx,
                             context_rgb_paths=[
-                                _modality_path(scene, 0, "rgb", c) for c in ctx_idxs
+                                _modality_path(
+                                    scene, 0, "rgb", c, self._modality_extensions
+                                ) for c in ctx_idxs
                             ],
                             context_depth_paths=[
-                                _modality_path(scene, 0, "depth", c) for c in ctx_idxs
+                                _modality_path(
+                                    scene, 0, "depth", c, self._modality_extensions
+                                ) for c in ctx_idxs
                             ],
                             context_pose_paths=[
-                                _modality_path(scene, 0, "cam_pose", c) for c in ctx_idxs
+                                _modality_path(
+                                    scene, 0, "cam_pose", c, self._modality_extensions
+                                ) for c in ctx_idxs
                             ],
-                            target_rgb_path=_modality_path(scene, 2, "rgb", tgt_idx),
-                            target_depth_path=_modality_path(scene, 2, "depth", tgt_idx),
-                            target_pose_path=_modality_path(scene, 2, "cam_pose", tgt_idx),
+                            target_rgb_path=_modality_path(
+                                scene, 2, "rgb", tgt_idx, self._modality_extensions
+                            ),
+                            target_depth_path=_modality_path(
+                                scene, 2, "depth", tgt_idx, self._modality_extensions
+                            ),
+                            target_pose_path=_modality_path(
+                                scene, 2, "cam_pose", tgt_idx, self._modality_extensions
+                            ),
                             sample_type="cross_phase",
                             context_frame_idxs=ctx_idxs,
                             target_frame_idx=tgt_idx,

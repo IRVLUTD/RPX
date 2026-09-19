@@ -1,0 +1,14 @@
+services:
+  depth-smoke:
+    image: ${RPX_DEPTH_IMAGE:-vndhiran123/rpx-depth-smoke:latest}
+    gpus: all
+    ipc: host
+    shm_size: 8gb
+    environment:
+      HF_TOKEN: ${HF_TOKEN:-}
+      RPX_GATES: ${RPX_GATES:-micro,acceptance}
+      RPX_MODELS: ${RPX_MODELS:-da-v2-large,depth-pro,unidepth-v2,moge-2-vit-l}
+    volumes:
+      - ${HF_HOME:-${HOME}/.cache/huggingface}:/cache/huggingface
+      - ${RPX_SMOKE_ROOT:-./rpx-smoke}:/outputs
+    command: smoke

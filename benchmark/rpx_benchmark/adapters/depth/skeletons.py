@@ -60,13 +60,13 @@ class Metric3DV2Adapter(DepthAdapterSkeleton):
 
 
 class MoGe2ViTLAdapter(DepthAdapterSkeleton):
-    """MoGe-2 ViT-L (Microsoft, relative)."""
+    """MoGe-2 ViT-L (Microsoft, metric)."""
 
     MODEL_KEY = "moge-2-vit-l"
 
 
 class HyDenAdapter(DepthAdapterSkeleton):
-    """HyDen (relative)."""
+    """HyDen metric checkpoint."""
 
     MODEL_KEY = "hyden"
 

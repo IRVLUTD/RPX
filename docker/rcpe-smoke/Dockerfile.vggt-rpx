@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG RPX_GIT_SHA
+ARG VGGT_GIT_SHA=a288dd0f14786c93483e45524328726ab7b1b4ce
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} \
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/cache/huggingface
+
+COPY docker/rcpe-smoke/requirements-vggt.lock \
+     /tmp/requirements-vggt.lock
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    test -n "${VGGT_GIT_SHA}"
+
+RUN mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/vggt && \
+    git -C /opt/rpx-models/vggt remote add origin \
+      https://github.com/facebookresearch/vggt.git && \
+    git -C /opt/rpx-models/vggt fetch \
+      --depth 1 origin "${VGGT_GIT_SHA}" && \
+    git -C /opt/rpx-models/vggt checkout --detach FETCH_HEAD
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/vggt && \
+    /opt/rpx-envs/vggt/bin/python -m pip install \
+      --upgrade pip==25.3 && \
+    /opt/rpx-envs/vggt/bin/python -m pip install \
+      -r /tmp/requirements-vggt.lock && \
+    /opt/rpx-envs/vggt/bin/python -m pip install \
+      --no-deps /opt/rpx-models/vggt
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN /opt/rpx-envs/vggt/bin/python -m pip install \
+      --no-deps --force-reinstall /opt/rpx/benchmark
+
+RUN PYTHONPATH=/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/vggt/bin/python -c \
+      "import numpy, pandas, pyarrow, torch; from vggt.models.vggt import VGGT; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'vggt-omega' in MODEL_REGISTRY; print(f'VGGT-Ω RCPE environment: OK (torch={torch.__version__}, pandas={pandas.__version__}, pyarrow={pyarrow.__version__})')" && \
+    /opt/rpx-envs/vggt/bin/python -m pip freeze \
+      > /opt/rpx-envs/vggt/rpx-pip-freeze.txt && \
+    PYTHONPATH=/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/vggt/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/vggt/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'vggt-omega', 'prompt': 'image-pair', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${VGGT_GIT_SHA}'}, indent=2)+'\\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]

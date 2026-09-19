@@ -1,34 +1,14 @@
-"""Lotus / Lotus-2 adapter — diffusion-based monocular depth.
+"""Official Lotus-2 monocular relative-depth adapter.
 
-Loads ``jingheya/Lotus-2`` (per the team's tracker) via diffusers'
-generic auto-pipeline. Lotus repurposes Stable Diffusion's denoising
-prior for depth by treating depth as a single-step "noise → depth"
-prediction, so default inference is just 1 step (orders of magnitude
-faster than Marigold's 50-step diffusion).
+This adapter follows the pinned upstream inference path from
+``EnVision-Research/Lotus-2``. Lotus-2 uses a FLUX.1-dev transformer plus
+three published Lotus-2 weight files (core predictor, local-continuity
+module and detail sharpener). Its output is relative depth and is aligned
+once per RPX ``(scene, phase)`` cell by the benchmark runner.
 
-Output is **affine-invariant disparity / depth** in [0, 1]. Declares
-``native_alignment="ls_affine"`` so the runner aligns per-frame.
-
-Tracker reference: MonocularMetricDepth — relative head.
-
-Install
--------
-    pip install diffusers accelerate torch pillow
-
-Notes
------
-The Lotus checkpoints have shipped under several names over the project's
-lifetime. As of 2026-05-12 verified live on HF:
-
-* ``jingheya/lotus-depth-d-v2-0-disparity`` — direct, disparity-trained
-  (single-step, fastest) — **default**.
-* ``jingheya/lotus-depth-g-v2-1-disparity`` — generative variant
-  (slower; pass ``model_id=...`` to switch).
-* The bare name ``jingheya/Lotus-2`` is **not** a public HF repo and
-  returns 404; the team's earlier draft pinned this by mistake.
-
-If the auto-pipeline can't load the model (checkpoint format change),
-the adapter raises an actionable error.
+The upstream source must be importable. The reproducible setup helper
+``scripts/setup_depth_smoke_env.py --model lotus-2`` checks out the exact
+source revision and installs a ``.pth`` entry for it.
 """
 
 from __future__ import annotations
@@ -39,161 +19,141 @@ import numpy as np
 
 
 class Lotus:
-    """Diffusion depth: rgb → disparity (H×W float32, ls_affine-aligned)."""
+    """Lotus-2: RGB image to affine-invariant depth."""
 
-    DEFAULT_MODEL_ID = "jingheya/lotus-depth-d-v2-0-disparity"
+    DEFAULT_MODEL_ID = "jingheya/Lotus-2"
+    DEFAULT_BASE_MODEL_ID = "black-forest-labs/FLUX.1-dev"
+    UPSTREAM_REVISION = "2d5e4522f7213611184fd31992d0fac17ec36035"
 
     native_alignment: str = "ls_affine"
-    native_precision: str = "fp16"
+    native_precision: str = "bf16"
 
     def __init__(
         self,
         model_id: str = DEFAULT_MODEL_ID,
         device: str = "cuda",
         batch_size: int = 1,
-        num_inference_steps: int = 1,  # Lotus is single-step by design
+        num_inference_steps: int = 10,
         dtype: Optional[str] = None,
+        base_model_id: str = DEFAULT_BASE_MODEL_ID,
     ) -> None:
         try:
             import torch
-            from diffusers import DiffusionPipeline
+            from diffusers import FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
+            from huggingface_hub import hf_hub_download
+            from infer import (
+                CORE_PREDICTOR_FILENAME,
+                DETAIL_SHARPENER_FILENAME,
+                LCM_FILENAME,
+                load_lora_and_lcm_weights,
+            )
+            from pipeline import Lotus2Pipeline
         except ImportError as e:
             raise ImportError(
-                "Lotus needs `diffusers`. Install with: "
-                "pip install diffusers accelerate torch pillow"
+                "Lotus-2 needs its pinned upstream checkout plus diffusers/peft. "
+                "Run: python scripts/setup_depth_smoke_env.py --model lotus-2 "
+                "--env-root <env-root>"
             ) from e
+
         self.model_id = model_id
+        self.base_model_id = base_model_id
         self.device = device
         self.batch_size = int(batch_size)
         self.num_inference_steps = int(num_inference_steps)
         self._torch = torch
+        weight_dtype = getattr(torch, dtype) if isinstance(dtype, str) else torch.bfloat16
 
-        torch_dtype = (
-            getattr(torch, dtype)
-            if isinstance(dtype, str)
-            else (torch.float16 if self.native_precision == "fp16" else torch.float32)
-        )
-        # Use the generic DiffusionPipeline so checkpoint-specific config
-        # (custom_pipeline / scheduler) is honoured automatically.
         try:
-            self._pipe = DiffusionPipeline.from_pretrained(
+            core_path = hf_hub_download(
                 model_id,
-                torch_dtype=torch_dtype,
-                trust_remote_code=True,
-            ).to(device)
-        except AttributeError as e:
-            # The model_index.json on the HF repo references a custom
-            # pipeline class (DirectRegressionPipeline) that is *not* in
-            # stock diffusers and *not* hosted on the HF model card as a
-            # custom_pipeline script. The class lives in the upstream
-            # Lotus GitHub repo. Same situation as PatchFusion.
-            from rpx_benchmark.exceptions import AdapterError  # noqa: PLC0415
+                CORE_PREDICTOR_FILENAME["depth"],
+            )
+            lcm_path = hf_hub_download(model_id, LCM_FILENAME["depth"])
+            sharpener_path = hf_hub_download(
+                model_id,
+                DETAIL_SHARPENER_FILENAME["depth"],
+            )
+            scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
+                base_model_id,
+                subfolder="scheduler",
+                num_train_timesteps=10,
+            )
+            transformer = FluxTransformer2DModel.from_pretrained(
+                base_model_id,
+                subfolder="transformer",
+                torch_dtype=weight_dtype,
+            )
+            transformer.requires_grad_(False)
+            transformer.to(device=device, dtype=weight_dtype)
+            transformer, local_continuity = load_lora_and_lcm_weights(
+                transformer,
+                core_path,
+                lcm_path,
+                sharpener_path,
+                "depth",
+            )
+            pipe = Lotus2Pipeline.from_pretrained(
+                base_model_id,
+                scheduler=scheduler,
+                transformer=transformer,
+                torch_dtype=weight_dtype,
+            )
+            pipe.local_continuity_module = local_continuity
+            self._pipe = pipe.to(device)
+            self._pipe.set_progress_bar_config(disable=True)
+        except Exception as e:
+            from rpx_benchmark.exceptions import AdapterError
 
             raise AdapterError(
-                f"Lotus pipeline load failed for {model_id!r}: {e}",
+                f"Official Lotus-2 load failed: {e}",
                 hint=(
-                    "Lotus uses a custom diffusers pipeline class "
-                    "(DirectRegressionPipeline) that ships with the upstream "
-                    "Lotus GitHub repo, not stock diffusers. Install:\n"
-                    "  git clone https://github.com/EnVision-Research/Lotus-2\n"
-                    "  cd Lotus-2 && pip install -r requirements.txt\n"
-                    "  export PYTHONPATH=\"$PWD:$PYTHONPATH\"\n"
-                    "Then re-invoke this adapter. Other live checkpoints "
-                    "the team can swap in via `model_id=...`: "
-                    "jingheya/lotus-depth-g-v2-1-disparity (generative)."
+                    "Lotus-2 requires accepted access to black-forest-labs/FLUX.1-dev "
+                    "and a high-memory GPU. Confirm HF_TOKEN access and use the "
+                    "pinned Lotus-2 environment from setup_depth_smoke_env.py."
                 ),
             ) from e
-        except Exception as e:
-            from rpx_benchmark.exceptions import AdapterError  # noqa: PLC0415
-
-            raise AdapterError(
-                f"Lotus pipeline load failed for {model_id!r}: {e}",
-                hint="The Lotus checkpoint name has changed across releases; "
-                "verify the current id at https://huggingface.co/jingheya "
-                "and pass `model_id=...` explicitly.",
-            ) from e
-        if hasattr(self._pipe, "set_progress_bar_config"):
-            self._pipe.set_progress_bar_config(disable=True)
 
     @property
     def torch_module(self):
-        return getattr(self._pipe, "unet", None)
+        return getattr(self._pipe, "transformer", None)
 
     def __call__(
         self,
         rgb: Union[np.ndarray, Sequence[np.ndarray]],
     ) -> Union[np.ndarray, list[np.ndarray]]:
-        from PIL import Image
-
+        torch = self._torch
         is_batch = isinstance(rgb, (list, tuple))
         rgbs = list(rgb) if is_batch else [rgb]
-        for r in rgbs:
-            r = np.asarray(r)
-            if r.ndim != 3 or r.shape[2] != 3:
+        outputs: list[np.ndarray] = []
+        for image in rgbs:
+            image = np.asarray(image, dtype=np.uint8)
+            if image.ndim != 3 or image.shape[2] != 3:
                 from rpx_benchmark.exceptions import AdapterError
 
-                raise AdapterError(
-                    f"expected H×W×3 RGB uint8, got shape {r.shape}",
-                )
-
-        pil_imgs = [Image.fromarray(np.asarray(r, dtype=np.uint8)) for r in rgbs]
-        depths: list[np.ndarray] = []
-        with self._torch.inference_mode():
-            # Lotus pipelines vary in their public call signature. The
-            # consistent path: one image at a time + result.images[0] as
-            # a PIL Image whose pixel values encode depth.
-            for r, img in zip(rgbs, pil_imgs, strict=False):
-                out = self._pipe(img, num_inference_steps=self.num_inference_steps)
-                d = self._extract_depth(out, r.shape[:2])
-                depths.append(d.astype(np.float32))
-        return depths if is_batch else depths[0]
-
-    @staticmethod
-    def _extract_depth(out, target_hw):
-        """Pull a (H, W) float depth out of whatever the Lotus pipeline returned.
-
-        Different Lotus snapshots return different shapes:
-        ``out.images[0]`` (PIL), ``out.prediction`` (numpy), ``out["depth"]``
-        (tensor). Try them in order.
-        """
-        # Tensor / numpy paths
-        for attr in ("prediction", "depth"):
-            v = getattr(out, attr, None)
-            if v is None and hasattr(out, "__getitem__"):
-                try:
-                    v = out[attr]
-                except Exception:
-                    v = None
-            if v is not None:
-                arr = np.asarray(v if not hasattr(v, "cpu") else v.cpu().numpy(), dtype=np.float32)
-                if arr.ndim == 4 and arr.shape[-1] == 1:
-                    arr = arr.squeeze(-1)
-                if arr.ndim == 4:
-                    arr = arr[0]
-                if arr.ndim == 3 and arr.shape[0] in (1, 3):
-                    arr = arr[0]
-                if arr.shape != tuple(target_hw):
-                    arr = _resize_bilinear(arr, target_hw)
-                return arr
-        # PIL path — convert intensity to float
-        imgs = getattr(out, "images", None)
-        if imgs:
-            d = np.asarray(imgs[0].convert("F"), dtype=np.float32)
-            if d.shape != tuple(target_hw):
-                d = _resize_bilinear(d, target_hw)
-            return d
-        from rpx_benchmark.exceptions import AdapterError
-
-        raise AdapterError(
-            "Lotus pipeline returned an unrecognised shape — couldn't extract depth.",
-            hint="Inspect the pipeline's return type; expected one of "
-            "`images[0]` (PIL), `prediction` (tensor/np), `depth` (tensor).",
-        )
+                raise AdapterError(f"expected H×W×3 RGB uint8, got shape {image.shape}")
+            tensor = torch.from_numpy(image.astype(np.float32))
+            tensor = tensor.permute(2, 0, 1).unsqueeze(0) / 127.5 - 1.0
+            tensor = tensor.to(self.device)
+            max_edge = max(image.shape[:2])
+            process_res = 1024 if max_edge > 1024 else 512 if max_edge < 512 else None
+            with torch.inference_mode():
+                prediction = self._pipe(
+                    rgb_in=tensor,
+                    prompt="",
+                    num_inference_steps=self.num_inference_steps,
+                    output_type="np",
+                    process_res=process_res,
+                ).images[0]
+            depth = np.asarray(prediction, dtype=np.float32).mean(axis=-1)
+            if depth.shape != image.shape[:2]:
+                depth = _resize_bilinear(depth, image.shape[:2])
+            outputs.append(depth)
+        return outputs if is_batch else outputs[0]
 
 
 def _resize_bilinear(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     from PIL import Image
 
-    img = Image.fromarray(src.astype(np.float32), mode="F")
-    img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
-    return np.asarray(img, dtype=np.float32)
+    image = Image.fromarray(src.astype(np.float32), mode="F")
+    image = image.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
+    return np.asarray(image, dtype=np.float32)

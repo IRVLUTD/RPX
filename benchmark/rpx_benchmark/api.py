@@ -164,14 +164,16 @@ class VideoDepthGroundTruth:
     Shapes
     ------
     depth_map_seq   : (T, H, W) float32, metres
-    valid_mask_seq  : (T, H, W) bool
+    valid_mask_seq  : (T, H, W) bool, finite GT with 0.3 < depth < 5.0 m
     frame_indices   : (T,) int32, original phase-relative frame indices
                       so models that want temporal context can use them
+    compute_fscore  : bool, opt-in diagnostic switch; false for headline D1-V
     """
 
     depth_map_seq: np.ndarray
     valid_mask_seq: np.ndarray
     frame_indices: np.ndarray
+    compute_fscore: bool = False
 
 
 @dataclass
@@ -412,10 +414,11 @@ class BenchmarkModel(ABC):
         before computing metrics, matching the Ranftl et al. 2020
         protocol the paper §3.3 prescribes).
 
-        Adapters that wrap relative-depth models (Lotus-2, FE2E,
-        MoGe-2, HyDen, DepthLM, the DA-V2 relative variant) must set
+        Adapters that wrap relative-depth models (Lotus-2, FE2E and
+        the DA-V2 relative variant) must set
         this to ``"relative"``. Adapters wrapping metric models
-        (DA-Metric, Depth Pro, UniDepth V2, Metric3D V2, etc.) leave
+        (DA-Metric, Depth Pro, UniDepth V2, Metric3D V2, MoGe-2,
+        canonical HyDen metric, DepthLM, etc.) leave
         the default. Ignored entirely for non-depth tasks.
 
     Examples

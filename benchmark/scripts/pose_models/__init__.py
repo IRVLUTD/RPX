@@ -30,11 +30,46 @@ ModelBuilder = Callable[..., Any]
 # ── Direct pose regression (HF-loadable) ─────────────────────────────────────
 
 
+def _build_vggt_omega(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """VGGT-Ω: official facebook/VGGT-1B camera head."""
+    from .vggt_omega import VGGTOmega
+
+    return VGGTOmega(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_da3(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """DA3-GIANT: official camera decoder, evaluated up to translation scale."""
+    from .da3 import DA3
+
+    return DA3(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_cut3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """CUT3R: official final 512-DPT recurrent camera-pose model."""
+    from .cut3r import CUT3R
+
+    return CUT3R(device=device, batch_size=batch_size, **kwargs)
+
+
 def _build_reloc3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """Reloc3r (CVPR 2025) — 25 ms inference, current SOTA regression."""
     from .reloc3r import Reloc3r
 
     return Reloc3r(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_pi3x(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Pi3X — permutation-equivariant approximate-metric camera poses."""
+    from .pi3x import Pi3X
+
+    return Pi3X(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_fast3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """Fast3R — global pointmaps with shared-focal PnP camera recovery."""
+    from .fast3r import Fast3R
+
+    return Fast3R(device=device, batch_size=batch_size, **kwargs)
 
 
 def _build_dust3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
@@ -49,6 +84,20 @@ def _build_mast3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     from .mast3r import MASt3R
 
     return MASt3R(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_must3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """MUSt3R (CVPR 2025) — memory-based symmetric multi-view pose model."""
+    from .must3r import MUSt3R
+
+    return MUSt3R(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_monst3r(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    """MonST3R — dynamic-scene DUSt3R with two-view PairViewer recovery."""
+    from .monst3r import MonST3R
+
+    return MonST3R(device=device, batch_size=batch_size, **kwargs)
 
 
 def _build_far(*, device: str = "cuda", batch_size: int = 1, **kwargs):
@@ -103,9 +152,16 @@ def _build_icp_open3d(*, device: str = "cpu", batch_size: int = 1, **kwargs):
 #: Public name → builder.
 MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     # ── Category A: direct pose regression ─────────────────────────────
+    "vggt-omega": _build_vggt_omega,
+    "da3": _build_da3,
+    "cut3r": _build_cut3r,
     "reloc3r": _build_reloc3r,
+    "pi3x": _build_pi3x,
+    "fast3r": _build_fast3r,
     "dust3r": _build_dust3r,
     "mast3r": _build_mast3r,
+    "must3r": _build_must3r,
+    "monst3r": _build_monst3r,
     "far": _build_far,
     "srpose": _build_srpose,
     "nope_sac": _build_nope_sac,
@@ -120,9 +176,16 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
 
 
 MODEL_DISPLAY_NAMES: Dict[str, str] = {
+    "vggt-omega": "VGGT-Ω",
+    "da3": "DA3-GIANT",
+    "cut3r": "CUT3R-512-DPT",
     "reloc3r": "Reloc3r-512",
+    "pi3x": "Pi3X",
+    "fast3r": "Fast3R-ViT-Large-512",
     "dust3r": "DUSt3R-ViTL-512",
     "mast3r": "MASt3R-ViTL-512",
+    "must3r": "MUSt3R-512",
+    "monst3r": "MonST3R-ViTL-512",
     "far": "FAR",
     "srpose": "SRPose",
     "nope_sac": "NOPE-SAC",

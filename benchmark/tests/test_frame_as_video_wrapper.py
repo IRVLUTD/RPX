@@ -28,15 +28,14 @@ import pytest
 # Make scripts/ importable so video_depth_models is reachable.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+from video_depth_models import FrameDepthAsVideo
+
 from rpx_benchmark.api import (
     TaskType,
     VideoDepthGroundTruth,
     VideoSample,
 )
 from rpx_benchmark.exceptions import AdapterError
-
-from video_depth_models import FrameDepthAsVideo
-
 
 # --------------------------------------------------------------------------- #
 # Fake per-frame adapters

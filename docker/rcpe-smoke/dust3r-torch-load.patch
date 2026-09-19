@@ -1,0 +1,16 @@
+diff --git a/dust3r/model.py b/dust3r/model.py
+index 8ff6841..10619d9 100644
+--- a/dust3r/model.py
++++ b/dust3r/model.py
+@@ -27,7 +27,10 @@ assert version.parse(hf_version_number) >= version.parse("0.22.0"), ("Outdated
+ def load_model(model_path, device, verbose=True):
+     if verbose:
+         print('... loading model from', model_path)
+-    ckpt = torch.load(model_path, map_location='cpu')
++    # Official checkpoints contain argparse.Namespace metadata. PyTorch 2.6+
++    # defaults to weights_only=True, so explicitly opt into trusted loading.
++    # RPX downloads the checkpoint from NAVER's pinned URL and verifies its size.
++    ckpt = torch.load(model_path, map_location='cpu', weights_only=False)
+     args = ckpt['args'].model.replace("ManyAR_PatchEmbed", "PatchEmbedDust3R")
+     if 'landscape_only' not in args:
+         args = args[:-1] + ', landscape_only=False)'

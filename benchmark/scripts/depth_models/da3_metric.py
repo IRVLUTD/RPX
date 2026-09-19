@@ -28,8 +28,8 @@ from typing import Optional, Sequence, Union
 
 import numpy as np
 
-
-_MODEL_ID = "depth-anything/DA3-LARGE"
+_MODEL_ID = "depth-anything/DA3METRIC-LARGE"
+_METRIC_FOCAL_DIVISOR = 300.0
 
 
 class DA3Metric:
@@ -48,6 +48,7 @@ class DA3Metric:
         device: str = "cuda",
         dtype: Optional[str] = None,
         batch_size: int = 1,
+        focal_length_px: Optional[float] = None,
     ) -> None:
         try:
             from depth_anything_3.api import DepthAnything3
@@ -58,6 +59,7 @@ class DA3Metric:
             ) from e
         self.device = device
         self.batch_size = int(batch_size)
+        self.focal_length_px = float(focal_length_px or 615.0)
         self._model = DepthAnything3.from_pretrained(_MODEL_ID)
         if hasattr(self._model, "to"):
             self._model = self._model.to(device)
@@ -84,33 +86,39 @@ class DA3Metric:
                 )
         rgbs = [np.asarray(r, dtype=np.uint8) for r in rgbs]
 
-        # DA3's API is single-image OR multi-view; for Image Depth we
-        # call per-frame. Different release versions name this
-        # ``predict``, ``forward``, or ``predict_single``.
-        if hasattr(self._model, "predict"):
-            outs = [self._model.predict([r]) for r in rgbs]
-        elif hasattr(self._model, "forward"):
-            outs = [self._model.forward([r]) for r in rgbs]
-        else:
-            from rpx_benchmark.exceptions import AdapterError
-
-            raise AdapterError(
-                "DA3Metric: model has neither predict() nor forward(). "
-                "Upstream API may have changed."
-            )
+        # Pinned DA3 exposes the high-level inference() API. Calling
+        # each image separately preserves monocular behaviour.
+        outs = [self._model.inference([r]) for r in rgbs]
 
         depths: list[np.ndarray] = []
         for r, o in zip(rgbs, outs, strict=False):
-            d = o
+            d = o.depth if hasattr(o, "depth") else o
             if isinstance(d, dict):
-                d = d.get("depth") or d.get("depth_map")
+                d = d.get("depth")
+                if d is None:
+                    d = o.get("depth_map")
             elif isinstance(d, (list, tuple)):
                 d = d[0]
+            if d is None:
+                from rpx_benchmark.exceptions import AdapterError
+
+                raise AdapterError("DA3 metric inference returned no depth field.")
             if hasattr(d, "detach"):
                 d = d.detach().cpu().float().numpy()
-            d = np.asarray(d, dtype=np.float32)
-            if d.ndim == 3:
-                d = d.squeeze()
+            d = np.squeeze(np.asarray(d, dtype=np.float32))
+            if d.ndim != 2:
+                from rpx_benchmark.exceptions import AdapterError
+
+                raise AdapterError(
+                    f"DA3 metric inference returned depth shape {d.shape}; expected 2-D."
+                )
+
+            # Official DA3METRIC conversion:
+            # metric_depth = processed_focal_px * raw_depth / 300.
+            processed_focal_px = self.focal_length_px * (
+                d.shape[1] / float(r.shape[1])
+            )
+            d = d * (processed_focal_px / _METRIC_FOCAL_DIVISOR)
             target_hw = r.shape[:2]
             if d.shape != target_hw:
                 from PIL import Image as _Image

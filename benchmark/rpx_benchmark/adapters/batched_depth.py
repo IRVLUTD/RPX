@@ -29,13 +29,11 @@ mask (PIL-only, no OpenCV dep).
 Save layout
 -----------
 When ``save_dir`` is provided, predictions are written as
-``<save_dir>/<scene>/<phase>/<frame>.npz`` (key ``"depth"``, float16
-metres) — the same scene/phase shape as the on-disk dataset, so Box
-mirroring, downstream analytics, and per-scene plotting all share one
-navigation pattern. Downstream readers (``comprehensive_depth_metrics``,
-metric/alignment modules) cast back to float32 on load, so storing
-float16 is precision-preserving relative to the adapters' own fp16 forward
-pass and halves the on-disk + Box footprint.
+``<save_dir>/<scene>/<phase>/<frame>.npz`` (key ``"depth"``, compressed
+float32 in the model's native output space) — the same scene/phase shape as
+the on-disk dataset, so downstream analytics and per-scene plotting share one
+navigation pattern. Writes are atomic and compression is outside inference
+timing.
 
 Example
 -------
@@ -54,6 +52,9 @@ Example
 
 from __future__ import annotations
 
+import os
+import tempfile
+import zipfile
 from pathlib import Path
 from typing import Any, List, Optional, Sequence
 
@@ -65,31 +66,11 @@ from ..api import DepthPrediction, Sample, TaskType
 __all__ = ["BatchedDepthBenchmarkModel"]
 
 
-from ..metrics.depth_alignment import align_pred_to_gt as _align_pred_to_gt
-
-
 def _resize_bilinear_2d(src: np.ndarray, target_hw: tuple[int, int]) -> np.ndarray:
     """Resize a 2D float array to ``(H, W)``. PIL-only — no OpenCV dependency."""
     img = Image.fromarray(src.astype(np.float32), mode="F")
     img = img.resize((target_hw[1], target_hw[0]), Image.BILINEAR)
     return np.asarray(img, dtype=np.float32)
-
-
-def _extract_gt_depth(sample: Sample) -> Optional[np.ndarray]:
-    """Pull GT depth (metres, float32) off a Sample, or None if missing.
-
-    Sample.ground_truth is the task-specific GT dataclass; for monocular
-    depth that's a ``DepthGroundTruth`` with a ``depth_map`` field.
-    """
-    gt_obj = getattr(sample, "ground_truth", None)
-    if gt_obj is None:
-        return None
-    arr = getattr(gt_obj, "depth_map", None)
-    if arr is None:
-        arr = getattr(gt_obj, "depth", None)
-    if arr is None:
-        return None
-    return np.asarray(arr, dtype=np.float32)
 
 
 class BatchedDepthBenchmarkModel:
@@ -112,11 +93,16 @@ class BatchedDepthBenchmarkModel:
         UniDepth V2 / Depth Pro; ``"ls_affine"`` for up-to-scale models
         like Marigold / Lotus-2). The runner reads this to apply the
         right alignment by default. Falls back to ``"none"`` if the
-        adapter doesn't declare it.
+        adapter doesn't declare it. The wrapper returns raw predictions;
+        the runner applies this mode once per complete scene/phase cell.
     native_precision
         Declared by the adapter (``"fp32"``, ``"fp16"``, ``"bf16"``).
         Used by the runner to record the OperatingPoint precision
         tag. Falls back to ``"fp32"`` if not declared.
+    allow_nonpositive_predictions
+        Permit finite, non-degenerate raw depth maps containing zero or
+        negative values. This is opt-in for protocols that preserve raw model
+        output and apply a documented evaluation-domain transform later.
     """
 
     task = TaskType.MONOCULAR_DEPTH
@@ -129,10 +115,25 @@ class BatchedDepthBenchmarkModel:
         save_dir: Optional[str | Path] = None,
         native_alignment: Optional[str] = None,
         native_precision: Optional[str] = None,
+        resume_predictions: bool = False,
+        allow_nonpositive_predictions: bool = False,
     ) -> None:
         self._adapter = adapter
         self.name = name
         self._save_dir = Path(save_dir) if save_dir else None
+        if resume_predictions and self._save_dir is None:
+            from ..exceptions import ConfigError
+
+            raise ConfigError("resume_predictions requires save_dir")
+        self.resume_predictions = bool(resume_predictions)
+        self.allow_nonpositive_predictions = bool(allow_nonpositive_predictions)
+        self.resume_stats = {
+            "cache_hits": 0,
+            "inferred_new": 0,
+            "invalid_recomputed": 0,
+        }
+        self.last_cache_hits: list[bool] = []
+        self._last_save_required: list[bool] = []
         # Read alignment off the adapter if it declared one, else fall
         # back to the constructor arg, else "none" (metric assumption).
         self.native_alignment: str = (
@@ -141,6 +142,7 @@ class BatchedDepthBenchmarkModel:
         self.native_precision: str = (
             native_precision or getattr(adapter, "native_precision", None) or "fp32"
         )
+        self.depth_output_kind: str = "relative" if self.native_alignment != "none" else "metric"
         # Profiler walker reaches the underlying nn.Module via this attr.
         self.model = adapter
 
@@ -149,52 +151,82 @@ class BatchedDepthBenchmarkModel:
         return None
 
     def predict(self, batch: Sequence[Sample]) -> List[DepthPrediction]:
-        rgbs = [np.asarray(s.rgb, dtype=np.uint8) for s in batch]
-        depths = self._adapter(rgbs)  # one batched forward
-        if not isinstance(depths, (list, tuple)):
-            depths = [depths]
-        if len(depths) != len(batch):
+        cached: dict[int, np.ndarray] = {}
+        missing_indices: list[int] = []
+        invalid_existing: set[int] = set()
+        for index, sample in enumerate(batch):
+            path = self._prediction_path(sample)
+            if self.resume_predictions and path is not None and path.exists():
+                depth = self._load_valid_prediction(
+                    path,
+                    np.asarray(sample.rgb).shape[:2],
+                    require_positive=not self.allow_nonpositive_predictions,
+                )
+                if depth is not None:
+                    cached[index] = depth
+                    self.resume_stats["cache_hits"] += 1
+                    continue
+                invalid_existing.add(index)
+            missing_indices.append(index)
+
+        inferred: list[np.ndarray] = []
+        if missing_indices:
+            rgbs = [np.asarray(batch[i].rgb, dtype=np.uint8) for i in missing_indices]
+            raw_depths = self._adapter(rgbs)
+            if not isinstance(raw_depths, (list, tuple)):
+                raw_depths = [raw_depths]
+            inferred = [np.asarray(depth, dtype=np.float32) for depth in raw_depths]
+        if len(inferred) != len(missing_indices):
             from ..exceptions import AdapterError
 
             raise AdapterError(
-                f"adapter returned {len(depths)} depths for a batch of {len(batch)}",
+                f"adapter returned {len(inferred)} depths for {len(missing_indices)} inputs",
                 hint="Check the adapter's batched contract: it must return "
                 "one depth map per input RGB.",
             )
 
+        inferred_by_index = dict(zip(missing_indices, inferred, strict=True))
         preds: List[DepthPrediction] = []
-        for sample, depth in zip(batch, depths, strict=False):
-            d_raw = np.asarray(depth, dtype=np.float32)
+        self.last_cache_hits = []
+        self._last_save_required = []
+        for index, sample in enumerate(batch):
+            is_cached = index in cached
+            d_raw = cached[index] if is_cached else inferred_by_index[index]
             target_hw = np.asarray(sample.rgb).shape[:2]
             if d_raw.shape != target_hw:
                 d_raw = _resize_bilinear_2d(d_raw, target_hw)
+            if not is_cached:
+                if index in invalid_existing:
+                    self.resume_stats["invalid_recomputed"] += 1
+                else:
+                    self.resume_stats["inferred_new"] += 1
 
-            # Persist the raw model output (preserves what the model
-            # actually predicted) — same on disk regardless of alignment.
-            self._maybe_save(sample, d_raw)
-
-            # For the runner's primary metric (AbsRel et al), apply the
-            # adapter's declared native alignment. Without this,
-            # relative-depth models report nonsensical raw-space numbers
-            # in result.json["aggregated"] (e.g. AbsRel ≈ 100+ for MiDaS)
-            # while the comprehensive post-processor's aligned numbers
-            # disagree wildly. This keeps result.json's headline numbers
-            # honest under the model's declared alignment policy.
-            d_for_runner = d_raw
-            if self.native_alignment != "none":
-                gt_arr = _extract_gt_depth(sample)
-                if gt_arr is not None:
-                    d_for_runner = _align_pred_to_gt(
-                        d_raw,
-                        gt_arr,
-                        mode=self.native_alignment,
-                    )
-            preds.append(DepthPrediction(depth_map=d_for_runner))
+            # Return the raw prediction. Relative outputs are deliberately
+            # aligned later by BenchmarkRunner, after every frame in the
+            # same (scene, phase) cell is available for one pooled solve.
+            preds.append(DepthPrediction(depth_map=d_raw))
+            self.last_cache_hits.append(is_cached)
+            self._last_save_required.append(not is_cached)
         return preds
 
-    def _maybe_save(self, sample: Sample, depth: np.ndarray) -> None:
+    def persist_predictions(
+        self,
+        batch: Sequence[Sample],
+        predictions: Sequence[DepthPrediction],
+    ) -> None:
+        """Persist newly inferred predictions after the runner stops timing."""
+        for sample, prediction, required in zip(
+            batch,
+            predictions,
+            self._last_save_required,
+            strict=True,
+        ):
+            if required:
+                self._maybe_save(sample, prediction.depth_map)
+
+    def _prediction_path(self, sample: Sample) -> Path | None:
         if self._save_dir is None:
-            return
+            return None
         # Prefer the manifest's metadata block (set by local_manifest.py
         # and dataset_hub.split_manifests so the loader rides it through
         # to Sample.metadata). Fall back to id-parsing.
@@ -207,9 +239,87 @@ class BatchedDepthBenchmarkModel:
                 scene, phase, frame = str(sample.id).split("__", 2)
             except ValueError:
                 scene, phase, frame = "unknown", "0", str(sample.id)
-        out = self._save_dir / str(scene) / str(phase) / f"{frame}.npz"
+        return self._save_dir / str(scene) / str(phase) / f"{frame}.npz"
+
+    @staticmethod
+    def _load_valid_prediction(
+        path: Path,
+        target_hw: tuple[int, int],
+        *,
+        require_positive: bool = True,
+    ) -> np.ndarray | None:
+        try:
+            with np.load(path, allow_pickle=False) as payload:
+                if payload.files != ["depth"]:
+                    return None
+                depth = np.asarray(payload["depth"])
+            return BatchedDepthBenchmarkModel._validated_depth(
+                depth,
+                target_hw,
+                require_positive=require_positive,
+            )
+        except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile):
+            return None
+
+    @staticmethod
+    def _validated_depth(
+        depth: np.ndarray,
+        target_hw: tuple[int, int],
+        *,
+        require_positive: bool = True,
+    ) -> np.ndarray | None:
+        depth = np.asarray(depth)
+        if depth.ndim != 2 or depth.shape != target_hw:
+            return None
+        if depth.dtype != np.dtype(np.float32):
+            return None
+        if not np.isfinite(depth).all():
+            return None
+        if require_positive and np.any(depth <= 0):
+            return None
+        if float(np.ptp(depth)) <= 1e-6:
+            return None
+        return depth
+
+    def _maybe_save(self, sample: Sample, depth: np.ndarray) -> None:
+        out = self._prediction_path(sample)
+        if out is None:
+            return
+        canonical = np.asarray(depth, dtype=np.float32)
+        target_hw = np.asarray(sample.rgb).shape[:2]
+        if (
+            self._validated_depth(
+                canonical,
+                target_hw,
+                require_positive=not self.allow_nonpositive_predictions,
+            )
+            is None
+        ):
+            from ..exceptions import AdapterError
+
+            raise AdapterError(
+                f"Refusing to save an invalid depth prediction for sample {sample.id!r}: "
+                f"expected a finite, non-degenerate float32 map with shape {target_hw}"
+                + (
+                    " and strictly positive values."
+                    if not self.allow_nonpositive_predictions
+                    else "."
+                )
+            )
         out.parent.mkdir(parents=True, exist_ok=True)
-        # np.savez_compressed appends '.npz' if the path doesn't end in
-        # it, so we write directly to the final path (no .part rename
-        # dance — that bug bit us earlier).
-        np.savez_compressed(out, depth=depth.astype(np.float16))
+        temp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w+b",
+                suffix=".npz.part",
+                dir=out.parent,
+                delete=False,
+            ) as handle:
+                temp_path = Path(handle.name)
+                np.savez_compressed(handle, depth=canonical)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, out)
+        finally:
+            if temp_path is not None and temp_path.exists():
+                temp_path.unlink()

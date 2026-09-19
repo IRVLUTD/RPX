@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG MUST3R_GIT_SHA=0c0d76b76b68993e380752d56dd3e04979cbbeef
+ARG DUST3R_GIT_SHA=bb9f9f54826b4077ed9fd075308eb2fe2d4666f9
+ARG CROCO_GIT_SHA=d7de0705845239092414480bd829228723bf20de
+ARG MUST3R_CHECKPOINT_URL=https://download.europe.naverlabs.com/ComputerVision/MUSt3R/MUSt3R_512.pth
+ARG MUST3R_CHECKPOINT_MD5=8854f948a8674fb1740258c1872f80dc
+
+COPY docker/rcpe-smoke/requirements-must3r.lock /tmp/requirements-must3r.lock
+
+RUN test -n "${MUST3R_GIT_SHA}" && \
+    mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/must3r && \
+    git -C /opt/rpx-models/must3r remote add origin https://github.com/naver/must3r.git && \
+    git -C /opt/rpx-models/must3r fetch --depth 1 origin "${MUST3R_GIT_SHA}" && \
+    git -C /opt/rpx-models/must3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-models/must3r submodule update --init --recursive --depth 1 && \
+    test "$(git -C /opt/rpx-models/must3r/dust3r rev-parse HEAD)" = "${DUST3R_GIT_SHA}" && \
+    test "$(git -C /opt/rpx-models/must3r/dust3r/croco rev-parse HEAD)" = "${CROCO_GIT_SHA}" && \
+    test -d /opt/rpx-models/must3r/dust3r/croco/models
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/must3r && \
+    /opt/rpx-envs/must3r/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/must3r/bin/python -m pip install \
+      torch==2.7.0 torchvision==0.22.0 \
+      --index-url https://download.pytorch.org/whl/cu126 && \
+    /opt/rpx-envs/must3r/bin/python -m pip install -r /tmp/requirements-must3r.lock
+
+RUN mkdir -p /opt/rpx-models/must3r/checkpoints && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "${MUST3R_CHECKPOINT_URL}" \
+      --output /opt/rpx-models/must3r/checkpoints/MUSt3R_512.pth && \
+    echo "${MUST3R_CHECKPOINT_MD5}  /opt/rpx-models/must3r/checkpoints/MUSt3R_512.pth" | md5sum --check --strict
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3 + CUT3R + MASt3R + MUSt3R" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    /opt/rpx-envs/must3r/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx-models/must3r/dust3r:/opt/rpx-models/must3r:/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/must3r/bin/python -c \
+      "import numpy,pandas,pyarrow,roma,scipy,sklearn,torch,torchvision; from must3r.model import load_model; from must3r.engine.inference import inference,postprocess; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert torch.__version__.startswith('2.7.0'); assert 'must3r' in MODEL_REGISTRY; encoder,decoder=load_model('/opt/rpx-models/must3r/checkpoints/MUSt3R_512.pth', device='cpu', verbose=False); assert encoder is not None and decoder is not None; del encoder,decoder; print(f'MUSt3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__})')" && \
+    /opt/rpx-envs/must3r/bin/python -m pip freeze > /opt/rpx-envs/must3r/rpx-pip-freeze.txt && \
+    /opt/rpx-envs/must3r/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/must3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'must3r', 'checkpoint': 'MUSt3R_512.pth', 'checkpoint_md5': '${MUST3R_CHECKPOINT_MD5}', 'translation_scale': 'unit', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${MUST3R_GIT_SHA}', 'dust3r_revision': '${DUST3R_GIT_SHA}', 'croco_revision': '${CROCO_GIT_SHA}'}, indent=2)+'\\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]

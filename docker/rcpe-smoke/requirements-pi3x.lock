@@ -1,0 +1,14 @@
+torch==2.5.1
+torchvision==0.20.1
+numpy==1.26.4
+omegaconf==2.3.0
+pillow==10.3.0
+opencv-python-headless==4.11.0.86
+plyfile==1.1.3
+huggingface-hub==0.36.0
+safetensors==0.6.2
+pandas==2.3.3
+pyarrow==21.0.0
+scipy==1.15.3
+roma==1.5.4
+tqdm==4.67.1

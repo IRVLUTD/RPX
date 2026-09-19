@@ -121,6 +121,7 @@ class RPXDataset:
         manifest_path: str | Path,
         batch_size: int = 1,
         validate: bool = False,
+        max_samples: int | None = None,
     ) -> "RPXDataset":
         """Load a manifest JSON file from disk and return a dataset.
 
@@ -138,6 +139,9 @@ class RPXDataset:
             constructing the dataset. Requires the ``schemas`` extra
             (``pip install 'rpx-benchmark[schemas]'``). Default
             ``False`` preserves historical, tolerant behaviour.
+        max_samples : int, optional
+            Keep only the first N manifest samples. Intended for smoke
+            validation; must be at least 1 when provided.
 
         Returns
         -------
@@ -164,12 +168,19 @@ class RPXDataset:
             raise ManifestError(
                 f"Manifest at {manifest_path} is not valid JSON: {e}",
             ) from e
-        return cls.from_dict(
+        dataset = cls.from_dict(
             manifest,
             batch_size=batch_size,
             default_root=manifest_path.parent,
             validate=validate,
         )
+        if max_samples is not None:
+            if max_samples < 1:
+                raise ManifestError(
+                    f"max_samples must be >= 1, got {max_samples}",
+                )
+            dataset.samples = dataset.samples[:max_samples]
+        return dataset
 
     @classmethod
     def from_dict(
@@ -379,10 +390,14 @@ class RPXDataset:
         return TrackletGroundTruth(tracks=tracks)
 
     def _load_relative_pose(self, entry: Dict[str, Any]) -> RelativePoseGroundTruth:
-        # Load the two poses and compute relative transform
+        from .pose_conventions import relative_pose_from_raw_t265
+
+        # Published RPX poses retain librealsense's T265 axes. RCPE models
+        # consume D435 RGB and conventionally emit OpenCV camera coordinates,
+        # so convert the fixed axis basis before forming the relative pose.
         pose_a = self._load_pose(entry["pose_a"])  # 4×4 SE(3)
         pose_b = self._load_pose(entry["pose_b"])
-        T_rel = np.linalg.inv(pose_a) @ pose_b
+        T_rel = relative_pose_from_raw_t265(pose_a, pose_b)
         return RelativePoseGroundTruth(
             rotation=T_rel[:3, :3],
             translation=T_rel[:3, 3],

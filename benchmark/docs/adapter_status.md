@@ -2,20 +2,29 @@
 
 **Pick your model. Run the install. Smoke it. Update the table.**
 
-Last updated: 2026-06-25
+For the pinned two-gate launcher, environment matrix and Easy-only rollout,
+use [`depth_smoke_runbook.md`](depth_smoke_runbook.md).
+
+Last updated: 2026-07-02
 
 ---
 
 ## Quick read
 
-We have 20 depth models in the paper (10 single-image, 10 video). The code is wired up for all of them. **Only 1 has actually been run on a GPU end-to-end so far** — the rest just need somebody to install the upstream package and do a 10-minute test.
+We have 20 depth models in the paper (10 single-image, 10 video). The code is
+wired up for all of them. **Four single-image models have passed a real GPU
+acceptance gate**: DA-V2 Large, Depth Pro, UniDepth V2 and MoGe-2. HyDen reached
+the official checkpoint and was denied access; Lotus-2's corrected dependency
+recipe still needs a fresh server setup and smoke. The remaining official
+adapters need their isolated upstream environment and smoke run.
 
-| | Code wired | Actually run on GPU | Blocked |
+| | Code wired | Acceptance passed | Unverified-weight block |
 | --- | --- | --- | --- |
-| Single-image depth | 10 / 10 | 1 / 10 | 1 (FE2E) |
-| Video depth | 10 / 10 | 0 / 10 | 2 (D4RT, GemDepth) |
+| Single-image depth | 10 / 10 | 4 / 10 | 1 (FE2E) |
+| Video depth | 10 / 10 | See recorded smoke metadata | 0 |
 
-**The "Blocked" 3 are waiting on someone to find the official model release** — the HF repos we found for them look like community uploads, not the paper authors' actual weights.
+**FE2E remains blocked pending an approved official release.** GemDepth and
+DVD now use repositories and checkpoints published by their authors.
 
 ---
 
@@ -27,14 +36,14 @@ The team CLI: `python scripts/run_depth.py --model <name> --split easy`
 | --- | --- | --- | --- |
 | **da-v2-large** | — | ✅ Done | Already tested on RTX 5070 — works |
 | **da3-metric-l** | — | ⏳ Needs smoke | `pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3` then smoke |
-| **depth-pro** | — | ⏳ Needs smoke | (package already installed in repo) — just run the smoke |
+| **depth-pro** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.5981, AbsRel 0.1390, delta1 0.9092 |
 | **depthlm** | — | ⏳ Needs smoke | `pip install transformers torch accelerate` — needs ≥24 GB VRAM |
 | **fe2e** | — | 🚫 Blocked | Find the official upstream release (community HF repo looks unofficial) |
-| **hyden** | — | ⏳ Needs smoke | (existing) |
-| **lotus-2** | — | ⏳ Needs smoke | `pip install diffusers transformers` |
+| **hyden** | — | 🔐 Access blocked (2026-07-02, pop-os) | Environment/import/CUDA checks pass, but the official `facebook/hyden-mogev2-metric-point` checkpoint returns HTTP 403 for the current HF account. Request official access, then rerun on the server; do not substitute weights. |
+| **lotus-2** | — | ⚠️ Server retest | Setup exposed a Diffusers/Transformers 5 incompatibility. The recipe now pins compatible Transformers 4.46.3, but the two-attempt local ceiling was reached before inference. Recreate/resume the corrected environment on the server. |
 | **metric3d-v2** | — | ⏳ Needs smoke | (existing torch.hub) |
-| **moge-2-vit-l** | — | ⏳ Needs smoke | `pip install moge` |
-| **unidepth-v2** | — | ⏳ Needs smoke | (existing) |
+| **moge-2-vit-l** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.6235, AbsRel 0.1769, delta1 0.7502 |
+| **unidepth-v2** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.4978, AbsRel 0.0707, delta1 0.9479 |
 
 ---
 
@@ -44,11 +53,11 @@ The team CLI: `python scripts/run_video_depth.py --model <name> --split easy`
 
 | Model | Owner | Status | What's needed |
 | --- | --- | --- | --- |
-| **chrono-depth** | — | ⏳ Needs smoke | `git clone github.com/jhShao/ChronoDepth && pip install -e .` |
-| **d4rt** | — | 🚫 Blocked | Find the official upstream release |
+| **chrono-depth** | — | ⏳ Needs smoke | Setup helper pins `github.com/jiahao-shao1/ChronoDepth` and its custom SVD pipeline |
+| **dvd** | — | ⏳ Needs smoke | Build the pinned `docker/depth-dvd` overlay; official DVD v1.1 + Wan2.1 |
 | **da3-video** | — | ⏳ Needs smoke | Same install as `da3-metric-l` (shared weights) |
-| **depth-crafter** | — | ⏳ Needs smoke | `git clone github.com/Tencent/DepthCrafter && pip install -e .` |
-| **gem-depth** | — | 🚫 Blocked | Find the official upstream release |
+| **depth-crafter** | — | ⏳ Needs smoke | Setup helper pins the Python-3.11-compatible official v1.0.1 source |
+| **gem-depth** | — | ⏳ Needs smoke | Official source/checkpoint pinned in its Docker overlay |
 | **monst3r** | — | ⏳ Needs smoke | `pip install git+https://github.com/Junyi42/monst3r` |
 | **rolling-depth** | — | ⏳ Needs smoke | `git clone github.com/prs-eth/rollingdepth && pip install -e .` |
 | **vggt-omega** | — | ⏳ Needs smoke | `git clone github.com/facebookresearch/vggt && pip install -e .` |
@@ -57,36 +66,14 @@ The team CLI: `python scripts/run_video_depth.py --model <name> --split easy`
 
 ---
 
-## How to smoke your model (10 minutes)
+## How to smoke your model
 
-```bash
-# 1. SSH to the lab GPU box
-ssh <lab-gpu>
-cd ~/code/RPX/benchmark
-git pull
-
-# 2. Install your model's upstream package (see "What's needed" above)
-<the install command for your model>
-
-# 3. Run a small test on one scene
-PYTHONPATH=. python scripts/run_depth.py \
-    --model <your-model> --split easy --max-samples 25
-
-# Or for video models:
-PYTHONPATH=. python scripts/run_video_depth.py \
-    --model <your-model> --split easy --frame-budget 25 --sampling stride
-
-# 4. Check the output looks reasonable
-ls rpx_results/<your-model>/easy/
-# Should have: cells.parquet, result.json, summary.md
-
-# 5. If it works, kick off the full sweep:
-PYTHONPATH=. python scripts/run_depth.py \
-    --model <your-model> --split easy --upload-to-box
-# (also do --split medium and --split hard)
-
-# 6. Edit this table: replace "⏳ Needs smoke" with "✅ Done (your-name, date)"
-```
+Follow [`depth_smoke_runbook.md`](depth_smoke_runbook.md) exactly. It creates
+the pinned environment, enforces CUDA and an idle selected GPU, runs the micro
+then acceptance gate, and validates all required artefacts. Do not mark a row
+passed after an import-only check, a micro gate, a CPU run, a 4-bit DepthLM
+diagnostic, or an 8 GB OOM. Do not start Medium/Hard or upload anything while
+the Easy pilot is still under review.
 
 ---
 
@@ -105,15 +92,17 @@ If the error is something else (CUDA OOM, missing package, weights download fail
 
 ---
 
-## The 3 blocked models — what to do
+## The blocked model — what to do
 
-For **FE2E**, **D4RT**, and **GemDepth** the HF repos we found look unofficial (empty READMEs, author personal handles, no clear link to the paper authors). Running them right now would risk publishing benchmark numbers under those model names that aren't actually the paper's model.
+For **FE2E**, the candidate release still requires explicit approval before
+publication. Running it without that verification could publish benchmark
+numbers under a model name whose weights do not match the paper.
 
 To unblock any of them:
 
 1. Find the paper's official GitHub repo (check the paper PDF's "code" link or arxiv "code" tab)
 2. Confirm whether the weights match what's on the candidate HF repo (or use the official repo's instructions instead)
-3. Update the adapter file (`scripts/depth_models/fe2e.py` for FE2E, or `scripts/video_depth_models/d4rt.py` / `gem_depth.py` for the other two) — drop the safety-rail check and wire up the real load path
+3. Update `scripts/depth_models/fe2e.py`, drop the safety rail, and wire up the verified load path
 4. Smoke it, then update this table
 
 ---

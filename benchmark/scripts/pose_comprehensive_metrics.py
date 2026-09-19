@@ -2,7 +2,7 @@
 
 Sister of ``comprehensive_depth_metrics.py``. Reads a per-pair CSV
 log written by ``BatchedRelativePoseBenchmarkModel`` (one row per
-prediction, columns ``scene_id, phase, frame_a, frame_b, R00..R22,
+prediction, columns ``sample_id, scene_id, phase, phase_b, frame_a, frame_b, R00..R22,
 tx, ty, tz``) plus the matching split manifest (carries GT poses
 ``pose_a`` / ``pose_b`` per pair) and emits the full pose-error
 basket with 95% CIs.
@@ -160,6 +160,9 @@ def _pair_metrics(
     t_ang = translation_angular_deg(t_pred, t_gt)
     return {
         "rotation_error_deg": rot_err,
+        # Canonical rpx_benchmark pose-metric name. Keep translation_l2 as a
+        # compatibility alias in the comprehensive report.
+        "translation_error_m": t_l2,
         "translation_l2": t_l2,
         "translation_angular_deg": t_ang,
         "pose_error_max_deg": max(rot_err, t_ang),
@@ -171,18 +174,20 @@ def _pair_metrics(
 
 def _read_predictions_csv(
     path: Path,
-) -> Dict[Tuple[str, str, str, str], Tuple[np.ndarray, np.ndarray]]:
-    """Read predictions.csv → ``{(scene, phase, frame_a, frame_b): (R, t)}``.
+) -> Dict[tuple, Tuple[np.ndarray, np.ndarray]]:
+    """Read predictions.csv into canonical and legacy lookup keys.
 
     Tolerates the CSV's exact column order via DictReader; rows with
-    non-finite numeric entries are skipped with a warning.
+    non-finite numeric entries are skipped with a warning. New logs are keyed
+    by the manifest sample ID and by both endpoint phases. The four-field key
+    remains as a read-only fallback for pre-existing intra-phase logs.
     """
-    out: Dict[Tuple[str, str, str, str], Tuple[np.ndarray, np.ndarray]] = {}
+    out: Dict[tuple, Tuple[np.ndarray, np.ndarray]] = {}
     with path.open() as f:
         reader = csv.DictReader(f)
         for row in reader:
             try:
-                key = (row["scene_id"], row["phase"], row["frame_a"], row["frame_b"])
+                phase_b = row.get("phase_b") or row["phase"]
                 R = np.array(
                     [
                         float(row["R00"]),
@@ -206,33 +211,40 @@ def _read_predictions_csv(
             if not (np.isfinite(R).all() and np.isfinite(t).all()):
                 log.warning("skipping non-finite row %s", row)
                 continue
-            out[key] = (R, t)
+            value = (R, t)
+            sample_id = row.get("sample_id")
+            if sample_id:
+                out[("id", sample_id)] = value
+            out[(
+                "pair",
+                row["scene_id"], row["phase"], phase_b,
+                row["frame_a"], row["frame_b"],
+            )] = value
+            # Legacy logs did not distinguish phase_b. Only expose their old
+            # key when the row truly lacks the new phase_b column.
+            if "phase_b" not in row:
+                out[(
+                    "legacy", row["scene_id"], row["phase"],
+                    row["frame_a"], row["frame_b"],
+                )] = value
     return out
 
 
 def _load_pose_npz(path: Path) -> np.ndarray:
-    """Load a 4×4 SE(3) from a cam_pose .npz file.
+    """Load a 4×4 OpenCV SE(3) from a published NPY or legacy NPZ pose.
 
-    The on-disk convention (matches loader._load_pose) is:
-        position    : [x, y, z] in metres (float64)
-        orientation : [x, y, z, w] quaternion
+    Published RPX snapshots use a ``(7,)`` NPY vector ordered as
+    ``[x, y, z, qx, qy, qz, qw]``. Legacy trees store the same values in
+    named NPZ arrays. Keep this wrapper name for compatibility with callers.
     """
-    data = np.load(path)
-    pos = np.asarray(data["position"], dtype=np.float64).reshape(3)
-    quat = np.asarray(data["orientation"], dtype=np.float64).reshape(4)
-    x, y, z, w = quat
-    R = np.array(
-        [
-            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
-            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
-            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
-        ],
-        dtype=np.float64,
-    )
+    from rpx_benchmark.pose_conventions import t265_c2w_to_opencv
+    from rpx_benchmark.pose_pairs import _load_pose_file
+
+    R, pos = _load_pose_file(path)
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = R
     T[:3, 3] = pos
-    return T
+    return t265_c2w_to_opencv(T)
 
 
 # ─────────────────────────  public entry  ──────────────────────────────────
@@ -244,6 +256,7 @@ def compute_run(
     *,
     auc_thresholds: Tuple[float, ...] = DEFAULT_AUC_DEG,
     snapshot_root: Path | None = None,
+    metric_translation_available: bool = True,
 ) -> Dict:
     """Walk the prediction CSV against the manifest, compute the full
     pose-error basket with 95% CIs.
@@ -269,9 +282,16 @@ def compute_run(
         meta = s.get("metadata") or {}
         frame_a = str(meta.get("frame") or "")
         frame_b = str(meta.get("frame_b") or "")
-        key = (scene, phase, frame_a, frame_b)
-        if key not in preds:
+        phase_b = str(meta.get("phase_idx_b") if meta.get("phase_idx_b") is not None else phase)
+        lookup_keys = [
+            ("id", str(s.get("id") or "")),
+            ("pair", scene, phase, phase_b, frame_a, frame_b),
+            ("legacy", scene, phase, frame_a, frame_b),
+        ]
+        prediction = next((preds[k] for k in lookup_keys if k in preds), None)
+        if prediction is None:
             continue
+        key = lookup_keys[0]
 
         try:
             T_a = _load_pose_npz(extracted_root / s["pose_a"])
@@ -280,7 +300,7 @@ def compute_run(
             log.warning("skipping pair %s — could not load GT pose: %s", key, e)
             continue
         R_gt, t_gt = _relative_pose_from_world(T_a, T_b)
-        R_pred, t_pred = preds[key]
+        R_pred, t_pred = prediction
         m = _pair_metrics(R_pred, t_pred, R_gt, t_gt)
         m.update(
             {
@@ -290,6 +310,15 @@ def compute_run(
                 "frame_a": frame_a,
                 "frame_b": frame_b,
                 "stride": int(meta.get("pair_stride") or 0) or _infer_stride(frame_a, frame_b),
+                "pair_type": meta.get("pair_type", s.get("pair_type", "unknown")),
+                "rotation_bin": meta.get("rotation_bin", s.get("rotation_bin")),
+                "chain_id": meta.get("chain_id"),
+                "chain_position": meta.get("chain_position"),
+                "metadata": meta,
+                "pred_rotation": R_pred.tolist(),
+                "pred_translation": t_pred.tolist(),
+                "gt_rotation": R_gt.tolist(),
+                "gt_translation": t_gt.tolist(),
             }
         )
         per_pair.append(m)
@@ -305,12 +334,13 @@ def compute_run(
         }
 
     # Plain means (backwards-compat with the depth-side comprehensive shape).
-    metric_keys = (
+    metric_keys = [
         "rotation_error_deg",
-        "translation_l2",
         "translation_angular_deg",
         "pose_error_max_deg",
-    )
+    ]
+    if metric_translation_available:
+        metric_keys.extend(("translation_error_m", "translation_l2"))
     aggregated = {k: float(np.mean([r[k] for r in per_pair])) for k in metric_keys}
 
     # AUC over the *whole-split* pose_error_max_deg distribution.
@@ -362,6 +392,7 @@ def compute_run(
         }
 
     return {
+        "metric_translation_available": metric_translation_available,
         "per_pair": per_pair,
         "aggregated": aggregated,
         "aggregated_with_ci": aggregated_with_ci,

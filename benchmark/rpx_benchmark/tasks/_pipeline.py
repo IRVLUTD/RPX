@@ -49,6 +49,17 @@ class TaskRunConfig:
     cache_dir: Optional[str] = None
     revision: Optional[str] = None
     batch_size: int = 1
+    #: Refuse CPU fallback when a CUDA run was requested. Production smoke
+    #: and benchmark launchers set this True; lightweight library users keep
+    #: the historical best-effort fallback by default.
+    require_cuda: bool = False
+    #: Skip the first-sample torch FLOP counter. Useful for smoke gates and
+    #: memory-constrained GPUs where instrumentation can OOM independently of
+    #: the real forward pass.
+    skip_flops: bool = False
+    #: Keep only the first N manifest entries. This is a sample count for
+    #: frame tasks and a clip count for Video Depth.
+    max_samples: Optional[int] = None
 
     #: When set, the pipeline skips :func:`download_split` and loads
     #: the manifest from disk. Use for runs against a locally-staged
@@ -61,6 +72,9 @@ class TaskRunConfig:
     device: str = "cuda"
     output_dir: Optional[str] = None
     progress: Optional[ProgressCallback] = None
+    #: Optional protocol-specific metric suite. The default remains the
+    #: registered public suite for the task.
+    metric_suite: Optional[MetricSuite] = None
 
     #: When True, mirror the per-run output directory to UTD Box at
     #: ``<box_folder_id>/<task>/<model>/<split>/`` after the run finishes.
@@ -87,18 +101,35 @@ class TaskRunConfig:
                 ) from e
         if self.batch_size < 1:
             raise ConfigError(f"batch_size must be >= 1, got {self.batch_size}")
+        if self.max_samples is not None and self.max_samples < 1:
+            raise ConfigError(f"max_samples must be >= 1, got {self.max_samples}")
 
 
-def resolve_device(requested: str) -> str:
+def resolve_device(requested: str, *, require_cuda: bool = False) -> str:
     """Fall back to CPU when CUDA was requested but isn't available."""
-    if requested != "cuda":
+    if require_cuda and not requested.startswith("cuda"):
+        raise ConfigError(
+            f"GPU-only run requires device='cuda', got {requested!r}",
+            hint="Use --device cuda, or explicitly opt into CPU diagnostics.",
+        )
+    if not requested.startswith("cuda"):
         return requested
     try:
         import torch
-    except ImportError:
+    except ImportError as exc:
+        if require_cuda:
+            raise ConfigError(
+                "GPU-only run requires a CUDA-enabled PyTorch installation.",
+                hint="Install the PyTorch wheel matching this host, then rerun.",
+            ) from exc
         return requested
     if torch.cuda.is_available():
         return requested
+    if require_cuda:
+        raise ConfigError(
+            "CUDA was required but torch.cuda.is_available() is false.",
+            hint="Check the NVIDIA driver, CUDA-capable PyTorch wheel, and GPU visibility.",
+        )
     log.warning("CUDA requested but unavailable; falling back to CPU.")
     return "cpu"
 
@@ -134,7 +165,7 @@ def run_pipeline(
         Compute Stack Geometric Coherence. Only meaningful for
         segmentation with depth available.
     """
-    cfg.device = resolve_device(cfg.device)
+    cfg.device = resolve_device(cfg.device, require_cuda=cfg.require_cuda)
     split_name = cfg.split.value if isinstance(cfg.split, Difficulty) else str(cfg.split)
     repo_id = cfg.repo_id or DEFAULT_REPO_ID
 
@@ -159,8 +190,13 @@ def run_pipeline(
             repo_id=repo_id,
             cache_dir=cfg.cache_dir,
             revision=cfg.revision,
+            max_samples=cfg.max_samples,
         )
-    dataset = RPXDataset.from_manifest(manifest_path, batch_size=cfg.batch_size)
+    dataset = RPXDataset.from_manifest(
+        manifest_path,
+        batch_size=cfg.batch_size,
+        max_samples=cfg.max_samples,
+    )
     log.info("loaded %d samples from %s", len(dataset), manifest_path)
 
     model = cfg.model
@@ -181,7 +217,7 @@ def run_pipeline(
     runner = BenchmarkRunner(
         model=model,
         dataset=dataset,
-        metric_suite=MetricSuite.for_task(task),
+        metric_suite=cfg.metric_suite or MetricSuite.for_task(task),
         call_setup=False,
     )
     result, dr_report = runner.run_with_report(
@@ -190,6 +226,7 @@ def run_pipeline(
         efficiency=efficiency,
         compute_ts=compute_ts,
         compute_sgc_flag=compute_sgc,
+        skip_flops=cfg.skip_flops,
         progress=cfg.progress,
     )
 
@@ -199,6 +236,18 @@ def run_pipeline(
     json_path = out_dir / "result.json"
     md_path = out_dir / "summary.md"
     cells_path = out_dir / "cells.parquet"
+    per_sample_path = out_dir / "per_sample_metrics.parquet"
+
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        pq.write_table(pa.Table.from_pylist(result.per_sample), per_sample_path)
+    except ImportError as exc:
+        raise ConfigError(
+            "Writing canonical per-sample metrics requires pyarrow.",
+            hint="Install 'rpx-benchmark[hub]' or use the RPX Docker image.",
+        ) from exc
 
     # cells.parquet is the canonical artefact downstream Φ / 𝒥 / paper-
     # table fills read from. Bucket per_sample (one row per frame) into
@@ -249,6 +298,7 @@ def run_pipeline(
         "json": json_path,
         "markdown": md_path,
         "out_dir": out_dir,
+        "per_sample_metrics": per_sample_path,
     }
     if cells:
         paths["cells"] = cells_path

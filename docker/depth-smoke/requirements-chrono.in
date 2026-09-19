@@ -1,0 +1,11 @@
+numpy==1.26.4
+diffusers==0.29.1
+transformers==4.43.3
+accelerate==0.28.0
+easydict==1.13
+einops==0.8.0
+mediapy==1.2.2
+matplotlib==3.8.4
+Pillow==10.3.0
+opencv-python-headless==4.11.0.86
+tqdm==4.66.2

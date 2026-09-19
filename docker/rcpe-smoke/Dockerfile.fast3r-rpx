@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG FAST3R_GIT_SHA=33104d4b5b8df43795ecded236194958bbdac572
+ARG FAST3R_HF_REVISION=a2c770b768ceb3a53c36c4f7a3619db0413dc3a1
+ARG FAST3R_CONFIG_SHA256=88edc53ba652ad835b86af27d980a46808d722b4d8f9d0d4360d05c789ada92b
+ARG FAST3R_WEIGHTS_SHA256=1357d42e74539ba03510ea1986c7464a7facf17157779e2b7ebd6284e79e0427
+ARG FAST3R_WEIGHTS_BYTES=2590286416
+
+COPY docker/rcpe-smoke/requirements-fast3r.lock /tmp/requirements-fast3r.lock
+COPY docker/rcpe-smoke/fast3r-inference-utils.patch /tmp/fast3r-inference-utils.patch
+
+RUN test -n "${FAST3R_GIT_SHA}" && \
+    mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/fast3r && \
+    git -C /opt/rpx-models/fast3r remote add origin https://github.com/facebookresearch/fast3r.git && \
+    git -C /opt/rpx-models/fast3r fetch --depth 1 origin "${FAST3R_GIT_SHA}" && \
+    git -C /opt/rpx-models/fast3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-models/fast3r apply --check /tmp/fast3r-inference-utils.patch && \
+    git -C /opt/rpx-models/fast3r apply /tmp/fast3r-inference-utils.patch && \
+    test -f /opt/rpx-models/fast3r/fast3r/models/fast3r.py
+
+# Fast3R and the preceding Pi3X layer require the same official Torch stack.
+# Clone that venv so Fast3R remains addressable through a model-specific path
+# without downloading a second multi-gigabyte copy of Torch/CUDA wheels.
+RUN cp -a /opt/rpx-envs/pi3x /opt/rpx-envs/fast3r && \
+    /opt/rpx-envs/fast3r/bin/python -m pip install --no-deps -r /tmp/requirements-fast3r.lock
+
+RUN mkdir -p /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512 && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "https://huggingface.co/jedyang97/Fast3R_ViT_Large_512/resolve/${FAST3R_HF_REVISION}/config.json" \
+      --output /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512/config.json && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "https://huggingface.co/jedyang97/Fast3R_ViT_Large_512/resolve/${FAST3R_HF_REVISION}/model.safetensors" \
+      --output /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512/model.safetensors && \
+    echo "${FAST3R_CONFIG_SHA256}  /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512/config.json" | sha256sum --check --strict && \
+    echo "${FAST3R_WEIGHTS_SHA256}  /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512/model.safetensors" | sha256sum --check --strict && \
+    test "$(stat -c %s /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512/model.safetensors)" -eq "${FAST3R_WEIGHTS_BYTES}"
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime through Fast3R" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    /opt/rpx-envs/fast3r/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx-models/fast3r:/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/fast3r/bin/python -c \
+      "import einops,numpy,omegaconf,pandas,pyarrow,roma,scipy,torch,torchvision; from fast3r.models.fast3r import Fast3R; from fast3r.dust3r.inference_multiview import inference; from fast3r.dust3r.cloud_opt.init_im_poses import fast_pnp; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert torch.__version__.startswith('2.5.1'); assert torchvision.__version__.startswith('0.20.1'); assert 'fast3r' in MODEL_REGISTRY; model=Fast3R.from_pretrained('/opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512'); assert model is not None; del model; print(f'Fast3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__})')" && \
+    /opt/rpx-envs/fast3r/bin/python -m pip freeze > /opt/rpx-envs/fast3r/rpx-pip-freeze.txt && \
+    /opt/rpx-envs/fast3r/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/fast3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'fast3r', 'checkpoint': 'jedyang97/Fast3R_ViT_Large_512', 'checkpoint_revision': '${FAST3R_HF_REVISION}', 'checkpoint_sha256': '${FAST3R_WEIGHTS_SHA256}', 'translation_scale': 'unit', 'native_pose': 'opencv-camera-to-world-via-shared-focal-pnp', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${FAST3R_GIT_SHA}'}, indent=2)+'\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]

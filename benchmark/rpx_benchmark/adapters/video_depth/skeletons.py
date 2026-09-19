@@ -40,10 +40,10 @@ class RollingDepthAdapter(DepthAdapterSkeleton):
     MODEL_KEY = "rolling-depth"
 
 
-class D4RTAdapter(DepthAdapterSkeleton):
-    """D4RT."""
+class DVDAdapter(DepthAdapterSkeleton):
+    """DVD v1.1."""
 
-    MODEL_KEY = "d4rt"
+    MODEL_KEY = "dvd"
 
 
 class GemDepthAdapter(DepthAdapterSkeleton):
@@ -76,7 +76,7 @@ __all__ = [
     "VideoDAAdapter",
     "ChronoDepthAdapter",
     "RollingDepthAdapter",
-    "D4RTAdapter",
+    "DVDAdapter",
     "GemDepthAdapter",
     "ViGeoAdapter",
     "MonST3RAdapter",

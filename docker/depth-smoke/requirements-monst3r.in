@@ -1,0 +1,15 @@
+numpy==1.26.4
+opencv-python-headless==4.11.0.86
+Pillow==10.3.0
+matplotlib==3.8.4
+scipy==1.13.1
+einops==0.8.0
+tqdm==4.66.2
+huggingface_hub==0.23.4
+safetensors==0.4.3
+imageio==2.37.0
+imageio-ffmpeg==0.4.7
+trimesh==4.4.9
+roma==1.5.0
+pyglet==2.0.16
+open3d==0.18.0

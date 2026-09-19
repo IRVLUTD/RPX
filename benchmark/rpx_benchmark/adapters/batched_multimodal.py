@@ -248,10 +248,13 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
             translation=np.asarray(trans, dtype=np.float64),
         )
 
-    #: CSV columns. 4 ID + 9 rotation + 3 translation = 16 columns.
+    #: CSV columns. ``sample_id`` is the canonical identity; both phases are
+    #: retained so cross-phase pairs cannot collide with intra-phase pairs.
     _LOG_COLUMNS: tuple[str, ...] = (
+        "sample_id",
         "scene_id",
         "phase",
+        "phase_b",
         "frame_a",
         "frame_b",
         "R00",
@@ -277,7 +280,7 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
         frame_b, the 9 rotation entries (row-major) and 3 translation
         components. Header is written exactly once per file (on the
         first append to an empty / non-existent log). Idempotent on
-        ``(scene, phase, frame_a, frame_b)`` within a single process so
+        ``sample.id`` within a single process so
         the runner's deployment-readiness double pass (warmup + measure)
         doesn't duplicate rows.
         """
@@ -288,11 +291,15 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
         meta = getattr(sample, "metadata", None) or {}
         scene = meta.get("scene_id") or "unknown"
         phase = meta.get("phase_idx") if meta.get("phase_idx") is not None else "0"
+        phase_b = meta.get("phase_idx_b")
+        if phase_b is None:
+            phase_b = phase
         frame_a = meta.get("frame") or str(sample.id)
         frame_b = meta.get("frame_b") or "?"
+        sample_id = str(sample.id)
 
         seen = self.__dict__.setdefault("_pose_csv_seen", set())
-        key = (scene, str(phase), frame_a, frame_b)
+        key = sample_id
         if key in seen:
             return
         seen.add(key)
@@ -349,8 +356,10 @@ class BatchedRelativePoseBenchmarkModel(BatchedTaskBenchmarkModel):
                 writer.writerow(self._LOG_COLUMNS)
             writer.writerow(
                 [
+                    sample_id,
                     scene,
                     phase,
+                    phase_b,
                     frame_a,
                     frame_b,
                     *(f"{v:.10g}" for v in rot.tolist()),

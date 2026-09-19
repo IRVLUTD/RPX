@@ -73,7 +73,7 @@ class DepthModelCard:
     """Determines whether the runner applies per-scene-phase scale +
     shift alignment before metrics. ``"metric"`` for models that
     output meters directly; ``"relative"`` for affine-invariant
-    models (MoGe-2, HyDen, Lotus-2, FE2E, DepthLM, DA-V2 relative)."""
+    models (Lotus-2, FE2E and DA-V2 relative)."""
 
     install_hint: str
     """One-line `pip install ...` (or equivalent) the contributor
@@ -133,15 +133,18 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
     "moge-2-vit-l": DepthModelCard(
         name="MoGe-2 ViT-L",
         task=TaskType.MONOCULAR_DEPTH,
-        depth_output_kind="relative",
-        install_hint="pip install moge (Microsoft); HF: microsoft/moge-2",
+        depth_output_kind="metric",
+        install_hint="pip install moge (Microsoft); HF: Ruicheng/moge-2-vitl-normal",
         paper_ref="wang2024moge",
     ),
     "hyden": DepthModelCard(
         name="HyDen",
         task=TaskType.MONOCULAR_DEPTH,
-        depth_output_kind="relative",
-        install_hint="pip install hyden (TBD — research code, expect to clone the upstream repo)",
+        depth_output_kind="metric",
+        install_hint=(
+            "clone facebookresearch/metadepth; "
+            "HF: facebook/hyden-mogev2-metric-point"
+        ),
         paper_ref="hyden",
     ),
     "lotus-2": DepthModelCard(
@@ -200,7 +203,7 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
     "video-da": DepthModelCard(
         name="Video DA",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
+        depth_output_kind="relative",
         install_hint="pip install video-depth-anything (or upstream repo)",
         paper_ref="video_depth_anything",
     ),
@@ -218,54 +221,47 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         install_hint="pip install rollingdepth (TBD — clone upstream repo)",
         paper_ref="rollingdepth",
     ),
-    "d4rt": DepthModelCard(
-        name="D4RT",
+    "dvd": DepthModelCard(
+        name="DVD v1.1",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
-        # Author HF repo found at AlysonIrene/D4RT_checkpoint —
-        # confirm against the paper authors before relying on it.
+        depth_output_kind="relative",
         install_hint=(
-            "no verified official release as of 2026-06-25; "
-            "candidate weights at huggingface.co/AlysonIrene/D4RT_checkpoint. "
-            "Team to verify upstream lineage."
+            "clone github.com/EnVision-Research/DVD at the pinned revision; "
+            "official v1.1 weights: huggingface.co/FayeHongfeiZhang/DVD"
         ),
-        paper_ref="d4rt",
+        paper_ref="dvd",
     ),
     "gem-depth": DepthModelCard(
         name="GemDepth",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
-        # Author HF repo found at YuechengLiu/GemDepth — confirm
-        # upstream lineage and load incantation before wiring.
+        depth_output_kind="relative",
         install_hint=(
-            "no verified official release as of 2026-06-25; "
-            "candidate weights at huggingface.co/YuechengLiu/GemDepth."
+            "clone github.com/Yuecheng919/GemDepth; "
+            "official weights: huggingface.co/YuechengLiu/GemDepth"
         ),
         paper_ref="gemdepth",
     ),
     "vigeo": DepthModelCard(
         name="ViGeo",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
-        # Author HF repo found at pkqbajng/ViGeo — confirm upstream
-        # lineage and load incantation before wiring.
+        depth_output_kind="relative",
         install_hint=(
-            "no verified official release as of 2026-06-25; "
-            "candidate weights at huggingface.co/pkqbajng/ViGeo."
+            "clone github.com/aigc3d/ViGeo; "
+            "official weights: huggingface.co/pkqbajng/ViGeo"
         ),
         paper_ref="vigeo",
     ),
     "monst3r": DepthModelCard(
         name="MonST3R",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
+        depth_output_kind="relative",
         install_hint="pip install monst3r (or `pip install git+https://github.com/Junyi42/monst3r`)",
         paper_ref="zhang2024monst3r",
     ),
     "vggt-omega": DepthModelCard(
         name="VGGT-Ω",
         task=TaskType.VIDEO_DEPTH,
-        depth_output_kind="metric",
+        depth_output_kind="relative",
         install_hint="pip install vggt (or upstream Meta repo); Ω = the large variant",
         paper_ref="vggt_omega",
     ),

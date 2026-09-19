@@ -267,7 +267,9 @@ def build_manifest(
     df = pd.read_parquet(parquet_path)
     # Mirror the loader's scene-wise split assignment: every phase of a
     # scene shares one tier (avoids cross-phase tier mixing).
-    scene_split = df.groupby("scene_id")["split"].agg(lambda s: s.value_counts().idxmax())
+    scene_split = df.groupby("scene_id")["split"].agg(
+        lambda s: s.dropna().value_counts().idxmax() if s.notna().any() else None
+    ).dropna()
     df = df.drop(columns=["split"]).merge(
         scene_split.rename("split"), left_on="scene_id", right_index=True
     )

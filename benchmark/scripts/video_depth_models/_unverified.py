@@ -1,8 +1,8 @@
 """Safety-rail mixin for adapters whose upstream weights aren't verified-official.
 
-Some canonical-roster models (D4RT, GemDepth on the Video Depth side;
-FE2E on Image Depth) ship only as candidate community HF uploads with
-empty READMEs and no clear lineage to the paper authors. We want the
+Some legacy model integrations and FE2E on the Image Depth side ship
+only as candidate community HF uploads with empty READMEs and no clear
+lineage to the paper authors. We want the
 runner to:
 
 1. **Accept the canonical CLI name** so all 20 paper-roster slots

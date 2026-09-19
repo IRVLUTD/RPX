@@ -1,8 +1,9 @@
 """On-the-fly deterministic pose-pair generation for RPX-RCPE.
 
-Generates ~60K pairs across three complementary types — intra-phase,
-cross-phase (Clutter↔Clean), and temporal chains — without writing
-anything to disk.  Given the same seed and config the output is
+Generates exact-gap intra-phase pairs and temporal chains without writing
+anything to disk. Phase 0 and phase 2 are evaluated independently because
+each capture has its own T265 local world frame; cross-phase relative-pose
+ground truth is therefore undefined. Given the same seed and config the output is
 bit-identical, so results are fully reproducible.
 
 The generator produces lightweight sample dicts (frame indices + paths)
@@ -82,17 +83,23 @@ EXCLUDED_SCENE_PHASES: Set[Tuple[str, int]] = {
 """(scene_id, phase) pairs where ICP optimization failed."""
 
 VALID_PHASES: Tuple[int, ...] = (0, 2)
-"""Only Clutter and Clean — Interaction excluded (noisy T265 VIO)."""
+"""Clutter and Clean; Interaction is excluded from the RCPE protocol."""
+
+
+def _mode_split(series: pd.Series) -> str | None:
+    """Return the most common non-null split, or ``None`` if unspecified."""
+    counts = series.dropna().value_counts()
+    return str(counts.idxmax()) if not counts.empty else None
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Rotation bins
 # ─────────────────────────────────────────────────────────────────────────────
 
 ROTATION_BINS: List[Tuple[float, float]] = [
-    (5.0, 15.0),
+    (0.0, 15.0),
     (15.0, 45.0),
     (45.0, 90.0),
-    (90.0, 180.0),
+    (90.0, 180.000001),
 ]
 BIN_NAMES: List[str] = ["easy", "medium", "hard", "extreme"]
 
@@ -118,6 +125,26 @@ def _quat_xyzw_to_rot(q: np.ndarray) -> np.ndarray:
     ], dtype=np.float64)
 
 
+def _load_pose_file(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """Load an RPX camera pose as ``(rotation, translation)``.
+
+    Published RPX snapshots store compact ``.npy`` vectors as
+    ``[x, y, z, qx, qy, qz, qw]``.  Legacy extracted trees may still contain
+    ``.npz`` files with named ``position`` and ``orientation`` arrays.
+    """
+    data = np.load(path)
+    if path.suffix.lower() == ".npy":
+        values = np.asarray(data, dtype=np.float64)
+        if values.shape != (7,):
+            raise ValueError(f"camera pose {path} must have shape (7,), got {values.shape}")
+        translation = values[:3]
+        quaternion = values[3:]
+    else:
+        translation = np.asarray(data["position"], dtype=np.float64).reshape(3)
+        quaternion = np.asarray(data["orientation"], dtype=np.float64).reshape(4)
+    return _quat_xyzw_to_rot(quaternion), translation
+
+
 def _rotation_deg(R_a: np.ndarray, R_b: np.ndarray) -> float:
     cos_t = (np.trace(R_a.T @ R_b) - 1.0) * 0.5
     return float(np.degrees(np.arccos(np.clip(cos_t, -1.0, 1.0))))
@@ -133,12 +160,14 @@ class PairConfig:
 
     # Intra-phase
     intra_pairs_per_bin: int = 50
-    max_frame_gap: int = 200
-    min_rotation_deg: float = 5.0
-    min_translation_m: float = 0.01
+    frame_gap: int = 5
+    # D6 retains every available t -> t+5 pair. The first rotation bin
+    # therefore starts at zero instead of dropping low-motion pairs.
+    min_rotation_deg: float = 0.0
+    min_translation_m: float = 0.0
 
-    # Cross-phase (Clutter ↔ Clean)
-    cross_pairs_per_bin: int = 30
+    # Cross-phase is locked off: separate captures have unrelated T265 worlds.
+    cross_pairs_per_bin: int = 0
     cross_max_candidates: int = 5000
 
     # Temporal chains
@@ -180,7 +209,7 @@ class PosePairGenerator:
         ``"easy"`` | ``"medium"`` | ``"hard"``.
     config : PairConfig, optional
         Generation parameters.  Defaults are the standard benchmark
-        settings (~60K pairs at full dataset scale).
+        settings (exact t→t+5 pairs plus stride-5 temporal chains).
     snapshot_root : Path, optional
         HF snapshot root (parent of ``manifest/`` and tar shards).
         When provided, cam_pose files are auto-extracted from tars
@@ -200,10 +229,16 @@ class PosePairGenerator:
         self.root = Path(extracted_root)
         self.split = split
         self.cfg = config or PairConfig()
+        if self.cfg.cross_pairs_per_bin != 0:
+            raise ValueError(
+                "cross-phase RCPE pairs are invalid because each phase has an "
+                "unrelated T265 local world frame; cross_pairs_per_bin must be 0"
+            )
         self._snapshot_root = Path(snapshot_root) if snapshot_root else None
         self._repo_id = repo_id
 
         self._sequences: Dict[Tuple[str, int], _SeqPoses] = {}
+        self._frame_filenames: Dict[Tuple[str, int, int], str] = {}
         self._cross_scenes: List[str] = []
         self._load_poses(Path(parquet_path))
 
@@ -211,12 +246,12 @@ class PosePairGenerator:
 
     def _load_poses(self, parquet_path: Path) -> None:
         df = pd.read_parquet(parquet_path)
+        if "scene_type" in df.columns:
+            df = df[df["scene_type"].astype(str) == "multi_object"].copy()
         self._df_cache = df  # kept for ensure_pairs_extracted
 
         # Scene-wise split assignment
-        scene_split = df.groupby("scene_id")["split"].agg(
-            lambda s: s.value_counts().idxmax()
-        )
+        scene_split = df.groupby("scene_id")["split"].agg(_mode_split).dropna()
         df = df.drop(columns=["split"]).merge(
             scene_split.rename("split"), left_on="scene_id", right_index=True
         )
@@ -241,29 +276,27 @@ class PosePairGenerator:
             self._ensure_cam_pose_extracted(scene, phase, grp)
 
             for _, row in grp.iterrows():
-                stem = str(row["frame_filename"]).rsplit(".", 1)[0]
-                npz = np.load(
-                    self.root / "scenes" / scene / str(phase) / "cam_pose" / f"{stem}.npz"
-                )
-                q = npz["orientation"].astype(np.float64).reshape(4)
-                t = npz["position"].astype(np.float64).reshape(3)
-                frame_idxs.append(int(row["frame_idx"]))
-                rots.append(_quat_xyzw_to_rot(q))
-                trans.append(t)
+                frame_filename = str(row["frame_filename"])
+                stem = frame_filename.rsplit(".", 1)[0]
+                pose_dir = self.root / "scenes" / scene / str(phase) / "cam_pose"
+                npy_path = pose_dir / f"{stem}.npy"
+                npz_path = pose_dir / f"{stem}.npz"
+                pose_path = npy_path if npy_path.exists() else npz_path
+                rotation, translation = _load_pose_file(pose_path)
+                frame_idx = int(row["frame_idx"])
+                frame_idxs.append(frame_idx)
+                rots.append(rotation)
+                trans.append(translation)
+                self._frame_filenames[(str(scene), phase, frame_idx)] = frame_filename
 
             self._sequences[(scene, phase)] = _SeqPoses(
                 scene=scene, phase=phase,
                 frame_idxs=frame_idxs, rotations=rots, translations=trans,
             )
 
-        # Scenes that have BOTH phase 0 and phase 2 (for cross-phase pairs)
-        scenes_0 = {s for (s, p) in self._sequences if p == 0}
-        scenes_2 = {s for (s, p) in self._sequences if p == 2}
-        self._cross_scenes = sorted(scenes_0 & scenes_2)
-
         log.info(
-            "loaded poses: %d sequences, %d cross-phase scenes, split=%s",
-            len(self._sequences), len(self._cross_scenes), self.split,
+            "loaded poses: %d sequences, split=%s",
+            len(self._sequences), self.split,
         )
 
     # ── tar extraction ─────────────────────────────────────────────────────
@@ -283,11 +316,12 @@ class PosePairGenerator:
 
         for _, row in grp.iterrows():
             stem = str(row["frame_filename"]).rsplit(".", 1)[0]
-            out_path = (
+            pose_dir = (
                 self.root / "scenes" / scene / str(phase)
-                / "cam_pose" / f"{stem}.npz"
+                / "cam_pose"
             )
-            if out_path.exists():
+            out_path = pose_dir / f"{stem}.npy"
+            if out_path.exists() or (pose_dir / f"{stem}.npz").exists():
                 continue
             shard_rel = str(row["shard_cam_pose"])
             tar_path = self._snapshot_root / shard_rel
@@ -297,7 +331,7 @@ class PosePairGenerator:
                     raise FileNotFoundError(
                         f"cam_pose shard not found and download failed: {shard_rel}"
                     )
-            member = f"cam_pose/{stem}.npz"
+            member = f"cam_pose/{stem}.npy"
             _extract_from_tar(tar_path, member, out_path)
 
     def _download_shard(self, shard_rel: str) -> Optional[Path]:
@@ -322,6 +356,9 @@ class PosePairGenerator:
                 repo_id=repo_id,
                 filename=shard_rel,
                 repo_type="dataset",
+                # Never mix files from the Hub's default branch into a
+                # benchmark pinned to a specific RPX snapshot.
+                revision=(self._snapshot_root.name if self._snapshot_root else None),
             )
             return Path(local)
         except Exception as e:  # noqa: BLE001
@@ -387,18 +424,21 @@ class PosePairGenerator:
         n = len(seq.frame_idxs)
         # Collect candidates per bin
         bins: List[List[Tuple[int, int, float, float]]] = [[] for _ in BIN_NAMES]
-        for i in range(n):
-            upper = min(n, i + cfg.max_frame_gap + 1)
-            for j in range(i + 1, upper):
-                rot = _rotation_deg(seq.rotations[i], seq.rotations[j])
-                if rot < cfg.min_rotation_deg:
-                    continue
-                t_m = float(np.linalg.norm(seq.translations[j] - seq.translations[i]))
-                if t_m < cfg.min_translation_m:
-                    continue
-                bi = _bin_index(rot)
-                if bi >= 0:
-                    bins[bi].append((seq.frame_idxs[i], seq.frame_idxs[j], rot, t_m))
+        index_by_frame = {frame: index for index, frame in enumerate(seq.frame_idxs)}
+        for i, frame_a in enumerate(seq.frame_idxs):
+            frame_b = frame_a + cfg.frame_gap
+            j = index_by_frame.get(frame_b)
+            if j is None:
+                continue
+            rot = _rotation_deg(seq.rotations[i], seq.rotations[j])
+            if rot < cfg.min_rotation_deg:
+                continue
+            t_m = float(np.linalg.norm(seq.translations[j] - seq.translations[i]))
+            if t_m < cfg.min_translation_m:
+                continue
+            bi = _bin_index(rot)
+            if bi >= 0:
+                bins[bi].append((frame_a, frame_b, rot, t_m))
 
         out: List[Dict[str, Any]] = []
         for bi, name in enumerate(BIN_NAMES):
@@ -464,22 +504,27 @@ class PosePairGenerator:
     ) -> List[Dict[str, Any]]:
         """Ordered chains of consecutive pairs for drift evaluation."""
         cfg = self.cfg
-        n = len(seq.frame_idxs)
-        span = cfg.chain_length * cfg.chain_stride
-        if span >= n:
+        index_by_frame = {frame: index for index, frame in enumerate(seq.frame_idxs)}
+        starts = [
+            frame
+            for frame in seq.frame_idxs
+            if all(
+                frame + step * cfg.chain_stride in index_by_frame
+                for step in range(cfg.chain_length + 1)
+            )
+        ]
+        if not starts:
             return []
-        max_start = n - span - 1
-        if max_start < 0:
-            return []
-
-        k = min(cfg.chain_count, max_start + 1)
-        starts = rng.choice(max_start + 1, size=k, replace=False)
+        k = min(cfg.chain_count, len(starts))
+        starts = [starts[index] for index in rng.choice(len(starts), size=k, replace=False)]
 
         out: List[Dict[str, Any]] = []
-        for ci, s in enumerate(starts):
+        for ci, start_frame in enumerate(starts):
             for pi in range(cfg.chain_length):
-                i = int(s + pi * cfg.chain_stride)
-                j = int(s + (pi + 1) * cfg.chain_stride)
+                frame_a = start_frame + pi * cfg.chain_stride
+                frame_b = start_frame + (pi + 1) * cfg.chain_stride
+                i = index_by_frame[frame_a]
+                j = index_by_frame[frame_b]
                 rot = _rotation_deg(seq.rotations[i], seq.rotations[j])
                 t_m = float(np.linalg.norm(seq.translations[j] - seq.translations[i]))
                 entry = self._make_entry(
@@ -501,15 +546,23 @@ class PosePairGenerator:
 
     # ── entry builder ─────────────────────────────────────────────────────
 
-    @staticmethod
     def _make_entry(
+        self,
         scene: str,
         phase_a: int, frame_a: int,
         phase_b: int, frame_b: int,
         rot_deg: float, t_m: float,
         pair_type: str, rotation_bin: Optional[str],
     ) -> Dict[str, Any]:
-        sa, sb = f"{frame_a:05d}", f"{frame_b:05d}"
+        frame_filenames = getattr(self, "_frame_filenames", {})
+        filename_a = frame_filenames.get(
+            (str(scene), phase_a, frame_a), f"{frame_a:05d}.png"
+        )
+        filename_b = frame_filenames.get(
+            (str(scene), phase_b, frame_b), f"{frame_b:05d}.png"
+        )
+        sa = Path(filename_a).stem
+        sb = Path(filename_b).stem
         if pair_type == "cross_phase":
             pair_id = f"{scene}__cross__0_{sa}__2_{sb}"
         elif pair_type == "temporal_chain":
@@ -538,11 +591,19 @@ class PosePairGenerator:
                 "rotation_deg_gt": rot_deg,
                 "translation_m_gt": t_m,
             },
-            "rgb": f"scenes/{scene}/{phase_a}/rgb/{sa}.png",
-            "rgb_b": f"scenes/{scene}/{phase_b}/rgb/{sb}.png",
-            "pose_a": f"scenes/{scene}/{phase_a}/cam_pose/{sa}.npz",
-            "pose_b": f"scenes/{scene}/{phase_b}/cam_pose/{sb}.npz",
+            "rgb": f"scenes/{scene}/{phase_a}/rgb/{filename_a}",
+            "rgb_b": f"scenes/{scene}/{phase_b}/rgb/{filename_b}",
+            "pose_a": self._pose_relative_path(scene, phase_a, sa),
+            "pose_b": self._pose_relative_path(scene, phase_b, sb),
         }
+
+    def _pose_relative_path(self, scene: str, phase: int, stem: str) -> str:
+        """Return the published NPY path, retaining legacy NPZ compatibility."""
+        relative_dir = Path("scenes") / scene / str(phase) / "cam_pose"
+        root = getattr(self, "root", None)
+        if root is not None and (root / relative_dir / f"{stem}.npz").exists():
+            return str(relative_dir / f"{stem}.npz")
+        return str(relative_dir / f"{stem}.npy")
 
     # ── public API ────────────────────────────────────────────────────────
 
@@ -553,11 +614,6 @@ class PosePairGenerator:
         for key in sorted(self._sequences):
             seq = self._sequences[key]
             for p in self._intra_pairs(seq, rng):
-                p["difficulty"] = self.split
-                yield p
-
-        for scene in self._cross_scenes:
-            for p in self._cross_pairs(scene, rng):
                 p["difficulty"] = self.split
                 yield p
 
@@ -591,11 +647,12 @@ class PosePairGenerator:
                 "valid_phases": list(VALID_PHASES),
                 "seed": self.cfg.seed,
                 "intra_pairs_per_bin": self.cfg.intra_pairs_per_bin,
-                "cross_pairs_per_bin": self.cfg.cross_pairs_per_bin,
+                "cross_pairs_per_bin": 0,
+                "cross_phase_status": "excluded_unrelated_t265_world_frames",
                 "chain_count": self.cfg.chain_count,
                 "chain_length": self.cfg.chain_length,
                 "chain_stride": self.cfg.chain_stride,
-                "max_frame_gap": self.cfg.max_frame_gap,
+                "frame_gap": self.cfg.frame_gap,
                 "excluded_scenes": sorted(EXCLUDED_SCENE_IDS),
                 "excluded_scene_phases": [
                     f"{s}/{p}" for s, p in sorted(EXCLUDED_SCENE_PHASES)

@@ -1,0 +1,64 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG DUST3R_GIT_SHA=4c24a6ebf04809f2cfe59915e51779c8984aaa40
+ARG CROCO_GIT_SHA=d7de0705845239092414480bd829228723bf20de
+ARG DUST3R_CHECKPOINT_URL=https://download.europe.naverlabs.com/ComputerVision/DUSt3R/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth
+ARG DUST3R_CHECKPOINT_BYTES=2285005731
+
+COPY docker/rcpe-smoke/requirements-dust3r.lock /tmp/requirements-dust3r.lock
+
+RUN test -n "${DUST3R_GIT_SHA}" && \
+    mkdir -p /opt/rpx-models && \
+    git init /opt/rpx-models/dust3r && \
+    git -C /opt/rpx-models/dust3r remote add origin https://github.com/naver/dust3r.git && \
+    git -C /opt/rpx-models/dust3r fetch --depth 1 origin "${DUST3R_GIT_SHA}" && \
+    git -C /opt/rpx-models/dust3r checkout --detach FETCH_HEAD && \
+    git -C /opt/rpx-models/dust3r submodule update --init --recursive --depth 1 && \
+    test "$(git -C /opt/rpx-models/dust3r/croco rev-parse HEAD)" = "${CROCO_GIT_SHA}" && \
+    test -d /opt/rpx-models/dust3r/croco/models
+
+RUN python -m venv --system-site-packages /opt/rpx-envs/dust3r && \
+    /opt/rpx-envs/dust3r/bin/python -m pip install --upgrade pip==25.3 && \
+    /opt/rpx-envs/dust3r/bin/python -m pip install -r /tmp/requirements-dust3r.lock
+
+RUN mkdir -p /opt/rpx-models/dust3r/checkpoints && \
+    curl --fail --location --retry 5 --retry-all-errors \
+      "${DUST3R_CHECKPOINT_URL}" \
+      --output /opt/rpx-models/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth && \
+    test "$(stat -c %s /opt/rpx-models/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth)" \
+      -eq "${DUST3R_CHECKPOINT_BYTES}"
+
+# PyTorch 2.6 changed torch.load's default to weights_only=True. The official
+# trusted checkpoint includes argparse.Namespace metadata, so make that trust
+# decision explicit without weakening loading globally.
+COPY docker/rcpe-smoke/dust3r-torch-load.patch /tmp/dust3r-torch-load.patch
+RUN git -C /opt/rpx-models/dust3r apply --check /tmp/dust3r-torch-load.patch && \
+    git -C /opt/rpx-models/dust3r apply /tmp/dust3r-torch-load.patch && \
+    grep -Fq "weights_only=False" /opt/rpx-models/dust3r/dust3r/model.py
+
+ARG RPX_GIT_SHA
+
+LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime through DUSt3R" \
+      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
+      org.opencontainers.image.revision="${RPX_GIT_SHA}"
+
+ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface
+
+COPY benchmark /opt/rpx/benchmark
+
+RUN test -n "${RPX_GIT_SHA}" && \
+    /opt/rpx-envs/dust3r/bin/python -m pip install --no-deps --force-reinstall /opt/rpx/benchmark && \
+    PYTHONPATH=/opt/rpx-models/dust3r:/opt/rpx/benchmark/scripts \
+      /opt/rpx-envs/dust3r/bin/python -c \
+      "import numpy,pandas,pyarrow,roma,scipy,torch,torchvision; from dust3r.model import AsymmetricCroCo3DStereo; from dust3r.inference import inference; from dust3r.cloud_opt import GlobalAlignerMode,global_aligner; from pose_models import MODEL_REGISTRY; assert numpy.__version__ == '1.26.4'; assert 'dust3r' in MODEL_REGISTRY; model=AsymmetricCroCo3DStereo.from_pretrained('/opt/rpx-models/dust3r/checkpoints/DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth'); assert model is not None; del model; print(f'DUSt3R RCPE environment: OK (torch={torch.__version__}, torchvision={torchvision.__version__})')" && \
+    /opt/rpx-envs/dust3r/bin/python -m pip freeze > /opt/rpx-envs/dust3r/rpx-pip-freeze.txt && \
+    /opt/rpx-envs/dust3r/bin/python -c \
+      "import json,pathlib,sys; pathlib.Path('/opt/rpx-envs/dust3r/rpx-environment.json').write_text(json.dumps({'container': True, 'model': 'dust3r', 'checkpoint': 'DUSt3R_ViTLarge_BaseDecoder_512_dpt.pth', 'checkpoint_bytes': ${DUST3R_CHECKPOINT_BYTES}, 'translation_scale': 'unit', 'python': sys.executable, 'rpx_git_sha': '${RPX_GIT_SHA}', 'source_revision': '${DUST3R_GIT_SHA}', 'croco_revision': '${CROCO_GIT_SHA}'}, indent=2)+'\\n')"
+
+WORKDIR /opt/rpx/benchmark
+VOLUME ["/cache/huggingface", "/outputs"]
+ENTRYPOINT []
+CMD ["/bin/bash"]

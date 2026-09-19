@@ -54,6 +54,7 @@ from .api import TaskType, VideoDepthGroundTruth, VideoSample
 from .decode_contracts import safe_load_depth, safe_load_pose, safe_load_rgb
 from .exceptions import ConfigError, ManifestError
 from .logging_utils import get_logger
+from .metrics.depth_alignment import DEPTH_MAX_M, DEPTH_MIN_M
 
 log = get_logger(__name__)
 
@@ -107,6 +108,7 @@ class VideoDepthDataset:
     batch_size: int = 1
     frame_budget: Optional[int] = None
     sampling: SamplingMode = "all"
+    compute_fscore: bool = False
 
     def __post_init__(self) -> None:
         if self.sampling == "all" and self.frame_budget is not None:
@@ -157,6 +159,22 @@ class VideoDepthDataset:
                 f"{len(pose_files)} != frame_filenames length "
                 f"{len(frame_files)}",
             )
+        if pose_files:
+            missing_poses = [p for p in pose_files if not (self.root / p).is_file()]
+            if missing_poses:
+                if self.sampling == "fps_se3":
+                    raise ManifestError(
+                        f"clip {scene}/{phase}: sampling='fps_se3' requires pose files, "
+                        f"but {len(missing_poses)} are absent (first: {missing_poses[0]})",
+                    )
+                log.warning(
+                    "clip %s/%s: manifest references %d unavailable pose files; "
+                    "continuing RGB-D-only with pose diagnostics disabled",
+                    scene,
+                    phase,
+                    len(missing_poses),
+                )
+                pose_files = []
 
         # 1. Decide which frame indices to keep.
         T_full = len(frame_files)
@@ -199,7 +217,11 @@ class VideoDepthDataset:
         ]
         depth_u16 = np.stack([safe_load_depth(self.root / depth_files[i]) for i in keep])
         depth_seq = depth_u16.astype(np.float32) / 1000.0
-        valid_seq = depth_u16 > 0  # D435 zero sentinel
+        valid_seq = (
+            np.isfinite(depth_seq)
+            & (depth_seq > DEPTH_MIN_M)
+            & (depth_seq < DEPTH_MAX_M)
+        )
 
         camera_pose_seq: Optional[np.ndarray] = None
         if pose_files:
@@ -214,6 +236,7 @@ class VideoDepthDataset:
             depth_map_seq=depth_seq,
             valid_mask_seq=valid_seq,
             frame_indices=keep.astype(np.int32),
+            compute_fscore=self.compute_fscore,
         )
         # Stash optional extras the temporal calculator may want on the
         # GT object (the calculator reads them via getattr so absence is
@@ -270,6 +293,8 @@ class VideoDepthDataset:
         batch_size: int = 1,
         frame_budget: Optional[int] = None,
         sampling: SamplingMode = "all",
+        max_samples: Optional[int] = None,
+        compute_fscore: bool = False,
     ) -> "VideoDepthDataset":
         """Build a VideoDepthDataset from a per-clip JSON manifest.
 
@@ -340,6 +365,12 @@ class VideoDepthDataset:
             raise ManifestError(
                 f"Manifest 'samples' must be a list, got {type(samples).__name__}",
             )
+        if max_samples is not None:
+            if max_samples < 1:
+                raise ConfigError(
+                    f"max_samples must be >= 1, got {max_samples}",
+                )
+            samples = samples[:max_samples]
         return cls(
             samples=samples,
             task=TaskType.VIDEO_DEPTH,
@@ -347,6 +378,7 @@ class VideoDepthDataset:
             batch_size=batch_size,
             frame_budget=frame_budget,
             sampling=sampling,
+            compute_fscore=compute_fscore,
         )
 
 

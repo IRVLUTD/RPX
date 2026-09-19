@@ -1,0 +1,4 @@
+numpy==1.26.4
+opencv-python-headless==4.11.0.86
+einops==0.8.2
+safetensors==0.8.0

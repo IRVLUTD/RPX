@@ -72,12 +72,29 @@ class DepthAnythingV2Metric:
         self.model_id = model_id
         self.device = device
         self.batch_size = int(batch_size)
+        if dtype is not None:
+            dtype_name = str(dtype).replace("torch.", "")
+            self.native_precision = {"float16": "fp16", "float32": "fp32"}.get(
+                dtype_name,
+                dtype_name,
+            )
         self._pipe = pipeline(
             task="depth-estimation",
             model=model_id,
             device=device,
             torch_dtype=dtype,
             batch_size=self.batch_size,
+        )
+        parameter_dtypes = {
+            str(parameter.dtype)
+            for parameter in self._pipe.model.parameters()
+            if parameter.is_floating_point()
+        }
+        self.parameter_dtypes = sorted(parameter_dtypes)
+        self.actual_torch_dtype = (
+            self.parameter_dtypes[0]
+            if len(self.parameter_dtypes) == 1
+            else "mixed:" + ",".join(self.parameter_dtypes)
         )
 
     @property

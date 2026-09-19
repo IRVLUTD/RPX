@@ -21,6 +21,50 @@ from .registry import TaskSpec, register_task
 
 PRIMARY_METRIC = "absrel"
 
+# --------------------------------------------------------------------------- #
+# MANOVA K-vectors (paper §3.2)
+# --------------------------------------------------------------------------- #
+#
+# The K-vector is the set of metrics standardised across all 3N (scene, phase)
+# cells before running the repeated-measures MANOVA that yields Φ. K must stay
+# safely below N (scenes) and metrics inside must not be collinear or the
+# within-phase SSCP E becomes singular. See :func:`rpx_benchmark.phi.compute_phi_oneway`.
+#
+# Locked K-vectors — RGB-D-only constraint (see SESSION_HANDOFF.md):
+#
+# Depth-estimation tasks in RPX use RGB-D only. Even though the dataset
+# captures T265 poses, fisheye stereo, and other modalities, the depth
+# tasks intentionally exclude them — both from model input and from
+# metric inputs. This rules out any metric that needs poses (TAE, ATE)
+# or external models (OPW/RAFT flow, MFC/Sintel flow).
+#
+#   * Image Depth K = 5: (absrel, rmse, delta1, silog, fscore_5cm).
+#       Grasp F@5cm needs only GT depth + D435 intrinsics, so it stays.
+#
+#   * Video Depth K = 6: (absrel, rmse, delta1, silog, tgm, tgse).
+#       Two temporal metrics — TGM (L1 of |Δd_pred|−|Δd_gt| in static
+#       regions) and TGSE (L2 signed variant) — both pose-free and
+#       flow-free, needing only pred + GT depth. fscore_5cm drops from
+#       the video K-vector into diagnostics because the temporal-slot
+#       tradeoff prioritises the differentiating axis for video models.
+#
+# TAE, OPW, fscore_5cm (for D1-V), TCC, TMC, δ₂/δ₃, and range-stratified
+# variants remain registered as diagnostics — the calculators still emit
+# them where possible, they just don't enter Φ.
+FRAME_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
+    "absrel", "rmse", "delta1", "silog", "fscore_5cm",
+)
+VIDEO_DEPTH_MANOVA_METRICS: tuple[str, ...] = (
+    "absrel", "rmse", "delta1", "silog", "tgm", "tgse",
+)
+
+# Paper-facing aliases (D1-F / D1-V naming used in tables and figures).
+D1F_MANOVA_METRICS = FRAME_DEPTH_MANOVA_METRICS
+D1V_MANOVA_METRICS = VIDEO_DEPTH_MANOVA_METRICS
+
+D1F_TASK = "monocular_depth"
+D1V_TASK = VIDEO_DEPTH_TASK = "video_depth"
+
 
 @dataclass
 class VideoDepthRunConfig(VideoTaskRunConfig):

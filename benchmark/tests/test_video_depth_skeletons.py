@@ -83,8 +83,8 @@ SKELETON_KEYS = [
         "vggt-omega",        # facebook/VGGT-1B
         "da3-video",         # depth-anything/DA3-LARGE
         "vigeo",             # pkqbajng/ViGeo (verified)
-        "d4rt",              # unverified, behind safety rail
-        "gem-depth",         # unverified, behind safety rail
+        "dvd",               # EnVision-Research/DVD official v1.1
+        "gem-depth",         # official Yuecheng919/GemDepth release
     }
 ]
 
@@ -123,16 +123,12 @@ REAL_VIDEO_ADAPTERS = [
     ("vggt-omega",     "VGGT-Ω",               "relative"),
     ("da3-video",      "DA3",                  "metric"),
     ("vigeo",          "ViGeo",                "relative"),
+    ("gem-depth",      "GemDepth",             "relative"),
+    ("dvd",            "DVD v1.1",             "relative"),
 ]
 
 
-UNVERIFIED_VIDEO_ADAPTERS = [
-    # Adapters behind the unverified-weights safety rail. build()
-    # returns an instance with the right task/name; setup() raises
-    # UnverifiedAdapterError unless acknowledge_unverified=True.
-    ("d4rt",      "D4RT",     "metric"),
-    ("gem-depth", "GemDepth", "metric"),
-]
+UNVERIFIED_VIDEO_ADAPTERS = []
 
 
 @pytest.mark.parametrize("key,expected_name,expected_kind", REAL_VIDEO_ADAPTERS)
@@ -156,6 +152,9 @@ def test_real_video_adapter_shape(key, expected_name, expected_kind):
     assert adapter.depth_output_kind == expected_kind, (
         f"{key}: depth_output_kind={adapter.depth_output_kind!r}, "
         f"expected {expected_kind!r} (controls per-clip alignment)"
+    )
+    assert DEPTH_MODEL_CARDS[key].depth_output_kind == expected_kind, (
+        f"{key}: canonical card and real adapter disagree on output kind"
     )
     assert adapter.name == expected_name, (
         f"{key}: adapter.name={adapter.name!r}, expected {expected_name!r}"

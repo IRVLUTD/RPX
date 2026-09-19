@@ -78,8 +78,7 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
             import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "RollingDepthAdapter needs `torch`. "
-                "Install with: pip install torch"
+                "RollingDepthAdapter needs `torch`. Install with: pip install torch"
             ) from e
 
         try:
@@ -100,45 +99,64 @@ class RollingDepthAdapter(VideoDepthAdapterBase):
             torch_dtype=dtype,
         )
         self._pipe.to(self.device)
-        for opt in (
-            "enable_xformers_memory_efficient_attention",
-            "enable_attention_slicing",
-        ):
-            try:
-                getattr(self._pipe, opt)()
-            except Exception:  # noqa: BLE001
-                pass
+        # Do not enable Diffusers attention slicing/xFormers here.
+        # RollingDepth passes cross-frame `num_view` through its modified
+        # attention stack; replacing processors can ignore that argument and
+        # break temporal attention shapes during smoke tests.
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
-        from PIL import Image
+        import tempfile
+
+        import imageio.v2 as imageio
 
         rgb_seq = np.asarray(sample.rgb_seq, dtype=np.uint8)
         T, H, W, _ = rgb_seq.shape
-        pil_frames = [Image.fromarray(rgb_seq[t]) for t in range(T)]
 
-        # Pipeline kwargs are best-effort against the upstream release;
-        # the team should sanity-check via one-clip smoke. If the release
-        # exposes different kwarg names (e.g. ``num_frames_per_snippet``),
-        # update them here.
-        result = self._pipe(
-            pil_frames,
-            num_inference_steps=self.num_inference_steps,
-            snippet_length=self.snippet_length,
-            overlap=self.overlap,
-        )
-        depth_seq = result.frames if hasattr(result, "frames") else result[0]
+        # RollingDepth's official API accepts a video path, not an in-memory
+        # frame list. Encode a temporary yuv420p MP4 using imageio/ffmpeg so
+        # codec pixel-format negotiation is stable across PyAV builds.
+        with tempfile.NamedTemporaryFile(suffix=".mp4") as tmp:
+            imageio.mimsave(
+                tmp.name,
+                [frame.astype("uint8") for frame in rgb_seq],
+                fps=30,
+                codec="libx264",
+                pixelformat="yuv420p",
+                macro_block_size=1,
+            )
+
+            # Smoke clips are short; RollingDepth's long-video dilation schedule
+            # can make internal snippet gaps negative. Use a conservative
+            # single-dilation schedule that is valid for micro/acceptance clips.
+            snippet_length = max(1, min(self.snippet_length, T))
+            result = self._pipe(
+                input_video_path=tmp.name,
+                processing_res=1024,
+                dilations=[1],
+                cap_dilation=False,
+                snippet_lengths=[snippet_length],
+                init_infer_steps=[max(1, self.num_inference_steps)],
+                strides=[1],
+                refine_step=0,
+                restore_res=True,
+                unload_snippet=False,
+            )
+        depth_seq = result.depth_pred
+        if hasattr(depth_seq, "detach"):
+            depth_seq = depth_seq.detach().cpu().float().numpy()
         depth_seq = np.asarray(depth_seq, dtype=np.float32)
-        if depth_seq.ndim == 4:
-            depth_seq = depth_seq.squeeze(1)
+        if depth_seq.ndim == 4 and depth_seq.shape[1] == 1:
+            depth_seq = depth_seq[:, 0]
         if depth_seq.shape != (T, H, W):
             from PIL import Image as _Image
 
             resized = np.empty((T, H, W), dtype=np.float32)
             for t in range(T):
                 resized[t] = np.asarray(
-                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F")
-                    .resize((W, H), _Image.BILINEAR),
+                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F").resize(
+                        (W, H), _Image.BILINEAR
+                    ),
                     dtype=np.float32,
                 )
             depth_seq = resized

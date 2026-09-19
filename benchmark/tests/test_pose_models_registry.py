@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -36,9 +37,16 @@ from pose_models._pose_base import (  # noqa: E402
 
 
 EXPECTED_KEYS = {
+    "vggt-omega",
+    "da3",
+    "cut3r",
     "reloc3r",
+    "pi3x",
+    "fast3r",
     "dust3r",
     "mast3r",
+    "must3r",
+    "monst3r",
     "far",
     "srpose",
     "nope_sac",
@@ -74,7 +82,171 @@ def test_each_adapter_module_imports():
     for key in EXPECTED_KEYS:
         # Use the module name directly; e.g. "opencv_baseline" → module
         # `pose_models.opencv_baseline`.
-        __import__(f"pose_models.{key}", fromlist=["_"])
+        module_name = key.replace("-", "_")
+        __import__(f"pose_models.{module_name}", fromlist=["_"])
+
+
+def test_vggt_world_to_camera_conversion_matches_rpx_convention():
+    from pose_models.vggt_omega import _relative_from_world_to_camera
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, 2.0, 3.0]
+    extrinsics = np.stack(
+        [np.linalg.inv(c2w_a)[:3], np.linalg.inv(c2w_b)[:3]], axis=0
+    )
+    relative = _relative_from_world_to_camera(extrinsics)
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_da3_world_to_camera_conversion_matches_rpx_convention():
+    from pose_models.da3 import _relative_from_world_to_camera
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, 2.0, 3.0]
+    extrinsics = np.stack(
+        [np.linalg.inv(c2w_a)[:3], np.linalg.inv(c2w_b)[:3]], axis=0
+    )
+    relative = _relative_from_world_to_camera(extrinsics)
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_da3_adapter_uses_camera_decoder_and_first_reference():
+    from pose_models.da3 import DA3
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [0.0, 0.0, 2.0]
+    calls = []
+
+    class FakeModel:
+        def inference(self, **kwargs):
+            calls.append(kwargs)
+            return SimpleNamespace(
+                extrinsics=np.stack(
+                    [np.linalg.inv(c2w_a)[:3], np.linalg.inv(c2w_b)[:3]], axis=0
+                )
+            )
+
+    adapter = object.__new__(DA3)
+    adapter._model = FakeModel()
+    pair = {
+        "rgb_a": np.zeros((32, 48, 3), dtype=np.uint8),
+        "rgb_b": np.ones((32, 48, 3), dtype=np.uint8),
+    }
+    result = adapter._infer_pair(pair)
+
+    assert calls[0]["use_ray_pose"] is False
+    assert calls[0]["ref_view_strategy"] == "first"
+    assert calls[0]["process_res"] == 504
+    np.testing.assert_allclose(result["rotation"], np.eye(3))
+    np.testing.assert_allclose(result["translation"], [0.0, 0.0, 2.0])
+
+
+def test_cut3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.cut3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, -2.0, 3.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_mast3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.mast3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [1.0, 0.0, 0.0]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [1.0, 2.0, 0.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_dust3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.dust3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [1.0, -2.0, 0.5]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [4.0, 1.0, 2.5]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_reloc3r_pose2to1_matches_rpx_convention_without_inversion():
+    from pose_models.reloc3r import _rpx_from_pose2to1
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [-2.0, 1.0, 0.0]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [3.0, 4.0, 1.0]
+    native_pose2to1 = np.linalg.inv(c2w_a) @ c2w_b
+
+    np.testing.assert_allclose(
+        _rpx_from_pose2to1(native_pose2to1), native_pose2to1
+    )
+
+
+def test_pi3x_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.pi3x import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [-2.0, 1.0, 0.5]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [3.0, 4.0, 2.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_pi3x_preprocessing_size_matches_official_patch_14_rule():
+    from pose_models.pi3x import _target_size
+
+    height, width = _target_size(480, 640)
+    assert height % 14 == 0
+    assert width % 14 == 0
+    assert height * width <= 255000
+
+
+def test_fast3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.fast3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [2.0, -1.0, 0.5]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [5.0, 3.0, 2.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_must3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.must3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [-1.0, 2.0, 0.0]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [2.0, 2.0, 4.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
+
+
+def test_monst3r_camera_to_world_conversion_matches_rpx_convention():
+    from pose_models.monst3r import _relative_from_camera_to_world
+
+    c2w_a = np.eye(4)
+    c2w_a[:3, 3] = [1.5, -2.0, 0.25]
+    c2w_b = np.eye(4)
+    c2w_b[:3, 3] = [4.0, 1.0, 2.0]
+    relative = _relative_from_camera_to_world(np.stack([c2w_a, c2w_b]))
+
+    np.testing.assert_allclose(relative, np.linalg.inv(c2w_a) @ c2w_b)
 
 
 # ── _pose_base helpers ────────────────────────────────────────────────────

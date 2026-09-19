@@ -157,17 +157,11 @@ def _build_marigold_lcm(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 
 
 def _build_lotus_2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
-    """Lotus-2 — single-step diffusion-prior depth.
-
-    The earlier draft pinned to ``jingheya/Lotus-2`` which doesn't
-    exist on HF (404). The live distribution is the v2-0-disparity
-    direct model; ``jingheya/lotus-depth-g-v2-1-disparity`` is the
-    generative variant — pass ``model_id=...`` to override.
-    """
+    """Lotus-2 using the official repository and three published weight files."""
     from .lotus import Lotus
 
     return Lotus(
-        model_id="jingheya/lotus-depth-d-v2-0-disparity",
+        model_id=Lotus.DEFAULT_MODEL_ID,
         device=device,
         batch_size=batch_size,
         **kwargs,
@@ -225,11 +219,11 @@ def _build_patchfusion(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 
 
 def _build_hyden_metric(*, device: str = "cuda", batch_size: int = 1, **kwargs):
-    """HyDen — Meta's metric-depth head (ICLR'26)."""
+    """HyDen-MoGeV2 — Meta's metric-point head (ICLR'26)."""
     from .hyden import HyDen
 
     return HyDen(
-        model_id="facebook/hyden-da2-metric-depth",
+        model_id="facebook/hyden-mogev2-metric-point",
         device=device,
         batch_size=batch_size,
         native_alignment="none",
@@ -263,7 +257,7 @@ def _build_metric3d_v2(*, device: str = "cuda", batch_size: int = 1, **kwargs):
 def _build_da3_metric(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     """DA3 Metric-L — Depth Anything 3 (ByteDance, ICLR'26 Oral).
 
-    HF: depth-anything/DA3-LARGE; loads via custom ``depth_anything_3``
+    HF: depth-anything/DA3METRIC-LARGE; loads via custom ``depth_anything_3``
     package. ``pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3``.
     """
     from .da3_metric import DA3Metric

@@ -23,9 +23,9 @@ from depth_models import (  # noqa: E402
     MODEL_REGISTRY,
     resolve_model_key,
 )
+
 from rpx_benchmark.adapters.depth_scaffold import DEPTH_MODEL_CARDS
 from rpx_benchmark.api import TaskType
-
 
 # --------------------------------------------------------------------------- #
 # Bridge shape
@@ -128,6 +128,7 @@ def test_fe2e_image_adapter_safety_rail():
     class is wired yet (the candidate HF repo has no code).
     """
     from depth_models import MODEL_REGISTRY
+
     from rpx_benchmark.exceptions import UnverifiedAdapterError
 
     factory = MODEL_REGISTRY["fe2e"]

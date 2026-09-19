@@ -21,16 +21,10 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from PIL import Image
 
-from rpx_benchmark.api import (
-    BenchmarkModel,
-    TaskType,
-    VideoDepthGroundTruth,
-    VideoDepthPrediction,
-    VideoSample,
-)
+from rpx_benchmark.api import BenchmarkModel, TaskType, VideoDepthPrediction
 from rpx_benchmark.tasks._video_pipeline import VideoTaskRunConfig, run_video_pipeline
-
 
 # --------------------------------------------------------------------------- #
 # Fake data — two scenes × three phases × 4 frames each
@@ -39,8 +33,6 @@ from rpx_benchmark.tasks._video_pipeline import VideoTaskRunConfig, run_video_pi
 
 def _make_fake_manifest(root: Path) -> Path:
     """Write a tiny extractive manifest + RGB/depth PNGs for two clips."""
-    import imageio.v3 as iio
-
     H, W, T = 8, 8, 4
     samples = []
     for scene_id in ["scene_a", "scene_b"]:
@@ -56,8 +48,8 @@ def _make_fake_manifest(root: Path) -> Path:
                 depth_mm = (500 + np.random.rand(H, W) * 3500).astype(np.uint16)
                 rgb_p = frames_dir / f"{t:05d}.png"
                 d_p = depth_dir / f"{t:05d}.png"
-                iio.imwrite(rgb_p, rgb)
-                iio.imwrite(d_p, depth_mm)
+                Image.fromarray(rgb).save(rgb_p)
+                Image.fromarray(depth_mm).save(d_p)
                 frame_files.append(str(rgb_p.relative_to(root)))
                 depth_files.append(str(d_p.relative_to(root)))
             samples.append({
@@ -99,11 +91,14 @@ class _FakeVideoDepthModel(BenchmarkModel):
 
     def __init__(self, output_kind: str = "metric") -> None:
         self.depth_output_kind = output_kind
+        self.setup_calls = 0
+        self.predict_calls = 0
 
     def setup(self) -> None:
-        return None
+        self.setup_calls += 1
 
     def predict(self, batch):
+        self.predict_calls += 1
         out = []
         for sample in batch:
             gt = sample.ground_truth.depth_map_seq.astype(np.float32)
@@ -125,7 +120,14 @@ def fake_dataset_root(tmp_path, monkeypatch):
     """Build a fake manifest and stub download_split to return its path."""
     manifest_path = _make_fake_manifest(tmp_path)
 
-    def _fake_download(task, split, repo_id, cache_dir=None, revision=None):
+    def _fake_download(
+        task,
+        split,
+        repo_id,
+        cache_dir=None,
+        revision=None,
+        max_samples=None,
+    ):
         return manifest_path
 
     # Patch download_split in the video pipeline module
@@ -223,6 +225,175 @@ def test_video_pipeline_frame_budget(fake_dataset_root, tmp_path):
 
     cells_df = pq.read_table(paths["cells"]).to_pandas()
     assert (cells_df["frame_budget"] == 2).all()
+
+
+def test_video_pipeline_budget_sweep_writes_per_budget_cells(
+    fake_dataset_root, tmp_path,
+):
+    """Sweep pattern: same model instance, different frame_budgets per run,
+    each into its own subdir. Mirrors the --budget-sweep CLI wiring in
+    scripts/run_video_depth.py — model is loaded once and reused across
+    budgets, and each budget's cells.parquet lives in its own directory
+    so downstream degradation analysis can read them independently.
+    """
+    import pyarrow.parquet as pq
+
+    model = _FakeVideoDepthModel(output_kind="metric")
+    base = tmp_path / "sweep"
+    budgets = (2, 3)  # 4-frame fake clip → 2 and 3 frames after stride
+
+    for budget in budgets:
+        cfg = VideoTaskRunConfig(
+            model=model,
+            split="easy",
+            device="cpu",
+            output_dir=str(base / f"budget_{budget}"),
+            frame_budget=budget,
+            sampling="stride",
+        )
+        _result, _dr, paths = run_video_pipeline(
+            task=TaskType.VIDEO_DEPTH,
+            primary_metric="absrel",
+            cfg=cfg,
+        )
+        cells_df = pq.read_table(paths["cells"]).to_pandas()
+        assert (cells_df["frame_budget"] == budget).all(), (
+            f"budget={budget} sweep wrote wrong frame_budget column: "
+            f"{cells_df['frame_budget'].unique()}"
+        )
+
+    # Both budgets ended up in independent subdirs.
+    assert (base / "budget_2" / "cells.parquet").exists()
+    assert (base / "budget_3" / "cells.parquet").exists()
+
+
+def test_video_pipeline_max_samples_means_clips(fake_dataset_root, tmp_path):
+    cfg = VideoTaskRunConfig(
+        model=_FakeVideoDepthModel(output_kind="metric"),
+        split="easy",
+        device="cpu",
+        output_dir=str(tmp_path / "out_max_clips"),
+        max_samples=2,
+    )
+    result, _dr, paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+
+    import pyarrow.parquet as pq
+
+    assert result.num_samples == 2
+    assert len(pq.read_table(paths["cells"])) == 2
+
+
+def test_video_pipeline_prediction_resume_skips_all_model_forwards(
+    fake_dataset_root,
+    tmp_path,
+):
+    out_dir = tmp_path / "out_resume"
+    first = _FakeVideoDepthModel(output_kind="metric")
+    cfg = VideoTaskRunConfig(
+        model=first,
+        split="easy",
+        device="cpu",
+        output_dir=str(out_dir),
+        max_samples=2,
+        save_predictions=True,
+        resume_predictions=True,
+    )
+    _result, _dr, first_paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert first.predict_calls == 2
+    assert first_paths["prediction_stats"]["inferred_new"] == 2
+
+    second = _FakeVideoDepthModel(output_kind="metric")
+    cfg.model = second
+    _result, _dr, second_paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert second.setup_calls == 0
+    assert second.predict_calls == 0
+    assert second_paths["prediction_stats"] == {
+        "cache_hits": 2,
+        "inferred_new": 0,
+        "invalid_recomputed": 0,
+    }
+    assert second_paths["run_metadata"].exists()
+
+
+def test_video_pipeline_recomputes_corrupt_prediction(
+    fake_dataset_root,
+    tmp_path,
+):
+    out_dir = tmp_path / "out_corrupt_resume"
+    first = _FakeVideoDepthModel(output_kind="metric")
+    cfg = VideoTaskRunConfig(
+        model=first,
+        split="easy",
+        device="cpu",
+        output_dir=str(out_dir),
+        max_samples=2,
+        save_predictions=True,
+        resume_predictions=True,
+    )
+    run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    corrupt = out_dir / "predictions" / "scene_a" / "0" / "depth.npz"
+    corrupt.write_bytes(b"not an npz")
+
+    second = _FakeVideoDepthModel(output_kind="metric")
+    cfg.model = second
+    _result, _dr, paths = run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert second.predict_calls == 1
+    assert paths["prediction_stats"] == {
+        "cache_hits": 1,
+        "inferred_new": 0,
+        "invalid_recomputed": 1,
+    }
+
+
+def test_analysis_selects_locked_video_metric_vector():
+    from scripts.analyze_experiment import _paper_metric_keys
+    from rpx_benchmark.tasks.video_depth import D1V_MANOVA_METRICS
+
+    assert _paper_metric_keys("video_depth") == D1V_MANOVA_METRICS
+
+
+def test_video_pipeline_synchronizes_around_each_prediction(
+    fake_dataset_root,
+    tmp_path,
+    monkeypatch,
+):
+    from rpx_benchmark.tasks import _video_pipeline as vp
+
+    sync_calls = []
+    monkeypatch.setattr(vp, "_make_cuda_sync", lambda: lambda: sync_calls.append(True))
+    cfg = VideoTaskRunConfig(
+        model=_FakeVideoDepthModel(output_kind="metric"),
+        split="easy",
+        device="cpu",
+        output_dir=str(tmp_path / "out_sync"),
+        max_samples=2,
+    )
+    run_video_pipeline(
+        task=TaskType.VIDEO_DEPTH,
+        primary_metric="absrel",
+        cfg=cfg,
+    )
+    assert len(sync_calls) == 4  # before + after each of two clips
 
 
 # --------------------------------------------------------------------------- #

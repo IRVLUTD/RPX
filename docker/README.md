@@ -4,6 +4,11 @@
 > the benchmark toolkit, and the mask-generation pipeline.
 > One image, three workflows.
 
+The legacy image documented below remains for capture and mask generation. For
+the reproducible Python 3.11/CUDA 12.8 depth-smoke runtime, use
+[`depth-smoke/`](depth-smoke/README.md). It packages the four currently accepted
+models without putting RPX data or model checkpoints into the image.
+
 Use this when you don't want to deal with the
 [librealsense 2.47.0 pin](../data/capture/README.md#%EF%B8%8F-requirements)
 on your host, or when you need a CUDA-ready box for

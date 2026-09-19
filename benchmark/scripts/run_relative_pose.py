@@ -45,6 +45,59 @@ def _human_bytes(n: int | float) -> str:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 
+def _stratified_cap(samples: list[dict], limit: int) -> list[dict]:
+    """Deterministically cap a gate run while retaining protocol coverage."""
+    if limit >= len(samples):
+        return samples
+    priorities = [
+        ("intra_phase", 0),
+        ("intra_phase", 2),
+        ("temporal_chain", 0),
+        ("temporal_chain", 2),
+    ]
+    selected = []
+    selected_ids = set()
+    for pair_type, phase in priorities:
+        match = next(
+            (
+                sample
+                for sample in samples
+                if sample.get("pair_type") == pair_type
+                and sample.get("phase") == phase
+            ),
+            None,
+        )
+        if match is not None:
+            selected.append(match)
+            selected_ids.add(match["id"])
+            if len(selected) == limit:
+                return selected
+    buckets: dict[tuple, list[dict]] = {}
+    for sample in samples:
+        if sample["id"] in selected_ids:
+            continue
+        key = (
+            sample.get("pair_type"),
+            sample.get("phase"),
+            sample.get("rotation_bin"),
+        )
+        buckets.setdefault(key, []).append(sample)
+    bucket_values = list(buckets.values())
+    offset = 0
+    while len(selected) < limit:
+        added = False
+        for bucket in bucket_values:
+            if offset < len(bucket):
+                selected.append(bucket[offset])
+                added = True
+                if len(selected) == limit:
+                    break
+        if not added:
+            break
+        offset += 1
+    return selected
+
+
 def _build_model(name: str, device: str, batch_size: int = 1):
     """Resolve a registry name → (BenchmarkableModel placeholder, raw adapter)."""
     from pose_models import MODEL_DISPLAY_NAMES, MODEL_REGISTRY, list_models
@@ -77,6 +130,7 @@ def _run_via_local_manifest(
     max_samples: int | None,
     save_predictions: bool,
     pairs_manifest: Path | None = None,
+    revision: str | None = None,
 ):
     import json as _json
 
@@ -105,7 +159,7 @@ def _run_via_local_manifest(
     # produced by the dataset_hub `_RelativePoseSpec` writer. Use it directly:
     # paths inside are relative to <snap>/, so we pass `root=<snap>` to
     # `RPXDataset.from_dict`.
-    snap = _hf_snapshot_root(repo_id)
+    snap = _hf_snapshot_root(repo_id, revision=revision)
     if pairs_manifest is not None:
         manifest_path = Path(pairs_manifest)
         if not manifest_path.is_file():
@@ -236,8 +290,9 @@ def _run_on_the_fly(
     max_samples: int | None,
     save_predictions: bool,
     intra_pairs_per_bin: int = 50,
-    cross_pairs_per_bin: int = 30,
+    cross_pairs_per_bin: int = 0,
     skip_flops: bool = False,
+    revision: str | None = None,
 ):
     """Run using PosePairGenerator — deterministic on-the-fly pairs."""
     import json as _json
@@ -246,8 +301,14 @@ def _run_on_the_fly(
 
     from rpx_benchmark.adapters import BatchedRelativePoseBenchmarkModel
     from rpx_benchmark.api import TaskType
+    from rpx_benchmark.cell_log import write_cells
     from rpx_benchmark.evaluators import MetricSuite
-    from rpx_benchmark.pose_metrics import evaluate_rcpe
+    from rpx_benchmark.phi_jedi_summary import summarize_phi_jedi
+    from rpx_benchmark.pose_metrics import (
+        CANONICAL_POSE_METRICS,
+        build_rcpe_cells,
+        evaluate_rcpe,
+    )
     from rpx_benchmark.pose_pairs import PairConfig, PosePairGenerator
     from rpx_benchmark.profiler import (
         EfficiencyMetadata,
@@ -260,11 +321,11 @@ def _run_on_the_fly(
     from rpx_benchmark.tasks._pipeline import resolve_device
 
     device = resolve_device(device)
-    snap = _hf_snapshot_root(repo_id)
+    snap = _hf_snapshot_root(repo_id, revision=revision)
 
     cfg = PairConfig(
         intra_pairs_per_bin=intra_pairs_per_bin,
-        cross_pairs_per_bin=cross_pairs_per_bin,
+        cross_pairs_per_bin=0,
     )
     gen = PosePairGenerator(
         extracted_root=snap / "extracted",
@@ -278,7 +339,7 @@ def _run_on_the_fly(
 
     manifest = gen.manifest()
     if max_samples is not None:
-        manifest["samples"] = manifest["samples"][:max_samples]
+        manifest["samples"] = _stratified_cap(manifest["samples"], max_samples)
     print(
         f"[pose-pipeline] on_the_fly: {len(manifest['samples'])} pairs, "
         f"device={device}, batch_size={batch_size}"
@@ -286,15 +347,19 @@ def _run_on_the_fly(
 
     out_dir = Path(output_dir or f"./rpx_results/{name}/{split}")
     out_dir.mkdir(parents=True, exist_ok=True)
+    pairs_manifest_path = out_dir / "pairs_manifest.json"
+    pairs_manifest_path.write_text(
+        _json.dumps(manifest, indent=2), encoding="utf-8"
+    )
     pred_dir = out_dir if save_predictions else None
 
     model = BatchedRelativePoseBenchmarkModel(
         adapter, name=name, save_dir=pred_dir,
     )
-    dataset = gen.as_dataset(batch_size=batch_size)
-    if max_samples is not None:
-        # Truncate the already-materialised dataset
-        dataset.samples = dataset.samples[:max_samples]
+    from rpx_benchmark.loader import RPXDataset
+
+    gen.ensure_pairs_extracted(manifest["samples"])
+    dataset = RPXDataset.from_dict(manifest, batch_size=batch_size)
 
     model.setup()
 
@@ -332,6 +397,23 @@ def _run_on_the_fly(
         skip_flops=skip_flops,
     )
 
+    metric_translation_available = (
+        getattr(adapter, "native_alignment", "none") == "none"
+    )
+    if not metric_translation_available:
+        # Up-to-scale models have no meaningful metric translation error.
+        # Keep their scale-invariant translation-angle metric, but do not emit
+        # a misleading metre value in the standard result/summary.
+        bench_result.aggregated.pop("translation_error_m", None)
+        for row in bench_result.per_sample:
+            row.pop("translation_error_m", None)
+
+    # The generic deployment report assumes all three RPX phases. RCPE is
+    # intentionally phase 0/2 only, so its three-phase WPS and STR would insert
+    # a fictitious zero-valued phase 1. Φ/JEDI below is the valid phase report.
+    dr_report.weighted_phase_score = None
+    dr_report.state_transition = None
+
     # ── Standard output ───────────────────────────────────────────────
     json_path = out_dir / "result.json"
     md_path = out_dir / "summary.md"
@@ -350,23 +432,63 @@ def _run_on_the_fly(
     )
 
     # ── Novel RPX-RCPE metrics ────────────────────────────────────────
-    # Enrich per-sample results with pair metadata for the novel metrics.
-    # The runner's _sample_meta only copies id/phase/difficulty/scene, so
-    # pair_type / rotation_bin / chain_* must be looked up from the manifest.
-    id_to_meta = {s["id"]: s.get("metadata", {}) for s in manifest["samples"]}
+    if save_predictions:
+        from pose_comprehensive_metrics import compute_run
 
-    per_pair_enriched = []
-    for row in bench_result.per_sample:
-        enriched = dict(row)
-        meta = id_to_meta.get(row.get("id", ""), {})
-        enriched["pair_type"] = meta.get("pair_type", "unknown")
-        enriched["rotation_bin"] = meta.get("rotation_bin")
-        enriched["chain_id"] = meta.get("chain_id")
-        enriched["chain_position"] = meta.get("chain_position")
-        enriched["metadata"] = meta
-        per_pair_enriched.append(enriched)
+        comprehensive = compute_run(
+            out_dir / "predictions.csv",
+            pairs_manifest_path,
+            snapshot_root=snap,
+            metric_translation_available=metric_translation_available,
+        )
+        per_pair_enriched = comprehensive["per_pair"]
+        comprehensive_path = out_dir / "pose_comprehensive_metrics.json"
+        comprehensive_path.write_text(
+            _json.dumps(comprehensive, indent=2, default=str), encoding="utf-8"
+        )
+    else:
+        id_to_meta = {s["id"]: s.get("metadata", {}) for s in manifest["samples"]}
+        per_pair_enriched = []
+        for row in bench_result.per_sample:
+            enriched = dict(row)
+            meta = id_to_meta.get(row.get("id", ""), {})
+            enriched.update(meta)
+            enriched["metadata"] = meta
+            per_pair_enriched.append(enriched)
 
-    rcpe_results = evaluate_rcpe(per_pair_enriched)
+    rcpe_results = evaluate_rcpe(
+        per_pair_enriched,
+        metric_translation_available=metric_translation_available,
+    )
+
+    # The active Φ/JEDI input is one locked K=3 angular row per
+    # (scene, phase), computed only from exact-gap intra-phase pairs. Metric
+    # M-AUC is skipped; temporal-chain samples remain diagnostic.
+    cells, analysis_rows = build_rcpe_cells(
+        per_pair_enriched,
+        model_name=name,
+        difficulty=split,
+        metric_translation_available=metric_translation_available,
+    )
+    cells_result = write_cells(cells, out_dir / "cells.parquet")
+    phase_coverage = sorted({row["phase"] for row in analysis_rows})
+    if phase_coverage != ["clean", "clutter"]:
+        phi_jedi = {
+            "status": "insufficient_gate_coverage",
+            "reason": "phases 0 (clutter) and 2 (clean) are required for D6 Phi/JEDI",
+            "phase_coverage": phase_coverage,
+            "metrics": list(CANONICAL_POSE_METRICS),
+        }
+    else:
+        summary = summarize_phi_jedi(
+            analysis_rows,
+            metric_keys=CANONICAL_POSE_METRICS,
+        )
+        phi_jedi = {"status": "computed", **summary.to_dict()}
+    phi_jedi_path = out_dir / "phi_jedi.json"
+    phi_jedi_path.write_text(
+        _json.dumps(phi_jedi, indent=2, default=str), encoding="utf-8"
+    )
 
     # Attach efficiency summary — structured by tier so consumers know
     # which numbers are hardware-agnostic and which are not.
@@ -417,29 +539,33 @@ def _run_on_the_fly(
     print(f"{'='*60}")
     agg = rcpe_results.get("aggregated", {})
     for k, v in agg.items():
-        print(f"  {k:>35}: {v:.4f}")
+        rendered = "unavailable (up-to-scale)" if v is None else f"{v:.4f}"
+        print(f"  {k:>35}: {rendered}")
     print()
     sauc = rcpe_results.get("standard_auc", {})
     for k, v in sauc.items():
         print(f"  {k:>35}: {v:.4f}")
     print()
-    mauc = rcpe_results.get("metric_auc", {})
-    for k, v in sorted(mauc.items()):
-        print(f"  {k:>35}: {v:.4f}")
+    print("  Active D6 K=3 (M-AUC skipped):")
+    for k, v in rcpe_results.get("canonical", {}).items():
+        rendered = "unavailable (up-to-scale)" if v is None else f"{v:.4f}"
+        print(f"  {k:>35}: {rendered}")
     print()
     print("  Per rotation bin:")
     for b, m in rcpe_results.get("per_bin", {}).items():
         n = m.get('n_pairs', 0)
         re = m.get('rotation_error_deg', 0)
-        te = m.get('translation_error_m', 0)
-        print(f"    {b:>8}: n={n:.0f}  rot={re:.2f}°  trans={te*100:.1f}cm")
+        te = m.get('translation_error_m')
+        trans = "n/a (up-to-scale)" if te is None else f"{te*100:.1f}cm"
+        print(f"    {b:>8}: n={n:.0f}  rot={re:.2f}°  trans={trans}")
     print()
     print("  Per pair type:")
     for t, m in rcpe_results.get("per_type", {}).items():
         n = m.get('n_pairs', 0)
         re = m.get('rotation_error_deg', 0)
-        te = m.get('translation_error_m', 0)
-        print(f"    {t:>15}: n={n:.0f}  rot={re:.2f}°  trans={te*100:.1f}cm")
+        te = m.get('translation_error_m')
+        trans = "n/a (up-to-scale)" if te is None else f"{te*100:.1f}cm"
+        print(f"    {t:>15}: n={n:.0f}  rot={re:.2f}°  trans={trans}")
     print()
     cpd = rcpe_results.get("cross_phase_delta", {})
     if cpd:
@@ -451,14 +577,22 @@ def _run_on_the_fly(
     if drift.get("n_chains"):
         print(f"  Temporal drift ({drift['n_chains']} chains):")
         print(f"    mean rot drift:   {drift['mean_drift_rot_deg']:.1f}°")
-        print(f"    mean trans drift: {drift['mean_drift_trans_m']*100:.1f} cm")
+        trans_drift = drift.get("mean_drift_trans_m")
+        if trans_drift is not None:
+            print(f"    mean trans drift: {trans_drift*100:.1f} cm")
+        else:
+            print("    mean trans drift: n/a (up-to-scale)")
 
     artefacts: dict = {
         "json": json_path, "markdown": md_path,
         "rcpe_metrics": rcpe_path, "out_dir": out_dir,
+        "pairs_manifest": pairs_manifest_path,
+        "cells": cells_result.path,
+        "phi_jedi": phi_jedi_path,
     }
     if save_predictions:
         artefacts["predictions_csv"] = out_dir / "predictions.csv"
+        artefacts["pose_comprehensive_metrics"] = comprehensive_path
 
     return bench_result, dr_report, artefacts
 
@@ -483,6 +617,11 @@ def main() -> None:
     ap.add_argument("--model", default="opencv_baseline", help="adapter to use")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")
     ap.add_argument("--repo", default="itaykadosh/rpx-test", help="HuggingFace dataset repo")
+    ap.add_argument(
+        "--revision",
+        default=None,
+        help="exact cached Hugging Face dataset revision to use",
+    )
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--output-dir", default=None, help="default: ./rpx_results/<model>/<split>/")
     ap.add_argument(
@@ -513,7 +652,7 @@ def main() -> None:
         default="manifest",
         help="'manifest' (default): load from --pairs-manifest or canonical HF path. "
         "'on_the_fly': use PosePairGenerator for deterministic stratified pairs "
-        "(rotation bins + cross-phase + temporal chains).",
+        "(exact-gap intra-phase pairs + temporal chains).",
     )
     ap.add_argument(
         "--pairs-manifest",
@@ -527,9 +666,8 @@ def main() -> None:
         "(only with --pairs-source on_the_fly)",
     )
     ap.add_argument(
-        "--cross-pairs-per-bin", type=int, default=30,
-        help="cross-phase pairs per rotation bin per scene "
-        "(only with --pairs-source on_the_fly)",
+        "--cross-pairs-per-bin", type=int, default=0,
+        help="deprecated; must remain 0 because captures have unrelated T265 worlds",
     )
     ap.add_argument(
         "--skip-flops",
@@ -551,6 +689,12 @@ def main() -> None:
     )
     args = ap.parse_args()
 
+    if args.cross_pairs_per_bin != 0:
+        ap.error(
+            "--cross-pairs-per-bin must be 0: phases 0 and 2 are separate "
+            "captures with unrelated T265 local world frames"
+        )
+
     placeholder, adapter = _build_model(args.model, device=args.device, batch_size=args.batch_size)
     name = placeholder.name
 
@@ -571,6 +715,7 @@ def main() -> None:
             intra_pairs_per_bin=args.intra_pairs_per_bin,
             cross_pairs_per_bin=args.cross_pairs_per_bin,
             skip_flops=args.skip_flops,
+            revision=args.revision,
         )
     else:
         result, dr_report, paths = _run_via_local_manifest(
@@ -584,18 +729,23 @@ def main() -> None:
             max_samples=args.max_samples,
             save_predictions=args.save_predictions,
             pairs_manifest=args.pairs_manifest,
+            revision=args.revision,
         )
 
     if args.comprehensive_metrics:
         from local_manifest import _hf_snapshot_root
         from pose_comprehensive_metrics import compute_run
 
-        snap = _hf_snapshot_root(args.repo)
-        manifest_path = (
-            Path(args.pairs_manifest)
-            if args.pairs_manifest is not None
-            else snap / "manifests" / "relative_pose" / f"{args.split}.json"
-        )
+        snap = _hf_snapshot_root(args.repo, revision=args.revision)
+        if args.pairs_source == "on_the_fly":
+            # The generated manifest is the exact evaluated sample set.  The
+            # canonical HF manifest is neither required nor necessarily
+            # published for on-the-fly RCPE runs.
+            manifest_path = paths["pairs_manifest"]
+        elif args.pairs_manifest is not None:
+            manifest_path = Path(args.pairs_manifest)
+        else:
+            manifest_path = snap / "manifests" / "relative_pose" / f"{args.split}.json"
         csv_path = paths["predictions_csv"]
         print(f"\n=== comprehensive pose metrics ===")
         extras = compute_run(csv_path, manifest_path, snapshot_root=snap)

@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import sys
 import time
 from dataclasses import dataclass
@@ -171,10 +172,11 @@ def _mask_path_for_target(sample: Any) -> str:
 
 @lru_cache(maxsize=_POSE_CACHE_SIZE)
 def _load_pose(path: Path) -> "Any":
-    """Load a T265 pose ``.npz`` → 4×4 SE(3) camera-to-world (float64).
+    """Load a T265 pose → 4×4 SE(3) camera-to-world (float64).
 
-    The RPX NPZ schema (see ``loader._load_pose``) stores **two arrays**,
-    not a baked 4×4:
+    RPX v1 stores an NPZ with ``position`` and ``orientation`` arrays.
+    RPX v2 losslessly packs the same values into one NPY vector ordered
+    ``[x, y, z, qx, qy, qz, qw]``.
 
     * ``position``    — ``(3,)`` metres
     * ``orientation`` — ``(4,)`` quaternion in T265 ``[x, y, z, w]`` order
@@ -186,8 +188,13 @@ def _load_pose(path: Path) -> "Any":
     import numpy as np  # noqa: PLC0415
 
     data = np.load(path)
-    position  = np.asarray(data["position"], dtype=np.float64)
-    quat_xyzw = np.asarray(data["orientation"], dtype=np.float64)
+    if path.suffix.lower() == ".npy":
+        pose7 = np.asarray(data, dtype=np.float64).reshape(7)
+        position = pose7[:3]
+        quat_xyzw = pose7[3:]
+    else:
+        position = np.asarray(data["position"], dtype=np.float64)
+        quat_xyzw = np.asarray(data["orientation"], dtype=np.float64)
 
     x, y, z, w = quat_xyzw / np.linalg.norm(quat_xyzw)
     rot = np.array(
@@ -518,6 +525,15 @@ def main() -> None:
                     help="device for the adapter (cpu / cuda / cuda:0 / mps)")
     ap.add_argument("--max-samples", type=int, default=None,
                     help="cap the number of NVS samples (smoke runs)")
+    ap.add_argument("--context-counts", type=int, nargs="+", default=None,
+                    help="override context-view counts. Use `--context-counts 2` "
+                    "for DepthSplat's released two-view operating point")
+    ap.add_argument("--sample-types", nargs="+",
+                    choices=("interpolation", "extrapolation", "cross_phase"),
+                    help="evaluate only the requested sample types")
+    ap.add_argument("--sample-order", choices=("generator", "scene_round_robin"),
+                    default="generator",
+                    help="scene_round_robin spreads capped gates across distinct scenes")
     ap.add_argument("--extracted-root", type=Path, default=None,
                     help="override the auto-resolved HF snapshot's extracted/ root")
     ap.add_argument("--parquet-path", type=Path, default=None,
@@ -557,7 +573,7 @@ def main() -> None:
     # ── Build pair generator
     cli_ux.section("Pair generator")
     with cli_ux.working("constructing NVSPairGenerator + loading parquet metadata"):
-        from rpx_benchmark.nvs_pairs import NVSPairGenerator  # noqa: PLC0415
+        from rpx_benchmark.nvs_pairs import NVSConfig, NVSPairGenerator  # noqa: PLC0415
 
         # Resolve cache paths from local_manifest helpers if not given.
         if args.extracted_root is None or args.parquet_path is None:
@@ -574,6 +590,11 @@ def main() -> None:
             extracted_root=extracted_root,
             parquet_path=parquet_path,
             split=args.split,
+            config=(
+                NVSConfig(context_counts=tuple(args.context_counts))
+                if args.context_counts is not None
+                else None
+            ),
         )
     cli_ux.note(gen.summary())
 
@@ -581,9 +602,10 @@ def main() -> None:
     cli_ux.section("Model")
     with cli_ux.working(f"building adapter '{args.model}'"):
         adapter = _build_model(args.model, args.device)
-    from nvs_models import MODEL_DISPLAY_NAMES  # noqa: PLC0415
+    from nvs_models import MODEL_DISPLAY_NAMES, MODEL_SPECS  # noqa: PLC0415
 
     display = MODEL_DISPLAY_NAMES.get(args.model, args.model)
+    model_spec = MODEL_SPECS.get(args.model)
     cli_ux.kv("display name",     display)
     cli_ux.kv("native precision", getattr(adapter, "native_precision", "fp32"))
     cli_ux.kv("has torch module", getattr(adapter, "torch_module", None) is not None)
@@ -594,11 +616,38 @@ def main() -> None:
     latencies_ms: List[float] = []
     saved_predictions: List[Path] = []
     pred_root = args.results_root / display / args.split / "predictions"
+    frame_root = args.results_root / display / args.split / "prediction_frames"
 
     t_wall_start = time.perf_counter()
     skipped: List[Dict[str, Any]] = []  # graceful-skip log
 
-    samples_iter = gen.iter_samples()
+    samples = gen.iter_samples()
+    if args.sample_types:
+        allowed_types = set(args.sample_types)
+        samples = (sample for sample in samples if sample.sample_type in allowed_types)
+    if args.sample_order == "scene_round_robin":
+        by_scene: Dict[str, List[Any]] = {}
+        for sample in samples:
+            by_scene.setdefault(sample.scene_id, []).append(sample)
+        # Deterministically mix phase, direction and target within each
+        # scene before taking one scene at a time. This prevents a capped
+        # acceptance gate from containing only the first forward trial.
+        for scene_id, scene_samples in by_scene.items():
+            random.Random(f"5062026:{scene_id}").shuffle(scene_samples)
+        ordered: List[Any] = []
+        depth = 0
+        while True:
+            added = False
+            for scene_id in sorted(by_scene):
+                if depth < len(by_scene[scene_id]):
+                    ordered.append(by_scene[scene_id][depth])
+                    added = True
+            if not added:
+                break
+            depth += 1
+        samples_iter = iter(ordered)
+    else:
+        samples_iter = samples
     total = args.max_samples  # may be None if unbounded
     with cli_ux.progress("samples", total=total) as (p, task):
         for i, sample in enumerate(samples_iter):
@@ -638,6 +687,7 @@ def main() -> None:
 
                 if args.save_predictions:
                     import numpy as np  # noqa: PLC0415
+                    from PIL import Image  # noqa: PLC0415
 
                     out_path = pred_root / sample.scene_id / str(sample.phase) / f"{sample.id}.npz"
                     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -646,6 +696,11 @@ def main() -> None:
                         payload["depth"] = rendered["depth"]
                     np.savez_compressed(out_path, **payload)
                     saved_predictions.append(out_path)
+                    frame_path = (
+                        frame_root / sample.scene_id / str(sample.phase) / f"{sample.id}.png"
+                    )
+                    frame_path.parent.mkdir(parents=True, exist_ok=True)
+                    Image.fromarray(np.asarray(rendered.get("rgb"), dtype=np.uint8)).save(frame_path)
             except (FileNotFoundError, OSError, KeyError, ValueError) as e:
                 # KeyError covers the npz-key-missing case in _load_pose;
                 # ValueError handles a too-small adapter call (zero ctx).
@@ -685,6 +740,25 @@ def main() -> None:
         latencies_ms=latencies_ms,
         wall_seconds=wall_seconds,
     )
+    result["sampling_protocol"] = {
+        "context_counts": args.context_counts,
+        "sample_types": args.sample_types,
+        "sample_order": args.sample_order,
+        "seed": 5_062_026,
+        "extrapolation_definition": (
+            "target outside the temporal context span with a 20% sequence guard band"
+            if args.sample_types == ["extrapolation"]
+            else None
+        ),
+    }
+    if model_spec is not None:
+        result["model_protocol"] = {
+            "track": model_spec.track,
+            "execution_mode": model_spec.execution_mode,
+            "uses_sensor_depth": model_spec.uses_sensor_depth,
+            "uses_known_poses": model_spec.uses_known_poses,
+            "upstream": model_spec.upstream,
+        }
 
     # Surface loader-cache stats inside result.json before writing.
     # On a sweep through one (scene, phase) the hit-rate is typically
@@ -707,6 +781,17 @@ def main() -> None:
     cli_ux.step(f"wrote {md_path}")
     if saved_predictions:
         cli_ux.step(f"saved {len(saved_predictions)} predictions under {pred_root}")
+        manifest = {
+            "model": args.model,
+            "display_name": display,
+            "split": args.split,
+            "count": len(saved_predictions),
+            "context_counts": args.context_counts,
+            "frames_root": str(frame_root),
+        }
+        (frame_root / "manifest.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8"
+        )
 
     # ── Optional: mirror to UTD Box (mirrors run_relative_pose.py's pattern)
     if args.upload_to_box:

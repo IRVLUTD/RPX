@@ -38,7 +38,6 @@ from rpx_benchmark.api import VideoSample
 
 from ._video_adapter_base import VideoDepthAdapterBase
 
-
 # Verified HF model_ids from huggingface.co model-card lookup.
 _LARGE_MODEL_ID = "depth-anything/Video-Depth-Anything-Large"
 _SMALL_MODEL_ID = "depth-anything/Video-Depth-Anything-Small"
@@ -90,8 +89,7 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
             import torch  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "VideoDepthAnythingAdapter needs `torch`. "
-                "Install with: pip install torch"
+                "VideoDepthAnythingAdapter needs `torch`. Install with: pip install torch"
             ) from e
 
         try:
@@ -132,8 +130,9 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         state = torch.load(ckpt_path, map_location="cpu")
         self._model.load_state_dict(state)
         self._model = self._model.to(self.device).eval()
+        self._model = self._model.float()  # VDA head calls out.float(); keep conv weights/bias float32
         if self.fp16 and self.device.startswith("cuda"):
-            self._model = self._model.half()
+            self._model = self._model.float()
         self._loaded = True
 
     def _predict_clip(self, sample: VideoSample) -> np.ndarray:
@@ -149,8 +148,11 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
         # input_size, device, fp32)``. We pass each (H, W, 3) uint8
         # frame as-is (the helper handles the rest).
         if hasattr(self._model, "infer_video_depth"):
+            # VDA upstream DPT head calls out.float(); keep weights/biases in float32.
+            if hasattr(self._model, "float"):
+                self._model = self._model.float()
             depth_seq, _meta = self._model.infer_video_depth(
-                [rgb_seq[t] for t in range(T)],
+                rgb_seq,
                 target_fps=30,
                 input_size=518,  # upstream default
                 device=self.device,
@@ -174,8 +176,9 @@ class VideoDepthAnythingAdapter(VideoDepthAdapterBase):
             resized = np.empty((T, H, W), dtype=np.float32)
             for t in range(T):
                 resized[t] = np.asarray(
-                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F")
-                    .resize((W, H), _Image.BILINEAR),
+                    _Image.fromarray(depth_seq[t].astype(np.float32), mode="F").resize(
+                        (W, H), _Image.BILINEAR
+                    ),
                     dtype=np.float32,
                 )
             depth_seq = resized
