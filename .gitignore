@@ -12,7 +12,9 @@ data/
 # Same idea for the mask-annotation pipeline that lives under data/. Track
 # everything inside maskgen_pipeline/ — the operator scripts (interactive_gsam2,
 # refine_masks_flow, gen_faulty_from_verified, etc.), the ego-frame extractor,
-# the test files, and the README. The rest of data/mask_annotation/ stays local
+# the test files, and the README — and visual_grounding_gt/, which holds the
+# correspondence + GT-generation stage (dino_correspondence, mask_to_object,
+# generate_spatial_gt). The rest of data/mask_annotation/ stays local
 # (model checkpoints, vendored SAM2/robokit clones, dataset content).
 #
 # The descend-then-re-exclude pattern is required because git won't recurse
@@ -22,6 +24,7 @@ data/*
 !data/mask_annotation/
 data/mask_annotation/*
 !data/mask_annotation/maskgen_pipeline/
+!data/mask_annotation/visual_grounding_gt/
 !data/mask_annotation/*.py
 !data/mask_annotation/*.md
 !data/mask_annotation/*.sh
@@ -231,3 +234,13 @@ cython_debug/
 **/SHARED_CONTEXT*
 **/shared_context*
 **/Shared_Context*
+
+# Pretrained model weights — never commit. These are public third-party
+# checkpoints (GroundingDINO, SAM2, MobileSAM), re-downloadable from upstream,
+# and individually exceed GitHub's 100MB file limit (gdino.pth ~662M,
+# sam2.1_hiera_large.pth ~857M). Fetch them at setup time instead.
+ckpts/
+**/ckpts/
+*.pth
+*.pt
+*.onnx
