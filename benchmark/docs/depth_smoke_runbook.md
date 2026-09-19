@@ -3,7 +3,8 @@
 This is the from-scratch operational companion to `adapter_status.md`. Every
 command is GPU-only and pins dataset revision
 `2e2a387f7f93e98c177b2e039c141eacda94e5fc`. The launcher refuses CPU fallback,
-an occupied selected GPU and the unverified FE2E adapter.
+an occupied selected GPU, and adapters without a supported environment in this
+matrix. FE2E and GemDepth use their dedicated Docker overlays.
 It never uploads results.
 
 ## 1. Host and storage setup
@@ -49,7 +50,7 @@ driver-compatible `--torch-version`, `--torchvision-version` and
 | `da3` | `da3-metric-l`, `da3-video` |
 | `transformers-image` | `da-v2-large`, `depth-pro` |
 | `metadepth` | `hyden` |
-| `depthlm` | `depthlm` |
+| `zipdepth` | `zipdepth` |
 | `lotus2` | `lotus-2` |
 | `metric3d` | `metric3d-v2` |
 | `moge2` | `moge-2-vit-l` |
@@ -74,11 +75,9 @@ python3.11 benchmark/scripts/setup_depth_smoke_env.py \
   --model video-da --env-root "$RPX_WORK_ROOT/rpx-envs"
 ```
 
-FE2E is deliberately absent from the setup choices. GemDepth uses its
-official-runtime overlay under ``docker/depth-gemdepth``; production DVD runs
-use ``docker/depth-dvd`` (the setup helper also supports a host diagnostic).
-The smoke launcher refuses the unverified FE2E model and never supplies
-`--acknowledge-unverified`.
+FE2E and GemDepth are deliberately absent from this generic setup helper:
+use `docker/depth-fe2e` and `docker/depth-gemdepth` respectively. Production
+DVD runs use `docker/depth-dvd`; the helper also supports a host diagnostic.
 
 The setup helper refuses to start below 30 GiB free space and warns below
 150 GiB. An interrupted environment is not considered ready until it contains

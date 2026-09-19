@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -22,7 +23,6 @@ from rpx_benchmark.metrics.depth_paper import (
 )
 
 PINNED_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
-MODEL_CHECKPOINT = "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf"
 EXPECTED = {"easy": (24_750, 99), "medium": (24_750, 99), "hard": (25_500, 102)}
 
 
@@ -33,11 +33,18 @@ def _atomic_json(path: Path, payload: object) -> None:
     os.replace(temporary, path)
 
 
-def _cached_fscore(path: Path, sample_id: str) -> float | None:
+def _cached_fscore(
+    path: Path,
+    sample_id: str,
+    alignment_signature: str = "none",
+) -> float | None:
     try:
         payload = json.loads(path.read_text())
         value = float(payload["fscore_5cm"])
         if payload.get("schema_version") != "rpx-d1f-fscore-v1":
+            return None
+        cached_signature = str(payload.get("alignment_signature", "none"))
+        if cached_signature != alignment_signature:
             return None
         if payload.get("id") != sample_id or not math.isfinite(value) or not 0.0 <= value <= 1.0:
             return None
@@ -46,14 +53,18 @@ def _cached_fscore(path: Path, sample_id: str) -> float | None:
         return None
 
 
-def _evaluate_one(work: tuple[str, str, str]) -> tuple[str, float]:
+def _evaluate_one(work: tuple) -> tuple[str, float]:
     """Worker entry point: load one prediction/GT pair and compute exact F-score."""
     import numpy as np
     from PIL import Image
 
     from rpx_benchmark.metrics.depth_paper import compute_d1_paper_metrics
 
-    sample_id, prediction_path, gt_path = work
+    if len(work) == 3:  # Backward-compatible DA-V2/fixture form.
+        sample_id, prediction_path, gt_path = work
+        alignment, scale, shift = "none", 1.0, 0.0
+    else:
+        sample_id, prediction_path, gt_path, alignment, scale, shift = work
     with np.load(prediction_path, allow_pickle=False) as payload:
         if payload.files != ["depth"]:
             raise ValueError(f"{prediction_path}: expected one 'depth' array")
@@ -61,6 +72,23 @@ def _evaluate_one(work: tuple[str, str, str]) -> tuple[str, float]:
     if prediction.dtype != np.float32:
         raise ValueError(f"{prediction_path}: expected float32, got {prediction.dtype}")
     ground_truth = np.asarray(Image.open(gt_path), dtype=np.float32) / 1000.0
+    if alignment == "ls_affine":
+        prediction = (float(scale) * prediction + float(shift)).astype(np.float32)
+    elif alignment == "ls_disparity":
+        aligned_disparity = (
+            float(scale) * prediction.astype(np.float64) + float(shift)
+        )
+        prediction = (
+            1.0 / np.maximum(aligned_disparity, 1e-3)
+        ).astype(np.float32)
+    elif alignment == "ls_log":
+        log_depth = np.minimum(
+            float(scale) * prediction.astype(np.float64) + float(shift),
+            5.0,
+        )
+        prediction = np.exp(log_depth).astype(np.float32)
+    elif alignment != "none":
+        raise ValueError(f"Deferred F-score does not support alignment {alignment!r}")
     metrics = compute_d1_paper_metrics(prediction, ground_truth)
     return sample_id, float(metrics["fscore_5cm"])
 
@@ -77,6 +105,78 @@ def _fscore_cache_path(root: Path, sample: dict[str, object]) -> Path:
     phase = str(sample.get("phase") if sample.get("phase") is not None else "")
     frame = Path(str(sample.get("rgb") or sample["id"])).stem
     return root / scene / phase / f"{frame}.json"
+
+
+def _cell_key(sample: dict[str, object]) -> tuple[str, str]:
+    phase = sample.get("phase")
+    return str(sample.get("scene_id") or ""), str(phase if phase is not None else "")
+
+
+def _alignment_parameters(
+    samples: list[dict[str, object]],
+    dataset_root: Path,
+    predictions: Path,
+    alignment: str,
+) -> dict[tuple[str, str], tuple[float, float, str]]:
+    """Compute one RPX pooled alignment transform per scene-phase cell."""
+    if alignment == "none":
+        return {}
+    if alignment not in {"ls_affine", "ls_disparity", "ls_log"}:
+        raise SystemExit(
+            "Deferred exact F-score supports none, ls_affine, "
+            f"ls_disparity and ls_log; got {alignment!r}"
+        )
+
+    import numpy as np
+    from PIL import Image
+
+    stats: dict[tuple[str, str], list[float]] = {}
+    for index, sample in enumerate(samples, start=1):
+        prediction_path = _prediction_path(predictions, sample)
+        gt_path = dataset_root / str(sample["depth"])
+        with np.load(prediction_path, allow_pickle=False) as payload:
+            prediction = np.asarray(payload["depth"], dtype=np.float32)
+        ground_truth = np.asarray(Image.open(gt_path), dtype=np.float32) / 1000.0
+        valid = (
+            np.isfinite(ground_truth)
+            & (ground_truth > 0.3)
+            & (ground_truth < 5.0)
+            & np.isfinite(prediction)
+            & (prediction > 0)
+        )
+        if not valid.any():
+            continue
+        x = prediction[valid].astype(np.float64)
+        y = ground_truth[valid].astype(np.float64)
+        if alignment == "ls_disparity":
+            y = 1.0 / np.maximum(y, 1e-3)
+        elif alignment == "ls_log":
+            y = np.log(y)
+        row = stats.setdefault(_cell_key(sample), [0.0] * 5)
+        row[0] += float(x.size)
+        row[1] += float(np.sum(x, dtype=np.float64))
+        row[2] += float(np.sum(y, dtype=np.float64))
+        row[3] += float(np.dot(x, x))
+        row[4] += float(np.dot(x, y))
+        if index % 1000 == 0 or index == len(samples):
+            print(f"alignment pass: {index}/{len(samples)}", flush=True)
+
+    parameters: dict[tuple[str, str], tuple[float, float, str]] = {}
+    for key, (count, sum_x, sum_y, sum_xx, sum_xy) in stats.items():
+        denominator = count * sum_xx - sum_x * sum_x
+        if count < 2 or abs(denominator) <= 1e-12:
+            raise SystemExit(f"Degenerate {alignment} alignment fit for cell {key}")
+        scale = (count * sum_xy - sum_x * sum_y) / denominator
+        shift = (sum_y - scale * sum_x) / count
+        signature_payload = f"{alignment}:{scale:.17g}:{shift:.17g}"
+        signature = hashlib.sha256(signature_payload.encode()).hexdigest()
+        parameters[key] = (scale, shift, signature)
+    expected_cells = len({_cell_key(sample) for sample in samples})
+    if len(parameters) != expected_cells:
+        raise SystemExit(
+            f"Alignment produced {len(parameters)} cell transforms; expected {expected_cells}"
+        )
+    return parameters
 
 
 def _complete_split(
@@ -106,7 +206,6 @@ def _complete_split(
     metadata = json.loads(metadata_path.read_text())
     required_metadata = {
         "dataset_revision": PINNED_REVISION,
-        "model_checkpoint": MODEL_CHECKPOINT,
         "paper_protocol": True,
         "num_samples": expected_samples,
     }
@@ -116,6 +215,9 @@ def _complete_split(
                 f"Run metadata contract failed for {split}: "
                 f"{key}={metadata.get(key)!r}, expected {expected!r}"
             )
+    if not metadata.get("model") or not metadata.get("model_checkpoint"):
+        raise SystemExit(f"Run metadata for {split} lacks model/checkpoint provenance")
+    alignment = str(metadata.get("alignment") or "none")
     rows = pq.read_table(fast_path).to_pylist()
     if len(rows) != expected_samples:
         raise SystemExit(f"Fast metric table for {split} has {len(rows)} rows")
@@ -127,8 +229,9 @@ def _complete_split(
         raise SystemExit(f"Fast metric table for {split} lacks {missing_fast}")
 
     cache_root = out_dir / "fscore_cache"
+    parameters = _alignment_parameters(samples, dataset_root, predictions, alignment)
     fscore_by_id: dict[str, float] = {}
-    pending: list[tuple[tuple[str, str, str], Path]] = []
+    pending: list[tuple[tuple, Path, str]] = []
     for sample in samples:
         sample_id = str(sample["id"])
         if sample_id not in by_id:
@@ -138,9 +241,26 @@ def _complete_split(
         if not prediction.is_file() or not gt_path.is_file():
             raise SystemExit(f"Missing prediction or GT for {sample_id}")
         cache_path = _fscore_cache_path(cache_root, sample)
-        cached = _cached_fscore(cache_path, sample_id)
+        if alignment == "none":
+            scale, shift, signature = 1.0, 0.0, "none"
+        else:
+            scale, shift, signature = parameters[_cell_key(sample)]
+        cached = _cached_fscore(cache_path, sample_id, signature)
         if cached is None:
-            pending.append(((sample_id, str(prediction), str(gt_path)), cache_path))
+            pending.append(
+                (
+                    (
+                        sample_id,
+                        str(prediction),
+                        str(gt_path),
+                        alignment,
+                        scale,
+                        shift,
+                    ),
+                    cache_path,
+                    signature,
+                )
+            )
         else:
             fscore_by_id[sample_id] = cached
 
@@ -152,13 +272,13 @@ def _complete_split(
     if pending:
         with ProcessPoolExecutor(max_workers=workers) as executor:
             futures = {
-                executor.submit(_evaluate_one, work): cache_path
-                for work, cache_path in pending
+                executor.submit(_evaluate_one, work): (cache_path, signature)
+                for work, cache_path, signature in pending
             }
             done = len(fscore_by_id)
             for future in as_completed(futures):
                 sample_id, value = future.result()
-                cache_path = futures[future]
+                cache_path, signature = futures[future]
                 _atomic_json(
                     cache_path,
                     {
@@ -166,6 +286,8 @@ def _complete_split(
                         "id": sample_id,
                         "threshold_m": 0.05,
                         "fscore_5cm": value,
+                        "alignment": alignment,
+                        "alignment_signature": signature,
                     },
                 )
                 fscore_by_id[sample_id] = value
@@ -218,6 +340,7 @@ def _complete_split(
             "metrics": aggregate,
             "fscore_workers": workers,
             "prediction_evaluation_policy": PREDICTION_EVALUATION_POLICY,
+            "alignment": alignment,
         },
     )
     metadata["metrics"] = list(PAPER_METRIC_KEYS)

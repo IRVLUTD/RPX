@@ -20,11 +20,11 @@ adapters need their isolated upstream environment and smoke run.
 
 | | Code wired | Acceptance passed | Unverified-weight block |
 | --- | --- | --- | --- |
-| Single-image depth | 10 / 10 | 4 / 10 | 1 (FE2E) |
+| Single-image depth | 10 / 10 | 4 / 10 | 0 |
 | Video depth | 10 / 10 | See recorded smoke metadata | 0 |
 
-**FE2E remains blocked pending an approved official release.** GemDepth and
-DVD now use repositories and checkpoints published by their authors.
+FE2E, GemDepth and DVD use the official releases pinned by their respective
+Docker overlays. FE2E one-frame Docker/GPU acceptance remains pending.
 
 ---
 
@@ -37,10 +37,10 @@ The team CLI: `python scripts/run_depth.py --model <name> --split easy`
 | **da-v2-large** | — | ✅ Done | Already tested on RTX 5070 — works |
 | **da3-metric-l** | — | ⏳ Needs smoke | `pip install -e git+https://github.com/ByteDance-Seed/depth-anything-3` then smoke |
 | **depth-pro** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.5981, AbsRel 0.1390, delta1 0.9092 |
-| **depthlm** | — | ⏳ Needs smoke | `pip install transformers torch accelerate` — needs ≥24 GB VRAM |
-| **fe2e** | — | 🚫 Blocked | Find the official upstream release (community HF repo looks unofficial) |
+| **fe2e** | — | 🐳 Docker GPU validation pending | Official `AMAP-ML/FE2E` release and author-linked `exander/FE2E` checkpoint are pinned in `docker/depth-fe2e`; run the one-frame CUDA acceptance before production |
 | **hyden** | — | 🔐 Access blocked (2026-07-02, pop-os) | Environment/import/CUDA checks pass, but the official `facebook/hyden-mogev2-metric-point` checkpoint returns HTTP 403 for the current HF account. Request official access, then rerun on the server; do not substitute weights. |
 | **lotus-2** | — | ⚠️ Server retest | Setup exposed a Diffusers/Transformers 5 incompatibility. The recipe now pins compatible Transformers 4.46.3, but the two-attempt local ceiling was reached before inference. Recreate/resume the corrected environment on the server. |
+| **zipdepth** | — | 🐳 Docker GPU validation pending | Official `fabiotosi92/ZipDepth` source and GPU checkpoint are pinned in `docker/depth-zipdepth`; pooled `ls_disparity` matches the released inverse-depth evaluator |
 | **metric3d-v2** | — | ⏳ Needs smoke | (existing torch.hub) |
 | **moge-2-vit-l** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.6235, AbsRel 0.1769, delta1 0.7502 |
 | **unidepth-v2** | — | ✅ Passed (2026-07-02, pop-os, RTX 5060 8 GB) | Micro 1/1 + acceptance 25/25; acceptance RMSE 0.4978, AbsRel 0.0707, delta1 0.9479 |
@@ -92,17 +92,16 @@ If the error is something else (CUDA OOM, missing package, weights download fail
 
 ---
 
-## The blocked model — what to do
+## Verifying future model releases
 
-For **FE2E**, the candidate release still requires explicit approval before
-publication. Running it without that verification could publish benchmark
-numbers under a model name whose weights do not match the paper.
+The current canonical roster has no unverified-weight blocks. Future adapters
+must establish paper-author lineage before benchmark results are published.
 
-To unblock any of them:
+For a new model:
 
 1. Find the paper's official GitHub repo (check the paper PDF's "code" link or arxiv "code" tab)
 2. Confirm whether the weights match what's on the candidate HF repo (or use the official repo's instructions instead)
-3. Update `scripts/depth_models/fe2e.py`, drop the safety rail, and wire up the verified load path
+3. Update the relevant adapter with the verified load path
 4. Smoke it, then update this table
 
 ---

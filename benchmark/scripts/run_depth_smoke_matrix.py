@@ -83,7 +83,12 @@ def _print_roster() -> None:
     print("MODEL\tTASK\tFAMILY\tSTATUS")
     for name, task in _canonical_models("all"):
         family = setup.MODEL_FAMILY.get(name, "-")
-        status = "blocked-unverified" if name in gate.BLOCKED_MODELS else "runnable"
+        if name in gate.BLOCKED_MODELS:
+            status = "blocked-unverified"
+        elif name in gate.DEDICATED_RUNTIME_MODELS:
+            status = "dedicated-runtime"
+        else:
+            status = "runnable"
         print(f"{name}\t{task}\t{family}\t{status}")
 
 
@@ -395,6 +400,23 @@ def main() -> None:  # noqa: C901 - the CLI is intentionally linear and auditabl
             state["updated_utc"] = _utc_now()
             _atomic_write_json(state_path, state)
             print("  blocked: official weights are not verified", flush=True)
+            continue
+        if model in gate.DEDICATED_RUNTIME_MODELS:
+            for gate_name in args.gates:
+                item = _gate_state(state, model, task, gate_name)
+                item.update(
+                    {
+                        "status": "blocked",
+                        "failure_class": "dedicated_runtime_required",
+                        "updated_utc": _utc_now(),
+                    }
+                )
+            state["updated_utc"] = _utc_now()
+            _atomic_write_json(state_path, state)
+            print(
+                "  use the model's dedicated Docker overlay for this smoke gate",
+                flush=True,
+            )
             continue
 
         family = setup.MODEL_FAMILY[model]

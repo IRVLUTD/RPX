@@ -138,7 +138,7 @@ def test_subclass_with_unknown_model_key_raises():
     # Affine-invariant Image Depth models. DepthLM was originally
     # listed here but the verified HF model card (facebook/DepthLM)
     # describes it as a metric VLM — moved to the metric group below.
-    ["lotus-2", "fe2e"],
+    ["lotus-2", "fe2e", "zipdepth"],
 )
 def test_known_relative_models_marked_relative(key):
     """Paper §3.3: these Image Depth models are affine-invariant."""
@@ -155,7 +155,6 @@ def test_known_relative_models_marked_relative(key):
         "metric3d-v2",
         "moge-2-vit-l",  # metric scale per official Microsoft MoGe-2 release
         "hyden",  # canonical roster selects HyDen-MoGeV2 metric point depth
-        "depthlm",  # metric per huggingface.co/facebook/DepthLM
     ],
 )
 def test_known_metric_models_marked_metric(key):

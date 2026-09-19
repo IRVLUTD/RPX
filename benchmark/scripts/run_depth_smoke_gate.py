@@ -26,18 +26,20 @@ from pathlib import Path
 
 DATASET_REPO = "IRVLUTD/RPX"
 DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
-BLOCKED_MODELS = {"fe2e"}
+BLOCKED_MODELS: set[str] = set()
+# Verified models supplied by dedicated Docker overlays rather than the host installer.
+DEDICATED_RUNTIME_MODELS = {"fe2e", "gem-depth"}
 IMAGE_MODELS = {
     "da-v2-large",
     "da3-metric-l",
     "depth-pro",
-    "depthlm",
     "fe2e",
     "hyden",
     "lotus-2",
     "metric3d-v2",
     "moge-2-vit-l",
     "unidepth-v2",
+    "zipdepth",
 }
 VIDEO_MODELS = {
     "chrono-depth",
@@ -458,6 +460,11 @@ def main() -> None:
             "--save-predictions",
             "--skip-flops",
         ]
+        if args.model in {"zipdepth", "fe2e"}:
+            # ZipDepth's official inverse-depth head may emit legitimate zeros;
+            # FE2E emits a signed normalized log-depth representation. Paper
+            # mode preserves both raw domains for their pooled alignment fits.
+            command += ["--paper-protocol", "--defer-fscore"]
         if args.gate == "micro":
             command += ["--max-samples", "1"]
         elif args.gate == "acceptance":

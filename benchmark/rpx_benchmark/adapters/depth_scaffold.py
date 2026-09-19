@@ -158,29 +158,21 @@ DEPTH_MODEL_CARDS: dict[str, DepthModelCard] = {
         name="FE2E",
         task=TaskType.MONOCULAR_DEPTH,
         depth_output_kind="relative",
-        # A community repo `exander/FE2E` exists on HF but has an
-        # empty README and no verified-official lineage. Team to
-        # locate the official release (likely on GitHub) before use.
         install_hint=(
-            "no verified official release as of 2026-06-25; community "
-            "repo at huggingface.co/exander/FE2E exists but is "
-            "undocumented. Team must locate the official upstream "
-            "before wiring this adapter."
+            "official AMAP-ML/FE2E source plus its linked exander/FE2E "
+            "checkpoint; use the pinned docker/depth-fe2e environment"
         ),
         paper_ref="fe2e",
     ),
-    "depthlm": DepthModelCard(
-        name="DepthLM",
+    "zipdepth": DepthModelCard(
+        name="ZipDepth",
         task=TaskType.MONOCULAR_DEPTH,
-        # DepthLM emits metric depth per the upstream HF model card
-        # (Pixtral-finetuned VLM); runner skips alignment.
-        depth_output_kind="metric",
+        depth_output_kind="relative",
         install_hint=(
-            "pip install transformers torch accelerate; "
-            "weights at facebook/DepthLM (~24 GB; needs 40 GB+ VRAM or "
-            "bitsandbytes 4-bit)"
+            "official fabiotosi92/ZipDepth source and zipdepth_base.pth; "
+            "use the pinned docker/depth-zipdepth environment"
         ),
-        paper_ref="depthlm",
+        paper_ref="zipdepth",
     ),
     # -------------------------------------------------------------- Video Depth
     "da3-video": DepthModelCard(

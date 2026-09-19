@@ -99,7 +99,12 @@ class MoGe:
         x = torch.stack(tensors, dim=0).to(self.device)
 
         with torch.inference_mode():
-            output = self._model.infer(x)
+            # MoGe's default ``apply_mask=True`` replaces depth values outside
+            # its predicted validity mask with ``inf``.  Image-depth evaluation
+            # requires a dense prediction on the benchmark's shared GT mask, so
+            # retain the model's underlying finite dense depth instead of
+            # applying that optional visualization/geometry mask.
+            output = self._model.infer(x, apply_mask=False)
         # MoGe.infer returns a dict: {"depth": [B, H, W], "points": [B, H, W, 3],
         #                              "intrinsics": [B, 3, 3], "mask": [B, H, W]}.
         depth_t = output["depth"]

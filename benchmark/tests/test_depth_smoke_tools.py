@@ -19,6 +19,7 @@ import run_depth_smoke_gate as gate
 import run_depth_smoke_matrix as matrix
 import setup_depth_smoke_env as setup_env
 from depth_models.hyden import HyDen
+from depth_models.moge import MoGe
 from video_depth_models.chrono_depth import ChronoDepthAdapter
 from video_depth_models.depth_crafter import DepthCrafterAdapter
 from video_depth_models.dvd import DVDAdapter
@@ -35,12 +36,10 @@ def _sample(t: int = 3, h: int = 16, w: int = 24) -> SimpleNamespace:
 
 
 def test_setup_covers_every_runnable_canonical_model() -> None:
-    # GemDepth intentionally uses the official torch 2.3.1/cu121 Docker
-    # overlay rather than the shared torch 2.10 host-env installer.
     runnable = (
         (gate.IMAGE_MODELS | gate.VIDEO_MODELS)
         - gate.BLOCKED_MODELS
-        - {"gem-depth"}
+        - gate.DEDICATED_RUNTIME_MODELS
     )
     assert set(setup_env.MODEL_FAMILY) == runnable
     assert setup_env.VIDEO_MODELS == (
@@ -58,7 +57,8 @@ def test_matrix_roster_covers_all_twenty_models() -> None:
     roster = matrix._canonical_models("all")
     assert len(roster) == 20
     assert {name for name, _task in roster} == gate.IMAGE_MODELS | gate.VIDEO_MODELS
-    assert gate.BLOCKED_MODELS == {"fe2e"}
+    assert gate.BLOCKED_MODELS == set()
+    assert gate.DEDICATED_RUNTIME_MODELS == {"fe2e", "gem-depth"}
 
 
 def test_matrix_gate_parser_enforces_safe_order() -> None:
@@ -455,6 +455,28 @@ def test_hyden_metric_uses_point_z_and_metric_scale() -> None:
     depth = adapter(sample.rgb_seq[0])
     assert depth.shape == sample.rgb_seq.shape[1:3]
     assert np.allclose(depth, 6.0)
+
+
+def test_moge_requests_dense_unmasked_depth() -> None:
+    torch = pytest.importorskip("torch")
+    rgb = _sample(t=1).rgb_seq[0]
+
+    class Model:
+        def infer(self, images, *, apply_mask):
+            assert images.shape == (1, 3, 16, 24)
+            assert apply_mask is False
+            return {"depth": torch.ones((1, 16, 24), dtype=torch.float32)}
+
+    adapter = MoGe.__new__(MoGe)
+    adapter._torch = torch
+    adapter._model = Model()
+    adapter.device = "cpu"
+
+    depth = adapter(rgb)
+
+    assert depth.shape == rgb.shape[:2]
+    assert depth.dtype == np.float32
+    assert np.isfinite(depth).all()
 
 
 def test_vggt_uses_release_preprocessor_and_depth_key(monkeypatch) -> None:
