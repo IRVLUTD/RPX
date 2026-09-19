@@ -9,6 +9,10 @@ fi
 python_for_model() {
   if [[ "$1" == internvl3.5-* ]]; then
     printf '%s\n' /opt/rpx-envs/internvl/bin/python
+    return
+  fi
+  if [[ "$1" == molmo-* || "$1" == molmoe-* ]]; then
+    printf '%s\n' /opt/rpx-envs/molmo/bin/python
   elif [[ "$1" == florence2-* || "$1" == paligemma2-* ]]; then
     printf '%s\n' /opt/rpx-envs/florence2/bin/python
   else
@@ -45,8 +49,9 @@ EOF
     ;;
   verify)
     florence_transformers="$([ -x /opt/rpx-envs/florence2/bin/python ] && /opt/rpx-envs/florence2/bin/python -c 'import transformers; print(transformers.__version__)')"
+    molmo_transformers="$([ -x /opt/rpx-envs/molmo/bin/python ] && /opt/rpx-envs/molmo/bin/python -c 'import transformers; print(transformers.__version__)')"
     internvl_transformers="$([ -x /opt/rpx-envs/internvl/bin/python ] && /opt/rpx-envs/internvl/bin/python -c 'import transformers; print(transformers.__version__)')"
-    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() in (1,2), 'expose one GPU, or two only for a TP2 model'; print(json.dumps({'backends':['vllm','transformers-florence2','transformers-paligemma2','transformers-internvl'],'vllm':vllm.__version__,'transformers':transformers.__version__,'native_transformers':'${florence_transformers}','internvl_transformers':'${internvl_transformers}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu_count':torch.cuda.device_count(),'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() in (1,2), 'expose one GPU, or two only for a TP2 model'; print(json.dumps({'backends':['vllm','transformers-florence2','transformers-paligemma2','transformers-internvl','transformers-molmo'],'vllm':vllm.__version__,'transformers':transformers.__version__,'native_transformers':'${florence_transformers}','internvl_transformers':'${internvl_transformers}','molmo_transformers':'${molmo_transformers}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu_count':torch.cuda.device_count(),'gpu':torch.cuda.get_device_name(0)},indent=2))"
     ;;
   list-models)
     exec env PYTHONPATH=scripts python3 -c "from vqa_models.backend_registry import CHECKPOINTS,backend_name; print('\n'.join(f'{key}\t{backend_name(key)}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"
