@@ -56,7 +56,7 @@ from .recipes import (
     RGB,
     SceneType,
 )  # noqa: F401  CAM_POSE used in default label_versions
-from .scanner import ScanResult
+from .scanner import SRC_SUBDIR_BY_TYPE, ScanResult
 
 log = get_logger(__name__)
 
@@ -99,27 +99,44 @@ def _arrow():
 
 def _index_shards_by_phase(
     pack: PackResult,
-) -> Dict[tuple[str, int], Dict[str, PackedShard]]:
-    """Group shards by (scene_id, phase) for fast lookup while walking frames."""
-    out: Dict[tuple[str, int], Dict[str, PackedShard]] = {}
+) -> Dict[tuple[SceneType, str, int], Dict[str, PackedShard]]:
+    """Group shards by (scene_type, scene_id, phase) for fast lookup while
+    walking frames.
+
+    scene_type is part of the key deliberately — ego scenes intentionally
+    share their exact scene_id string with their mos/ sibling (that's how
+    split/difficulty assignment joins them), so (scene_id, phase) alone is
+    NOT unique once ego scenes exist. Keying by scene_id alone here used to
+    silently let one scene type's shards clobber the other's for any
+    (scene_id, phase) pair they both used — same bug class as
+    _frame_filenames_for below.
+    """
+    out: Dict[tuple[SceneType, str, int], Dict[str, PackedShard]] = {}
     for s in pack.shards:
-        key = (s.scene_id, s.phase)
+        key = (s.scene_type, s.scene_id, s.phase)
         out.setdefault(key, {})[s.modality] = s
     return out
 
 
 def _frame_filenames_for(
     scan: ScanResult,
+    scene_type: SceneType,
     scene_id: str,
     phase_index: int,
 ) -> List[str]:
     """Pick one modality (rgb, then depth, then anything) and return its
     sorted filenames as the canonical frame list for that phase.
+
+    scene_type disambiguates scenes that share a scene_id string across
+    families (ego scenes deliberately reuse their mos/ sibling's scene_id —
+    see _index_shards_by_phase) — without it, `next(... if s.scene_id ==
+    scene_id)` could resolve to the WRONG scene's phase entirely.
     """
-    scene = next(s for s in scan.scenes if s.scene_id == scene_id)
+    scene = next(
+        s for s in scan.scenes if s.scene_id == scene_id and s.scene_type is scene_type
+    )
     phase = next(p for p in scene.phases if p.phase_index == phase_index)
-    sub = "mos" if scene.scene_type is SceneType.MULTI_OBJECT else "sos"
-    src = scan.root / sub / scene_id / str(phase_index)
+    src = scan.root / SRC_SUBDIR_BY_TYPE[scene_type] / scene_id / str(phase_index)
     for prefer in ("rgb", "depth", "fisheye"):
         if prefer in phase.modalities:
             return sorted(p.name for p in (src / prefer).iterdir() if p.is_file())
@@ -152,15 +169,28 @@ def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
     Backward-compatible: if a modality's directory is missing or empty
     in the scanned tree, that modality is omitted from the returned
     dict, and downstream code falls back to its built-in defaults.
+
+    Detection runs per scene_type first, then merges: ``current.json``'s
+    ``modality_extensions`` is a single flat ``{modality: ext}`` dict
+    shared by every scene family (mos/sos/ego), with no scene_type
+    dimension. If two families actually disagree on a modality's on-disk
+    extension at manifest-build time (e.g. mos ``rgb`` already
+    lossless-converted to ``.webp`` while a freshly-added ego family is
+    still raw ``.png``), silently picking whichever scene the scan
+    happens to hit first would corrupt the OTHER family's manifest paths
+    without any error. Raise instead of guessing.
     """
-    found: Dict[str, str] = {}
+    per_type: Dict[SceneType, Dict[str, str]] = {}
     for scene in scan.scenes:
         if not scene.phases:
             continue
-        sub = "mos" if scene.scene_type is SceneType.MULTI_OBJECT else "sos"
+        by_modality = per_type.setdefault(scene.scene_type, {})
+        if len(by_modality) == len(_MODALITY_SUBPATH_FOR_DETECTION):
+            continue  # this scene_type is already fully covered
+        sub = SRC_SUBDIR_BY_TYPE[scene.scene_type]
         phase_root = scan.root / sub / scene.scene_id / str(scene.phases[0].phase_index)
         for modality, subpath in _MODALITY_SUBPATH_FOR_DETECTION.items():
-            if modality in found:
+            if modality in by_modality:
                 continue
             mod_dir = phase_root / subpath
             if not mod_dir.is_dir():
@@ -171,10 +201,34 @@ def _detect_modality_extensions(scan: ScanResult) -> Dict[str, str]:
             # no files directly inside).
             for entry in sorted(mod_dir.rglob("*")):
                 if entry.is_file():
-                    found[modality] = entry.suffix
+                    by_modality[modality] = entry.suffix
                     break
-        if len(found) == len(_MODALITY_SUBPATH_FOR_DETECTION):
-            break
+
+    found: Dict[str, str] = {}
+    conflicts: List[str] = []
+    for scene_type, by_modality in per_type.items():
+        for modality, ext in by_modality.items():
+            if modality in found and found[modality] != ext:
+                conflicts.append(
+                    f"{modality!r} is {found[modality]!r} elsewhere but "
+                    f"{ext!r} for scene_type={scene_type.value!r}"
+                )
+                continue
+            found[modality] = ext
+
+    if conflicts:
+        raise DatasetError(
+            "Conflicting on-disk file extensions for the same modality "
+            f"across scene types: {'; '.join(conflicts)}.",
+            hint=(
+                "modality_extensions in current.json has no scene_type "
+                "dimension -- every family must agree on the same on-disk "
+                "extension per modality before the manifest is rebuilt. "
+                "Run lossless_convert over whichever family is out of sync "
+                "(commonly: a newly-added family that hasn't been "
+                "converted yet) and retry."
+            ),
+        )
     return found
 
 
@@ -234,14 +288,23 @@ def build_frame_manifest(
 
     for scene in scan.scenes:
         for phase in scene.phases:
-            shards_here = shard_index.get((scene.scene_id, phase.phase_index), {})
+            shards_here = shard_index.get(
+                (scene.scene_type, scene.scene_id, phase.phase_index), {}
+            )
             filenames = _frame_filenames_for(
                 scan,
+                scene.scene_type,
                 scene.scene_id,
                 phase.phase_index,
             )
+            # Ego scenes reuse their MOS sibling's split/difficulty tier —
+            # same scene_id (e.g. "scene20.su.checkerboard"), no separate
+            # ego difficulty scoring. SOS (single-object, no scene-level
+            # difficulty concept) still gets None.
             split_label = (
-                splits.get(scene.scene_id) if scene.scene_type is SceneType.MULTI_OBJECT else None
+                splits.get(scene.scene_id)
+                if scene.scene_type in (SceneType.MULTI_OBJECT, SceneType.EGO)
+                else None
             )
             for idx, fname in enumerate(filenames):
                 cols["scene_id"].append(scene.scene_id)

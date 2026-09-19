@@ -5,12 +5,18 @@ Source layout (as captured by the team)::
     <root>/
     ├── mos/                                  # multi-object scenes
     │   └── scene<N>.<building>.<area>/<phase>/<modality>/...
-    └── sos/                                  # single-object scenes
-        └── object<N>.<name>/0/<modality>/...
+    ├── sos/                                  # single-object scenes
+    │   └── object<N>.<name>/0/<modality>/...
+    └── ego/                                  # egocentric scenes (one phase, "0")
+        └── scene<N>.<building>.<area>/0/<modality>/...
+            # scene_id MUST match its sibling mos/ scene exactly — that's
+            # how manifest.py joins an ego scene to its MOS split/difficulty
+            # tier. Use `prepare-ego` (see ego_layout.py) to arrange a raw
+            # `<scene>/ego/` capture into this shape before scanning.
 
 Scene type is determined by which top-level subdirectory the scene lives
-under (``mos/`` or ``sos/``) — not by directory name pattern. This makes
-naming flexible and reduces classification errors.
+under (``mos/``, ``sos/``, or ``ego/``) — not by directory name pattern.
+This makes naming flexible and reduces classification errors.
 
 The scanner walks every modality subdir, counts files, sums bytes, and
 returns a structured ``ScanResult`` that downstream tooling (packer,
@@ -31,7 +37,16 @@ from .recipes import SceneType
 _TYPE_DIRS: Dict[str, SceneType] = {
     "mos": SceneType.MULTI_OBJECT,
     "sos": SceneType.SINGLE_OBJECT,
+    "ego": SceneType.EGO,
 }
+
+#: The inverse of ``_TYPE_DIRS`` — the single source of truth for "where does
+#: a scene of this type live on disk". Every other module (packer, manifest,
+#: ...) that needs this mapping should import it from here rather than
+#: keeping its own copy — a second, un-synced copy is exactly how the
+#: pre-ego manifest.py bug happened (its own `"mos" if ... else "sos"`
+#: ternary never learned about a third scene type).
+SRC_SUBDIR_BY_TYPE: Dict[SceneType, str] = {v: k for k, v in _TYPE_DIRS.items()}
 
 
 @dataclass(frozen=True)

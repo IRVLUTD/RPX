@@ -426,12 +426,30 @@ def _link_one(
     src_path_s: str,
     dst_path_s: str,
 ) -> Tuple[str, int, int, Optional[str]]:
-    """Hard-link (or copy if cross-fs) a file into the output tree."""
-    src_path = Path(src_path_s)
+    """Hard-link (or copy if cross-fs) a file into the output tree.
+
+    ``src_path`` may itself be a symlink (e.g. ego_layout.py arranges ego
+    captures via per-file symlinks into a scratch DATA tree). On this
+    platform ``os.link(symlink, dst)`` with the default
+    ``follow_symlinks=True`` does NOT dereference -- it creates a new
+    symlink at ``dst`` pointing at the same (possibly relative-to-nowhere)
+    target, not a hardlink to the real file. Confirmed via a direct
+    ``os.lstat`` check: the resulting dst had ``S_ISLNK`` set and the
+    symlink's own ~80-byte size, not the real file's size. That's a
+    silent, severe downstream bug: packer.py's tar writer uses
+    ``os.lstat`` semantics (via ``TarFile.gettarinfo`` without
+    ``dereference=True``), so a symlink dst would get packed as a broken
+    symlink tar entry pointing at a LOCAL machine path -- unreadable by
+    anyone who downloads the resulting shard. Resolve to the real
+    underlying file before linking so this always produces a true
+    hardlink (or a real byte copy, on cross-filesystem fallback) no
+    matter how many symlinks src_path chains through.
+    """
+    src_path = Path(src_path_s).resolve()
     dst_path = Path(dst_path_s)
     try:
         dst_path.parent.mkdir(parents=True, exist_ok=True)
-        if dst_path.exists():
+        if dst_path.exists() or dst_path.is_symlink():
             dst_path.unlink()
         try:
             os.link(src_path, dst_path)

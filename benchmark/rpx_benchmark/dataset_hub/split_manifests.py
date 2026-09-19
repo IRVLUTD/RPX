@@ -64,6 +64,9 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from .packer import SCENE_ROOT_BY_TYPE, phase_segment
+from .recipes import SceneType
+
 log = logging.getLogger(__name__)
 
 
@@ -123,12 +126,21 @@ def _layout_with_overrides(
     return out
 
 
-def _modality_path(scene: str, phase: int, modality: str, frame_stem: str) -> str:
+def _modality_path(
+    scene: str, phase: int, modality: str, frame_stem: str,
+    scene_type: str = SceneType.MULTI_OBJECT.value,
+) -> str:
     """Build the manifest's path string for one (scene, phase, modality, frame).
 
     Path is relative to the manifest's ``root`` (set by ``download_split``
-    to the snapshot root). After ``_extract_snapshot_tars`` runs, the
-    file lives under ``extracted/scenes/...``.
+    to the snapshot root). After ``_extract_snapshot_tars`` runs, the file
+    lives under ``extracted/<repo_root>/...`` where ``<repo_root>`` is
+    ``scenes`` for mos, ``objects`` for sos, ``ego`` for ego (see
+    packer.SCENE_ROOT_BY_TYPE — the single source of truth this must stay
+    in sync with). ``scene_type`` defaults to multi_object/"scenes" so
+    every pre-ego call site (all mos-only specs) is unaffected; only the
+    specs actually shared with ego (_SegmentationSpec, _ObjectTrackingSpec)
+    pass the row's real scene_type.
 
     Reads the active layout (set by :func:`write_split_manifests`); falls
     back to :data:`_MODALITY_LAYOUT` defaults outside that context.
@@ -142,7 +154,10 @@ def _modality_path(scene: str, phase: int, modality: str, frame_stem: str) -> st
             hint=f"Known modalities: {', '.join(sorted(layout))}",
         )
     _, subdir, ext = layout[modality]
-    return f"extracted/scenes/{scene}/{phase}/{subdir}/{frame_stem}{ext}"
+    st = SceneType(scene_type)
+    repo_root = SCENE_ROOT_BY_TYPE[st]
+    seg = phase_segment(st, phase)
+    return f"extracted/{repo_root}/{scene}/{seg}/{subdir}/{frame_stem}{ext}"
 
 
 def _has_col(modality: str) -> str:
@@ -190,6 +205,15 @@ class _TaskSpec:
     #: parquet rows (a row enters the manifest only if every required
     #: modality is present).
     required_modalities: Tuple[str, ...] = ()
+
+    #: scan/manifest's SceneType.value strings this spec applies to.
+    #: Defaults to multi_object (mos) — every spec below predates ego and
+    #: was written assuming only mos rows would ever reach it (nothing here
+    #: checked scene_type at all, so ego rows silently satisfied the same
+    #: rgb+masks requirement and leaked into e.g. "segmentation" instead of
+    #: a distinct "ego_segmentation" — see the Ego* specs below, which are
+    #: the fix, not new functionality).
+    scene_types: Tuple[str, ...] = ("multi_object",)
 
     def build_entries(self, df) -> List[Dict[str, Any]]:
         raise NotImplementedError
@@ -272,8 +296,9 @@ class _SegmentationSpec(_TaskSpec):
             scene = e["scene_id"]
             phase = e["phase"]
             stem = _frame_stem(row)
-            e["rgb"] = _modality_path(scene, phase, "rgb", stem)
-            e["mask"] = _modality_path(scene, phase, "masks", stem)
+            st = str(row["scene_type"])
+            e["rgb"] = _modality_path(scene, phase, "rgb", stem, scene_type=st)
+            e["mask"] = _modality_path(scene, phase, "masks", stem, scene_type=st)
             rows.append(e)
         return rows
 
@@ -410,10 +435,29 @@ class _ObjectTrackingSpec(_TaskSpec):
             scene = e["scene_id"]
             phase = e["phase"]
             stem = _frame_stem(row)
-            e["rgb"] = _modality_path(scene, phase, "rgb", stem)
-            e["mask"] = _modality_path(scene, phase, "masks", stem)
+            st = str(row["scene_type"])
+            e["rgb"] = _modality_path(scene, phase, "rgb", stem, scene_type=st)
+            e["mask"] = _modality_path(scene, phase, "masks", stem, scene_type=st)
             rows.append(e)
         return rows
+
+
+class _EgoSegmentationSpec(_SegmentationSpec):
+    """``ego_segmentation``: same shape as ``segmentation`` (rgb + mask),
+    scoped to ego (egocentric/GoPro) scenes only. Reuses
+    TaskType.OBJECT_SEGMENTATION — same evaluation task, just a distinct
+    manifest key so a downloader can pull ego's slice without also
+    pulling mos's rig-camera segmentation data (and vice versa)."""
+
+    scene_types = ("ego",)
+
+
+class _EgoObjectTrackingSpec(_ObjectTrackingSpec):
+    """``ego_object_tracking``: same shape as ``object_tracking``, scoped
+    to ego scenes only. See _EgoSegmentationSpec for why this is a
+    separate manifest key rather than a new TaskType."""
+
+    scene_types = ("ego",)
 
 
 class _VQASpec(_TaskSpec):
@@ -435,6 +479,21 @@ class _VQASpec(_TaskSpec):
         return []
 
 
+class _EgoVQASpec(_VQASpec):
+    """``ego_vqa``: same reserved-slot shape as ``vqa``, scoped to ego
+    scenes only. See _EgoSegmentationSpec for why this is a separate
+    manifest key rather than a new TaskType."""
+
+    scene_types = ("ego",)
+
+    def build_entries(self, df) -> List[Dict[str, Any]]:
+        log.warning(
+            "ego_vqa: spec exists but no entries produced — needs the team's "
+            "VQA label generation pipeline (see VQA_DESIGN.md). Skipping."
+        )
+        return []
+
+
 # Recipe-key → spec instance.
 _TASK_SPECS: Dict[str, _TaskSpec] = {
     "monocular_depth": _SingleFrameDepthSpec(),
@@ -445,7 +504,10 @@ _TASK_SPECS: Dict[str, _TaskSpec] = {
     "relative_pose": _RelativePoseSpec(),
     "rgbd_relative_pose": _RGBDRelativePoseSpec(),
     "object_tracking": _ObjectTrackingSpec(),
+    "ego_segmentation": _EgoSegmentationSpec(),
+    "ego_object_tracking": _EgoObjectTrackingSpec(),
     "vqa": _VQASpec(),
+    "ego_vqa": _EgoVQASpec(),
 }
 
 
@@ -609,9 +671,15 @@ def _write_loop(
             continue
         spec = _TASK_SPECS[recipe_key]
 
+        # Scope to this spec's scene family FIRST — required_modalities
+        # alone (rgb+masks) is satisfied by both mos and ego rows, so
+        # without this an ego frame would qualify for "segmentation" too,
+        # not just "ego_segmentation".
+        sub_all = df[df["scene_type"].isin(spec.scene_types)]
+
         # Filter to rows that have every required modality.
         required_cols = [_has_col(m) for m in spec.required_modalities]
-        sub_all = _filter_required(df, required_cols)
+        sub_all = _filter_required(sub_all, required_cols)
         if sub_all is None or sub_all.empty:
             log.info(
                 "no parquet rows satisfy %s's required modalities (%s); skipping all splits.",

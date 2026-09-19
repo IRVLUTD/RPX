@@ -30,9 +30,14 @@ Output layout (under the staging directory)::
     │           ├── masks/v1.tar
     │           ├── masks_aux/v1.tar
     │           └── sam2_meta/v1.tar
-    └── objects/                               # single-object captures (one phase)
-        └── <object_id>/0/
-            (same modality structure)
+    ├── objects/                               # single-object captures (one phase)
+    │   └── <object_id>/0/
+    │       (same modality structure)
+    └── ego/                                    # egocentric captures (one phase)
+        └── <scene_id>/0/
+            (same modality structure — rgb + masks/masks_aux only today;
+            scene_id matches the sibling mos/ scene so splits/difficulty
+            join without any extra lookup table)
 
 The packer is *content-stable*: tar member order is sorted, mtime is
 zeroed, ownership is normalised — so re-running on the same source
@@ -63,7 +68,7 @@ from .recipes import (
     RGB,
     SceneType,
 )
-from .scanner import ScanResult
+from .scanner import SRC_SUBDIR_BY_TYPE, ScanResult
 
 log = get_logger(__name__)
 
@@ -113,6 +118,10 @@ class PackedShard:
 
     repo_path: str  # path relative to staging_root, forward-slashes
     scene_id: str
+    scene_type: SceneType  # disambiguates scene_id collisions across families
+                            # (ego scenes deliberately reuse their mos/
+                            # sibling's scene_id — see manifest.py's
+                            # _index_shards_by_phase / _frame_filenames_for)
     phase: int
     modality: str
     is_label: bool
@@ -142,8 +151,36 @@ class PackResult:
 # --------------------------------------------------------------------- #
 
 
+#: Repo-path root per scene type. Public (no leading underscore) — other
+#: modules (cli.py's manifest-rebuild-from-existing-tars path) need this
+#: same mapping and should import it rather than keep their own copy.
+SCENE_ROOT_BY_TYPE: Dict[SceneType, str] = {
+    SceneType.MULTI_OBJECT: "scenes",
+    SceneType.SINGLE_OBJECT: "objects",
+    # ego nests under the SAME scenes/<scene_id>/ dir as its mos sibling,
+    # as a phase-like "ego" segment alongside 0/1/2 -- not its own
+    # top-level root. See phase_segment() below.
+    SceneType.EGO: "scenes",
+}
+
+
 def _scene_root_for(scene_type: SceneType) -> str:
-    return "scenes" if scene_type is SceneType.MULTI_OBJECT else "objects"
+    return SCENE_ROOT_BY_TYPE[scene_type]
+
+
+def phase_segment(scene_type: SceneType, phase_index: int) -> str:
+    """The path segment standing in for "phase" in a repo path.
+
+    mos/sos use the numeric phase (0/1/2/...). ego has exactly one
+    continuous capture per scene and nests under its mos sibling's own
+    scene directory, so it uses the literal segment "ego" instead of a
+    number -- distinguishing ``scenes/<scene>/ego/`` from
+    ``scenes/<scene>/0/``, ``.../1/``, etc. Single source of truth: every
+    module that builds a repo path from (scene_type, phase) must call
+    this rather than stringifying phase_index directly, or ego paths
+    will end up as ``scenes/<scene>/0/...`` and collide with mos.
+    """
+    return "ego" if scene_type is SceneType.EGO else str(phase_index)
 
 
 def _shard_repo_path(
@@ -154,16 +191,15 @@ def _shard_repo_path(
     is_label: bool,
     label_version: str,
 ) -> str:
-    base = f"{_scene_root_for(scene_type)}/{scene_id}/{phase}"
+    base = f"{_scene_root_for(scene_type)}/{scene_id}/{phase_segment(scene_type, phase)}"
     if is_label:
         return f"{base}/labels/{modality}/{label_version}.tar"
     return f"{base}/{modality}.tar"
 
 
 def _scene_src_root(src_root: Path, scene_type: SceneType, scene_id: str) -> Path:
-    """Where a scene actually lives on disk: ``<src>/{mos,sos}/<scene_id>``."""
-    sub = "mos" if scene_type is SceneType.MULTI_OBJECT else "sos"
-    return src_root / sub / scene_id
+    """Where a scene actually lives on disk: ``<src>/{mos,sos,ego}/<scene_id>``."""
+    return src_root / SRC_SUBDIR_BY_TYPE[scene_type] / scene_id
 
 
 def _src_dir_for(
@@ -213,7 +249,14 @@ def _write_tar(
 
     # Write to a temp path then rename — never expose a half-written tar.
     tmp = out_path.with_suffix(out_path.suffix + ".part")
-    with tarfile.open(tmp, mode="w", format=tarfile.USTAR_FORMAT) as tf:
+    # dereference=True: gettarinfo() must use os.stat() (follow symlinks),
+    # not os.lstat(). Without it, any symlinked source file -- e.g. ego
+    # scenes arranged via ego_layout.py's per-file symlinks -- would be
+    # packed as a broken symlink tar entry pointing at a local machine
+    # path (near-zero bytes, unreadable by anyone downloading the shard)
+    # instead of the real file content. See lossless_convert.py's
+    # _link_one docstring for how this was originally discovered.
+    with tarfile.open(tmp, mode="w", format=tarfile.USTAR_FORMAT, dereference=True) as tf:
         for f in files:
             arcname = str(f.relative_to(rel_to)).replace(os.sep, "/")
             ti = tf.gettarinfo(name=str(f), arcname=arcname)
@@ -315,6 +358,7 @@ def pack_capture_tree(plan: PackPlan, scan: ScanResult) -> PackResult:
                     PackedShard(
                         repo_path=repo_path,
                         scene_id=scene.scene_id,
+                        scene_type=scene.scene_type,
                         phase=phase.phase_index,
                         modality=out_modality,
                         is_label=is_label,

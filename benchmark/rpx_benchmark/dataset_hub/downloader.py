@@ -35,6 +35,7 @@ from typing import (
 from ..exceptions import ConfigError, DownloadError
 from ..logging_utils import get_logger
 from .manifest import SCHEMA_VERSION
+from .packer import SCENE_ROOT_BY_TYPE
 from .recipes import (
     DEFAULT_REPO_ID,
     QUESTIONNAIRE,
@@ -42,6 +43,10 @@ from .recipes import (
     TaskRecipe,
     resolve_recipe,
 )
+
+#: Scene types whose scenes carry a real difficulty split (ego inherits its
+#: split from its mos sibling via a shared scene_id — see ego_layout.py).
+_SPLIT_BEARING_TYPES = (SceneType.MULTI_OBJECT, SceneType.EGO)
 
 if TYPE_CHECKING:  # pragma: no cover - only for type hints
     import pyarrow as pa
@@ -140,7 +145,7 @@ def _filter_manifest(
     import pyarrow.compute as pc  # noqa: WPS433
 
     mask = pc.equal(table["scene_type"], pa.scalar(scene_type.value))
-    if split is not None and scene_type is SceneType.MULTI_OBJECT:
+    if split is not None and scene_type in _SPLIT_BEARING_TYPES:
         mask = pc.and_(mask, pc.equal(table["split"], pa.scalar(split)))
     return table.filter(mask)
 
@@ -163,7 +168,21 @@ def _resolve_label_version(
 
 
 def _scene_root_for(scene_type: SceneType) -> str:
-    return "scenes" if scene_type is SceneType.MULTI_OBJECT else "objects"
+    return SCENE_ROOT_BY_TYPE[scene_type]
+
+
+def _phase_glob_segment(scene_type: SceneType) -> str:
+    """The glob segment standing in for "phase" in an allow_pattern.
+
+    ego now nests under the SAME scenes/<scene>/ root as mos (as a
+    literal "ego" segment alongside the numeric 0/1/2/... phases -- see
+    packer.phase_segment), so a bare "*" would match BOTH: a mos download
+    would incidentally also sweep up scenes/<scene>/ego/rgb.tar, and vice
+    versa. "[0-9]*" matches only digit-leading (numeric-phase) segments;
+    ego's literal "ego" doesn't match it, and "ego" is used verbatim for
+    ego scene_type -- so each family's pull stays scoped to itself.
+    """
+    return "ego" if scene_type is SceneType.EGO else "[0-9]*"
 
 
 def _build_allow_patterns(
@@ -178,16 +197,17 @@ def _build_allow_patterns(
     the per-object dedup pull.
     """
     root = _scene_root_for(scene_type)
+    phase_seg = _phase_glob_segment(scene_type)
     patterns: List[str] = []
     for scene in sorted(matched_scenes):
         for m in sorted(modalities):
             if m in _SHARED_MODALITIES:
                 continue  # handled by _shared_artefact_patterns
             if m in _RAW_MODALITIES:
-                patterns.append(f"{root}/{scene}/*/{m}.tar")
+                patterns.append(f"{root}/{scene}/{phase_seg}/{m}.tar")
             else:
                 v = _resolve_label_version(m, current, label_versions)
-                patterns.append(f"{root}/{scene}/*/labels/{m}/{v}.tar")
+                patterns.append(f"{root}/{scene}/{phase_seg}/labels/{m}/{v}.tar")
     return patterns
 
 
@@ -261,9 +281,9 @@ def download_for_task(
             f"task {task!r} targets single-object scenes, which have no splits.",
             hint="Drop the --split argument for single-object recipes.",
         )
-    if recipe.scene_type is SceneType.MULTI_OBJECT and split is None:
+    if recipe.scene_type in _SPLIT_BEARING_TYPES and split is None:
         raise ConfigError(
-            f"task {task!r} targets multi-object scenes — pick a split.",
+            f"task {task!r} targets {recipe.scene_type.value} scenes — pick a split.",
             hint="Pass split='easy' | 'medium' | 'hard'.",
         )
 

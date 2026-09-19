@@ -35,6 +35,7 @@ from rpx_benchmark.dataset_hub.mock import MockSpec, generate_mock
 from rpx_benchmark.dataset_hub.packer import PackPlan, pack_capture_tree
 from rpx_benchmark.dataset_hub.scanner import scan_capture_root
 from rpx_benchmark.dataset_hub.split_manifests import write_split_manifests
+from rpx_benchmark.exceptions import DatasetError
 
 pytest.importorskip("pyarrow", reason="pyarrow required for manifest builder")
 pytest.importorskip("pandas", reason="pandas required for split-manifest writer")
@@ -125,6 +126,84 @@ def test_detect_v2_tree_returns_webp_and_npy(v1_mock: Path):
     assert ext["depth"] == ".png"  # unchanged
     assert ext["masks"] == ".png"  # unchanged
     assert ext["cam_pose"] == ".npy"
+
+
+def test_detect_ego_only_tree_does_not_go_blind(tmp_path: Path):
+    """Regression test: _detect_modality_extensions used to compute the
+    scan-subdir via a `"mos" if MULTI_OBJECT else "sos"` ternary — for an
+    EGO scene that resolves to "sos", so it looked for ego's files under
+    <root>/sos/<scene_id>/... which doesn't exist, silently finding
+    nothing (found={}). That's masked whenever mos/sos scenes are also
+    present (mos alone fills in every modality first) but would go fully
+    blind on an ego-only capture root, like the real
+    ego-only-DATA staging path used to validate the ego upload before it
+    was ever combined with the mos/sos data. Uses SRC_SUBDIR_BY_TYPE now.
+    """
+    src = tmp_path / "src"
+    rgb = src / "ego" / "scene009" / "0" / "rgb"
+    rgb.mkdir(parents=True)
+    (rgb / "00000.png").write_text("x")
+    masks = src / "ego" / "scene009" / "0" / "sam2" / "masks"
+    masks.mkdir(parents=True)
+    (masks / "00000.png").write_text("x")
+    # No mos/ or sos/ dirs at all.
+    scan = scan_capture_root(src)
+    ext = _detect_modality_extensions(scan)
+    assert ext.get("rgb") == ".png", f"ego-only tree went blind: {ext}"
+    assert ext.get("masks") == ".png", f"ego-only tree went blind: {ext}"
+
+
+def test_detect_raises_on_cross_scene_type_extension_conflict(tmp_path: Path):
+    """Regression test for the most consequential bug found this session:
+    modality_extensions in current.json is a single flat {modality: ext}
+    dict shared by every scene family, with no scene_type dimension. If
+    mos rgb has already been lossless-converted to .webp (the live repo's
+    actual current state) while a freshly-added ego family is still raw
+    .png, _detect_modality_extensions used to silently pick whichever
+    scene the scan order hit first (ego sorts before mos alphabetically)
+    and record .png for "rgb" globally -- corrupting every MOS manifest
+    path with no error at all. It must now raise instead of guessing."""
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=3,
+            ego_scenes=2,
+        ),
+    )
+    # Simulate: mos already lossless-converted (.webp), ego still raw (.png)
+    # -- our actual real-world situation right now.
+    for p in (src / "mos").rglob("rgb"):
+        if p.is_dir():
+            for f in list(p.iterdir()):
+                f.rename(f.with_suffix(".webp"))
+
+    scan = scan_capture_root(src)
+    with pytest.raises(DatasetError, match="Conflicting on-disk file extensions"):
+        _detect_modality_extensions(scan)
+
+
+def test_detect_agrees_across_scene_types_when_extensions_match(tmp_path: Path):
+    """Sanity check for the fix above: when every scene family genuinely
+    agrees on the same on-disk extension (the normal, correctly-converted
+    state), detection still succeeds and returns the shared value --
+    the conflict check must not false-positive on agreement."""
+    src = generate_mock(
+        tmp_path / "src",
+        MockSpec(
+            multi_object_scenes=2,
+            single_object_scenes=0,
+            phases_per_multi=1,
+            frames_per_phase=3,
+            ego_scenes=2,
+        ),
+    )
+    scan = scan_capture_root(src)
+    ext = _detect_modality_extensions(scan)
+    assert ext.get("rgb") == ".png"
+    assert ext.get("masks") == ".png"
 
 
 def test_detect_skips_missing_modalities(tmp_path: Path):

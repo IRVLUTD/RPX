@@ -195,6 +195,18 @@ def test_vqa_emits_no_samples_yet(tmp_path, caplog):
         pass
 
 
+def test_ego_vqa_emits_no_samples_yet(tmp_path, caplog):
+    """ego_vqa mirrors vqa's reserved-slot behaviour, scoped to ego scenes:
+    wired but waits on label generation — should warn, not crash, and
+    produce zero JSONs. (The synthetic parquet here has no ego rows at
+    all, so this also pins that the scene_type filter doesn't crash on
+    an empty post-filter frame.)"""
+    _make_parquet(tmp_path)
+    with caplog.at_level("WARNING"):
+        w = write_split_manifests(tmp_path, tasks=["ego_vqa"])
+    assert w == {}  # no JSONs written
+
+
 def test_metadata_block_carries_scene_phase_frame(tmp_path):
     """Wrappers reach scene/phase/frame via Sample.metadata, not by
     parsing sample.id (id format may include extra fields for paired
