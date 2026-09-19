@@ -181,6 +181,10 @@ def collect_faulty_frames(
         if objects_only_prompt:
             scene_prompt = "objects"
             obj_names_norm: List[str] = []
+        elif default_prompt == "__scene_name__":
+            # SOS mode: use scene dir name (without dotted variant suffix) as prompt
+            base = re.split(r"\.[a-zA-Z0-9]+$", scene_name)[0]
+            scene_prompt, obj_names_norm = build_prompt_from_names([base], sep=prompt_sep)
         else:
             obj_names_raw = scene_id_to_names.get(sid, []) if sid is not None else []
             scene_prompt, obj_names_norm = build_prompt_from_names(obj_names_raw, sep=prompt_sep)
@@ -306,6 +310,7 @@ def run_gdino_on_all_faulty(
     save_overlays: bool,
     device: str,
     objects_only_prompt: bool,
+    top_k: int = 0,
 ):
     # bboxes_dir = out_root / "bboxes"
     # overlays_dir = out_root / "overlays"
@@ -481,7 +486,12 @@ def run_gdino_on_all_faulty(
                 confs_np = confs_final.cpu().numpy()
                 
                 image_bboxes, phrases_final, confs_final = sort_boxes_by_area(image_bboxes_np, phrases_final, confs_np)
-                
+
+                if top_k > 0 and len(image_bboxes) > top_k:
+                    image_bboxes = image_bboxes[:top_k]
+                    phrases_final = phrases_final[:top_k]
+                    confs_final = confs_final[:top_k]
+
                 bboxes_arr = np.array(image_bboxes, dtype=np.float32)
                 phrases_arr = np.array(phrases_final, dtype=object)
                 confs_arr = np.array(confs_final, dtype=np.float32)
@@ -546,6 +556,8 @@ def main():
     ap.add_argument("--min_conf", type=float, default=0.25,
                     help="Minimum confidence to keep a detection. Default: 0.25")
     ap.add_argument("--save_overlays", action="store_true")
+    ap.add_argument("--top_k", type=int, default=0,
+                    help="Keep only top-K largest boxes after NMS. 0 = keep all. Use 1 for single-object scenes.")
     ap.add_argument("--device", type=str, default=None)
 
     args = ap.parse_args()
@@ -585,6 +597,7 @@ def main():
         save_overlays=args.save_overlays,
         device=device,
         objects_only_prompt=bool(args.objects_only_prompt),
+        top_k=args.top_k,
     )
 
     print("\n[DONE]")

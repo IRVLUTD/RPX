@@ -155,10 +155,34 @@ def interactive_label_masks(iter_dir, objects):
     draw_frame()
     plt.show()
 
-    # --- Save Mapping ---
+    # --- Canonicalize: phase-local pixel index → scene-level ref_idx ---
+    # `objects` is the same list/order for every phase of this scene, so its
+    # position IS the canonical ref_idx. Remapping here means every phase's
+    # mask_to_object.json (and mask pixels) agree from the moment they're
+    # authored — no downstream cross-phase realignment pass needed.
+    canon_ref = {obj["id"]: i + 1 for i, obj in enumerate(objects)}
+    remap = {}
+    for i in range(len(object_indices)):
+        old_px = i + 1
+        obj = mapping.get(i)
+        new_px = canon_ref.get(obj["id"]) if obj else None
+        remap[old_px] = new_px if new_px is not None else old_px  # unlabeled: leave as-is
+
+    if any(old != new for old, new in remap.items()):
+        masks_dir = iter_dir / "sam2" / "masks"
+        mask_files = sorted(masks_dir.glob("*.png"))
+        for mp in mask_files:
+            arr = np.array(Image.open(mp))
+            new_arr = np.zeros_like(arr)
+            for old_px, new_px in remap.items():
+                new_arr[arr == old_px] = new_px
+            Image.fromarray(new_arr.astype(arr.dtype)).save(mp)
+        print(f"[↔] Canonicalized {len(mask_files)} masks in {iter_dir.name}: {remap}")
+
+    # --- Save Mapping (canonical keys) ---
     mask_map = {
-        str(i+1): {
-            "mask_index": i+1,
+        str(remap[i + 1]): {
+            "mask_index": remap[i + 1],
             "object": mapping.get(i, {"id": "unknown", "name": "unlabeled"})
         }
         for i in range(len(object_indices))
@@ -170,14 +194,18 @@ def interactive_label_masks(iter_dir, objects):
     print(f"[✅] Saved mapping to {out_path}")
 
 
-def main(scene_dir, json_file):
+def main(scene_dir, json_file=None, objects_json=None):
     scene_dir = Path(scene_dir)
-    with open(json_file, "r") as f:
-        scenes = json.load(f)
 
-    scene_id = int(scene_dir.name.split("scene")[-1].split(".")[0])
-    scene_entry = next(s for s in scenes if s["scene_id"] == scene_id)
-    objects = scene_entry["objects"]
+    if objects_json is not None:
+        with open(objects_json, "r") as f:
+            objects = json.load(f)
+    else:
+        with open(json_file, "r") as f:
+            scenes = json.load(f)
+        scene_id = int(scene_dir.name.split("scene")[-1].split(".")[0])
+        scene_entry = next(s for s in scenes if s["scene_id"] == scene_id)
+        objects = scene_entry["objects"]
 
     for iter_folder in sorted(scene_dir.glob("[0-9]")):
         print(f"\n=== Iteration {iter_folder.name} ===")
@@ -187,6 +215,9 @@ def main(scene_dir, json_file):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Interactive Mask → Object Mapper (Indexed 1–7)")
     parser.add_argument("--scene_dir", required=True, help="Path to scene folder")
-    parser.add_argument("--json", required=True, help="Path to scenes.json")
+    parser.add_argument("--json", help="Path to scenes.json (with scene_id lookup)")
+    parser.add_argument("--objects_json", help="Path to flat objects list JSON [{id, name}, ...] — bypasses scenes.json")
     args = parser.parse_args()
-    main(args.scene_dir, args.json)
+    if args.objects_json is None and args.json is None:
+        parser.error("Provide --json or --objects_json")
+    main(args.scene_dir, json_file=args.json, objects_json=args.objects_json)
