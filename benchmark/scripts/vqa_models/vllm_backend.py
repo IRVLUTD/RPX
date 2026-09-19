@@ -1,0 +1,705 @@
+"""Shared vLLM-only inference backend for the RPX VQA roster.
+
+Supports both one-image (normal) and two-image (in-context) requests.
+Every engine is constructed with limit_mm_per_prompt={"image": 2} so
+in-context rows never get rejected, but a normal row still sends exactly
+one image -- the limit is a ceiling, not a requirement.
+
+PaliGemma is architecturally a single-image model: vLLM's PaliGemma
+implementation has no established multi-image interleaving convention (unlike
+Qwen2.5-VL/Gemma4/Idefics3/InternVL/LLaVA-OneVision, which accept an ordered
+image list through the official chat template). For PaliGemma's in-context
+call, which per the task contract must see BOTH images, this backend
+composites Image 1 and Image 2 side by side into one image and
+feeds PaliGemma that composite -- a disclosed, model-specific accommodation
+for a real architecture limit, not a hidden extra inference stage. Every
+PaliGemma's native `answer en` and `detect <label>` tasks are exposed only in
+the unscored diagnostic that explicitly separates localization from reasoning.
+It is not used in the scored single-call VQA+bbox benchmark.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Sequence
+
+from PIL import Image
+
+
+_DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS: dict[str, Any] = {
+    # deepseek-ai/deepseek-vl2's nested language_config omits these fields,
+    # even though the official DeepseekV2Config supplies them as constructor
+    # defaults. vLLM consumes the serialized nested config directly, so its
+    # DeepSeek-V2 MLA module otherwise receives None for its head dimensions.
+    "num_hidden_layers": 30,
+    "num_attention_heads": 32,
+    "num_key_value_heads": 32,
+    "kv_lora_rank": 512,
+    "qk_rope_head_dim": 64,
+    "qk_nope_head_dim": 128,
+    "v_head_dim": 128,
+    "use_mla": True,
+    "rope_theta": 10000.0,
+    "rms_norm_eps": 1e-6,
+    "attention_bias": False,
+    "attention_dropout": 0.0,
+    "hidden_act": "silu",
+}
+
+
+@dataclass(frozen=True)
+class VLLMCheckpoint:
+    repo_id: str
+    revision: str
+    trust_remote_code: bool = False
+    max_model_len: int = 4096
+    engine_kwargs: dict[str, Any] = field(default_factory=dict)
+    paligemma: bool = False
+    deepseek_vl2: bool = False
+    cosmos_reason2: bool = False
+    tensor_parallel_size: int = 1
+
+
+CHECKPOINTS = {
+    "gemma4-12b": VLLMCheckpoint(
+        "google/gemma-4-12B-it", "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7"
+    ),
+    "idefics3-8b": VLLMCheckpoint(
+        "HuggingFaceM4/Idefics3-8B-Llama3",
+        "fddb4ff79181e55a994674777e06cd5456ce3dc3",
+        max_model_len=8192,
+        engine_kwargs={
+            "enforce_eager": True,
+            # Use the checkpoint's recommended/default visual resolution.  The
+            # earlier 3*364 override discarded detail from RPX's small objects.
+            "mm_processor_kwargs": {"size": {"longest_edge": 4 * 364}},
+        },
+    ),
+    "internvl2.5-8b": VLLMCheckpoint(
+        "OpenGVLab/InternVL2_5-8B",
+        "e9e4c0dc1db56bfab10458671519b7fa3dd29463",
+        trust_remote_code=True,
+        max_model_len=8192,
+    ),
+    "qwen2.5-vl-7b": VLLMCheckpoint(
+        "Qwen/Qwen2.5-VL-7B-Instruct",
+        "cc594898137f460bfe9f0759e9844b3ce807cfb5",
+        engine_kwargs={
+            "mm_processor_kwargs": {
+                "min_pixels": 28 * 28,
+                "max_pixels": 1280 * 28 * 28,
+                "fps": 1,
+            }
+        },
+    ),
+    "qwen3-vl-8b": VLLMCheckpoint(
+        "Qwen/Qwen3-VL-8B-Instruct",
+        "0c351dd01ed87e9c1b53cbc748cba10e6187ff3b",
+        max_model_len=8192,
+    ),
+    "llava-onevision-7b": VLLMCheckpoint(
+        "llava-hf/llava-onevision-qwen2-7b-ov-hf",
+        "0d50680527681998e456c7b78950205bedd8a068",
+        max_model_len=8192,
+    ),
+    "gemma4-e4b": VLLMCheckpoint(
+        "google/gemma-4-E4B-it", "ee0ef6023621cff504d758262d4e04895a5af4a2"
+    ),
+    "phi-3.5-vision-4b": VLLMCheckpoint(
+        "microsoft/Phi-3.5-vision-instruct",
+        "12b77fb40b63a2c73c68243d3f767aab688a1b2a",
+        trust_remote_code=True,
+        engine_kwargs={"mm_processor_kwargs": {"num_crops": 16}},
+    ),
+    "qwen2.5-vl-3b": VLLMCheckpoint(
+        "Qwen/Qwen2.5-VL-3B-Instruct",
+        "66285546d2b821cf421d4f5eb2576359d3770cd3",
+        engine_kwargs={
+            "mm_processor_kwargs": {
+                "min_pixels": 28 * 28,
+                "max_pixels": 1280 * 28 * 28,
+                "fps": 1,
+            }
+        },
+    ),
+    "qwen3-vl-2b": VLLMCheckpoint(
+        "Qwen/Qwen3-VL-2B-Instruct",
+        "89644892e4d85e24eaac8bacfd4f463576704203",
+        max_model_len=8192,
+    ),
+    "cosmos-reason2-2b": VLLMCheckpoint(
+        "nvidia/Cosmos-Reason2-2B",
+        "9ce19a195e423419c349abfc86fd07178b230561",
+        max_model_len=8192,
+        cosmos_reason2=True,
+    ),
+    "cosmos-reason2-8b": VLLMCheckpoint(
+        "nvidia/Cosmos-Reason2-8B",
+        "a9fae2cf89dc64db96b12860417f0eb403013bb9",
+        max_model_len=8192,
+        cosmos_reason2=True,
+    ),
+    "deepseek-vl2-tiny": VLLMCheckpoint(
+        "deepseek-ai/deepseek-vl2-tiny",
+        "66c54660eae7e90c9ba259bfdf92d07d6e3ce8aa",
+        max_model_len=4096,
+        deepseek_vl2=True,
+        engine_kwargs={"hf_overrides": {"architectures": ["DeepseekVLV2ForCausalLM"]}},
+    ),
+    "deepseek-vl2": VLLMCheckpoint(
+        "deepseek-ai/deepseek-vl2",
+        "f363772d1c47f4239dd844015b4bd53beb87951b",
+        max_model_len=4096,
+        deepseek_vl2=True,
+        tensor_parallel_size=2,
+        # vLLM applies nested dictionary overrides directly to the live
+        # PretrainedConfig used by init_vllm_registered_model. The checkpoint
+        # calls this language_config on disk, but vLLM exposes it as
+        # text_config; targeting that canonical live name is essential.
+        engine_kwargs={
+            "hf_overrides": {
+                "architectures": ["DeepseekVLV2ForCausalLM"],
+                "text_config": _DEEPSEEK_VL2_FULL_LANGUAGE_DEFAULTS,
+            }
+        },
+    ),
+}
+
+
+class VLLMVQARunner:
+    """One vLLM engine instance serving one frozen VQA checkpoint."""
+
+    def __init__(
+        self,
+        model_key: str,
+        image_root: str | Path,
+        gpu_memory_utilization: float = 0.90,
+        max_num_seqs: int = 1,
+    ) -> None:
+        """max_num_seqs caps how many sequences vLLM schedules concurrently.
+        The acceptance/smoke gates keep this at 1 (the default) so latency is
+        genuinely isolated, per-request; the benchmark runner raises it to
+        the configured batch size so predict_batch's rows are actually
+        processed together, not serialized one-by-one inside vLLM."""
+        from vllm import LLM
+
+        checkpoint = CHECKPOINTS[model_key]
+        self.model_key = model_key
+        self.checkpoint = checkpoint
+        self._last_adapter_metadata: dict[str, Any] = {}
+        self._last_batch_adapter_metadata: list[dict[str, Any]] = []
+        self.llm = LLM(
+            model=checkpoint.repo_id,
+            revision=checkpoint.revision,
+            dtype="bfloat16",
+            max_model_len=checkpoint.max_model_len,
+            max_num_seqs=max_num_seqs,
+            tensor_parallel_size=checkpoint.tensor_parallel_size,
+            gpu_memory_utilization=gpu_memory_utilization,
+            # 2, not 1: in-context rows send [reference, target]; normal rows
+            # still send exactly one image. This is a ceiling, never a floor.
+            limit_mm_per_prompt={"image": 2},
+            allowed_local_media_path=str(Path(image_root).resolve()),
+            trust_remote_code=checkpoint.trust_remote_code,
+            **checkpoint.engine_kwargs,
+        )
+
+    @staticmethod
+    def _text(outputs: list[Any]) -> str:
+        return outputs[0].outputs[0].text.strip()
+
+    @staticmethod
+    def _side_by_side(images: Sequence[Image.Image]) -> Image.Image:
+        """Composite two images left-to-right for PaliGemma's single-image
+        scored call. Diagnostic grounding receives Image 2 alone instead."""
+        # PaliGemma has a single-image interface.  Make the otherwise implicit
+        # left/right convention visible in the pixels instead of expecting the
+        # model to infer which panel the question calls Image 1 and Image 2.
+        from PIL import ImageDraw
+
+        gap = 8
+        header = 28
+        height = max(image.height for image in images)
+        scaled = [
+            image.resize((max(1, round(image.width * height / image.height)), height))
+            for image in images
+        ]
+        width = sum(image.width for image in scaled) + gap * (len(scaled) - 1)
+        canvas = Image.new("RGB", (width, height + header), (255, 255, 255))
+        draw = ImageDraw.Draw(canvas)
+        x = 0
+        for index, image in enumerate(scaled, 1):
+            label = "IMAGE 1: REFERENCE" if index == 1 else "IMAGE 2: TARGET"
+            draw.text((x + 4, 7), label, fill=(0, 0, 0))
+            canvas.paste(image, (x, header))
+            x += image.width + gap
+        return canvas
+
+    def _generate_paligemma(
+        self,
+        image: Image.Image,
+        prompt: str,
+        max_tokens: int,
+        keep_special: bool,
+    ) -> str:
+        from vllm import SamplingParams
+
+        request = {"prompt": prompt, "multi_modal_data": {"image": image}}
+        params = SamplingParams(
+            temperature=0.0,
+            max_tokens=max_tokens,
+            skip_special_tokens=not keep_special,
+        )
+        return self._text(self.llm.generate(request, params, use_tqdm=False))
+
+    @staticmethod
+    def _chat_content(image_paths: Sequence[str | Path], prompt: str) -> list[dict[str, Any]]:
+        """Build an explicitly ordered multimodal message without model tokens."""
+        content: list[dict[str, Any]] = []
+        if len(image_paths) == 2:
+            labels = ("Image 1 — reference object", "Image 2 — target scene")
+            for label, path in zip(labels, image_paths, strict=True):
+                content.append({"type": "text", "text": f"{label}:"})
+                content.append(
+                    {"type": "image_url", "image_url": {"url": Path(path).resolve().as_uri()}}
+                )
+        else:
+            content.extend(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": Path(path).resolve().as_uri()},
+                }
+                for path in image_paths
+            )
+        content.append({"type": "text", "text": prompt})
+        return content
+
+    def _chat_generate(
+        self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
+    ) -> str:
+        from vllm import SamplingParams
+
+        messages = self._chat_messages(image_paths, prompt)
+        params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
+        chat_template_kwargs = (
+            {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None
+        )
+        return self._text(
+            self.llm.chat(
+                messages,
+                params,
+                use_tqdm=False,
+                chat_template_kwargs=chat_template_kwargs,
+            )
+        )
+
+    def _chat_messages(
+        self, image_paths: Sequence[str | Path], prompt: str
+    ) -> list[dict[str, Any]]:
+        content = self._chat_content(image_paths, prompt)
+        messages = []
+        if self.checkpoint.cosmos_reason2:
+            # NVIDIA's Reason2 examples use this exact system message. Reasoning
+            # is opt-in through an explicit <think> instruction, which RPX omits
+            # for its short deterministic one-call grounding contract.
+            messages.append({"role": "system", "content": "You are a helpful assistant."})
+        messages.append({"role": "user", "content": content})
+        return messages
+
+    def _deepseek_generate(
+        self,
+        images: Sequence[Image.Image],
+        prompt: str,
+        max_tokens: int,
+        *,
+        keep_special: bool,
+    ) -> str:
+        """Apply the prompt format used by vLLM's official VL2 example."""
+        from vllm import SamplingParams
+
+        placeholders = "".join(f"image_{index}:<image>\n" for index in range(1, len(images) + 1))
+        formatted = f"<|User|>: {placeholders}{prompt}\n\n<|Assistant|>:"
+        request = {
+            "prompt": formatted,
+            "multi_modal_data": {"image": list(images)},
+        }
+        params = SamplingParams(
+            temperature=0.0,
+            max_tokens=max_tokens,
+            skip_special_tokens=not keep_special,
+        )
+        return self._text(self.llm.generate(request, params, use_tqdm=False))
+
+    @staticmethod
+    def _decode_deepseek_grounding(raw: str) -> tuple[str, dict[str, Any]]:
+        """Convert native normalized VL2 detections to the strict RPX JSON.
+
+        DeepSeek serializes detections as ``<|ref|>label<|/ref|><|det|>
+        [[x0,y0,x1,y1]]<|/det|>`` in normalized 0--999 coordinates.
+        Multiple native boxes remain an invalid ambiguous prediction.
+        """
+        pattern = re.compile(
+            r"(?:<\|ref\|>(?P<label>.*?)<\|/ref\|>)?\s*"
+            r"<\|det\|>(?P<boxes>.*?)<\|/det\|>",
+            re.DOTALL,
+        )
+        candidates: list[dict[str, Any]] = []
+        parse_errors: list[str] = []
+        for match in pattern.finditer(raw):
+            try:
+                boxes = json.loads(match.group("boxes"))
+                if (
+                    isinstance(boxes, list)
+                    and len(boxes) == 4
+                    and all(isinstance(value, (int, float)) for value in boxes)
+                ):
+                    boxes = [boxes]
+                if not isinstance(boxes, list):
+                    raise ValueError("native det payload is not a list")
+                for bbox in boxes:
+                    if not (
+                        isinstance(bbox, list)
+                        and len(bbox) == 4
+                        and all(isinstance(value, (int, float)) for value in bbox)
+                        and all(0 <= float(value) <= 999 for value in bbox)
+                    ):
+                        raise ValueError(
+                            "native bbox is not four numbers on the 0-999 grid"
+                        )
+                    x0, y0, x1, y1 = (float(value) for value in bbox)
+                    if x1 < x0 or y1 < y0:
+                        raise ValueError("native bbox is not XYXY ordered")
+                    # RPX's strict JSON contract is normalized 0--1000, while
+                    # DeepSeek-VL2's discrete native grounding grid is 0--999.
+                    # Convert explicitly instead of silently treating the two
+                    # scales as identical. Clamp the upper endpoint so binary
+                    # floating-point cannot serialize 999 as
+                    # 1000.0000000000001 and fail RPX's strict range check.
+                    scale = 1000.0 / 999.0
+                    to_rpx_coordinate = lambda value: min(1000.0, value * scale)
+                    candidates.append(
+                        {
+                            "label": (match.group("label") or "").strip(),
+                            "bbox": [
+                                to_rpx_coordinate(x0),
+                                to_rpx_coordinate(y0),
+                                to_rpx_coordinate(x1),
+                                to_rpx_coordinate(y1),
+                            ],
+                        }
+                    )
+            except (TypeError, ValueError, json.JSONDecodeError) as error:
+                parse_errors.append(str(error))
+        metadata = {
+            "native_output": raw,
+            "native_candidate_count": len(candidates),
+            "candidate_policy": "exactly_one_native_bbox",
+            "native_coordinate_format": "deepseek_vl2_normalized_0_999",
+            "coordinate_format": "normalized_0_1000",
+            "native_to_rpx_scale": 1000.0 / 999.0,
+        }
+        if parse_errors:
+            metadata["native_parse_errors"] = parse_errors
+        if len(candidates) == 1:
+            return json.dumps(candidates[0], separators=(",", ":")), metadata
+        return (
+            json.dumps(
+                {
+                    "error": "expected exactly one native bbox candidate",
+                    "candidate_count": len(candidates),
+                    "candidates": candidates,
+                },
+                separators=(",", ":"),
+            ),
+            metadata,
+        )
+
+    def _predict_deepseek(
+        self,
+        images: Sequence[Image.Image],
+        prompt: str,
+        max_tokens: int,
+        output_kind: str,
+    ) -> str:
+        diagnostic = output_kind.startswith("diagnostic_")
+        grounding = output_kind in {
+            "bbox_native_question_grounding",
+            "diagnostic_oracle_bbox",
+            "diagnostic_predicted_label_bbox",
+        }
+        native = self._deepseek_generate(images, prompt, max_tokens, keep_special=grounding)
+        if grounding:
+            raw, native_metadata = self._decode_deepseek_grounding(native)
+        else:
+            raw, native_metadata = native, {"native_output": native}
+        self._last_adapter_metadata = {
+            "adapter": (
+                "deepseek_vl2_native_grounding" if grounding else "diagnostic_semantic_label"
+            ),
+            "diagnostic_only": diagnostic,
+            "single_model_call": True,
+            "single_scored_model_call": not diagnostic,
+            "image_count": len(images),
+            "image_order": "target_only" if len(images) == 1 else "reference_then_target",
+            "ground_truth_label_disclosed": output_kind == "diagnostic_oracle_bbox",
+            **native_metadata,
+        }
+        return raw
+
+    def _predict_json_direct(
+        self, image_paths: Sequence[str | Path], prompt: str, max_tokens: int
+    ) -> str:
+        raw = self._chat_generate(image_paths, prompt, max_tokens)
+        self._last_adapter_metadata = {
+            "adapter": (
+                "direct_cosmos_reason2_bbox"
+                if self.checkpoint.cosmos_reason2
+                else "direct_bbox_json"
+            ),
+            "single_scored_model_call": True,
+            **(
+                {
+                    "native_coordinate_format": "cosmos_bbox_2d_0_1000",
+                    "reasoning_requested": False,
+                }
+                if self.checkpoint.cosmos_reason2
+                else {}
+            ),
+        }
+        return raw
+
+    def _predict_paligemma_direct(
+        self, images: Sequence[Image.Image], prompt: str, max_tokens: int
+    ) -> str:
+        """One scored PaliGemma call: question and image(s) in, bbox out."""
+        model_image = images[0] if len(images) == 1 else self._side_by_side(images)
+        raw = self._generate_paligemma(model_image, prompt, max_tokens, keep_special=True)
+        self._last_adapter_metadata = {
+            "adapter": "direct_bbox_json",
+            "single_scored_model_call": True,
+            "paligemma_multi_image_accommodation": (
+                "none" if len(images) == 1 else "labelled_side_by_side_composite"
+            ),
+        }
+        return raw
+
+    def prediction_metadata(self) -> dict[str, Any]:
+        return dict(self._last_adapter_metadata)
+
+    def batch_prediction_metadata(self) -> list[dict[str, Any]]:
+        return [dict(value) for value in self._last_batch_adapter_metadata]
+
+    def predict(
+        self,
+        image_paths: str | Path | Sequence[str | Path],
+        prompt: str,
+        max_tokens: int,
+        output_kind: str,
+    ) -> str:
+        """image_paths is ordered [reference, target] for in-context rows,
+        or a single path (or one-element sequence) for normal rows. Latency
+        measured by the caller around this call already includes both
+        PaliGemma stages, since both run inside this one invocation."""
+        if isinstance(image_paths, (str, Path)):
+            image_paths = [image_paths]
+        opened = [Image.open(path) for path in image_paths]
+        try:
+            self._last_adapter_metadata = {}
+            images = [image.convert("RGB") for image in opened]
+            if self.checkpoint.deepseek_vl2:
+                return self._predict_deepseek(images, prompt, max_tokens, output_kind)
+            if output_kind == "diagnostic_semantic_label":
+                if self.checkpoint.paligemma:
+                    diagnostic_image = images[0] if len(images) == 1 else self._side_by_side(images)
+                    raw = self._generate_paligemma(
+                        diagnostic_image, prompt, max_tokens, keep_special=False
+                    )
+                else:
+                    raw = self._chat_generate(image_paths, prompt, max_tokens)
+                self._last_adapter_metadata = {
+                    "adapter": "diagnostic_semantic_label",
+                    "diagnostic_only": True,
+                    "single_model_call": True,
+                    "single_scored_model_call": False,
+                }
+                return raw
+            if output_kind in {
+                "diagnostic_oracle_bbox",
+                "diagnostic_predicted_label_bbox",
+            }:
+                # Oracle localization intentionally sees only the target image.
+                # The GT label is disclosed in the prompt, so this output must
+                # never be reported as an end-to-end benchmark prediction.
+                if self.checkpoint.paligemma:
+                    raw = self._generate_paligemma(
+                        images[-1], prompt, max_tokens, keep_special=True
+                    )
+                else:
+                    raw = self._chat_generate([image_paths[-1]], prompt, max_tokens)
+                self._last_adapter_metadata = {
+                    "adapter": output_kind,
+                    "diagnostic_only": True,
+                    "single_model_call": True,
+                    "single_scored_model_call": False,
+                    "ground_truth_label_disclosed": (output_kind == "diagnostic_oracle_bbox"),
+                }
+                return raw
+            if self.checkpoint.paligemma:
+                if output_kind == "bbox_json_normalized_1000":
+                    raise ValueError(
+                        "PaliGemma has no direct single-call RPX VQA+bbox protocol; "
+                        "use its unscored answer-en plus detect diagnostic"
+                    )
+                diagnostic_image = images[0] if len(images) == 1 else self._side_by_side(images)
+                raw = self._generate_paligemma(
+                    diagnostic_image, prompt, max_tokens, keep_special=False
+                )
+                self._last_adapter_metadata = {
+                    "adapter": "paligemma_single_call",
+                    "single_scored_model_call": True,
+                }
+                return raw
+            if output_kind == "bbox_json_normalized_1000":
+                return self._predict_json_direct(image_paths, prompt, max_tokens)
+            return self._chat_generate(image_paths, prompt, max_tokens)
+        finally:
+            for image in opened:
+                image.close()
+
+    def predict_batch(
+        self, requests: Sequence[tuple[Sequence[str | Path], str, int, str]]
+    ) -> list[str]:
+        """Submit an entire batch to vLLM in one call so rows are actually
+        scheduled together (subject to max_num_seqs), not serialized one at a
+        time. Returns raw outputs in the same order as requests. The caller
+        is responsible for measuring wall time around this call and dividing
+        by len(requests) for an AMORTIZED per-row latency -- never label that
+        number as isolated single-request latency (see predict, which is
+        what the acceptance/smoke gates use for that)."""
+        opened_by_row = [
+            [Image.open(path) for path in ((paths,) if isinstance(paths, (str, Path)) else paths)]
+            for paths, _prompt, _max_tokens, _output_kind in requests
+        ]
+        try:
+            self._last_batch_adapter_metadata = []
+            images_by_row = [[image.convert("RGB") for image in row] for row in opened_by_row]
+            if self.checkpoint.deepseek_vl2:
+                values = []
+                metadata = []
+                for images, (_paths, prompt, max_tokens, output_kind) in zip(
+                    images_by_row, requests, strict=True
+                ):
+                    values.append(self._predict_deepseek(images, prompt, max_tokens, output_kind))
+                    metadata.append(self.prediction_metadata())
+                self._last_batch_adapter_metadata = metadata
+                return values
+            if self.checkpoint.paligemma:
+                if any(
+                    output_kind == "bbox_json_normalized_1000"
+                    for _paths, _prompt, _max_tokens, output_kind in requests
+                ):
+                    raise ValueError(
+                        "PaliGemma has no direct single-call RPX VQA+bbox protocol; "
+                        "use its unscored answer-en plus detect diagnostic"
+                    )
+                # This branch is retained for non-bbox native tasks. Direct
+                # bbox requests were rejected above because PaliGemma needs
+                # separate answer-en and detect calls for the RPX task.
+                direct_requests = [
+                    {
+                        "prompt": prompt,
+                        "multi_modal_data": {
+                            "image": images[0] if len(images) == 1 else self._side_by_side(images)
+                        },
+                    }
+                    for images, (_paths, prompt, _max_tokens, _output_kind) in zip(
+                        images_by_row, requests, strict=True
+                    )
+                ]
+                from vllm import SamplingParams
+
+                max_tokens_1 = max(
+                    max_tokens for _paths, _prompt, max_tokens, _output_kind in requests
+                )
+                params1 = SamplingParams(
+                    temperature=0.0,
+                    max_tokens=max_tokens_1,
+                    # Preserve native <loc> outputs if the model chooses its
+                    # trained detection serialization instead of JSON.
+                    skip_special_tokens=False,
+                )
+                direct_outputs = self.llm.generate(direct_requests, params1, use_tqdm=False)
+                values = [self._text([output]) for output in direct_outputs]
+                self._last_batch_adapter_metadata = [
+                    {
+                        "adapter": (
+                            "direct_bbox_json"
+                            if output_kind == "bbox_json_normalized_1000"
+                            else "paligemma_single_call"
+                        ),
+                        "single_scored_model_call": True,
+                        "paligemma_multi_image_accommodation": (
+                            "none" if len(images) == 1 else "labelled_side_by_side_composite"
+                        ),
+                    }
+                    for images, (_paths, _prompt, _max_tokens, output_kind) in zip(
+                        images_by_row, requests, strict=True
+                    )
+                ]
+                return values
+
+            from vllm import SamplingParams
+
+            messages_batch = []
+            for _images, (paths, prompt, _max_tokens, _output_kind) in zip(
+                images_by_row, requests, strict=True
+            ):
+                path_list = (paths,) if isinstance(paths, (str, Path)) else paths
+                # Use the exact same labelled Image-1/Image-2 construction as
+                # isolated acceptance.  The previous batched path preserved
+                # order but silently omitted these labels, changing the task
+                # between acceptance and the full benchmark.
+                messages_batch.append(self._chat_messages(path_list, prompt))
+            max_tokens = max(max_tokens for _paths, _prompt, max_tokens, _output_kind in requests)
+            params = SamplingParams(temperature=0.0, max_tokens=max_tokens)
+            chat_template_kwargs = (
+                {"enable_thinking": False} if self.model_key.startswith("gemma4-") else None
+            )
+            outputs = self.llm.chat(
+                messages_batch, params, use_tqdm=False, chat_template_kwargs=chat_template_kwargs
+            )
+            stage1_values = [self._text([output]) for output in outputs]
+
+            values = list(stage1_values)
+            metadata: list[dict[str, Any]] = [
+                (
+                    {
+                        "adapter": (
+                            "direct_cosmos_reason2_bbox"
+                            if self.checkpoint.cosmos_reason2
+                            else "direct_bbox_json"
+                        ),
+                        "single_scored_model_call": True,
+                        **(
+                            {
+                                "native_coordinate_format": "cosmos_bbox_2d_0_1000",
+                                "reasoning_requested": False,
+                            }
+                            if self.checkpoint.cosmos_reason2
+                            else {}
+                        ),
+                    }
+                    if request[3] == "bbox_json_normalized_1000"
+                    else {}
+                )
+                for request in requests
+            ]
+            self._last_batch_adapter_metadata = metadata
+            return values
+        finally:
+            for row in opened_by_row:
+                for image in row:
+                    image.close()
