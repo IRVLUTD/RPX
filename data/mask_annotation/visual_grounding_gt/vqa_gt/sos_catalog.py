@@ -172,7 +172,10 @@ def load_mos_mask_map(revision: str = "main", repo_id: str = "IRVLUTD/RPX"):
     p = hf_hub_download(repo_id, repo_type="dataset",
                          filename="manifest/mos_mask_object_map_v1.parquet", revision=revision)
     df = pd.read_parquet(p)
-    df["source_catalog_id"] = df["source_catalog_id"].astype(str)
+    # pandas 3 infers ``StringDtype`` for ``astype(str)``.  Keep this join key
+    # as ordinary Python strings in an object column so dotted catalogue IDs
+    # retain the same public dataframe contract across pandas 2 and 3.
+    df["source_catalog_id"] = df["source_catalog_id"].astype(str).astype(object)
     df["local_mask_id"] = df["local_mask_id"].astype(int)
     return df
 
