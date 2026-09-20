@@ -194,7 +194,7 @@ Each directory carries its own README with the details for that piece.
 ## Contributing and license
 
 Run the [checks](benchmark/README.md#testing) before submitting changes: the
-offline suite (1,293 tests), `ruff`, `mypy` and a package build. Install the
+offline test suite, `ruff`, `mypy` and a package build. Install the
 toolkit editable (`-e`) while developing — a frozen wheel install will show
 stale behaviour.
 
