@@ -4,8 +4,9 @@
 
 **A real-world RGB-D benchmark for robot perception.**
 
-[![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=naren%2Fall&label=tests&logo=github&style=flat-square)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
+[![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=main&label=tests&logo=github&style=flat-square)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
 [![docs](https://img.shields.io/badge/docs-toolkit-2563eb?logo=readthedocs&logoColor=white&style=flat-square)](https://irvlutd.github.io/RPX/toolkit-docs/)
+[![PyPI](https://img.shields.io/pypi/v/rpx-benchmark?logo=pypi&style=flat-square)](https://pypi.org/project/rpx-benchmark/)
 [![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue?logo=python&logoColor=white&style=flat-square)](benchmark/pyproject.toml)
 [![dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-IRVLUTD%2FRPX-yellow?style=flat-square)](https://huggingface.co/datasets/IRVLUTD/RPX)
 [![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
@@ -22,11 +23,11 @@
 </div>
 
 ```bash
-git clone --branch naren/all https://github.com/IRVLUTD/RPX.git
+git clone https://github.com/IRVLUTD/RPX.git
 cd RPX
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e './benchmark[hub,schemas]'
+python -m pip install 'rpx-benchmark[hub,schemas]'
 python benchmark/examples/run_depth.py
 ```
 

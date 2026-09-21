@@ -1,17 +1,25 @@
 # RPX Benchmark Toolkit
 
 Load RPX data, run reference or custom perception models, and compare accuracy,
-scene-change robustness and compute cost. Start from the repository root with
-Python 3.10–3.12:
+scene-change robustness and compute cost with Python 3.10–3.12:
 
 ```bash
-python -m pip install -e './benchmark[hub,schemas]'
+python -m pip install 'rpx-benchmark[hub,schemas]'
+git clone https://github.com/IRVLUTD/RPX.git
+cd RPX
 python benchmark/examples/run_depth.py
 ```
 
 The example is a CPU-only installation check using synthetic data. Reference
 checkpoints need their own runtime, weights and GPU resources. The package
 installation alone does not install every model's dependencies.
+
+For toolkit development, replace the PyPI install with an editable source
+install from the repository root:
+
+```bash
+python -m pip install -e './benchmark[hub,schemas]'
+```
 
 ## Reference models
 
