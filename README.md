@@ -4,11 +4,20 @@
 
 **A real-world RGB-D benchmark for robot perception.**
 
-[![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=naren%2Fall&label=tests)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
-[![docs](https://img.shields.io/badge/docs-toolkit-2563eb)](https://irvlutd.github.io/RPX/toolkit-docs/)
-[![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)](benchmark/pyproject.toml)
-[![dataset](https://img.shields.io/badge/Dataset-IRVLUTD%2FRPX-yellow)](https://huggingface.co/datasets/IRVLUTD/RPX)
-[![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=naren%2Fall&label=tests&logo=github&style=flat-square)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
+[![docs](https://img.shields.io/badge/docs-toolkit-2563eb?logo=readthedocs&logoColor=white&style=flat-square)](https://irvlutd.github.io/RPX/toolkit-docs/)
+[![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue?logo=python&logoColor=white&style=flat-square)](benchmark/pyproject.toml)
+[![dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-IRVLUTD%2FRPX-yellow?style=flat-square)](https://huggingface.co/datasets/IRVLUTD/RPX)
+[![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
+<pre style="line-height:1.1">
+<span style="color:#4F46E5"> ██████╗ </span><span style="color:#DB2777"> ██████╗ </span><span style="color:#C2410C"> ██╗  ██╗</span>
+<span style="color:#4F46E5"> ██╔══██╗</span><span style="color:#DB2777"> ██╔══██╗</span><span style="color:#C2410C"> ╚██╗██╔╝</span>
+<span style="color:#4F46E5"> ██████╔╝</span><span style="color:#DB2777"> ██████╔╝</span><span style="color:#C2410C">  ╚███╔╝ </span>
+<span style="color:#4F46E5"> ██╔══██╗</span><span style="color:#DB2777"> ██╔═══╝ </span><span style="color:#C2410C">  ██╔██╗ </span>
+<span style="color:#4F46E5"> ██║  ██║</span><span style="color:#DB2777"> ██║     </span><span style="color:#C2410C"> ██╔╝ ██╗</span>
+<span style="color:#4F46E5"> ╚═╝  ╚═╝</span><span style="color:#DB2777"> ╚═╝     </span><span style="color:#C2410C"> ╚═╝  ╚═╝</span>
+</pre>
 
 </div>
 
