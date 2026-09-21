@@ -66,7 +66,7 @@ def _attr_type_caps(max_per_type):
 
 def get_scene_list(tier: str) -> list[str]:
     from huggingface_hub import hf_hub_download
-    path = hf_hub_download("IRVLUTD/RPX", repo_type="dataset",
+    path = hf_hub_download("anonymous/RPX", repo_type="dataset",
                             filename="splits/scene_splits.json", revision="main")
     splits = json.loads(Path(path).read_text())["splits"]
     if tier == "all":

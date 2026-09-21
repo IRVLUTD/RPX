@@ -47,7 +47,7 @@ def main() -> None:
         args.cells,
         jedi_bounds_path=args.jedi_bounds,
         provenance={
-            "dataset_repo": "IRVLUTD/RPX",
+            "dataset_repo": "anonymous/RPX",
             "dataset_revision": PINNED_DATASET_REVISION,
             "model_checkpoint": "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf",
             "git_sha": _git_sha(),

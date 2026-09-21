@@ -101,7 +101,7 @@ def image_locator(row: dict[str, Any]) -> dict[str, str]:
     scene = str(row["scene_id"])
     frame = str(row["frame"])
     return {
-        "repo_id": "IRVLUTD/RPX",
+        "repo_id": "anonymous/RPX",
         "revision": DATASET_REVISION,
         "shard": f"scenes/{scene}/{partition}/rgb.tar",
         "member": f"rgb/{frame}.webp",

@@ -42,7 +42,6 @@ RUN mkdir -p /opt/rpx-models/fast3r/checkpoints/Fast3R_ViT_Large_512 && \
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime through Fast3R" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface

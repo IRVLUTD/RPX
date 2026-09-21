@@ -243,7 +243,7 @@ def test_build_frame_manifest_writes_v2_extensions(v1_mock: Path, tmp_path: Path
 
 def test_build_frame_manifest_preserves_unmanaged_top_level_keys(v1_mock: Path, tmp_path: Path):
     """A pre-existing current.json with extra top-level blocks (the live
-    IRVLUTD/RPX repo carries ``manifests``, ``sos``, ``mos``,
+    anonymous/RPX repo carries ``manifests``, ``sos``, ``mos``,
     ``metadata_versions``) MUST survive a subsequent
     ``build_frame_manifest`` call. The function may only overwrite the
     keys it owns (``label_versions``, ``schema_version``,

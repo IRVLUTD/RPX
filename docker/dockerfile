@@ -91,7 +91,7 @@ ENV OPENCV_IO_ENABLE_OPENEXR=1
 
 RUN imageio_download_bin freeimage
 
-RUN conda activate py38 && cd /kaolin &&\
+RUN conda activate py38 && cd /kaolin &&
     # sed -i "223i\    extra_compile_args['nvcc'] += ['-gencode=arch=compute_52,code=sm_52', '-gencode=arch=compute_60,code=sm_60', '-gencode=arch=compute_61,code=sm_61', '-gencode=arch=compute_70,code=sm_70', '-gencode=arch=compute_75,code=sm_75', '-gencode=arch=compute_80,code=sm_80', '-gencode=arch=compute_80,code=compute_80']" setup.py &&\
     FORCE_CUDA=1 python setup.py develop
 

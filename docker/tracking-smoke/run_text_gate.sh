@@ -20,11 +20,11 @@ case "${protocol}" in mos|ego) ;; *) usage; exit 2 ;; esac
 [[ "${gpu}" =~ ^[0-9]+$ ]] || { usage; exit 2; }
 [[ -f "${vocab}" ]] || { echo "Vocabulary parquet not found: ${vocab}" >&2; exit 1; }
 
-runtime="${RPX_TRACKING_RUNTIME:-/data/narendhiran_rpx/tracking-runtime}"
+runtime="${RPX_TRACKING_RUNTIME:-/data/rpx/tracking-runtime}"
 hf_cache="${RPX_HF_CACHE:-${runtime}/cache/huggingface}"
 data_cache="${RPX_TRACKING_DATA_CACHE:-${runtime}/cache/rpx}"
 output_root="${RPX_TRACKING_OUTPUT:-${runtime}/outputs}"
-registry="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}"
+registry="${RPX_TRACKING_IMAGE:-rpx-tracking-smoke}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short="${revision:0:12}"

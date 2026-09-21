@@ -253,7 +253,7 @@ def test_sam2_overlay_is_pinned_and_uses_sam2_python() -> None:
 
 
 def test_renderer_uses_manifest_rgb_path(tmp_path: Path) -> None:
-    snapshot = tmp_path / "datasets--IRVLUTD--RPX" / "snapshots" / "revision"
+    snapshot = tmp_path / "datasets--anonymous--RPX" / "snapshots" / "revision"
     manifest_path = snapshot / "manifests" / "object_tracking" / "easy.json"
     rgb_path = snapshot / "unusual" / "scene011" / "frame-00000.jpeg"
     rgb_path.parent.mkdir(parents=True)
@@ -279,7 +279,7 @@ def test_renderer_uses_manifest_rgb_path(tmp_path: Path) -> None:
 
 
 def test_renderer_uses_ego_manifest_rgb_path(tmp_path: Path) -> None:
-    snapshot = tmp_path / "datasets--IRVLUTD--RPX" / "snapshots" / "revision"
+    snapshot = tmp_path / "datasets--anonymous--RPX" / "snapshots" / "revision"
     manifest_path = snapshot / "manifests" / "ego_object_tracking" / "easy.json"
     rgb_path = snapshot / "extracted" / "scenes" / "scene004" / "ego" / "rgb" / "00000.webp"
     rgb_path.parent.mkdir(parents=True)

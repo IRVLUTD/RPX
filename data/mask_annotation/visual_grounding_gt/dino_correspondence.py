@@ -50,7 +50,7 @@ from tqdm import tqdm
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-_PALETTE_URL = "https://raw.githubusercontent.com/IRVLUTD/fewsol-toolkit/refs/heads/main/palette.txt"
+_PALETTE_URL = "https://raw.githubusercontent.com/anonymous/fewsol-toolkit/refs/heads/main/palette.txt"
 _PALETTE = None
 
 def get_palette():

@@ -10,7 +10,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Download RPX rgbd_segmentation shards for all difficulty splits."
     )
-    parser.add_argument("--repo-id", default="IRVLUTD/RPX")
+    parser.add_argument("--repo-id", default="anonymous/RPX")
     parser.add_argument(
         "--splits",
         nargs="+",

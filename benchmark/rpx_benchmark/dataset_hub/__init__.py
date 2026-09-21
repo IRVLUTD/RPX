@@ -18,7 +18,7 @@ End-to-end usage::
     scan  = scan_capture_root(src)
     pack  = pack_capture_tree(PackPlan(src, stage), scan)
     build_frame_manifest(scan, pack, stage, splits=splits_dict)
-    upload_staging(UploadPlan(stage, repo_id="IRVLUTD/RPX"))
+    upload_staging(UploadPlan(stage, repo_id="anonymous/RPX"))
 """
 
 from __future__ import annotations

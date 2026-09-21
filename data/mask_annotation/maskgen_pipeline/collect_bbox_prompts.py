@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 # Path to your image and output JSON
-image_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/rgb/00249.png"
-output_json = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/bbox_prompts.json"
+image_path = "/data/rpx/scene97.jsom.atrium/0/rgb/00249.png"
+output_json = "/data/rpx/scene97.jsom.atrium/0/bbox_prompts.json"
 
 # Load the image
 image = PILImg.open(image_path)

@@ -5,7 +5,6 @@ FROM ${BASE_IMAGE}
 
 ARG RPX_GIT_SHA
 
-LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}" \
       org.opencontainers.image.description="RPX D3 adapter overlay on a pinned tracking environment"
 

@@ -6,7 +6,6 @@ ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX VQA runtime" \
       org.opencontainers.image.description="Pinned vLLM and native grounding runtimes" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV DEBIAN_FRONTEND=noninteractive \

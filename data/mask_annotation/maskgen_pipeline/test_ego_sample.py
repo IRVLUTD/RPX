@@ -7,7 +7,6 @@
 # smoke-tested against a tiny synthetic mp4 generated with cv2; it skips if cv2
 # / a usable video writer is unavailable.
 #
-# Work done while being at the Intelligent Robotics and Vision Lab at UT Dallas.
 #----------------------------------------------------------------------------------------------------
 
 from __future__ import annotations

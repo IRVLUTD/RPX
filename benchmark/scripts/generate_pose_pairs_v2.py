@@ -546,7 +546,7 @@ def build_manifest(
 def _cli() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--split", default="easy", choices=("easy", "medium", "hard"))
-    ap.add_argument("--repo", default="IRVLUTD/RPX")
+    ap.add_argument("--repo", default="anonymous/RPX")
     ap.add_argument("--output", type=Path, default=None)
     ap.add_argument("--pairs-per-bin", type=int, default=50,
                     help="intra-phase pairs per rotation bin per (scene, phase)")

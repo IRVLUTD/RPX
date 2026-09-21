@@ -1,17 +1,6 @@
-#----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
-# Please check the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2024).
-#----------------------------------------------------------------------------------------------------
-
-# Hosted at https://hub.docker.com/repository/docker/irvlutd/ros-noetic-cuda-gazebo/
-
 # Use the official NVIDIA CUDA base image with Ubuntu 20.04
 # FROM nvidia/cuda:11.8.0-base-ubuntu20.04
 FROM nvidia/cuda:11.8.0-devel-ubuntu20.04
-
-# Set the maintainer label
-LABEL maintainer="jishnu.p@utdallas.edu"
 
 # Set non-interactive mode to avoid user prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

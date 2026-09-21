@@ -625,7 +625,7 @@ def write_ego_preview_parquet(path: Path, rows: list[dict[str, Any]]) -> None:
     write_parquet(path, rows, schema=schema, metadata=metadata)
 
 
-def write_csv_preview(path: Path, rows: list[dict[str, Any]], repo_id: str = "IRVLUTD/RPX") -> None:
+def write_csv_preview(path: Path, rows: list[dict[str, Any]], repo_id: str = "anonymous/RPX") -> None:
     csv_rows: list[dict[str, Any]] = []
     for row in rows:
         out = {key: value for key, value in row.items() if key != "image"}

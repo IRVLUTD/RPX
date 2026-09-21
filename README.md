@@ -4,11 +4,7 @@
 
 **A real-world RGB-D benchmark for robot perception.**
 
-[![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=main&label=tests&logo=github&style=flat-square)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
-[![docs](https://img.shields.io/badge/docs-toolkit-2563eb?logo=readthedocs&logoColor=white&style=flat-square)](https://irvlutd.github.io/RPX/toolkit-docs/)
-[![PyPI](https://img.shields.io/pypi/v/rpx-benchmark?logo=pypi&style=flat-square)](https://pypi.org/project/rpx-benchmark/)
 [![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue?logo=python&logoColor=white&style=flat-square)](benchmark/pyproject.toml)
-[![dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-IRVLUTD%2FRPX-yellow?style=flat-square)](https://huggingface.co/datasets/IRVLUTD/RPX)
 [![license](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 
 <pre style="line-height:1.1">
@@ -23,11 +19,11 @@
 </div>
 
 ```bash
-git clone https://github.com/IRVLUTD/RPX.git
+git clone <ANONYMOUS_REPOSITORY_URL>
 cd RPX
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install 'rpx-benchmark[hub,schemas]'
+python -m pip install -e './benchmark[hub,schemas]'
 python benchmark/examples/run_depth.py
 ```
 
@@ -68,11 +64,12 @@ Relative-pose evaluation uses the clutter and clean phases; video-depth
 evaluation operates on whole phase clips. The VQA benchmark adds egocentric
 and two-image questions.
 
-Images, depth, instance masks, poses and question data live in the
-[RPX dataset](https://huggingface.co/datasets/IRVLUTD/RPX) — roughly 75,000
+The reviewer dataset contains roughly 75,000
 frames over 100 scenes and ~70 object categories, with instance masks,
 tracklets, metric depth, 6-DoF camera pose and language attributes. Model
-weights and large experiment outputs are downloaded or generated separately.
+weights and large experiment outputs are supplied or generated separately.
+Set `RPX_HF_REPO` and `RPX_HF_REVISION` to the reviewer-provided dataset
+location, or use a local task manifest.
 
 ---
 
@@ -80,12 +77,11 @@ weights and large experiment outputs are downloaded or generated separately.
 
 | Goal | Start here |
 |---|---|
-| Browse the Python API | [Toolkit documentation](https://irvlutd.github.io/RPX/toolkit-docs/) |
+| Browse the Python API | [Toolkit usage and API examples](benchmark/README.md) |
 | Run the supplied models | [Reference models and environments](benchmark/README.md#reference-models) |
 | Evaluate your own model or API | [Bring your own model](benchmark/README.md#bring-your-own-model) |
 | Score a custom VLM on VQA | [Custom VQA model or API](benchmark/README.md#custom-vqa-model-or-api) |
 | Inspect the dataset and splits | [Dataset metadata](benchmark/data/README.md) |
-| Publish or re-package the dataset | [Dataset hub tools](benchmark/rpx_benchmark/dataset_hub/README.md) |
 | Develop or verify the toolkit | [Testing](benchmark/README.md#testing) |
 
 Most users only need `benchmark/`. The capture and annotation trees exist to
@@ -97,7 +93,7 @@ Run a reference-model gate before a full sweep:
 
 ```bash
 # The runtime reports the complete, pinned VQA roster without loading weights.
-docker run --rm narendhiranv04/rpx-vqa-smoke:vllm list-models
+docker run --rm rpx-vqa-smoke:vllm list-models
 
 # Model-specific depth, tracking and pose commands live in their Docker READMEs.
 python benchmark/scripts/run_depth_smoke_matrix.py --list-models
@@ -232,7 +228,7 @@ data/capture/              Sensor capture tools
 data/mask_annotation/      Mask, grounding and VQA annotation tools
 docker/                    Task-specific reproducible model environments
 tools/dataset/             Dataset release preparation and QA
-.github/workflows/         Tests, lint, types and package release
+.github/workflows/         Tests, lint, types and documentation checks
 ```
 
 Each directory carries its own README with the details for that piece.
@@ -257,10 +253,9 @@ hardware.
 Keep documentation in README files, dataset metadata in its designated
 folders, and generated outputs out of Git.
 
-**Citation.** If you use RPX — the dataset, the toolkit, or any part of this
-repository — please cite the accompanying paper. The BibTeX entry will be
-added here once the paper is released.
+**Citation.** Citation metadata is withheld during anonymous review and will
+be added after the review period.
 
 **License.** Code in this repository is **MIT**; see [LICENSE](LICENSE). The
-RPX dataset is released under **CC BY 4.0**; its terms are recorded in the
-[dataset card](https://huggingface.co/datasets/IRVLUTD/RPX).
+RPX dataset is released under **CC BY 4.0**; its dataset card is included with
+the reviewer materials.

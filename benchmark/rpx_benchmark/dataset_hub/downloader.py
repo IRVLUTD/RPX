@@ -9,7 +9,7 @@ when the team switches tasks on already-cached scenes.
 Wire-up::
 
     pull = download_for_task(
-        task="segmentation", split="easy", repo_id="IRVLUTD/RPX",
+        task="segmentation", split="easy", repo_id="anonymous/RPX",
     )
     pull.local_dir       # local snapshot dir, ready to feed to a loader
     pull.manifest_table  # pyarrow.Table — per-frame metadata for the slice
@@ -255,7 +255,7 @@ def download_for_task(
         ``"easy" | "medium" | "hard"``. Required for multi-object tasks,
         forbidden for single-object tasks (which have no splits).
     repo_id : str
-        HuggingFace dataset repo (default: ``IRVLUTD/RPX``).
+        HuggingFace dataset repo (default: ``anonymous/RPX``).
     extra_modalities : Sequence[str]
         Add modalities beyond the recipe's defaults (e.g. ``["masks_aux"]``
         if you want the visualisation overlays alongside ``masks``).

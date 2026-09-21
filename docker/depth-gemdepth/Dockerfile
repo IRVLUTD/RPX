@@ -7,7 +7,6 @@ ARG RPX_GIT_SHA
 ARG GEMDEPTH_SHA=6e259b1aeba708dbaf4abca29879c81f77f41cbe
 
 LABEL org.opencontainers.image.title="RPX GemDepth video-depth runtime" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}" \
       org.opencontainers.image.gemdepth.revision="${GEMDEPTH_SHA}"
 

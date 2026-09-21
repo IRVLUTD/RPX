@@ -13,7 +13,7 @@ here ever writes into the source ego captures):
     <DATA>/ego/<scene_id>/0/{rgb,sam2/...}
 
 ``<scene_id>`` is ego's own bare, zero-padded name (``scene020``) —
-VERIFIED against the live IRVLUTD/RPX repo, which publishes mos/ scenes as
+VERIFIED against the live anonymous/RPX repo, which publishes mos/ scenes as
 bare ``scene001``..``scene100`` (a local working copy may use a
 location-suffixed directory name like ``scene20.su.checkerboard.``; the
 frame/mask bytes underneath are identical to the live repo, only that
@@ -106,7 +106,7 @@ def resolve_mos_scene_id(mos_root: Path, ego_scene_dir_name: str) -> Optional[st
     return the CANONICAL scene_id to use for both.
 
     IMPORTANT: the canonical scene_id is ego's own bare, zero-padded form
-    (``scene020``) — verified against the live IRVLUTD/RPX repo, where
+    (``scene020``) — verified against the live anonymous/RPX repo, where
     scenes are published as bare ``scene001``..``scene100`` (NOT the
     location-suffixed form some local working copies use, e.g.
     ``scene20.su.checkerboard`` — that's a local/staging naming quirk that

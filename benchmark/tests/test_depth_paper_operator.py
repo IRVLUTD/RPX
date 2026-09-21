@@ -55,7 +55,7 @@ def test_latency_cache_is_reused_only_for_exact_protocol(tmp_path: Path) -> None
 def test_thin_docker_overlay_is_immutable_and_checks_required_imports() -> None:
     dockerfile = (ROOT / "docker" / "depth-paper" / "Dockerfile").read_text()
     digest = "sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc"
-    assert f"FROM narendhiranv04/rpx-depth-smoke@{digest}" in dockerfile
+    assert f"FROM rpx-depth-smoke@{digest}" in dockerfile
     assert "COPY benchmark /opt/rpx/benchmark" in dockerfile
     assert "import numpy, scipy, pyarrow" in dockerfile
     assert "--no-deps --force-reinstall" in dockerfile

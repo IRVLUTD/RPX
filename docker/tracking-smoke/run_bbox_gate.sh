@@ -14,10 +14,10 @@ case "${gate}" in smoke|micro|acceptance) ;; *) exit 2 ;; esac
 case "${protocol}" in mos|ego) ;; *) exit 2 ;; esac
 [[ "${gpu}" =~ ^[0-9]+$ ]] || exit 2
 
-runtime="${RPX_TRACKING_RUNTIME:-/data/narendhiran_rpx/tracking-bbox-runtime}"
-hf_cache="${RPX_HF_CACHE:-/data/narendhiran_rpx/docker-smoke/tracking-caches/rpx-shared/huggingface}"
+runtime="${RPX_TRACKING_RUNTIME:-/data/rpx/tracking-bbox-runtime}"
+hf_cache="${RPX_HF_CACHE:-/data/rpx/docker-smoke/tracking-caches/rpx-shared/huggingface}"
 output_root="${RPX_TRACKING_OUTPUT:-${runtime}/outputs}"
-registry="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}"
+registry="${RPX_TRACKING_IMAGE:-rpx-tracking-smoke}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short="${revision:0:12}"

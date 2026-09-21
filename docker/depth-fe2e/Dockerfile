@@ -2,14 +2,13 @@
 
 # Build this as a thin extension of the current RPX paper image. The immutable
 # cumulative image remains a usable fallback when BASE_IMAGE is not supplied.
-ARG BASE_IMAGE=narendhiranv04/rpx-depth-smoke@sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc
+ARG BASE_IMAGE=rpx-depth-smoke@sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc
 FROM ${BASE_IMAGE}
 
 ARG RPX_GIT_SHA
 ARG FE2E_SHA=262d4c9d4c37752c984304f57ca7d7066f34ad5d
 
 LABEL org.opencontainers.image.title="RPX official FE2E depth runtime" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}" \
       org.opencontainers.image.fe2e.revision="${FE2E_SHA}"
 

@@ -1,7 +1,8 @@
 # Dataset metadata
 
-Large RGB-D assets and VQA Parquets are distributed through
-[IRVLUTD/RPX](https://huggingface.co/datasets/IRVLUTD/RPX), not Git.
+Large RGB-D assets and VQA Parquets are distributed separately from Git.
+Set `RPX_HF_REPO` and `RPX_HF_REVISION` to the reviewer-provided dataset
+location.
 
 - `splits/scene_splits.json` is the canonical scene-level easy/medium/hard
   assignment: 33/33/34 scenes, using released `sceneNNN` identifiers. The text

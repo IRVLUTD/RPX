@@ -5,7 +5,7 @@ the real ~890 GB capture set in. Once the data is laid out this way on
 the target system, the dataset hub pipeline (in
 `rpx_benchmark.dataset_hub`) walks it, packs per-modality tar shards,
 writes the per-frame manifest, dedupes per-object questionnaires, and
-pushes the result to `IRVLUTD/RPX` on HuggingFace.
+pushes the result to `anonymous/RPX` on HuggingFace.
 
 Two scene families live under their own top-level subdirectories
 (`mos/` and `sos/`). Anything else under the root is ignored by the
@@ -106,7 +106,7 @@ sos/<object_name>/                 # e.g. sos/tape_and_holder, sos/coffee_mug
 When the packer ships this layout to HuggingFace, it produces:
 
 ```
-IRVLUTD/RPX/
+anonymous/RPX/
 ├── manifest/
 │   ├── frames_v1.parquet        # one row per (scene, phase, frame); the source of truth
 │   └── current.json             # {label_versions: {masks: v1, ...}}

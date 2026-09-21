@@ -68,8 +68,7 @@ conda create -n rkit-rpx python=3.9 && conda activate rkit-rpx
 pip install -r requirements.txt
 conda install pytorch torchvision torchaudio pytorch-cuda -c pytorch -c nvidia
 
-# 1. Pull one scene's raw captures from Box
-#    → https://utdallas.box.com/s/saifhadoad3w136tbvfgcrd4n2zk8e7t
+# 1. Place one scene's reviewer-provided raw captures under <scene_dir>
 
 # 2. ITERATION 1 — first-pass mask generation (per phase)
 #    Opens a 2-step UI: (a) curate GroundingDINO boxes, (b) refine sizes
@@ -301,8 +300,7 @@ python -m visual_grounding_gt.mask_to_object \
 | `visual_grounding_gt/mask_to_object.py` | One-click mask-id ↔ object-name mapping (final step). |
 | `visual_grounding_gt/correspondence_validation_viz.py` | Visual sanity check on the id mapping. |
 
-The inner `robokit/` directory is the [IRVLUTD/robokit](https://github.com/IRVLUTD/robokit)
-Python library — perception primitives, dataset adapters, evaluation
+The inner `robokit/` directory is the vendored RoboKit Python library — perception primitives, dataset adapters, evaluation
 metrics. It's imported as `from robokit.perception import …` from
 every pipeline script.
 
@@ -332,11 +330,10 @@ The interactive pipeline is built on top of several upstream projects.
   Anything v2; bbox-and-point → mask + temporal propagation.
 - [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO) —
   IDEA-Research's open-vocabulary bbox suggester.
-- [RoboKit](https://github.com/IRVLUTD/robokit) — IRVL UTD's perception
-  toolkit; vendored as `data/mask_annotation/robokit/`.
+- RoboKit — the perception toolkit vendored at `data/mask_annotation/robokit/`.
 - [BundleSDF](https://github.com/NVlabs/BundleSDF) — NVIDIA's
   reference docker setup, used as a base for ours.
-- [iTeach-DHYOLO](https://huggingface.co/spaces/IRVLUTD/DH-YOLO),
+- iTeach-DHYOLO,
   [DepthAnything](https://huggingface.co/docs/transformers/main/en/model_doc/depth_anything),
   [FeatUp](https://github.com/mhamilton723/FeatUp),
   [CLIP](https://github.com/openai/CLIP) — additional zero-shot

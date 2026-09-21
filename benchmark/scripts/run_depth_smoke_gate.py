@@ -24,7 +24,7 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-DATASET_REPO = "IRVLUTD/RPX"
+DATASET_REPO = "anonymous/RPX"
 DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 BLOCKED_MODELS: set[str] = set()
 # Verified models supplied by dedicated Docker overlays rather than the host installer.

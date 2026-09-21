@@ -31,7 +31,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-REPO_ID = "IRVLUTD/RPX"
+REPO_ID = "anonymous/RPX"
 
 CATALOG_REVISION = "93e31d378f1f98eca18a7aa01a2279c9f332440c"
 MOS_TRACKING_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"

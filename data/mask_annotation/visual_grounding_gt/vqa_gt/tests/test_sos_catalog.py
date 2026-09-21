@@ -1,15 +1,23 @@
 """Tests 1-2 (spec §13): catalog ID joins, dotted source_catalog_id stays a
-string. Uses the real official catalog (hf_hub_download caches locally after
-the first call in this environment, so this does not re-download on every
-test run)."""
+string. Dataset-backed checks run only when RPX_HF_REPO names the
+reviewer-provided dataset; pure identity tests remain offline."""
+import os
+
 import pytest
 
 import sos_catalog as sc
 
 
+def _review_repo():
+    repo_id = os.environ.get("RPX_HF_REPO")
+    if not repo_id:
+        pytest.skip("set RPX_HF_REPO to run reviewer-dataset integration tests")
+    return repo_id
+
+
 @pytest.fixture(scope="module")
 def catalog():
-    return sc.load_catalog()
+    return sc.load_catalog(repo_id=_review_repo())
 
 
 def test_catalog_has_70_published_objects(catalog):
@@ -67,13 +75,13 @@ def test_join_scene_mask_resolves_published_and_unpublished_alike(catalog):
 
 
 def test_load_mos_mask_map_source_catalog_id_is_string():
-    df = sc.load_mos_mask_map()
+    df = sc.load_mos_mask_map(repo_id=_review_repo())
     assert df["source_catalog_id"].dtype == object
     assert (df["source_catalog_id"].str.contains(r"\.")).any()
 
 
 def test_verify_against_mos_manifest_agrees_on_real_row():
-    df = sc.load_mos_mask_map()
+    df = sc.load_mos_mask_map(repo_id=_review_repo())
     assert sc.verify_against_mos_manifest(df, "scene001", 0, 4, "1") is True
     assert sc.verify_against_mos_manifest(df, "scene001", 0, 4, "999") is False
     assert sc.verify_against_mos_manifest(df, "scene001", 0, 99999, "1") is None

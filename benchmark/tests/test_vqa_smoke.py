@@ -87,7 +87,7 @@ def test_stable_id_and_portable_locator() -> None:
     value = row()
     assert stable_sample_id(value) == stable_sample_id(dict(reversed(list(value.items()))))
     assert image_locator(value) == {
-        "repo_id": "IRVLUTD/RPX",
+        "repo_id": "anonymous/RPX",
         "revision": DATASET_REVISION,
         "shard": "scenes/scene001/0/rgb.tar",
         "member": "rgb/00000.webp",

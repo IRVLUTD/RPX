@@ -45,7 +45,7 @@ import importlib
 import sys
 from pathlib import Path
 
-DEFAULT_DATASET_REPO = "IRVLUTD/RPX"
+DEFAULT_DATASET_REPO = "anonymous/RPX"
 PINNED_DATASET_REVISION = "2e2a387f7f93e98c177b2e039c141eacda94e5fc"
 
 # Make ./scripts importable so `from depth_models.* import ...` works.

@@ -9,10 +9,10 @@ Toolkit on the host.
 
 | Task | Docker Hub repository | What it contains |
 |---|---|---|
-| Image and video depth | `narendhiranv04/rpx-depth-smoke` | Shared depth runtime and cumulative reference-model tags |
-| Relative camera pose | `narendhiranv04/rpx-rcpe-smoke` | Ten canonical RCPE model stages |
-| Object tracking | `narendhiranv04/rpx-tracking-smoke` | Mask-, box- and text-initialized model stages |
-| VQA and bbox grounding | `narendhiranv04/rpx-vqa-smoke` | Native and vLLM runtimes for the 20-entry roster |
+| Image and video depth | `rpx-depth-smoke` | Shared depth runtime and cumulative reference-model tags |
+| Relative camera pose | `rpx-rcpe-smoke` | Ten canonical RCPE model stages |
+| Object tracking | `rpx-tracking-smoke` | Mask-, box- and text-initialized model stages |
+| VQA and bbox grounding | `rpx-vqa-smoke` | Native and vLLM runtimes for the 20-entry roster |
 
 The exact tag for each model, its checkpoint revision, the gate command and
 the full benchmark command are documented in the task README:
@@ -35,9 +35,9 @@ export RPX_CACHE="$HOME/.cache/rpx"
 export RPX_OUTPUT="$PWD/rpx_results"
 mkdir -p "$RPX_CACHE" "$RPX_OUTPUT"
 
-docker pull narendhiranv04/rpx-vqa-smoke:vllm
-docker run --rm narendhiranv04/rpx-vqa-smoke:vllm list-models
-docker run --rm --gpus all narendhiranv04/rpx-vqa-smoke:vllm verify
+docker pull rpx-vqa-smoke:vllm
+docker run --rm rpx-vqa-smoke:vllm list-models
+docker run --rm --gpus all rpx-vqa-smoke:vllm verify
 ```
 
 The small `verify` or task gate proves that the runtime can import its model

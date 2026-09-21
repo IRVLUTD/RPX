@@ -134,7 +134,7 @@ def _pad_and_clamp(bbox, W, H, pad_frac=CROP_PADDING_FRAC):
 
 
 def build_reference_crop(object_id: str, catalog_obj, out_dir: Path, revision: str = "main",
-                          repo_id: str = "IRVLUTD/RPX", stride: int = CANDIDATE_STRIDE,
+                          repo_id: str = "anonymous/RPX", stride: int = CANDIDATE_STRIDE,
                           manifest: Optional[dict] = None) -> ReferenceCrop:
     """Downloads objects/<object_id>/0/{rgb.tar, labels/masks/v1.tar} once,
     scores a stride-sampled subset of frames, keeps only the winning crop on

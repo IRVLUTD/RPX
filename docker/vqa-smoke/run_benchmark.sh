@@ -26,8 +26,8 @@ if [[ ! -f "${manifest}" ]]; then
   exit 2
 fi
 
-runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/src/vqa-runtime}"
-image="${RPX_VQA_IMAGE:-narendhiranv04/rpx-vqa-smoke}"
+runtime="${RPX_VQA_RUNTIME:-/data/rpx/src/vqa-runtime}"
+image="${RPX_VQA_IMAGE:-rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
 manifest_dir="$(cd "$(dirname "${manifest}")" && pwd)"
 manifest_name="$(basename "${manifest}")"

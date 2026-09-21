@@ -6,7 +6,6 @@ FROM ${BASE_IMAGE}
 ARG BASE_IMAGE
 ARG RPX_GIT_SHA
 
-LABEL org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}" \
       org.opencontainers.image.base.name="${BASE_IMAGE}" \
       org.opencontainers.image.description="Cumulative RPX D3 SAM2, EdgeTAM, Cutie and SAM2Long image"

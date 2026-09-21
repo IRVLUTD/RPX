@@ -1,7 +1,5 @@
 #----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
 # Please check the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2024).
 #----------------------------------------------------------------------------------------------------
 
 
@@ -49,5 +47,5 @@ if __name__ == "__main__":
     # Run the main function with the input image path
     # app.run(main, ['imgs/color-000078.png'])
     # app.run(main, ['imgs/color-000019.png'])
-    app.run(main, ['/home/jishnu/Projects/mm-demo/vie/data/iteach-overlay-data-capture-5-8-25/sugarbox_overlay_4/rgb/000004.jpg'])
-    # app.run(main, ['imgs/irvl-clutter-test.png'])
+    app.run(main, ['/data/rpx/Projects/mm-demo/vie/data/iteach-overlay-data-capture-5-8-25/sugarbox_overlay_4/rgb/000004.jpg'])
+    # app.run(main, ['imgs/rpx-clutter-test.png'])

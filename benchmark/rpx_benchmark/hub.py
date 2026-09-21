@@ -170,7 +170,7 @@ def verify_dataset(
 
 log = get_logger(__name__)
 
-DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "IRVLUTD/RPX")
+DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "anonymous/RPX")
 # Consolidated, audited RPX dataset release.  Pinning the default keeps two
 # benchmark runs comparable even while the Hub's ``main`` branch moves.
 # Operators can select another immutable release through RPX_HF_REVISION or
@@ -301,7 +301,7 @@ def fetch_manifest(
     split : Difficulty or str
     repo_id : str
         HuggingFace dataset repo id. Defaults to
-        :data:`DEFAULT_REPO_ID` (``"IRVLUTD/RPX"``).
+        :data:`DEFAULT_REPO_ID` (``"anonymous/RPX"``).
     cache_dir : str or Path, optional
     revision : str, optional
 

@@ -20,7 +20,6 @@
 #     recorded in the manifest but not used as the primary output. Override with
 #     --multi_take_policy {first,longest}.
 #
-# Work done while being at the Intelligent Robotics and Vision Lab at UT Dallas.
 #----------------------------------------------------------------------------------------------------
 
 from __future__ import annotations

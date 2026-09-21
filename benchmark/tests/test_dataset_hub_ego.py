@@ -84,7 +84,7 @@ def test_ego_vqa_recipe_reserved_slot():
 
 def test_resolve_mos_scene_id_returns_egos_own_bare_form(tmp_path: Path):
     # The canonical scene_id is ego's own bare/padded name — verified to
-    # match the live IRVLUTD/RPX repo's convention (bare scene001..scene100)
+    # match the live anonymous/RPX repo's convention (bare scene001..scene100)
     # — NOT whatever the local mos/ directory happens to be named (which
     # can carry a location suffix that's a local/staging naming quirk).
     # mos_root is only used to validate a sibling exists by scene number.
@@ -230,7 +230,7 @@ def test_ego_scene_has_one_phase(ego_mock: Path):
 def test_packer_nests_ego_under_its_mos_siblings_scene_dir(tmp_path: Path, ego_mock: Path):
     """ego nests under the SAME scenes/<scene_id>/ dir as its mos sibling,
     as a phase-like "ego" segment (scenes/<scene_id>/ego/...) -- not its
-    own top-level root -- per Jishnu's requested layout."""
+    own top-level root -- required by the canonical layout."""
     scan = scan_capture_root(ego_mock)
     plan = PackPlan(src_root=ego_mock, staging_root=tmp_path / "stage")
     result = pack_capture_tree(plan, scan)

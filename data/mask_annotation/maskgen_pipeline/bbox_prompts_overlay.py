@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 # Paths
-image_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/rgb/00249.png"
-bbox_json_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/bbox_prompts.json"
-output_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/annotated.png"
+image_path = "/data/rpx/scene97.jsom.atrium/0/rgb/00249.png"
+bbox_json_path = "/data/rpx/scene97.jsom.atrium/0/bbox_prompts.json"
+output_path = "/data/rpx/scene97.jsom.atrium/0/annotated.png"
 
 # Load image and bboxes
 image = PILImg.open(image_path)

@@ -52,7 +52,7 @@ def _prefetch(split: str, cache_dir: Path) -> Path:
     manifest = download_split(
         task=TaskType.MONOCULAR_DEPTH,
         split=split,
-        repo_id="IRVLUTD/RPX",
+        repo_id="anonymous/RPX",
         cache_dir=cache_dir,
         revision=PINNED_REVISION,
     )

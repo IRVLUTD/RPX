@@ -3,7 +3,7 @@ set -euo pipefail
 
 model=""
 revision=""
-output_root="${TRACK_OUTPUT:-/data/narendhiran_rpx/docker-smoke/tracking-paper-outputs}"
+output_root="${TRACK_OUTPUT:-/data/rpx/docker-smoke/tracking-paper-outputs}"
 dataset_protocol="mos"
 
 usage() {

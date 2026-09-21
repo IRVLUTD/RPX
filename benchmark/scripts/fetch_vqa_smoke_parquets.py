@@ -29,7 +29,7 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     for name in (*NORMAL_PARQUETS, *INCONTEXT_PARQUETS):
         source = hf_hub_download(
-            repo_id="IRVLUTD/RPX",
+            repo_id="anonymous/RPX",
             repo_type="dataset",
             revision=DATASET_REVISION,
             filename=f"vqa/{name}",

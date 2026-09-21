@@ -1,7 +1,5 @@
 #----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
 # Please check the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2024).
 #----------------------------------------------------------------------------------------------------
 
 
@@ -84,7 +82,7 @@ class BoundingBoxAnnotator:
 
 
 
-def load_palette_from_url(url="https://raw.githubusercontent.com/IRVLUTD/fewsol-toolkit/refs/heads/main/palette.txt"):
+def load_palette_from_url(url="https://raw.githubusercontent.com/anonymous/fewsol-toolkit/refs/heads/main/palette.txt"):
     """
     Load the color palette from a remote URL.
 

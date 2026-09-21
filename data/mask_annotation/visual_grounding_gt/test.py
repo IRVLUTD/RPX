@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 # Load the image
-img_path = '/home/itaykadosh/Desktop/SCENES_W_MASKS/fill_ins_2/scene64.ecsw.axxess-atrium/2/sam2/masks/00002.png'
+img_path = '/data/rpx/SCENES_W_MASKS/fill_ins_2/scene64.ecsw.axxess-atrium/2/sam2/masks/00002.png'
 img = Image.open(img_path)
 
 

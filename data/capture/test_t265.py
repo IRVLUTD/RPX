@@ -3,7 +3,7 @@
 ## License: Apache 2.0. See LICENSE file in root directory.
 ## Copyright(c) 2019 Intel Corporation. All Rights Reserved.
 
-# - Modified by Sai Haneesh Allu, working at IRVL UTDallas -#
+# - Modified by Sai Haneesh Allu, working at RPX Projectallas -#
 
 #####################################################
 ##           librealsense T265 example             ##

@@ -117,7 +117,7 @@ def main() -> None:
     res = download_for_task(
         task="segmentation",
         split="easy",
-        repo_id="itaykadosh/rpx-test",
+        repo_id="anonymous/RPX",
         extra_modalities=["depth"],
     )
     local = Path(res.local_dir)

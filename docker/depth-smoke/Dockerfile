@@ -11,7 +11,6 @@ ARG MOGE_SHA=07444410f1e33f402353b99d6ccd26bd31e469e8
 
 LABEL org.opencontainers.image.title="RPX four-model depth smoke runtime" \
       org.opencontainers.image.description="GPU-only RPX smoke runtime for DA-V2 Large, Depth Pro, UniDepth V2 and MoGe-2 ViT-L" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -139,7 +138,7 @@ CMD ["help"]
 
 
 # Extend the exact four-model image that passed the GPU acceptance matrix.
-FROM narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f AS depth_all_da3
+FROM rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f AS depth_all_da3
 
 ARG RPX_GIT_SHA
 ARG DA3_SHA=41736238f5bced4debf3f2a12375d2466874866d

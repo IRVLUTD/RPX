@@ -9,7 +9,7 @@ from pathlib import Path
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo-id", default="IRVLUTD/RPX")
+    parser.add_argument("--repo-id", default="anonymous/RPX")
     parser.add_argument(
         "--scenes",
         nargs="+",

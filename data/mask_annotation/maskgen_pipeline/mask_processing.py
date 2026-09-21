@@ -1,7 +1,5 @@
 #----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
 # Please check the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2025). (with copilot + GPT-4)
 #----------------------------------------------------------------------------------------------------
 import numpy as np
 import torch
@@ -16,7 +14,7 @@ def load_palette():
     Returns:
         list: List of (R, G, B) tuples.
     """
-    url = "https://raw.githubusercontent.com/IRVLUTD/fewsol-toolkit/refs/heads/main/palette.txt"
+    url = "https://raw.githubusercontent.com/anonymous/fewsol-toolkit/refs/heads/main/palette.txt"
     response = requests.get(url)
     response.raise_for_status()
     return [tuple(map(int, line.strip().split())) for line in response.text.strip().split("\n")]

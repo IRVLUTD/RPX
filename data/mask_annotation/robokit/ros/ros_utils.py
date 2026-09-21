@@ -1,5 +1,4 @@
 """
-Source: https://github.com/IRVLUTD/SceneReplica/blob/main/src/utils/ros_utils.py
 """
 
 import time

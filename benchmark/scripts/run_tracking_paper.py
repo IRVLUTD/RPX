@@ -25,7 +25,7 @@ def main() -> None:
     )
     parser.add_argument("--cache-dir", required=True)
     parser.add_argument("--output-root", required=True)
-    parser.add_argument("--repo", default="IRVLUTD/RPX")
+    parser.add_argument("--repo", default="anonymous/RPX")
     parser.add_argument("--revision")
     parser.add_argument("--jedi-bounds")
     parser.add_argument("--text-vocab")

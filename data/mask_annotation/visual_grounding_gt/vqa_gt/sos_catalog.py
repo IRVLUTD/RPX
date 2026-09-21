@@ -1,5 +1,5 @@
 """Authoritative SOS reference catalog + scene mask identity joins, sourced
-from the OFFICIALLY PUBLISHED manifests on IRVLUTD/RPX (Hugging Face) --
+from the reviewer-provided dataset manifests --
 deliberately NOT the local single_objects/sos_wrapped/ scan lib.py uses for
 the existing (non-in-context) generator.
 
@@ -27,6 +27,7 @@ NOT object_id (the folder-name form) and NOT global_object_id.
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -102,7 +103,7 @@ def _parse_questionnaire_json(d: dict) -> tuple[dict, dict]:
     return raw, norm
 
 
-def load_catalog(revision: str = "main", repo_id: str = "IRVLUTD/RPX") -> dict[str, CatalogObject]:
+def load_catalog(revision: str = "main", repo_id: Optional[str] = None) -> dict[str, CatalogObject]:
     """object_id -> CatalogObject, for exactly the officially published SOS
     objects (measured: 70). Downloads manifest/object_catalog_v1.json plus
     each object's objects_meta/<id>/questionnaire.json -- small JSON only
@@ -110,6 +111,7 @@ def load_catalog(revision: str = "main", repo_id: str = "IRVLUTD/RPX") -> dict[s
     RGB/mask archives -- see sos_reference.py)."""
     from huggingface_hub import hf_hub_download
 
+    repo_id = repo_id or os.environ.get("RPX_HF_REPO", "anonymous/RPX")
     catalog_path = hf_hub_download(repo_id, repo_type="dataset",
                                     filename="manifest/object_catalog_v1.json", revision=revision)
     catalog = json.loads(Path(catalog_path).read_text())
@@ -156,7 +158,7 @@ def by_source_catalog_id(catalog: dict[str, CatalogObject]) -> dict[str, Catalog
     return out
 
 
-def load_mos_mask_map(revision: str = "main", repo_id: str = "IRVLUTD/RPX"):
+def load_mos_mask_map(revision: str = "main", repo_id: Optional[str] = None):
     """The officially published scene_id+phase+local_mask_id ->
     object_id/global_object_id/source_catalog_id join table for MOS, used
     here ONLY as an independent verification cross-check against the
@@ -169,6 +171,7 @@ def load_mos_mask_map(revision: str = "main", repo_id: str = "IRVLUTD/RPX"):
     import pandas as pd
     from huggingface_hub import hf_hub_download
 
+    repo_id = repo_id or os.environ.get("RPX_HF_REPO", "anonymous/RPX")
     p = hf_hub_download(repo_id, repo_type="dataset",
                          filename="manifest/mos_mask_object_map_v1.parquet", revision=revision)
     df = pd.read_parquet(p)

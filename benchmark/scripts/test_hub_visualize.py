@@ -4,7 +4,7 @@ Usage
 -----
     python scripts/test_hub_visualize.py [REPO_ID]
 
-REPO_ID defaults to itaykadosh/rpx-test for the staging mirror.
+REPO_ID defaults to anonymous/RPX for the staging mirror.
 """
 
 import sys
@@ -18,7 +18,7 @@ from PIL import Image
 
 from rpx_benchmark.dataset_hub import download_for_task
 
-REPO_ID = sys.argv[1] if len(sys.argv) > 1 else "itaykadosh/rpx-test"
+REPO_ID = sys.argv[1] if len(sys.argv) > 1 else "anonymous/RPX"
 OUT_PNG = Path(__file__).resolve().parent.parent / "site" / "rpx_hub_smoke.png"
 OUT_PNG.parent.mkdir(exist_ok=True)
 

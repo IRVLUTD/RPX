@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
-TEXT_VOCAB_REPO = "IRVLUTD/RPX"
+TEXT_VOCAB_REPO = "anonymous/RPX"
 TEXT_VOCAB_REVISION = "91921dcb5d328da3e0750c6b5e3f7109cb8b2bb1"
 TEXT_VOCAB_PATH = (
     "tracking/metadata/text_initialization_v1/scene_condition_vocab.parquet"

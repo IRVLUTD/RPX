@@ -1,7 +1,5 @@
 #----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
 # Please check if you have the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2025). (with copilot + Grok 3)
 #----------------------------------------------------------------------------------------------------
 import argparse
 from pathlib import Path

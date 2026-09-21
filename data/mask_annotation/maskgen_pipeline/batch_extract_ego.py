@@ -13,7 +13,6 @@
 # Per-scene failures do not stop the batch — the script keeps going, prints a
 # per-scene status line, and prints an aggregated summary at the end.
 #
-# Work done while being at the Intelligent Robotics and Vision Lab at UT Dallas.
 #----------------------------------------------------------------------------------------------------
 
 from __future__ import annotations

@@ -1893,7 +1893,7 @@
   "generated_at": "2026-09-08T18:50:02.041492+00:00",
   "generator_git_branch": "naren/tracking-text-vocab-v1",
   "generator_git_commit": "abe8e9320e216dc25d1303bac3b793df4728742f",
-  "hf_repo_id": "IRVLUTD/RPX",
+  "hf_repo_id": "anonymous/RPX",
   "known_limitations": [
     {
       "affected_ego_scenes": 14,

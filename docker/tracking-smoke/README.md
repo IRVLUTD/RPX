@@ -93,7 +93,7 @@ From a clean repository checkout:
 
 ```bash
 docker login
-export RPX_TRACKING_IMAGE="narendhiranv04/rpx-tracking-smoke"
+export RPX_TRACKING_IMAGE="rpx-tracking-smoke"
 docker/tracking-smoke/build_and_push_models.sh --push
 ```
 
@@ -114,7 +114,7 @@ To build and push one model at a time on top of the preceding published image:
 ```bash
 docker/tracking-smoke/build_and_push_models.sh \
   --model motip \
-  --base-image narendhiranv04/rpx-tracking-smoke:sam2-plus-sha-<previous-sha> \
+  --base-image rpx-tracking-smoke:sam2-plus-sha-<previous-sha> \
   --push
 ```
 
@@ -153,10 +153,10 @@ checkpoint is baked into any layer; mount `/cache/huggingface` and
 Tags use both immutable and moving forms:
 
 ```text
-narendhiranv04/rpx-tracking-smoke:sam2-sha-<12-char-RPX-SHA>
-narendhiranv04/rpx-tracking-smoke:sam2-latest
-narendhiranv04/rpx-tracking-smoke:all-sha-<12-char-RPX-SHA>
-narendhiranv04/rpx-tracking-smoke:all-latest
+rpx-tracking-smoke:sam2-sha-<12-char-RPX-SHA>
+rpx-tracking-smoke:sam2-latest
+rpx-tracking-smoke:all-sha-<12-char-RPX-SHA>
+rpx-tracking-smoke:all-latest
 ```
 
 `model-matrix.json` is the authoritative model/source/checkpoint provenance
@@ -171,7 +171,7 @@ SAM2 environment manifest and pip freeze, and emits both commit-specific and
 moving tags:
 
 ```bash
-export RPX_TRACKING_IMAGE="narendhiranv04/rpx-tracking-smoke"
+export RPX_TRACKING_IMAGE="rpx-tracking-smoke"
 docker/tracking-smoke/build_sam2_rpx.sh --push
 ```
 

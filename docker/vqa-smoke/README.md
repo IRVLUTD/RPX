@@ -161,7 +161,7 @@ never fabricated inference rows.
 Run inside the repository, from a clean committed tree:
 
 ```bash
-export RPX_VQA_IMAGE=narendhiranv04/rpx-vqa-smoke
+export RPX_VQA_IMAGE=rpx-vqa-smoke
 bash docker/vqa-smoke/build_and_push.sh --push
 ```
 
@@ -174,8 +174,8 @@ baked into the image.
 Set the writable server runtime once:
 
 ```bash
-export RPX_VQA_RUNTIME=/data/narendhiran_rpx/src/vqa-runtime
-export RPX_VQA_IMAGE=narendhiranv04/rpx-vqa-smoke
+export RPX_VQA_RUNTIME=/data/rpx/src/vqa-runtime
+export RPX_VQA_IMAGE=rpx-vqa-smoke
 read -rsp "HF token: " HF_TOKEN; echo
 export HF_TOKEN
 ```

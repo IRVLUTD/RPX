@@ -6,7 +6,7 @@ shift
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=persistent_engine_lib.sh
 source "${script_dir}/persistent_engine_lib.sh"
-runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
+runtime="${RPX_VQA_RUNTIME:-/data/rpx/vqa-runtime}"
 name="$(rpx_vqa_engine_name "${model}")"
 instance_suffix="$(rpx_vqa_engine_instance_suffix)"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"

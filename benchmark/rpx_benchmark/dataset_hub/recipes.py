@@ -25,7 +25,7 @@ from typing import Dict, FrozenSet, Iterable, Optional
 
 from ..exceptions import ConfigError
 
-DEFAULT_REPO_ID = "IRVLUTD/RPX"
+DEFAULT_REPO_ID = "anonymous/RPX"
 
 
 class SceneType(str, Enum):

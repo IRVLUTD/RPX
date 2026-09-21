@@ -3,8 +3,8 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
-registry="${RPX_RCPE_IMAGE:-narendhiranv04/rpx-rcpe-smoke}"
-base_image="${RPX_RCPE_BASE_IMAGE:-narendhiranv04/rpx-rcpe-smoke:reloc3r-rpx-sha-ffbf0f466c97}"
+registry="${RPX_RCPE_IMAGE:-rpx-rcpe-smoke}"
+base_image="${RPX_RCPE_BASE_IMAGE:-rpx-rcpe-smoke:reloc3r-rpx-sha-ffbf0f466c97}"
 push=false
 
 usage() { echo "usage: $0 [--base-image IMAGE] [--push]"; }

@@ -7,7 +7,6 @@ ARG RPX_GIT_SHA
 ARG DVD_SHA=62f52d16faa2cac10e31eb7815ece6e61d5449ec
 
 LABEL org.opencontainers.image.title="RPX DVD v1.1 video-depth runtime" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}" \
       org.opencontainers.image.dvd.revision="${DVD_SHA}"
 

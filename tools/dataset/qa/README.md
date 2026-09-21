@@ -59,7 +59,7 @@ If starting from a fresh machine, first use the published RPX Quick Start API:
 ```bash
 pip install "rpx-benchmark[hub]"
 hf auth login
-python rerun_check/download_rgbd_segmentation.py --repo-id IRVLUTD/RPX
+python rerun_check/download_rgbd_segmentation.py --repo-id anonymous/RPX
 ```
 
 ## Run

@@ -369,7 +369,7 @@ def main() -> None:
     manifest_root = (
         args.cache_dir
         / "rpx-resolved"
-        / "IRVLUTD__RPX"
+        / "anonymous__RPX"
         / "manifests"
         / "monocular_depth"
     )

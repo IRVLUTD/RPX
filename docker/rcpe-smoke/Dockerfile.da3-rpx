@@ -7,7 +7,6 @@ ARG RPX_GIT_SHA
 ARG DA3_GIT_SHA=41736238f5bced4debf3f2a12375d2466874866d
 
 LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} \

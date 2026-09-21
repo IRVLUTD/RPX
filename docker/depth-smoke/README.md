@@ -26,7 +26,7 @@ not an acceptance pass.
 
 All smoke gates are CUDA-only and use:
 
-- dataset `IRVLUTD/RPX` at revision
+- dataset `anonymous/RPX` at revision
   `2e2a387f7f93e98c177b2e039c141eacda94e5fc`;
 - the Easy split;
 - batch size 1 for image models;
@@ -167,13 +167,9 @@ export HF_TOKEN="hf_..."
 
 ## 4. Build the current branch
 
-Clone the extended Docker branch and record the exact source revision:
+From the reviewer checkout, record the exact source revision:
 
 ```bash
-git clone --branch docker/depth-all-hyden --single-branch \
-  https://github.com/IRVLUTD/RPX.git rpx-depth-smoke
-cd rpx-depth-smoke
-
 export RPX_GIT_SHA="$(git rev-parse HEAD)"
 export METADEPTH_SHA="$(tr -d '[:space:]' < docker/depth-smoke/metadepth.sha)"
 export IMAGE="rpx-depth-smoke:sha-$(git rev-parse --short=12 HEAD)"

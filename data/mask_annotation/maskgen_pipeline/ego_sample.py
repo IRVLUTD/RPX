@@ -13,7 +13,6 @@
 #         rgb/00000.jpg 00001.jpg ... NNNNN.jpg   <- 250 (or fewer) frames
 #         ego_frame_map.json                       <- {NNNNN.jpg: source_frame_idx}
 #
-# Work done while being at the Intelligent Robotics and Vision Lab at UT Dallas.
 #----------------------------------------------------------------------------------------------------
 
 from __future__ import annotations

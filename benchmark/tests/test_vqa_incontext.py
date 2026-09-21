@@ -54,14 +54,14 @@ def incontext_row(**overrides) -> dict:
         "sample_id": "edd102d6fa0c1bd9458619f7",
         "target_image": {
             "member": "rgb/00000.webp",
-            "repo_id": "IRVLUTD/RPX",
+            "repo_id": "anonymous/RPX",
             "revision": IN_CONTEXT_REVISION,
             "shard": "scenes/scene001/0.0/rgb.tar",  # the known float-phase defect
         },
         "reference_image": {
             "crop_bbox": [318, 222, 434, 274],
             "member": "rgb/00060.webp",
-            "repo_id": "IRVLUTD/RPX",
+            "repo_id": "anonymous/RPX",
             "revision": IN_CONTEXT_REVISION,
             "shard": "objects/marker.5/0/rgb.tar",
         },
@@ -150,7 +150,7 @@ def test_normal_sample_backward_compatible_after_incontext_extension():
     assert sample.images == (sample.image,)
     assert sample.reference_image is None
     assert sample.image == {
-        "repo_id": "IRVLUTD/RPX",
+        "repo_id": "anonymous/RPX",
             "revision": DATASET_REVISION,
         "shard": "scenes/scene001/0/rgb.tar",
         "member": "rgb/00000.webp",
@@ -182,7 +182,9 @@ def test_hub_url_applies_shard_normalization():
     url = hub_url(sample.image)
     assert "/scenes/scene001/0/rgb.tar" in url
     assert "0.0" not in url
-    assert url.startswith(f"https://huggingface.co/datasets/IRVLUTD/RPX/resolve/{IN_CONTEXT_REVISION}/")
+    assert url.startswith(
+        f"https://huggingface.co/datasets/anonymous/RPX/resolve/{IN_CONTEXT_REVISION}/"
+    )
 
 
 # ── hub_rgb cache keys ───────────────────────────────────────────────────────

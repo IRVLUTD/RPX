@@ -9,7 +9,6 @@
 # filename nomenclature the rig uses (rgb/, depth/, ...). The lab's existing
 # interactive_gsam2 labeling tool then takes <scene>/ego as a scene dir.
 #
-# Work done while being at the Intelligent Robotics and Vision Lab at UT Dallas.
 #----------------------------------------------------------------------------------------------------
 
 from __future__ import annotations

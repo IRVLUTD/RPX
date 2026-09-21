@@ -1,12 +1,11 @@
 # syntax=docker/dockerfile:1.7
 
 # Immutable cumulative HyDen image published for docker/depth-all-hyden.
-FROM narendhiranv04/rpx-depth-smoke@sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc
+FROM rpx-depth-smoke@sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc
 
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX DA-V2 Large D1-F paper runtime" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}" \
       org.opencontainers.image.base.digest="sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc"
 

@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument("--model", required=True)
     parser.add_argument("--gate", choices=tuple(GATE_SIZES), required=True)
     parser.add_argument("--split", default="easy")
-    parser.add_argument("--repo", default="IRVLUTD/RPX")
+    parser.add_argument("--repo", default="anonymous/RPX")
     parser.add_argument("--revision", required=True)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--output-root", type=Path, required=True)

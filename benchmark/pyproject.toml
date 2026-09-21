@@ -6,8 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "rpx-benchmark"
 version = "0.3.0"
 description = "RPX — benchmark harness for evaluating robot-perception models on real-world RGB-D data"
-authors = [{name = "RPX Team"}]
-maintainers = [{name = "RPX Team"}]
 readme = "README.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.10"
@@ -101,12 +99,6 @@ dev = [
   "pydantic>=2.5",
   "types-requests",   # box_upload.py uses requests; mypy emits import-untyped without stubs
 ]
-
-[project.urls]
-Homepage = "https://github.com/IRVLUTD/RPX"
-Documentation = "https://irvlutd.github.io/RPX/toolkit-docs/"
-Repository = "https://github.com/IRVLUTD/RPX"
-Issues = "https://github.com/IRVLUTD/RPX/issues"
 
 [tool.setuptools.packages.find]
 include = ["rpx_benchmark*"]

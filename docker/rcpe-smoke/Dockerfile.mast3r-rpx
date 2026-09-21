@@ -41,7 +41,6 @@ RUN git -C /opt/rpx-models/mast3r/dust3r submodule update --init --depth 1 croco
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime: VGGT-Ω + DA3 + CUT3R + MASt3R" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface

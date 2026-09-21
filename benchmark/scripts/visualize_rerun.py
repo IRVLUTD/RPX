@@ -250,7 +250,7 @@ Examples:
     )
     ap.add_argument(
         "--repo",
-        default="IRVLUTD/RPX",
+        default="anonymous/RPX",
         help="HuggingFace dataset repo (default: %(default)s)",
     )
     ap.add_argument("--scene", default=None, help="scene id (default: first available in cache)")

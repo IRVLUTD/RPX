@@ -13,7 +13,7 @@ gpu_b="$4"
 shift 4
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
+runtime="${RPX_VQA_RUNTIME:-/data/rpx/vqa-runtime}"
 
 [[ "${gpu_a}" =~ ^[0-9]+$ && "${gpu_b}" =~ ^[0-9]+$ ]] || {
   echo "GPU_A and GPU_B must be numeric physical GPU indices" >&2

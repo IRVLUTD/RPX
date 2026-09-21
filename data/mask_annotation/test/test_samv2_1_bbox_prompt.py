@@ -1,7 +1,5 @@
 #----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
 # Please check the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2024).
 #----------------------------------------------------------------------------------------------------
 
 
@@ -31,5 +29,5 @@ if __name__ == "__main__":
     # Run the main function with the input video dir path containing jpg frame images
     app.run(
         main, 
-        ['imgs/irvl-whiteboard-write-and-erase']
+        ['imgs/rpx-whiteboard-write-and-erase']
     )

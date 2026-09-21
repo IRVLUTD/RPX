@@ -64,7 +64,7 @@ class CardSpec:
     task_categories: tuple[str, ...] = DEFAULT_TASK_CATEGORIES
     tags: tuple[str, ...] = DEFAULT_TAGS
     paper_url: Optional[str] = None
-    code_url: Optional[str] = "https://github.com/IRVLUTD/RPX"
+    code_url: Optional[str] = None
 
 
 def _human_bytes(n: int) -> str:
@@ -297,7 +297,7 @@ download_for_task(
 @misc{{rpx2026,
     title  = {{RPX: Robot Perception X — A real-world RGB-D benchmark for
               embodied perception}},
-    author = {{IRVL UT Dallas}},
+    author = {{Anonymous Institution}},
     year   = 2026,
     url    = {{https://huggingface.co/datasets/{spec.repo_id}}},
 }}

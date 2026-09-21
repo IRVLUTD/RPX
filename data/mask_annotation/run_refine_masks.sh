@@ -1,11 +1,10 @@
-# author: Jishnu P
 # date: 2024-01-10
 # description: Script to run mask refinement on all scenes in the specified directory.
 # version: 1.0
 # dependencies:
 #   - Python 3.x
 #   - maskgen_pipeline package
-#   - Directory structure: /home/jishnu/Projects/RPX/data/scene_id/{0,1,2}/
+#   - Directory structure: /data/rpx/scene_id/{0,1,2}/
 # usage: Run this script to refine masks for all scenes in the specified base directory.
 # notes:
 #   - Ensure the maskgen_pipeline package is installed and accessible in your Python environment.
@@ -21,7 +20,7 @@
 
 #!/bin/bash
 
-BASE_DIR="/home/jishnu/Projects/RPX/data"
+BASE_DIR="${RPX_DATA_ROOT:-/data/rpx}"
 
 
 for scene in "$BASE_DIR"/*; do

@@ -60,7 +60,7 @@ def draw_rounded_rect(draw, rect, radius, fill=None, outline=None, width=1):
     draw.rounded_rectangle(rect, radius=radius, fill=fill, outline=outline, width=width)
 
 def load_bgr_palette():
-    url = "https://raw.githubusercontent.com/IRVLUTD/fewsol-toolkit/refs/heads/main/palette.txt"
+    url = "https://raw.githubusercontent.com/anonymous/fewsol-toolkit/refs/heads/main/palette.txt"
     try:
         response = requests.get(url, timeout=5)
         response.raise_for_status()

@@ -44,7 +44,6 @@ RUN mkdir -p /opt/rpx-models/monst3r/checkpoints/MonST3R_PO-TA-S-W_ViTLarge_Base
 ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX cumulative RCPE runtime through MonST3R" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV RPX_GIT_SHA=${RPX_GIT_SHA} PYTHONUNBUFFERED=1 HF_HOME=/cache/huggingface

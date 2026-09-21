@@ -1,8 +1,7 @@
 # RPX Dataset Hub
 
-> Uploads the RPX captures to
-> [`IRVLUTD/RPX`](https://huggingface.co/datasets/IRVLUTD/RPX) on
-> HuggingFace, and lets users download only the slice they need
+> Uploads RPX captures to a configurable dataset repository and lets users
+> download only the slice they need
 > (by task + split) instead of pulling the full ~890 GB.
 
 
@@ -43,13 +42,13 @@ python -m rpx_benchmark.dataset_hub.cli lossless-convert \
 # needs the converted tree to know what suffixes to record.
 python -m rpx_benchmark.dataset_hub.cli pack            --src DATA_v2 --staging STAGE --overwrite
 
-# IMPORTANT for re-uploads to an *existing* repo (e.g. IRVLUTD/RPX):
+# IMPORTANT for re-uploads to an *existing* repo (e.g. anonymous/RPX):
 # pull the live manifest/current.json into STAGE first so the manifest
 # builder can merge our owned keys onto whatever extra blocks the team
-# wrote (current.json on IRVLUTD/RPX carries `manifests`, `sos`, `mos`,
+# wrote (current.json on anonymous/RPX carries `manifests`, `sos`, `mos`,
 # `metadata_versions` — none of which our toolkit writes; our merge
 # logic preserves them). Skip this for a brand-new repo.
-hf download IRVLUTD/RPX --repo-type dataset --include "manifest/current.json" \
+hf download anonymous/RPX --repo-type dataset --include "manifest/current.json" \
     --local-dir STAGE 2>/dev/null || true
 
 python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA_v2 --staging STAGE \
@@ -68,7 +67,7 @@ python -m rpx_benchmark.dataset_hub.cli manifest        --src DATA_v2 --staging 
 # Without --splits the manifest step FAILS LOUDLY (used to silently
 # produce 0 per-task JSONs which made the published HF tree unusable).
 python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE --overwrite
-# ⚠️ For an *existing* repo (IRVLUTD/RPX), SKIP these two commands —
+# ⚠️ For an *existing* repo (anonymous/RPX), SKIP these two commands —
 # the live dataset card and Croissant already carry hand-crafted
 # `configs:` blocks for the HF dataset viewer that our generators do
 # not (yet) reproduce. Run them only when bootstrapping a brand-new
@@ -78,7 +77,7 @@ python -m rpx_benchmark.dataset_hub.cli stage-splits    --staging STAGE --overwr
 
 # ─── (3) upload as v2-webp revision (additive — v1 stays accessible) ──
 python -m rpx_benchmark.dataset_hub.cli upload          --staging STAGE \
-                                                         --repo-id IRVLUTD/RPX \
+                                                         --repo-id anonymous/RPX \
                                                          --revision v2-webp
 
 # ─── (4) (any user, any machine) download + optional integrity check ──
@@ -177,10 +176,10 @@ didn't fit the pattern (typos, stray files).
 
 ## 4. What ends up on the HuggingFace repo
 
-Your `pack`/`upload` produces this on `IRVLUTD/RPX`:
+Your `pack`/`upload` produces this on `anonymous/RPX`:
 
 ```
-IRVLUTD/RPX/
+anonymous/RPX/
 ├── README.md                         # the dataset card (from `dataset-card`)
 ├── rpx_croissant.json                # metadata for ML platforms (from `stage-croissant`)
 ├── manifest/
@@ -223,7 +222,7 @@ python -m rpx_benchmark.dataset_hub.cli pack --src DATA --staging STAGE --overwr
 python -c "import json, pathlib; p = pathlib.Path('STAGE/manifest/current.json'); \
            c = json.loads(p.read_text()); c['label_versions']['vqa'] = 'v1'; \
            p.write_text(json.dumps(c, indent=2))"
-python -m rpx_benchmark.dataset_hub.cli upload --staging STAGE --repo-id IRVLUTD/RPX \
+python -m rpx_benchmark.dataset_hub.cli upload --staging STAGE --repo-id anonymous/RPX \
     --message "v1.1.0: add VQA labels"
 ```
 
@@ -244,7 +243,7 @@ python -m rpx_benchmark.dataset_hub.cli pack --src DATA --staging STAGE \
 python -c "import json, pathlib; p = pathlib.Path('STAGE/manifest/current.json'); \
            c = json.loads(p.read_text()); c['label_versions']['cam_pose'] = 'v2'; \
            p.write_text(json.dumps(c, indent=2))"
-python -m rpx_benchmark.dataset_hub.cli upload --staging STAGE --repo-id IRVLUTD/RPX \
+python -m rpx_benchmark.dataset_hub.cli upload --staging STAGE --repo-id anonymous/RPX \
     --message "v1.2.0: refined cam_pose (v2)"
 ```
 
@@ -328,17 +327,17 @@ python -m rpx_benchmark.dataset_hub.cli manifest \
 python -m rpx_benchmark.dataset_hub.cli stage-splits     --staging /scratch/rpx_stage
 python -m rpx_benchmark.dataset_hub.cli dataset-card \
     --src /data/test_dataset_aggregated --staging /scratch/rpx_stage \
-    --repo-id IRVLUTD/RPX
+    --repo-id anonymous/RPX
 python -m rpx_benchmark.dataset_hub.cli stage-croissant \
-    --staging /scratch/rpx_stage --repo-id IRVLUTD/RPX
+    --staging /scratch/rpx_stage --repo-id anonymous/RPX
 
 # 5. dry-run the upload (file count + bytes, no network)
 python -m rpx_benchmark.dataset_hub.cli upload \
-    --staging /scratch/rpx_stage --repo-id IRVLUTD/RPX --dry-run
+    --staging /scratch/rpx_stage --repo-id anonymous/RPX --dry-run
 
 # 6. real upload (resumable; takes hours)
 python -m rpx_benchmark.dataset_hub.cli upload \
-    --staging /scratch/rpx_stage --repo-id IRVLUTD/RPX
+    --staging /scratch/rpx_stage --repo-id anonymous/RPX
 
 # 7. smoke-test from a clean cache
 HF_HOME=/tmp/hf_check python -m rpx_benchmark.dataset_hub.cli download \

@@ -65,7 +65,7 @@ def load_hf(
         ``split`` kwarg.
     repo_id : str
         Hugging Face dataset repo id. Defaults to
-        ``IRVLUTD/RPX`` (overridable via ``RPX_HF_REPO``).
+        ``anonymous/RPX`` (overridable via ``RPX_HF_REPO``).
     revision : str, optional
         Git revision (tag, branch, or commit) to pin. Defaults to the
         consolidated audited release; override it with ``RPX_HF_REVISION``.

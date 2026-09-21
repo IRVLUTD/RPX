@@ -118,13 +118,13 @@ def test_missing_shard_download_is_pinned_to_snapshot_revision(
         SimpleNamespace(hf_hub_download=fake_download),
     )
     generator = PosePairGenerator.__new__(PosePairGenerator)
-    generator._repo_id = "IRVLUTD/RPX"
+    generator._repo_id = "anonymous/RPX"
     generator._snapshot_root = tmp_path / "snapshots" / "pinned-revision"
 
     assert generator._download_shard("scenes/scene001/0/labels/cam_pose/v1.tar") == downloaded
     assert calls == [
         {
-            "repo_id": "IRVLUTD/RPX",
+            "repo_id": "anonymous/RPX",
             "filename": "scenes/scene001/0/labels/cam_pose/v1.tar",
             "repo_type": "dataset",
             "revision": "pinned-revision",

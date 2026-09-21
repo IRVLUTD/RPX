@@ -18,7 +18,6 @@ ARG RPX_GIT_SHA
 
 LABEL org.opencontainers.image.title="RPX paper tracking model environments" \
       org.opencontainers.image.description="Cumulative, source-pinned environments for the RPX D3 tracker roster" \
-      org.opencontainers.image.source="https://github.com/IRVLUTD/RPX" \
       org.opencontainers.image.revision="${RPX_GIT_SHA}"
 
 ENV DEBIAN_FRONTEND=noninteractive \

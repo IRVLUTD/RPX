@@ -8,8 +8,8 @@ fi
 model="$1"
 shift
 case "${model}" in
-  sam3.1) default_base="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}:sam3.1-latest" ;;
-  grounded-sam2) default_base="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}:grounded-sam2-latest" ;;
+  sam3.1) default_base="${RPX_TRACKING_IMAGE:-rpx-tracking-smoke}:sam3.1-latest" ;;
+  grounded-sam2) default_base="${RPX_TRACKING_IMAGE:-rpx-tracking-smoke}:grounded-sam2-latest" ;;
   *) echo "model must be sam3.1 or grounded-sam2" >&2; exit 2 ;;
 esac
 base_image="${default_base}"
@@ -37,7 +37,7 @@ if [[ "${pinned_base}" != *@sha256:* ]]; then
 fi
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short="${revision:0:12}"
-registry="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}"
+registry="${RPX_TRACKING_IMAGE:-rpx-tracking-smoke}"
 immutable="${registry}:${model}-bbox-rpx-sha-${short}"
 moving="${registry}:${model}-bbox-rpx-latest"
 docker build \

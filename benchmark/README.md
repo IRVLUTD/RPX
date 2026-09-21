@@ -4,22 +4,15 @@ Load RPX data, run reference or custom perception models, and compare accuracy,
 scene-change robustness and compute cost with Python 3.10–3.12:
 
 ```bash
-python -m pip install 'rpx-benchmark[hub,schemas]'
-git clone https://github.com/IRVLUTD/RPX.git
+git clone <ANONYMOUS_REPOSITORY_URL>
 cd RPX
+python -m pip install -e './benchmark[hub,schemas]'
 python benchmark/examples/run_depth.py
 ```
 
 The example is a CPU-only installation check using synthetic data. Reference
 checkpoints need their own runtime, weights and GPU resources. The package
 installation alone does not install every model's dependencies.
-
-For toolkit development, replace the PyPI install with an editable source
-install from the repository root:
-
-```bash
-python -m pip install -e './benchmark[hub,schemas]'
-```
 
 ## Reference models
 
@@ -46,7 +39,7 @@ Example, **inside the selected model environment**, from `benchmark/`:
 
 ```bash
 python scripts/run_depth.py --model da-v2-large --split easy \
-  --repo IRVLUTD/RPX --device cuda --max-samples 10 \
+  --repo <REVIEW_DATASET_REPO> --device cuda --max-samples 10 \
   --output-dir ../rpx_results/da-v2-large/easy-smoke
 python scripts/run_video_depth.py --help
 python scripts/run_relative_pose.py --help
@@ -75,7 +68,7 @@ result, report, paths = rpx.run_monocular_depth(
     rpx.MonocularDepthRunConfig(
         model=model,
         split="easy",
-        repo_id="IRVLUTD/RPX",
+        repo_id="<REVIEW_DATASET_REPO>",
         revision=rpx.DEFAULT_REVISION,
         device="cpu",  # configure your callable's actual device yourself
         output_dir="rpx_results/my-depth/easy",

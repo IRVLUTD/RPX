@@ -110,7 +110,7 @@ def _member_filename(modality: str, frame_filename: str) -> str:
 
 
 def _hf_snapshot_root(
-    repo_id: str = "IRVLUTD/RPX",
+    repo_id: str = "anonymous/RPX",
     revision: str | None = None,
 ) -> Path:
     """Resolve a requested local HF snapshot, or the most recent one."""
@@ -208,7 +208,7 @@ def build_local_manifest(
     *,
     task: str,
     split: str,
-    repo_id: str = "IRVLUTD/RPX",
+    repo_id: str = "anonymous/RPX",
     revision: str | None = None,
     snapshot_root: Path | None = None,
     extracted_root: Path | None = None,
@@ -398,7 +398,7 @@ def _cli():
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--task", default="monocular_depth", choices=sorted(TASK_MODALITIES))
     ap.add_argument("--split", default="easy", choices=["easy", "medium", "hard"])
-    ap.add_argument("--repo", default="itaykadosh/RPX")
+    ap.add_argument("--repo", default="anonymous/RPX")
     ap.add_argument("--max-samples", type=int, default=None, help="cap (smoke test)")
     ap.add_argument(
         "--extracted-root",

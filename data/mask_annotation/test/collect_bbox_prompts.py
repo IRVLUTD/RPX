@@ -6,7 +6,7 @@ import matplotlib.patches as patches
 
 # Load the image using PIL
 # image_path = "./imgs/sam2-test/rgb/000000.jpg"  # Replace with the path to your image
-image_path = "/home/jishnu/Projects/iTeach-UOIS/uois-models/UnseenObjectsWithMeanShift/data/humanplay_data/scene_0424T194846/jpg/000000.jpg"  # Replace with the path to your image
+image_path = "/data/rpx/Projects/iTeach-UOIS/uois-models/UnseenObjectsWithMeanShift/data/humanplay_data/scene_0424T194846/jpg/000000.jpg"  # Replace with the path to your image
 
 print(image_path)
 

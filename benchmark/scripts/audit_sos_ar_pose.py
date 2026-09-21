@@ -23,7 +23,7 @@ def _arguments() -> argparse.Namespace:
         "--dataset-root", type=Path, required=True, help="RPX dataset checkout/snapshot root"
     )
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--dataset-repo", default="IRVLUTD/RPX")
+    parser.add_argument("--dataset-repo", default="anonymous/RPX")
     parser.add_argument(
         "--dataset-revision",
         default="2e2a387f7f93e98c177b2e039c141eacda94e5fc",

@@ -616,7 +616,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     ap.add_argument("--model", default="opencv_baseline", help="adapter to use")
     ap.add_argument("--split", default="easy", help="easy | medium | hard")
-    ap.add_argument("--repo", default="IRVLUTD/RPX", help="HuggingFace dataset repo")
+    ap.add_argument("--repo", default="anonymous/RPX", help="HuggingFace dataset repo")
     ap.add_argument(
         "--revision",
         default=None,

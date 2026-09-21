@@ -36,12 +36,12 @@ mkdir -p "$HF_CACHE" "$RCPE_OUTPUT/logs"
 docker pull "$image"
 
 mount_args=(-v "$HF_CACHE:/cache/huggingface")
-dataset_repo="$HF_CACHE/datasets--IRVLUTD--RPX"
+dataset_repo="$HF_CACHE/datasets--anonymous--RPX"
 if [[ -d "$dataset_repo/snapshots/$RPX_REVISION" ]]; then
   # Preserve the snapshot's ../../blobs symlink targets while exposing the
   # direct-layout shared cache at the standard HF_HOME/hub location.
   mount_args+=(
-    -v "$dataset_repo:/cache/huggingface/hub/datasets--IRVLUTD--RPX"
+    -v "$dataset_repo:/cache/huggingface/hub/datasets--anonymous--RPX"
   )
 fi
 
@@ -61,7 +61,7 @@ for current_gate in "${gates[@]}"; do
       --model "$model" \
       --gate "$current_gate" \
       --split easy \
-      --repo IRVLUTD/RPX \
+      --repo anonymous/RPX \
       --revision "$RPX_REVISION" \
       --device cuda \
       --output-root /outputs \

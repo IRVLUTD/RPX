@@ -544,8 +544,7 @@ def align_scale_and_shift_per_clip(
     )
 
 
-# Backwards-compatibility alias. Earlier branches (jishnu/d1v-runner-
-# first-adapter, jishnu/d1v-manifest-root-warning) and external callers
+# Backwards-compatibility alias. Earlier earlier development branches and external callers
 # import ``D1VDataset`` directly. Keeping the alias avoids forcing every
 # caller to update their import line in lockstep with the rename.
 D1VDataset = VideoDepthDataset

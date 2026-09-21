@@ -1,16 +1,9 @@
-#----------------------------------------------------------------------------------------------------
-# Work done while being at the Intelligent Robotics and Vision Lab at the University of Texas, Dallas
-# Please check the licenses of the respective works utilized here before using this script.
-# 🖋️ Jishnu Jaykumar Padalunkal (2025).
-#----------------------------------------------------------------------------------------------------
-
 # Tested on Docker Compose version v2.24.5
-# Ref: https://github.com/jishnujayakumar/contact_graspnet/blob/main/docker/docker-compose.yml
 
 version: '3'
 services:
   rpx:
-    image: irvlutd/hrt1-rpx:latest
+    image: hrt1-rpx:latest
     container_name: rpx
     runtime: nvidia  # Add this line to specify NVIDIA runtime
     network_mode: host

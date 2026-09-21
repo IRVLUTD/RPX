@@ -51,7 +51,7 @@ log = get_logger(__name__)
 # per-frame F-Score@5cm computation. Frames must be at this resolution
 # for F-Score to be well-defined; a shape mismatch raises.
 # Kept in sync with the Image Depth pipeline's ``depth_paper.py``
-# (Naren's D1-F module on branch jishnu/depth_pipeline_check).
+# (the image-depth D1-F implementation).
 _D435_FX = _D435_FY = 615.0
 _D435_CX = 320.0
 _D435_CY = 240.0

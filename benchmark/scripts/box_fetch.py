@@ -15,24 +15,24 @@ Box developer console: https://app.box.com/developers/console).
 Usage
 -----
     # List a folder without downloading
-    python scripts/box_fetch.py 'https://utdallas.box.com/s/<tok>' --list
+    python scripts/box_fetch.py '<BOX_SHARED_LINK>' --list
 
     # Download a single file (cached on repeat)
-    python scripts/box_fetch.py 'https://utdallas.box.com/s/<tok>'
+    python scripts/box_fetch.py '<BOX_SHARED_LINK>'
 
     # Download specific items from a folder by name (regex)
-    python scripts/box_fetch.py 'https://utdallas.box.com/s/<tok>' --include '\\.xlsx$'
+    python scripts/box_fetch.py '<BOX_SHARED_LINK>' --include '\\.xlsx$'
 
     # Recurse into subfolders (default off — large folders can be huge)
-    python scripts/box_fetch.py 'https://utdallas.box.com/s/<tok>' --recurse
+    python scripts/box_fetch.py '<BOX_SHARED_LINK>' --recurse
 
     # Batch from a manifest (one URL per line, '#' for comments)
     python scripts/box_fetch.py --manifest urls.txt
 
     # Python API
     from box_fetch import fetch, list_folder
-    items = list_folder("https://utdallas.box.com/s/<tok>")  # no download
-    paths = fetch("https://utdallas.box.com/s/<tok>", include=r"\\.xlsx$")
+    items = list_folder("<BOX_SHARED_LINK>")  # no download
+    paths = fetch("<BOX_SHARED_LINK>", include=r"\\.xlsx$")
 
 Cache layout: $RPX_BOX_CACHE/<file_id>/<filename>, default $HOME/.cache/rpx-box.
 """
@@ -208,7 +208,7 @@ def _scrape(url: str) -> tuple[dict, dict]:
 
 def _origin(url: str) -> str:
     m = re.match(r"(https?://[^/]+)", url)
-    return m.group(1) if m else "https://utdallas.app.box.com"
+    return m.group(1) if m else "https://app.box.com"
 
 
 def _parse_url(url: str) -> tuple[str, str, str]:

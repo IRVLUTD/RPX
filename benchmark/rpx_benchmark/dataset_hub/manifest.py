@@ -339,7 +339,7 @@ def build_frame_manifest(
     modality_extensions = _detect_modality_extensions(scan)
 
     # Preserve any pre-existing current.json keys we do not own. The live
-    # IRVLUTD/RPX repo's current.json carries additional top-level blocks
+    # anonymous/RPX repo's current.json carries additional top-level blocks
     # (``manifests``, ``sos``, ``mos``, ``metadata_versions``, …) that
     # the teammate's separate manifest tooling writes. A naive overwrite
     # would strip them and break downstream consumers; instead we read
