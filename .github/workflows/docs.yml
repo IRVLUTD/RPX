@@ -30,14 +30,13 @@ jobs:
           cache: pip
       - name: Install toolkit and documentation dependencies
         run: python -m pip install -e './benchmark[hub,schemas]' 'pdoc>=15,<16'
-      - name: Build project and API pages
+      - name: Build toolkit API pages
         run: python tools/docs/build_pages.py --output _site
       - name: Verify published entry points
         run: |
-          test -s _site/index.html
           test -s _site/toolkit-docs/index.html
-          grep -q 'Toolkit API' _site/index.html
           grep -q 'rpx_benchmark' _site/toolkit-docs/index.html
+          test ! -e _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
