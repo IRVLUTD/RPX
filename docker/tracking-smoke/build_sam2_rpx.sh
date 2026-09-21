@@ -3,8 +3,8 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
-registry="${RPX_TRACKING_IMAGE:-vndhiran123/rpx-tracking-smoke}"
-base_image="${RPX_SAM2_BASE_IMAGE:-vndhiran123/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa}"
+registry="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}"
+base_image="${RPX_SAM2_BASE_IMAGE:-narendhiranv04/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa}"
 push=false
 
 usage() {

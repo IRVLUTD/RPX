@@ -2,7 +2,7 @@
 
 # Immutable published cumulative SAM2 environment. Override only with another
 # digest-pinned image that carries the same SAM2 provenance manifest.
-ARG BASE_IMAGE=vndhiran123/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa
+ARG BASE_IMAGE=narendhiranv04/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa
 FROM ${BASE_IMAGE}
 
 ARG BASE_IMAGE

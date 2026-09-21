@@ -27,7 +27,7 @@ if [[ ! -f "${manifest}" ]]; then
 fi
 
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/src/vqa-runtime}"
-image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
+image="${RPX_VQA_IMAGE:-narendhiranv04/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
 manifest_dir="$(cd "$(dirname "${manifest}")" && pwd)"
 manifest_name="$(basename "${manifest}")"

@@ -12,7 +12,13 @@ import pytest
 
 from rpx_benchmark.exceptions import ManifestError
 from rpx_benchmark.vqa import hub_rgb
-from rpx_benchmark.vqa.contract import VQASample, image_locator, load_manifest, stable_sample_id
+from rpx_benchmark.vqa.contract import (
+    DATASET_REVISION,
+    VQASample,
+    image_locator,
+    load_manifest,
+    stable_sample_id,
+)
 from rpx_benchmark.vqa.hub_rgb import image_cache_name
 from rpx_benchmark.vqa.metrics import (
     bbox_center_in_ground_truth,
@@ -82,12 +88,12 @@ def test_stable_id_and_portable_locator() -> None:
     assert stable_sample_id(value) == stable_sample_id(dict(reversed(list(value.items()))))
     assert image_locator(value) == {
         "repo_id": "IRVLUTD/RPX",
-        "revision": "main",
+        "revision": DATASET_REVISION,
         "shard": "scenes/scene001/0/rgb.tar",
         "member": "rgb/00000.webp",
     }
     ego = {**value, "kind": "ego", "phase": None}
-    assert image_locator(ego)["revision"] == "ego-preview-v2"
+    assert image_locator(ego)["revision"] == DATASET_REVISION
     sample = VQASample.from_dict(value)
     changed_question = VQASample.from_dict({**value, "question": "A different question?"})
     assert sample.sample_id != changed_question.sample_id

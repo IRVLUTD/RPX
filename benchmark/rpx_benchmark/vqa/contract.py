@@ -9,8 +9,8 @@ bbox always belongs to the target image's own ``img_w``/``img_h``, never the
 reference's. In-context locators are taken verbatim from the in-context
 Parquets (``target_image``/``reference_image``) rather than recomputed by
 ``image_locator`` -- those Parquets pin an immutable Hub revision that is
-unrelated to the mutable ``main``/``ego-preview-v2`` revisions the normal
-contract uses, and reconstructing them would silently disconnect a sample
+unrelated to the consolidated revision the normal contract uses, and
+reconstructing them would silently disconnect a sample
 from the exact asset it was generated against.
 """
 
@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from ..exceptions import ManifestError
+from ..hub import DEFAULT_REVISION
 
 SCHEMA_VERSION = "rpx-vqa-1.0"
 
@@ -31,6 +32,7 @@ SCHEMA_VERSION = "rpx-vqa-1.0"
 # (data/mask_annotation/visual_grounding_gt/pilot/out/release_candidate_v3).
 # Never replace this with "main" or any other mutable ref.
 IN_CONTEXT_REVISION = "93e31d378f1f98eca18a7aa01a2279c9f332440c"
+DATASET_REVISION = DEFAULT_REVISION
 
 BINARY_TYPES = frozenset({"spatial_lr_binary", "spatial_ud_binary"})
 GENERAL_BBOX_TYPES = frozenset(
@@ -91,10 +93,8 @@ def image_locator(row: dict[str, Any]) -> dict[str, str]:
     """Build a portable pointer to one RGB member in an uncompressed Hub tar."""
     kind = str(row["kind"])
     if kind == "ego":
-        revision = "ego-preview-v2"
         partition = "ego"
     elif kind == "mos":
-        revision = "main"
         partition = str(row["phase"])
     else:
         raise ManifestError(f"unsupported VQA capture kind: {kind!r}", hint="use 'mos' or 'ego'")
@@ -102,7 +102,7 @@ def image_locator(row: dict[str, Any]) -> dict[str, str]:
     frame = str(row["frame"])
     return {
         "repo_id": "IRVLUTD/RPX",
-        "revision": revision,
+        "revision": DATASET_REVISION,
         "shard": f"scenes/{scene}/{partition}/rgb.tar",
         "member": f"rgb/{frame}.webp",
     }

@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # Immutable cumulative HyDen image published for docker/depth-all-hyden.
-FROM vndhiran123/rpx-depth-smoke@sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc
+FROM narendhiranv04/rpx-depth-smoke@sha256:3b86de0e4e136587d6ea7d816a482af15cb115dc6a14f16ea8f7d9356ab220cc
 
 ARG RPX_GIT_SHA
 

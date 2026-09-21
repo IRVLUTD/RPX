@@ -25,7 +25,7 @@ Usage::
 
     python scripts/upload_to_hf.py \
         --local-root /data/rpx \
-        --repo-id IRVLUTD/rpx-benchmark \
+        --repo-id IRVLUTD/RPX \
         --generate-manifests \
         --upload
 """
@@ -309,7 +309,7 @@ def main() -> int:
         type=Path,
         help="Root containing scenes/, esd_scores.json, splits.json",
     )
-    parser.add_argument("--repo-id", default="IRVLUTD/rpx-benchmark")
+    parser.add_argument("--repo-id", default="IRVLUTD/RPX")
     parser.add_argument("--private", action="store_true")
     parser.add_argument(
         "--generate-manifests",

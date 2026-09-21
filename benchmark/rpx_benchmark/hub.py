@@ -171,6 +171,13 @@ def verify_dataset(
 log = get_logger(__name__)
 
 DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "IRVLUTD/RPX")
+# Consolidated, audited RPX dataset release.  Pinning the default keeps two
+# benchmark runs comparable even while the Hub's ``main`` branch moves.
+# Operators can select another immutable release through RPX_HF_REVISION or
+# the public ``revision=`` arguments.
+DEFAULT_REVISION = os.environ.get(
+    "RPX_HF_REVISION", "51432e5d48895bbafb490ae7c5e34e0f6b7da7d6"
+)
 REPO_TYPE = "dataset"
 
 # ------------------------------------------------------------------ #
@@ -279,7 +286,7 @@ def fetch_manifest(
     split: Difficulty | str,
     repo_id: str = DEFAULT_REPO_ID,
     cache_dir: str | Path | None = None,
-    revision: str | None = None,
+    revision: str | None = DEFAULT_REVISION,
     manifest_name: str | None = None,
 ) -> Dict[str, Any]:
     """Download and parse the task-level manifest for ``(task, split)``.
@@ -294,7 +301,7 @@ def fetch_manifest(
     split : Difficulty or str
     repo_id : str
         HuggingFace dataset repo id. Defaults to
-        :data:`DEFAULT_REPO_ID` (``"IRVLUTD/rpx-benchmark"``).
+        :data:`DEFAULT_REPO_ID` (``"IRVLUTD/RPX"``).
     cache_dir : str or Path, optional
     revision : str, optional
 
@@ -404,7 +411,7 @@ def download_split(
     split: Difficulty | str,
     repo_id: str = DEFAULT_REPO_ID,
     cache_dir: str | Path | None = None,
-    revision: str | None = None,
+    revision: str | None = DEFAULT_REVISION,
     extra_modalities: Sequence[str] | None = None,
     max_workers: int = 8,
     max_samples: int | None = None,
@@ -514,7 +521,7 @@ def load(
     split: Difficulty | str,
     repo_id: str = DEFAULT_REPO_ID,
     cache_dir: str | Path | None = None,
-    revision: str | None = None,
+    revision: str | None = DEFAULT_REVISION,
     batch_size: int = 1,
     max_samples: int | None = None,
 ) -> RPXDataset:

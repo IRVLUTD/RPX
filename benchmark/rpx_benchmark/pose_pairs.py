@@ -350,7 +350,7 @@ class PosePairGenerator:
             )
             return None
 
-        repo_id = self._repo_id or "IRVLUTD/rpx-benchmark"
+        repo_id = self._repo_id or "IRVLUTD/RPX"
         log.info("downloading shard %s from %s ...", shard_rel, repo_id)
         try:
             local = hf_hub_download(

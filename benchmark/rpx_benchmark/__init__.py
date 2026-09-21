@@ -97,6 +97,7 @@ from .exceptions import (
 )
 from .hub import (
     DEFAULT_REPO_ID,
+    DEFAULT_REVISION,
     TASK_MODALITIES,
     download_split,
     fetch_manifest,
@@ -215,6 +216,7 @@ __all__ = [
     # Hub
     "hub",
     "DEFAULT_REPO_ID",
+    "DEFAULT_REVISION",
     "TASK_MODALITIES",
     "download_split",
     "fetch_manifest",

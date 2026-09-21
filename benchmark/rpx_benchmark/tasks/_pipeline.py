@@ -21,7 +21,7 @@ from ..api import Difficulty, TaskType
 from ..cell_log import cells_from_per_sample, write_cells
 from ..deployment import DeploymentReadinessReport
 from ..exceptions import ConfigError
-from ..hub import DEFAULT_REPO_ID, download_split
+from ..hub import DEFAULT_REPO_ID, DEFAULT_REVISION, download_split
 from ..loader import RPXDataset
 from ..logging_utils import get_logger
 from ..metrics.registry import BenchmarkResult, MetricSuite
@@ -47,7 +47,7 @@ class TaskRunConfig:
     split: Difficulty | str = Difficulty.HARD
     repo_id: Optional[str] = None
     cache_dir: Optional[str] = None
-    revision: Optional[str] = None
+    revision: Optional[str] = DEFAULT_REVISION
     batch_size: int = 1
     #: Refuse CPU fallback when a CUDA run was requested. Production smoke
     #: and benchmark launchers set this True; lightweight library users keep

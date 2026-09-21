@@ -15,18 +15,15 @@ Example
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from ..api import Difficulty, TaskType
 from ..exceptions import DownloadError
+from ..hub import DEFAULT_REPO_ID, DEFAULT_REVISION
 from ..logging_utils import get_logger
 from .hf_bridge import RPXHFBridge
 
 log = get_logger(__name__)
-
-DEFAULT_REPO_ID: str = os.environ.get("RPX_HF_REPO", "IRVLUTD/rpx-benchmark")
-
 
 def _load_dataset(*args: Any, **kwargs: Any) -> Any:
     """Lazy import of :func:`datasets.load_dataset`.
@@ -50,7 +47,7 @@ def load_hf(
     split: Difficulty | str = Difficulty.HARD,
     *,
     repo_id: str = DEFAULT_REPO_ID,
-    revision: str | None = None,
+    revision: str | None = DEFAULT_REVISION,
     cache_dir: str | None = None,
     streaming: bool = False,
     batch_size: int = 1,
@@ -68,9 +65,10 @@ def load_hf(
         ``split`` kwarg.
     repo_id : str
         Hugging Face dataset repo id. Defaults to
-        ``IRVLUTD/rpx-benchmark`` (overridable via ``RPX_HF_REPO``).
+        ``IRVLUTD/RPX`` (overridable via ``RPX_HF_REPO``).
     revision : str, optional
-        Git revision (tag, branch, or commit) to pin.
+        Git revision (tag, branch, or commit) to pin. Defaults to the
+        consolidated audited release; override it with ``RPX_HF_REVISION``.
     cache_dir : str, optional
         Hugging Face cache directory. When None the library default is
         used (``~/.cache/huggingface``).

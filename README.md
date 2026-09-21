@@ -5,6 +5,7 @@
 **A real-world RGB-D benchmark for robot perception.**
 
 [![tests](https://img.shields.io/github/actions/workflow/status/IRVLUTD/RPX/tests.yml?branch=naren%2Fall&label=tests)](https://github.com/IRVLUTD/RPX/actions/workflows/tests.yml)
+[![docs](https://img.shields.io/badge/docs-toolkit-2563eb)](https://irvlutd.github.io/RPX/toolkit-docs/)
 [![python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)](benchmark/pyproject.toml)
 [![dataset](https://img.shields.io/badge/Dataset-IRVLUTD%2FRPX-yellow)](https://huggingface.co/datasets/IRVLUTD/RPX)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -24,6 +25,10 @@ The example checks the installation using a synthetic depth model and local
 data. It is CPU-only and downloads nothing. To evaluate actual checkpoints, use
 the task-specific environments and commands in
 [the benchmark README](benchmark/README.md#reference-models).
+
+| Dataset | Benchmark surface | Reference coverage | Custom models |
+|---|---|---|---|
+| 100 scenes · 3 states · 75k+ RGB-D frames | 10 task APIs · 3 evaluation axes | Depth · video depth · pose · tracking · VQA | Local checkpoints or inference APIs |
 
 ---
 
@@ -65,6 +70,7 @@ weights and large experiment outputs are downloaded or generated separately.
 
 | Goal | Start here |
 |---|---|
+| Browse the Python API | [Toolkit documentation](https://irvlutd.github.io/RPX/toolkit-docs/) |
 | Run the supplied models | [Reference models and environments](benchmark/README.md#reference-models) |
 | Evaluate your own model or API | [Bring your own model](benchmark/README.md#bring-your-own-model) |
 | Score a custom VLM on VQA | [Custom VQA model or API](benchmark/README.md#custom-vqa-model-or-api) |
@@ -74,6 +80,40 @@ weights and large experiment outputs are downloaded or generated separately.
 
 Most users only need `benchmark/`. The capture and annotation trees exist to
 *produce* the dataset, not to consume it.
+
+### Toolkit showcase
+
+Run a reference-model gate before a full sweep:
+
+```bash
+# The runtime reports the complete, pinned VQA roster without loading weights.
+docker run --rm narendhiranv04/rpx-vqa-smoke:vllm list-models
+
+# Model-specific depth, tracking and pose commands live in their Docker READMEs.
+python benchmark/scripts/run_depth_smoke_matrix.py --list-models
+```
+
+Bring a Python model or an inference API through the same evaluator:
+
+```python
+import rpx_benchmark as rpx
+
+# predict_depth receives one RGB ndarray and returns an (H, W) depth map.
+model = rpx.make_numpy_depth_model(predict_depth, name="my-depth-service")
+result, report, paths = rpx.run_monocular_depth(
+    rpx.MonocularDepthRunConfig(
+        model=model,
+        split="easy",
+        output_dir="rpx_results/my-depth-service/easy",
+    )
+)
+print(result.aggregated)
+```
+
+The default dataset revision is the immutable, consolidated release. Override
+`RPX_HF_REPO` or `RPX_HF_REVISION` only when evaluating another dataset build.
+For VQA, a custom callable receives ordered image paths plus the public prompt;
+see the [API example](benchmark/README.md#custom-vqa-model-or-api).
 
 ---
 

@@ -16,6 +16,7 @@ from PIL import Image
 from rpx_benchmark.exceptions import ManifestError
 from rpx_benchmark.vqa.canonical import canon_color, canon_function, semantic_key
 from rpx_benchmark.vqa.contract import (
+    DATASET_REVISION,
     IN_CONTEXT_REVISION,
     VQASample,
     normalize_shard,
@@ -150,7 +151,7 @@ def test_normal_sample_backward_compatible_after_incontext_extension():
     assert sample.reference_image is None
     assert sample.image == {
         "repo_id": "IRVLUTD/RPX",
-        "revision": "main",
+            "revision": DATASET_REVISION,
         "shard": "scenes/scene001/0/rgb.tar",
         "member": "rgb/00000.webp",
     }

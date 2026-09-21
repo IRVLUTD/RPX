@@ -147,7 +147,7 @@ def format_markdown_summary(
     >>> from rpx_benchmark.reports import format_markdown_summary  # doctest: +SKIP
     >>> md = format_markdown_summary(                              # doctest: +SKIP
     ...     task="monocular_depth", model_name="depth_pro",
-    ...     split="hard", repo_id="IRVLUTD/rpx-benchmark",
+    ...     split="hard", repo_id="IRVLUTD/RPX",
     ...     result=result, dr_report=report,
     ... )
     """

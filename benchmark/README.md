@@ -68,7 +68,7 @@ result, report, paths = rpx.run_monocular_depth(
         model=model,
         split="easy",
         repo_id="IRVLUTD/RPX",
-        revision="YOUR_IMMUTABLE_DATASET_COMMIT",
+        revision=rpx.DEFAULT_REVISION,
         device="cpu",  # configure your callable's actual device yourself
         output_dir="rpx_results/my-depth/easy",
     )

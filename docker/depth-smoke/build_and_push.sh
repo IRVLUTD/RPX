@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
-image="${RPX_DEPTH_IMAGE:-vndhiran123/rpx-depth-smoke}"
+image="${RPX_DEPTH_IMAGE:-narendhiranv04/rpx-depth-smoke}"
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short_revision="${revision:0:12}"
 tag="${RPX_DEPTH_TAG:-sha-${short_revision}}"

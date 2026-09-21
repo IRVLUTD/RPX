@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
-image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
+image="${RPX_VQA_IMAGE:-narendhiranv04/rpx-vqa-smoke}"
 revision="$(git -C "${repo_root}" rev-parse HEAD)"
 short_revision="${revision:0:12}"
 tag="${RPX_VQA_TAG:-vllm-sha-${short_revision}}"

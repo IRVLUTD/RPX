@@ -16,7 +16,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=persistent_engine_lib.sh
 source "${script_dir}/persistent_engine_lib.sh"
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
-image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
+image="${RPX_VQA_IMAGE:-narendhiranv04/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
 name="$(rpx_vqa_engine_name "${model}")"
 instance_suffix="$(rpx_vqa_engine_instance_suffix)"

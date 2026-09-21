@@ -1,63 +1,49 @@
-# `docker/` — Reproducible RPX environment
+# RPX model environments
 
-> Top-level Dockerised environment that bundles the RealSense SDK,
-> the benchmark toolkit, and the mask-generation pipeline.
-> One image, three workflows.
+The task-specific images reproduce the reference-model runtimes without
+placing dataset shards, checkpoints, predictions or credentials in an image.
+Published images are `linux/amd64`; NVIDIA runs require the NVIDIA Container
+Toolkit on the host.
 
-The legacy image documented below remains for capture and mask generation. For
-the reproducible Python 3.11/CUDA 12.8 depth-smoke runtime, use
-[`depth-smoke/`](depth-smoke/README.md). It packages the four currently accepted
-models without putting RPX data or model checkpoints into the image.
+## Published repositories
 
-Use this when you don't want to deal with the
-[librealsense 2.47.0 pin](../data/capture/README.md#%EF%B8%8F-requirements)
-on your host, or when you need a CUDA-ready box for
-[`data/mask_annotation/`](../data/mask_annotation/README.md).
+| Task | Docker Hub repository | What it contains |
+|---|---|---|
+| Image and video depth | `narendhiranv04/rpx-depth-smoke` | Shared depth runtime and cumulative reference-model tags |
+| Relative camera pose | `narendhiranv04/rpx-rcpe-smoke` | Ten canonical RCPE model stages |
+| Object tracking | `narendhiranv04/rpx-tracking-smoke` | Mask-, box- and text-initialized model stages |
+| VQA and bbox grounding | `narendhiranv04/rpx-vqa-smoke` | Native and vLLM runtimes for the 20-entry roster |
 
-## Contents
+The exact tag for each model, its checkpoint revision, the gate command and
+the full benchmark command are documented in the task README:
 
-- [Quick start](#quick-start)
-- [Workflows](#workflows)
-- [Helper scripts](#helper-scripts)
+- [Image and video depth](depth-smoke/README.md), plus the dedicated
+  [FE2E](depth-fe2e/README.md), [ZipDepth](depth-zipdepth/README.md),
+  [DVD](depth-dvd/README.md) and [GEMDepth](depth-gemdepth/README.md) overlays
+- [Relative camera pose](rcpe-smoke/README.md)
+- [Object tracking](tracking-smoke/README.md)
+- [VQA and bbox grounding](vqa-smoke/README.md)
 
----
+## Pull and verify
 
-## Quick start
+Set the cache and output directories on the host so runs are reproducible and
+survive container removal. Keep `HF_TOKEN` in the environment.
 
 ```bash
-# 1. Build once (slow first time, cached after).
-./build_docker_image.sh
+export HF_TOKEN=hf_...
+export RPX_CACHE="$HOME/.cache/rpx"
+export RPX_OUTPUT="$PWD/rpx_results"
+mkdir -p "$RPX_CACHE" "$RPX_OUTPUT"
 
-# 2. Export ROS env vars if you'll run ROS inside the container.
-export ROS_MASTER_URI=http://localhost:11311
-export ROS_IP=127.0.0.1
-export ROS_HOSTNAME=localhost
-
-# 3. Start detached (default), then exec in:
-./start_docker.sh
-./enter_docker.sh
-
-# Stop when done.
-./stop_docker.sh
+docker pull narendhiranv04/rpx-vqa-smoke:vllm
+docker run --rm narendhiranv04/rpx-vqa-smoke:vllm list-models
+docker run --rm --gpus all narendhiranv04/rpx-vqa-smoke:vllm verify
 ```
 
-For an interactive (foreground) session use `./start_docker.sh -i`.
+The small `verify` or task gate proves that the runtime can import its model
+stack and reach the GPU. Run the model-specific smoke command next; it loads
+real weights and executes inference. Only then start the full dataset sweep.
 
-## Workflows
-
-| Workflow | Command |
-|---|---|
-| **Run a benchmark** inside the container | exec in → `cd benchmark && python scripts/run_depth.py …` |
-| **Run mask-pipeline** inside the container | exec in → `cd /workspace/data/mask_annotation && python -m maskgen_pipeline.interactive_gsam2 …` |
-| **Data capture** (host preferred) | The pinned librealsense often works better directly on the host. See [`../data/capture/`](../data/capture/README.md). |
-
-## Helper scripts
-
-| Script | What it does |
-|---|---|
-| `build_docker_image.sh` | One-time image build. |
-| `start_docker.sh` | Launch detached (or `-i` for foreground). |
-| `enter_docker.sh` | Exec into a running container. |
-| `stop_docker.sh` | Stop + remove the running container. |
-| `dockerfile` | Image definition (Ubuntu + ROS + CUDA + RealSense SDK). |
-| `docker-compose.yml` | Compose variant for multi-container setups. |
+To build instead of pull, use the scripts in the corresponding task directory.
+Every registry name can be overridden through `RPX_DEPTH_IMAGE`,
+`RPX_RCPE_IMAGE`, `RPX_TRACKING_IMAGE` or `RPX_VQA_IMAGE`.

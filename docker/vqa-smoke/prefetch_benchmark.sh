@@ -4,7 +4,7 @@ set -euo pipefail
 manifest="${1:?usage: bash docker/vqa-smoke/prefetch_benchmark.sh MANIFEST [prefetch args...]}"
 shift
 runtime="${RPX_VQA_RUNTIME:-/data/narendhiran_rpx/vqa-runtime}"
-image="${RPX_VQA_IMAGE:-vndhiran123/rpx-vqa-smoke}"
+image="${RPX_VQA_IMAGE:-narendhiranv04/rpx-vqa-smoke}"
 tag="${RPX_VQA_TAG:-vllm}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 

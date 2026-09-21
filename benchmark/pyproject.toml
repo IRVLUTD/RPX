@@ -104,7 +104,7 @@ dev = [
 
 [project.urls]
 Homepage = "https://github.com/IRVLUTD/RPX"
-Documentation = "https://github.com/IRVLUTD/RPX/tree/naren/all/benchmark#readme"
+Documentation = "https://irvlutd.github.io/RPX/toolkit-docs/"
 Repository = "https://github.com/IRVLUTD/RPX"
 Issues = "https://github.com/IRVLUTD/RPX/issues"
 

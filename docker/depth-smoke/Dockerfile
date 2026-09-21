@@ -139,7 +139,7 @@ CMD ["help"]
 
 
 # Extend the exact four-model image that passed the GPU acceptance matrix.
-FROM vndhiran123/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f AS depth_all_da3
+FROM narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f AS depth_all_da3
 
 ARG RPX_GIT_SHA
 ARG DA3_SHA=41736238f5bced4debf3f2a12375d2466874866d

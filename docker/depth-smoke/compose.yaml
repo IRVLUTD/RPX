@@ -1,6 +1,6 @@
 services:
   depth-smoke:
-    image: ${RPX_DEPTH_IMAGE:-vndhiran123/rpx-depth-smoke:latest}
+    image: ${RPX_DEPTH_IMAGE:-narendhiranv04/rpx-depth-smoke:latest}
     gpus: all
     ipc: host
     shm_size: 8gb

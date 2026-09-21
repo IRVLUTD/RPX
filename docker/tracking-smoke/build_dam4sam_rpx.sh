@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/../.." && pwd)"
-registry="${RPX_TRACKING_IMAGE:-vndhiran123/rpx-tracking-smoke}"
+registry="${RPX_TRACKING_IMAGE:-narendhiranv04/rpx-tracking-smoke}"
 base_image="${RPX_DAM4SAM_BASE_IMAGE:-${registry}:ovtr-rpx-sha-3ec872bc3d9c}"
 push=false
 
