@@ -1,19 +1,15 @@
-# v7 changes (appendix only; pages 1–8 = RPX-19, 0 changed pixels)
+# v8 changes (appendix only; pages 1–8 = RPX-19, 0 changed pixels)
 
-Assets from RPX_website_arxiv.zip (png_assets/, unblurred originals; only cropped and downsampled):
+1. **New Fig. 13: SOS modalities.** Replaces the earlier RGB+mask example. It shows one released frame (250/500) of object 49, the power drill:
+   - RGB and metric depth (D435);
+   - the instance mask;
+   - the T265 fisheye stereo pair (left and right);
+   - the T265 camera pose, as a top-view trajectory of all 500 frames with the heading at frame 250;
+   - the questionnaire, with all released annotator responses next to the canonical entry.
 
-1. **New Fig. 11: capture sites (App. D.C).** All 20 background photos, one per capture site. The photos are 4:3 crops labelled with site number, indoor/outdoor, the five scenes recorded there, and a short description. Background k corresponds exactly to scenes 5k−4…5k.
-2. **New Fig. 13: SOS capture examples (App. E.A).** Released SOS RGB frames with their instance masks, for three objects.
-3. **New Fig. 14: object gallery (App. E).** All 70 objects, each cut out with its mask and numbered as in the canonical catalogue (Table XXIV).
-4. **Scene catalogue renumbered.** The catalogue is now Fig. 12. Tables are unchanged in number.
+   Everything is taken directly from the released shards.
+2. **MOS statement.** Added to Appendix E.A, the Fig. 13 caption and Appendix D.D: the exocentric MOS captures record the same RGB-D, mask, stereo and pose modalities (Ego: RGB and masks), MOS objects inherit the questionnaire through their global identity, and the MOS figures show only the RGB phase images.
+3. **SOS coverage corrected.** Measured from the released poses of all 70 objects: there is no turntable. The hand-held rig circles each object 1.7–3.1 times (median 2.6 loops) at about 0.5 m over its 500 frames. Appendix A, E.A and Table XXII previously said "one 360° turntable rotation"; they now use this wording.
+4. **Layout.** The SOS catalogue blocks were refitted, and the final page is balanced across both columns. The appendix is 28 pages; the combined PDF is 36.
 
-Correction found while mapping the sites (appendix data):
-- **Environment labels.** The old 70 indoor / 30 outdoor split was a hand-made guess from an earlier build. The authors' own background filenames mark site 1 (scenes 001–005, fountain plinth) and site 6 (026–030, deck with umbrella) as outdoor, and the frames confirm this.
-  - Now 60 indoor / 40 outdoor (12 indoor sites, 8 outdoor).
-  - Updated: Table VIII(b) (Easy/Medium/Hard indoor 22/23/15, outdoor 11/10/19), Table X, Table XXI, and the Fig. 12 row labels.
-- **Fig. 9 Hard row.** scene005 is outdoor, so the "indoor" figure's Hard row is now scene016 (indoor, Hard; checkerboard table). It uses the same middle-frame and mask-overlay style.
-
-Not changed:
-- **Main-paper Figs. 1 and 2.** The zip's copies (rpx-hero.pdf, rig-three-panel.pdf) are pixel-identical to RPX-19's embedded images, so there is no deblurred main-paper figure. The appendix scene figures already use the original (unblurred) release frames.
-- **Fig. 5.** The zip contains no annotation-workflow image, so Fig. 5 stays a placeholder.
-- **Empty values.** They remain as before.
+Empty values remain as before.

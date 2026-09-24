@@ -43,7 +43,7 @@
 
 \subsection{Dataset composition}
 
-RPX comprises multi-object exocentric captures (MOS), egocentric Interaction captures, and single-object captures (SOS). Table~\ref{tab:appendix-dataset-summary}(a) summarizes the indexed streams and their available annotations. MOS covers 100 scenes in Clutter, Interaction, and Clean phases; SOS covers 70 objects through complete turntable rotations. The released question metadata are full-density banks generated at every frame: 4,529,322 single-image question--frame records (attribute, binary spatial, and box-answer spatial questions) and 749,083 in-context records. Evaluation uses fixed, seeded subsets of these banks: 12,000 regular attribute questions for T5 and 6,000 in-context attribute questions for T6, split equally over Clutter, Interaction, Clean, and Ego Interaction (3,000 and 1,500 per view). The 100 MOS scenes comprise 60 indoor and 40 outdoor captures at 20 capture sites (Appendix~\ref{sec:appendix-representative-scenes}); Table~\ref{tab:appendix-dataset-summary}(b) crosses environment with difficulty group.
+RPX comprises multi-object exocentric captures (MOS), egocentric Interaction captures, and single-object captures (SOS). Table~\ref{tab:appendix-dataset-summary}(a) summarizes the indexed streams and their available annotations. MOS covers 100 scenes in Clutter, Interaction, and Clean phases; SOS covers 70 objects, each recorded alone while the hand-held rig circles it. The released question metadata are full-density banks generated at every frame: 4,529,322 single-image question--frame records (attribute, binary spatial, and box-answer spatial questions) and 749,083 in-context records. Evaluation uses fixed, seeded subsets of these banks: 12,000 regular attribute questions for T5 and 6,000 in-context attribute questions for T6, split equally over Clutter, Interaction, Clean, and Ego Interaction (3,000 and 1,500 per view). The 100 MOS scenes comprise 60 indoor and 40 outdoor captures at 20 capture sites (Appendix~\ref{sec:appendix-representative-scenes}); Table~\ref{tab:appendix-dataset-summary}(b) crosses environment with difficulty group.
 
 % TODO CAMERA READY:
 % Replace placeholder with genuine annotation-session figure supplied by author
@@ -330,7 +330,7 @@ The 100 scenes were recorded at 20 capture sites, five consecutive scenes per si
 
 \subsection{Complete scene inventory}
 
-Figure~\ref{fig:appendix-scene-catalogue} shows all 100 MOS scenes in scene order, one scene per row, with the environment and difficulty group of the scene. Every view uses the same selection rule: the middle frame (index $\lfloor n/2\rfloor$ of the $n$ frames) of that capture, shown as recorded without masks. These frames summarize the scene visually and have no special role in evaluation.
+Figure~\ref{fig:appendix-scene-catalogue} shows all 100 MOS scenes in scene order, one scene per row, with the environment and difficulty group of the scene. Every view uses the same selection rule: the middle frame (index $\lfloor n/2\rfloor$ of the $n$ frames) of that capture, shown as recorded without masks. Each of these frames also has metric depth, instance masks, a fisheye stereo pair, and a camera pose in the release (Ego: RGB and masks), as illustrated for SOS in Fig.~\ref{fig:sos-modalities}; only the RGB images are shown here. These frames summarize the scene visually and have no special role in evaluation.
 
 \input{generated/scene_catalogue}
 
@@ -346,7 +346,9 @@ According to the released object joins, each MOS scene contains six to eight of 
 
 \subsection{Capture summary}
 
-Each of the 70 objects is captured alone through a full $360^\circ$ turntable rotation of 500 frames, 35,000 frames in total (Table~\ref{tab:sos-capture}), with the same sensors as the exocentric MOS rig. Figure~\ref{fig:sos-examples} shows released RGB frames with their instance masks, and Fig.~\ref{fig:sos-gallery} shows all 70 objects segmented with these masks.
+Each of the 70 objects is recorded alone for 500 frames, 35,000 frames in total (Table~\ref{tab:sos-capture}), with the same hand-held D435 and T265 rig as the exocentric MOS captures. The camera circles the object 1.7 to 3.1 times (median 2.6 loops) at a median distance of about 0.5\,m, so every object is covered from all sides. Every SOS frame carries RGB, metric depth, an instance mask, a calibrated fisheye stereo pair, and a camera pose, and every object carries its questionnaire; Fig.~\ref{fig:sos-modalities} shows all of them for one frame of one object.
+
+The exocentric MOS captures carry the same RGB-D, mask, stereo, and pose modalities for every frame (Table~\ref{tab:appendix-view-modality}), and their objects inherit the questionnaire through the global object identity; Appendix~\ref{sec:appendix-representative-scenes} shows only the RGB phase images. Fig.~\ref{fig:sos-gallery} shows all 70 objects segmented with their released masks.
 
 
 
@@ -359,7 +361,7 @@ Each of the 70 objects is captured alone through a full $360^\circ$ turntable ro
 \begin{tabular*}{\columnwidth}{@{}l@{\extracolsep{\fill}}l@{}}
 \toprule
 Objects / frames per object / total & 70 / 500 / 35,000 \\
-Coverage & one $360^\circ$ rotation per object \\
+Coverage & hand-held orbit, 1.7--3.1 loops \\
 RGB and metric depth & D435, $640\times480$ \\
 Fisheye stereo and camera pose & T265 \\
 Annotations & instance masks, object identity \\
@@ -368,12 +370,12 @@ Metadata & questionnaire (Table~\ref{tab:sos-schema}) \\
 \end{tabular*}
 \end{minipage}\par\medskip
 
-\par\medskip\noindent\begin{minipage}{\columnwidth}
+\begin{figure*}[t]
 \centering
-\input{figures/fig_sos_examples}
-\captionof{figure}{SOS capture examples: released RGB frames (top) and their instance masks (bottom).}
-\label{fig:sos-examples}
-\end{minipage}\par\medskip
+\input{figures/fig_sos_modalities}
+\caption{SOS modalities for one frame (250 of 500) of object 49, power drill: RGB and metric depth (D435), the released instance mask, the calibrated T265 fisheye stereo pair, the T265 camera trajectory over all 500 frames, and the questionnaire responses behind the canonical entry. The exocentric MOS captures record the same RGB-D, mask, stereo, and pose modalities; the MOS figures show only the RGB phase images.}
+\label{fig:sos-modalities}
+\end{figure*}
 
 \begin{figure*}[p]
 \centering

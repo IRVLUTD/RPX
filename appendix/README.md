@@ -1,6 +1,6 @@
 # RPX supplementary appendix
 
-- `RPX_final_with_appendix.pdf`: the eight-page main paper (RPX-19, unchanged) followed by Appendices A–E (35 pages).
+- `RPX_final_with_appendix.pdf`: the eight-page main paper (RPX-19, unchanged) followed by Appendices A–E (36 pages).
 - `RPX_appendix_only.pdf`: the appendix alone.
 - `source/`: self-contained appendix LaTeX source and assets. See `source/README_BUILD.md`.
   - Build the appendix: `tectonic appendix.tex`.

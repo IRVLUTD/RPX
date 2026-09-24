@@ -31,7 +31,7 @@ while sum(fixed) < N:
     def trial(m):
         build(fixed + [m] + chunk(rem - m))
         return cols(), overfull()
-    c0, _ = trial(1); expect = c0[b] if b == 0 else prev + 1
+    c0, _ = trial(1); expect = c0[b]   # the column where this block starts (float pages may intervene)
     lo, hi = 1, rem
     while lo < hi:
         mid = (lo + hi + 1) // 2; c, of = trial(mid)
