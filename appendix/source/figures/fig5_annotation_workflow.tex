@@ -1,0 +1,15 @@
+% Fig. 5 -- instance-mask annotation workflow.
+% TODO CAMERA READY:
+% Replace placeholder with genuine annotation-session figure supplied by author.
+% To replace: save the final artwork as figures/fig5_annotation_workflow.pdf
+% (full text width, 7.0 in wide; about 1.6 in / 4.1 cm tall for a four-panel strip).
+% When that file exists it is used automatically; no LaTeX edit is needed.
+\IfFileExists{figures/fig5_annotation_workflow.pdf}{%
+  \includegraphics[width=\textwidth]{figures/fig5_annotation_workflow.pdf}%
+}{%
+  \begin{tikzpicture}
+    \draw[rpxHair,line width=.5pt,fill=white] (0,0) rectangle (\textwidth,4.1cm);
+    \node[inner sep=0pt,font=\footnotesize\scshape,text=rpxSlate] at (.5\textwidth,2.22cm) {Mask annotation workflow};
+    \node[inner sep=0pt,font=\fontsize{7.5}{9}\selectfont,text=rpxRule] at (.5\textwidth,1.78cm) {final asset pending};
+  \end{tikzpicture}%
+}

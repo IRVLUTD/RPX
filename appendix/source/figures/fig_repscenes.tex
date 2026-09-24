@@ -1,0 +1,21 @@
+% Figs. 8-9 -- representative MOS scenes. Usage:
+%   \repscenes{<cell width>}{tierE/Easy/scene012, tierM/Medium/scene074, ...}
+% Cells are 4:3 crops of original release frames with the released instance
+% masks; mask colours are keyed to the scene's object identities.
+\newcommand\repscenes[2]{%
+\begin{tikzpicture}[x=1cm,y=1cm]
+  \pgfmathsetmacro\cw{#1}\pgfmathsetmacro\chh{\cw*0.75}
+  \def\gap{0.08}\def\lab{1.36}
+  \foreach \h [count=\i from 0] in {Clutter,Interaction,Clean,Ego Interaction}{
+    \node[anchor=base,inner sep=0pt,font=\footnotesize] at (\lab+\i*\cw+\i*\gap+\cw/2,.14) {\h};}
+  \foreach \col/\tier/\sid [count=\r from 0] in {#2}{
+    \pgfmathsetmacro\yy{-\r*(\chh+\gap)}
+    \node[anchor=base east,inner sep=0pt,font=\small\bfseries,text=\col] at (\lab-.14,\yy-\chh/2+.06) {\tier};
+    \node[anchor=base east,inner sep=0pt,font=\fontsize{7.5}{9}\selectfont,text=rpxSlate] at (\lab-.14,\yy-\chh/2-.34) {\sid};
+    \foreach \v [count=\i from 0] in {clutter,interaction,clean,ego}{
+      \pgfmathsetmacro\xx{\lab+\i*(\cw+\gap)}
+      \node[anchor=north west,inner sep=0pt] at (\xx,\yy)
+        {\includegraphics[width=\cw cm,height=\chh cm]{assets/images/appendix/cells/\sid_\v.jpg}};
+      \draw[rpxAccent,line width=.35pt] (\xx,\yy) rectangle ++(\cw,-\chh);}
+  }
+\end{tikzpicture}}

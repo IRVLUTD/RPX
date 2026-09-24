@@ -1,0 +1,412 @@
+\useRomanappendicesfalse
+\appendices
+\raggedbottom
+% Appendix float spacing: native IEEEtran two-column floats only (no strips,
+% no float barriers); stfloats allows full-width floats at page bottoms.
+\setlength{\textfloatsep}{9pt plus 2pt minus 2pt}
+\setlength{\dbltextfloatsep}{14pt plus 2pt minus 2pt}
+\setlength{\floatsep}{7pt plus 2pt minus 1pt}
+\setlength{\dblfloatsep}{7pt plus 2pt minus 1pt}
+\renewcommand{\arraystretch}{1.06}
+% full-width float pages: stack from the top with a fixed gap (no stretched bands)
+\makeatletter\setlength\@dblfptop{0pt}\setlength\@dblfpsep{14pt}\setlength\@dblfpbot{0pt plus 1fil}\makeatother
+\renewcommand{\topfraction}{0.85}\renewcommand{\textfraction}{0.1}\renewcommand{\floatpagefraction}{0.8}
+
+\input{figures/fig_repscenes}
+% ---- appendix layout parameters (float placement and figure scale) ----
+\def\FigESD{\def\esdW{7.05cm}\def\esdH{2.5cm}\def\esdGroup{2 by 1}\def\esdHsep{1.25cm}\def\esdVsep{1cm}\def\esdXlabelA{xlabel={ESD score (higher is harder)}}\input{figures/fig_esd_distributions}}
+\def\RepCellW{4.04}
+\def\catfs{10}\def\catlead{12}
+\def\catsep{\arrayrulecolor{rpxHair}\specialrule{.25pt}{3.6pt}{3.6pt}\arrayrulecolor{black}}
+\newcommand\rawfont{\footnotesize\setlength{\tabcolsep}{2pt}\renewcommand{\arraystretch}{1.05}}
+% ---- complete scene catalogue (Appendix D): cell size fixed so that inserting
+% or replacing images never reflows the catalogue pages
+\newlength\catW\setlength\catW{3.62cm}\newlength\catH\setlength\catH{2.715cm}
+\newlength\catG\setlength\catG{0.1cm}\newlength\catL
+\setlength\catL{\dimexpr\textwidth-4\catW-3\catG-0.2cm\relax}
+\newcommand\catpending{{\setlength\fboxsep{0pt}\setlength\fboxrule{.35pt}\fcolorbox{rpxHair}{white}{\parbox[c][\dimexpr\catH-.7pt][c]{\dimexpr\catW-.7pt}{\centering\fontsize{7.5}{9}\selectfont\color{rpxRule}image pending}}}}
+\newcommand\catcell[2]{\parbox[c]{\catW}{\IfFileExists{assets/images/appendix/catalogue/scene#1_#2.jpg}{{\setlength\fboxsep{0pt}\setlength\fboxrule{.35pt}\fcolorbox{rpxAccent}{white}{\includegraphics[width=\dimexpr\catW-.7pt,height=\dimexpr\catH-.7pt]{assets/images/appendix/catalogue/scene#1_#2.jpg}}}}{\catpending}}}
+\newcommand\catheader{\noindent\makebox[\catL][r]{\footnotesize Scene}\hspace{0.2cm}%
+  \makebox[\catW]{\footnotesize Clutter}\hspace{\catG}\makebox[\catW]{\footnotesize Interaction}\hspace{\catG}%
+  \makebox[\catW]{\footnotesize Clean}\hspace{\catG}\makebox[\catW]{\footnotesize Ego Interaction}\par\vspace{3pt}}
+\newcommand\catrow[4]{\noindent\parbox[c]{\catL}{\raggedleft\small\textbf{Scene #1}\\[1pt]\footnotesize #2\\\textcolor{#3}{#4}}\hspace{0.2cm}%
+  \catcell{#1}{0}\hspace{\catG}\catcell{#1}{1}\hspace{\catG}\catcell{#1}{2}\hspace{\catG}\catcell{#1}{ego}\par\vspace{\catRowSep}}
+% row gap: \catG on 8-row pages; wider on 7-row pages so every catalogue page spans the same height
+\newlength\catRowSep\setlength\catRowSep{\catG}
+% keep a table caption with at least the first rows of its body
+\makeatletter\newcommand\rawneed[1]{\par\begingroup\dimen@=#1\relax\dimen@ii=\pagegoal\advance\dimen@ii-\pagetotal
+  \ifdim\dimen@>\dimen@ii\ifdim\dimen@ii>\z@\vfil\fi\penalty-10000\fi\endgroup}\makeatother
+\def\rawsep{\arrayrulecolor{rpxHair}\specialrule{.25pt}{1.4pt}{1.4pt}\arrayrulecolor{black}}
+
+\section{Dataset and Annotation Details}
+\label{sec:appendix-dataset}
+
+\subsection{Dataset composition}
+
+RPX comprises multi-object exocentric captures (MOS), egocentric Interaction captures, and single-object captures (SOS). Table~\ref{tab:appendix-dataset-summary}(a) summarizes the indexed streams and their available annotations. MOS covers 100 scenes in Clutter, Interaction, and Clean phases; SOS covers 70 objects through complete turntable rotations. The released question metadata are full-density banks generated at every frame: 4,529,322 single-image question--frame records (attribute, binary spatial, and box-answer spatial questions) and 749,083 in-context records. Evaluation uses fixed, seeded subsets of these banks: 12,000 regular attribute questions for T5 and 6,000 in-context attribute questions for T6, split equally over Clutter, Interaction, Clean, and Ego Interaction (3,000 and 1,500 per view). The 100 MOS scenes comprise 60 indoor and 40 outdoor captures at 20 capture sites (Appendix~\ref{sec:appendix-representative-scenes}); Table~\ref{tab:appendix-dataset-summary}(b) crosses environment with difficulty group.
+
+% TODO CAMERA READY:
+% Replace placeholder with genuine annotation-session figure supplied by author
+% (drop the final artwork in as figures/fig5_annotation_workflow.pdf).
+\begin{figure*}[b]
+\centering
+\input{figures/fig5_annotation_workflow}
+\caption{Instance-mask annotation workflow. Grounded proposals initialize SAM2 masks; propagation proceeds bidirectionally, and failed frames receive human correction before re-propagation and identity/continuity quality control.}
+\label{fig:appendix-mask-pipeline}
+\end{figure*}
+
+\subsection{Capture protocol and modalities}
+
+The exocentric rig records aligned $640\times480$ RGB and metric depth with an Intel RealSense D435, together with T265 fisheye stereo and visual--inertial pose. A head-mounted camera records $1920\times1080$ RGB during Interaction on an independent clock. Clutter is the static pre-interaction state; Interaction contains manipulation, hand occlusion, and object motion; Clean is the static post-interaction state. This supports phase comparisons without assuming frame-level synchronization between egocentric and exocentric streams.
+
+Table~\ref{tab:appendix-view-modality} (Appendix~\ref{sec:appendix-representative-scenes}) lists which modalities each capture view provides.
+
+\begin{table}[t]
+\centering
+\caption{RPX dataset composition.}
+\label{tab:appendix-dataset-summary}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\columnwidth}{@{}l r >{\raggedright\arraybackslash}X@{}}
+\multicolumn{3}{@{}l}{\textit{(a) Streams}}\\[1pt]
+\toprule
+Stream & Frames & Capture; modalities and annotations \\
+\midrule
+MOS & 75,000 & 100 scenes $\times$ 3 phases; RGB-D, stereo, pose, masks, tracks, object joins, questions \\
+Ego & 23,121 & 100 Interaction clips; RGB, masks, tracks, questions \\
+SOS & 35,000 & 70 objects $\times$ 500 frames; RGB-D, stereo, pose, masks, questionnaire \\
+\bottomrule
+\end{tabularx}
+
+\vspace{5pt}
+\setlength{\tabcolsep}{0pt}
+\begin{tabular*}{\columnwidth}{@{}l@{\extracolsep{\fill}}rrrr@{}}
+\multicolumn{5}{@{}l}{\textit{(b) MOS scenes by environment and difficulty group}}\\[1pt]
+\toprule
+Environment & Easy & Medium & Hard & Total \\
+\midrule
+Indoor  & 22 & 23 & 15 & 60 \\
+Outdoor & 11 & 10 & 19 & 40 \\
+\midrule
+Total   & 33 & 33 & 34 & 100 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Identifiers and object joins}
+
+Canonical MOS mask IDs are scoped by \texttt{(scene\_id, phase)}. Object-join metadata map each local mask ID through \texttt{object\_id} to a dataset-level \texttt{global\_object\_id}; joins therefore never infer identity from a local integer alone, and the same object keeps one global identity across phases, views, and the SOS catalogue. The benchmark release provides stable sample identifiers, scene, phase, view, frame and modality metadata, object joins, per-scene predictions and metric outputs, and versioned dataset and evaluation metadata. Benchmark records retain the dataset revision, model or API version, metric version, sample coverage, and per-sample outcomes, enabling the published aggregates to be reproduced with a fixed evaluation universe.
+
+\subsection{Mask and tracklet annotation}
+
+Grounded detections initialize SAM2 masks, which propagate forward and backward through each sequence (Fig.~\ref{fig:appendix-mask-pipeline}). Annotators correct missed, merged, or drifting instances with point or box prompts; propagation restarts at the corrected frame. Quality control checks nonempty foreground, identity continuity, temporal area continuity, and the scene--phase object mapping. Tracklets inherit the corrected persistent mask identities.
+
+\section{Supplementary Difficulty Characterization}
+\label{sec:appendix-esd}
+
+\subsection{Feature schema and statistics}
+
+Beyond the annotation-effort signal used to organize scene difficulty, we report a broader supplementary characterization using 27 percentile-normalized descriptors (Table~\ref{tab:appendix-esd-features}). They quantify annotation effort (2 descriptors) and 25 scene and capture properties: scene complexity, occlusion, depth quality, photometric conflict, temporal stability, camera motion, and fisheye/stereo effects. The complete per-scene, per-phase descriptor values are part of the benchmark release.
+
+\input{generated/esd_feature_table}
+
+\begin{figure*}[t]
+\centering
+\FigESD
+\caption{Supplementary ESD characterization score over (a) the 300 scene--phase cells and (b) the 100 phase-averaged scenes. Dashed lines show the 33\% and 67\% rank positions; colours denote the established Easy, Medium, and Hard groups.}
+\label{fig:appendix-esd-distributions}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\input{figures/fig_esd_heatmap}
+\caption{Supplementary 27-descriptor difficulty characterization. Columns are the 300 scene--phase cells ordered by the supplementary ESD score (top trace); rows show the descriptors grouped by family. Shading is the within-descriptor percentile rank; dashed lines separate the established Easy, Medium, and Hard groups.}
+\label{fig:appendix-esd-heatmap}
+\end{figure*}
+
+\subsection{Feature definitions}
+
+For frame $t$, let $k_t=1+|\{i:t\in\mathcal F_i\}|$, where $\mathcal F_i$ contains frames still marked faulty after correction round $i$. The effort features are $\operatorname{mean}_t k_t$ and $\max_t k_t$. Scene complexity summarizes visible instance counts and complete visibility. Occlusion uses normalized box overlap and the fraction above a 0.3 heavy-occlusion threshold. Depth features measure invalid fractions and valid-depth dispersion globally and within masks. Photometric conflict counts very bright or dark pixels lacking valid depth. Temporal stability covers mask-area variation, collapses above 50\%, and visibility transitions.
+
+
+For camera position $p_t$ and unit quaternion $q_t$, motion increments are
+\begin{equation}
+\delta_t^{\rm trans}=\|p_{t+1}-p_t\|_2,\qquad
+\delta_t^{\rm rot}=2\arccos\!\left(|\langle q_t,q_{t+1}\rangle|\right).
+\end{equation}
+Their mean and 90th percentile plus translational jerk follow median-absolute-deviation filtering. Fisheye/stereo features measure dark and bright fractions, sharpness, left/right correlation, and texture.
+
+\subsection{Normalization and aggregation}
+
+For supplementary analysis, the descriptors are combined into an ESD characterization score. Each raw descriptor is percentile-ranked across nonmissing scene--phase cells; ties receive their average rank, constant columns map to 0.5, and unavailable optional modalities receive the neutral midpoint. With effort set $E$ and $\alpha=0.25$,
+\begin{equation}
+S_c=\sum_i w_i\widetilde F_{c,i},\qquad
+w_i=\begin{cases}\alpha/2,&i\in E,\\(1-\alpha)/25,&i\notin E,\end{cases}
+\label{eq:appendix-esd-score}
+\end{equation}
+so each effort feature has weight $0.125$ and each non-effort feature $0.03$. The three exocentric phase scores are averaged per scene.
+
+\subsection{Score distributions}
+
+Figure~\ref{fig:appendix-esd-distributions} shows the score over all cells and scenes. Its 33\% and 67\% rank positions lie at 0.443 and 0.559 for the 300 cells and at 0.461 and 0.530 for the 100 scenes, and the established Easy, Medium, and Hard groups (33, 33, and 34 scenes) occupy successive score ranges.
+
+\subsection{Feature matrix}
+
+Figure~\ref{fig:appendix-esd-heatmap} shows every descriptor of every cell in score order. Annotation effort tracks the score most closely (Spearman $\rho=0.78$ for \texttt{iter\_mean}, $0.72$ for \texttt{iter\_max}), followed by fisheye sharpness and texture, heavy occlusion, and visibility instability ($\rho\approx0.37$--$0.41$); from Easy to Hard cells the median \texttt{iter\_mean} rises from 1.00 to 1.55 and the median \texttt{occ\_mean} from 0.083 to 0.235. No single non-effort descriptor separates the groups.
+
+\subsection{Scene group membership}
+
+Table~\ref{tab:appendix-tier-membership} lists the scene membership of the Easy, Medium, and Hard groups used throughout RPX, split by environment; the same labels index the scene catalogue of Appendix~\ref{sec:appendix-representative-scenes}.
+
+\par\medskip\noindent\begin{minipage}{\columnwidth}
+\centering
+\captionof{table}{Scene membership of the Easy, Medium, and Hard groups used throughout RPX. Upright numbers: indoor scenes; italic numbers: outdoor scenes.}
+\label{tab:appendix-tier-membership}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabularx}{\columnwidth}{@{}l r >{\raggedright\arraybackslash}X@{}}
+\toprule
+Group & $n$ & Scenes \\
+\midrule
+\textcolor{tierE}{\textbf{Easy}} & 22 & 008, 011, 012, 013, 015, 022, 023, 024, 031, 032, 034, 035, 037, 038, 057, 059, 060, 066, 068, 071, 073, 075 \\
+ & 11 & \textit{004, 026, 029, 030, 051, 053, 054, 055, 092, 093, 094} \\
+\addlinespace[2pt]
+\textcolor{tierM}{\textbf{Medium}} & 23 & 006, 007, 009, 014, 017, 021, 025, 036, 056, 058, 064, 065, 069, 070, 072, 074, 076, 077, 078, 079, 086, 089, 090 \\
+ & 10 & \textit{028, 047, 048, 050, 052, 084, 091, 097, 099, 100} \\
+\addlinespace[2pt]
+\textcolor{tierH}{\textbf{Hard}} & 15 & 010, 016, 018, 019, 020, 033, 039, 040, 061, 062, 063, 067, 080, 087, 088 \\
+ & 19 & \textit{001, 002, 003, 005, 027, 041, 042, 043, 044, 045, 046, 049, 081, 082, 083, 085, 095, 096, 098} \\
+\bottomrule
+\end{tabularx}
+\end{minipage}\par\medskip
+
+
+\section{Benchmark Protocols and Results}
+\label{sec:appendix-protocols}
+
+
+\subsection{Shared evaluation framework}
+
+All tasks use the same outer pipeline (Fig.~\ref{fig:appendix-benchmark-pipeline}). A versioned split determines sample identity and modalities. A task adapter invokes either a reference model or a user-supplied local or API callable. Predictions pass task-specific shape, unit, coordinate, completeness, and identifier checks before scoring. Results aggregate by scene, phase, and view before $\mathcal J_{\min}$ and $\Phi$ are reported. Table~\ref{tab:appendix-task-protocols} summarizes the inputs, metrics, and validation rules of each task.
+
+% In-flow (non-floating) so the framework figure follows the shared-framework introduction.
+\par\noindent\begin{minipage}{\columnwidth}
+\centering
+\input{figures/fig_benchmark_diagnostic}
+\captionof{figure}{How six different tasks share one benchmark diagnostic. (1)~Every task sees the same scene in the same capture states. (2)~Each task keeps the native metrics of its field; dots mark the views it scores (ego, dashed, for T3 and T5--T6). (3)~Every result becomes the same scene--phase metric vector $\mathbf{x}_{s,p}\in\mathbb{R}^{K}$, from which worst-phase quality $\mathcal{J}_{\min}$ and phase robustness $\Phi$ are computed for every model.}
+\label{fig:appendix-benchmark-pipeline}
+\end{minipage}\par\medskip
+
+\subsection{T1--T2: image and video depth}
+
+For valid pixels $V$, prediction $\hat d$, ground truth $d$, and log error $e=\log\hat d-\log d$, image depth uses
+\begin{align}
+\operatorname{AbsRel}&=|V|^{-1}\sum_{u\in V}|\hat d_u-d_u|/d_u,\\
+\operatorname{RMSE}&=\sqrt{|V|^{-1}\sum_{u\in V}(\hat d_u-d_u)^2},\\
+\operatorname{SILog}&=100\sqrt{\operatorname{mean}(e^2)-\operatorname{mean}(e)^2},\\
+\delta_1&=|V|^{-1}\sum_{u\in V}\mathbf{1}[\max(\hat d_u/d_u,d_u/\hat d_u)<1.25].
+\end{align}
+Metric-depth models use no scale fitting. Video depth adds temporal gradient magnitude matching and signed temporal gradient squared error on consecutive jointly valid pixels.
+
+\begin{table*}[t]
+\centering
+\caption{Task-specific evaluation protocols.}
+\label{tab:appendix-task-protocols}
+\footnotesize
+\setlength{\tabcolsep}{3.6pt}
+\renewcommand{\arraystretch}{1.04}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.15cm}>{\raggedright\arraybackslash}p{3.75cm}>{\raggedright\arraybackslash}p{3.7cm}>{\raggedright\arraybackslash}p{6.9cm}@{}}
+\toprule
+Task & Input / ground truth & Metrics & Key protocol detail \\
+\midrule
+T1 Image depth & RGB / aligned D435 depth & AbsRel, RMSE, SILog, $\delta_1$ & Valid range $(0.3,5.0)$\,m; frozen alignment for relative depth. \\
+T2 Video depth & RGB clip / ordered D435 depth & T1 metrics, TGM, TGSE & Preserve frame order and IDs; one relative alignment per clip. \\
+T3 Tracking & RGB sequence + initialization / masks and persistent IDs & HOTA, MOTA, identity switches & Declare initialization; persistent IDs remain one-to-one. \\
+T4 Relative pose & RGB pair / T265 relative pose & AUC@$5^\circ$, @$10^\circ$, @$20^\circ$ & Clutter/Clean only; validate the pose convention. \\
+T5 Regular VQA & RGB + attribute question / mask-derived box & Acc@$0.5$, GIoU, Center-in-GT & Five fields; missing or invalid boxes are misses. \\
+T6 In-context VQA & Ordered SOS reference + query / mask-derived box & Acc@$0.5$, GIoU, Center-in-GT & Ordered SOS reference; check global IDs and leakage. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{T3--T4: tracking and relative pose}
+
+Tracking converts integer masks to tight exclusive-maximum XYXY boxes and uses the official sequence evaluator. HOTA averages association thresholds 0.05--0.95; MOTA and identity switches use IoU 0.5 matching. Relative-pose rotation error is the geodesic angle of $R_{\rm pred}R_{\rm gt}^{\top}$; translation error is the angle between directions. Pair error is their maximum, and AUC@$\tau$ integrates empirical recall over $[0,\tau]$ divided by $\tau$.
+
+\subsection{T5--T6: regular and in-context VQA}
+
+Regular questions identify an object through versioned name, category, colour, material, or function. In-context questions replace textual subject identity with an ordered SOS reference image followed by the target image. The callable receives public images and prompt text only; target IDs, answers, and boxes remain inside evaluation. Validation checks unique sample IDs, global-object-ID resolution, deterministic mask-to-box conversion, coordinate convention, and leakage. Parsing, inference, and missing-output failures remain in the denominator.
+
+\subsection{Task protocol summary}
+
+Table~\ref{tab:appendix-task-protocols} summarizes inputs, ground truth, metrics, and validation rules. Every task uses the same fixed scene split and reports coverage before aggregation. Image and video depth retain scene--phase cells; tracking also retains egocentric Interaction; relative pose uses valid Clutter--Clean pairs; and both grounding tasks retain exocentric and egocentric cells. Main-paper Tables~\ref{tab:t1}--\ref{tab:vqa} report the complete evaluated roster on these common cells.
+
+A rerun binds dataset, model or API, and evaluator versions to stable sample identifiers. Per-sample predictions and metric outputs permit phase aggregates, $\mathcal J_{\min}$, and $\Phi$ to be recomputed on the same population; invalid shapes, missing predictions, parsing failures, and inference failures remain in the denominator. Metrics retain native units until desirability mapping. Direction-corrected task metrics are averaged within scene--phase cells and then equally across scenes, preventing longer clips or question-rich scenes from dominating either local-model or remote-API scores.
+
+\subsection{Model evaluation configurations}
+\label{sec:appendix-model-config}
+
+Table~\ref{tab:appendix-model-config} records the evaluation settings that are not visible in main-paper Tables~\ref{tab:t1}--\ref{tab:vqa}: whether a depth model is scored as metric or relative, how relative outputs are aligned, how trackers are initialized, how pose pairs are formed, and how VLMs are prompted and parsed. Every configuration receives only the public inputs of its task.
+
+\input{generated/model_config_table}
+
+\subsection{Metric desirability windows}
+\label{sec:appendix-desirability}
+
+Each native metric $v_k$ enters $\mathcal J$ through $d_k=\operatorname{clip}\bigl((v_k-v_k^{\mathrm{worst}})/(v_k^{\mathrm{best}}-v_k^{\mathrm{worst}}),0,1\bigr)$ (Eq.~\eqref{eq:jedi}). Table~\ref{tab:appendix-desirability} lists the window of every metric used in T1--T6. Windows are frozen and shared by all models: bounded metrics use their natural range, and unbounded errors use a fixed worse endpoint beyond which $d_k=0$. A value outside its window is clipped rather than refitted, so adding a model never changes the scores of the others.
+
+\input{generated/desirability_table}
+
+\subsection{Detailed per-model metrics}
+\label{sec:appendix-raw-metrics}
+
+Tables~\ref{tab:raw-t1}--\ref{tab:raw-t6} list the native metrics of every published model--task evaluation, one row group per configuration in main-paper Tables~\ref{tab:t1}--\ref{tab:vqa}, aggregated per phase and view with the direction marked under each metric. These are the values that enter the desirability mapping of $\mathcal J$; $\Phi$ is computed from the underlying per-scene vectors of the same metrics. Relative pose is scored on the Clutter and Clean pair sets only (Sec.~\ref{sec:appendix-protocols}).
+
+\input{generated/raw_t1_table}
+\input{generated/raw_t2_table}
+\input{generated/raw_t3_table}
+\input{generated/raw_t4_table}
+\input{generated/raw_t5_table}
+\input{generated/raw_t6_table}
+
+\section{Multi-Object Scene Catalogue}
+\label{sec:appendix-representative-scenes}
+
+\subsection{Representative scenes}
+
+\begin{figure*}[p]
+\centering
+\repscenes{\RepCellW}{tierE/Easy/scene012, tierM/Medium/scene074, tierH/Hard/scene016}
+\caption{Representative indoor MOS scenes, one per difficulty group, in the four capture views. Overlays are the released instance masks; each object keeps one colour across its four views.}
+\label{fig:appendix-representative-indoor}
+\end{figure*}
+
+\begin{figure*}[p]
+\centering
+\repscenes{\RepCellW}{tierE/Easy/scene093, tierM/Medium/scene091, tierH/Hard/scene096}
+\caption{Representative outdoor MOS scenes, one per difficulty group, in the four capture views, shown as in Fig.~\ref{fig:appendix-representative-indoor}.}
+\label{fig:appendix-representative-outdoor}
+\end{figure*}
+
+Figures~\ref{fig:appendix-representative-indoor} and~\ref{fig:appendix-representative-outdoor} show one indoor and one outdoor scene per difficulty group in the four capture views, with the released instance masks overlaid. Every local mask ID resolves to a global object identity, so each object keeps one colour in all four views, which also shows the cross-view identity join used by tracking and grounding.
+
+\subsection{View and modality availability}
+
+Table~\ref{tab:appendix-view-modality} lists what each capture view provides. Availability is identical for all 100 scenes, so the catalogue below does not repeat it per scene.
+
+\begin{table}[h]
+\centering
+\caption{Modalities and annotations per capture view, identical for all 100 MOS scenes (\checkmark: provided; ---: not captured in this view). Pose exists in all three exocentric phases; relative-pose evaluation uses the Clutter and Clean pairs only.}
+\label{tab:appendix-view-modality}
+\footnotesize
+\setlength{\tabcolsep}{0pt}
+\begin{tabular*}{\columnwidth}{@{}l@{\extracolsep{\fill}}cccc@{}}
+\toprule
+Modality & Clutter & Interaction & Clean & Ego Int. \\
+\midrule
+RGB & \checkmark & \checkmark & \checkmark & \checkmark \\
+Metric depth (D435) & \checkmark & \checkmark & \checkmark & --- \\
+Instance masks & \checkmark & \checkmark & \checkmark & \checkmark \\
+Tracklets (persistent IDs) & \checkmark & \checkmark & \checkmark & \checkmark \\
+Fisheye stereo (T265) & \checkmark & \checkmark & \checkmark & --- \\
+Camera pose (T265) & \checkmark & \checkmark & \checkmark & --- \\
+Grounding questions & \checkmark & \checkmark & \checkmark & \checkmark \\
+\midrule
+Frames per capture & 250 & 250 & 250 & 195--250 \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Capture sites}
+
+The 100 scenes were recorded at 20 capture sites, five consecutive scenes per site (12 indoor and 8 outdoor sites). Figure~\ref{fig:appendix-capture-sites} shows every site without the scene objects, so the background, surface, and lighting of each scene in Fig.~\ref{fig:appendix-scene-catalogue} can be read off its site.
+
+\begin{figure*}[p]
+\centering
+\input{figures/fig_capture_sites}
+\caption{The 20 capture sites, photographed without the scene objects. Each site hosts five consecutive MOS scenes.}
+\label{fig:appendix-capture-sites}
+\end{figure*}
+
+\subsection{Complete scene inventory}
+
+Figure~\ref{fig:appendix-scene-catalogue} shows all 100 MOS scenes in scene order, one scene per row, with the environment and difficulty group of the scene. Every view uses the same selection rule: the middle frame (index $\lfloor n/2\rfloor$ of the $n$ frames) of that capture, shown as recorded without masks. These frames summarize the scene visually and have no special role in evaluation.
+
+\input{generated/scene_catalogue}
+
+\subsection{Scene contents}
+
+According to the released object joins, each MOS scene contains six to eight of the 70 SOS objects (seven in 98 of the 100 scenes), the same set in all three exocentric phases, and every object appears in 9 to 11 scenes. Table~\ref{tab:appendix-scene-objects} lists the objects of every scene by their catalogue ID, so each scene can be joined to the canonical descriptions of Table~\ref{tab:sos-canonical}.
+
+\rawneed{4cm}
+\input{generated/scene_objects_table}
+
+\section{Single-Object Catalogue and Questionnaire}
+\label{sec:appendix-sos}
+
+\subsection{Capture summary}
+
+Each of the 70 objects is captured alone through a full $360^\circ$ turntable rotation of 500 frames, 35,000 frames in total (Table~\ref{tab:sos-capture}), with the same sensors as the exocentric MOS rig. Figure~\ref{fig:sos-examples} shows released RGB frames with their instance masks, and Fig.~\ref{fig:sos-gallery} shows all 70 objects segmented with these masks.
+
+
+
+\par\medskip\noindent\begin{minipage}{\columnwidth}
+\centering
+\captionof{table}{SOS capture summary.}
+\label{tab:sos-capture}
+\footnotesize
+\setlength{\tabcolsep}{0pt}
+\begin{tabular*}{\columnwidth}{@{}l@{\extracolsep{\fill}}l@{}}
+\toprule
+Objects / frames per object / total & 70 / 500 / 35,000 \\
+Coverage & one $360^\circ$ rotation per object \\
+RGB and metric depth & D435, $640\times480$ \\
+Fisheye stereo and camera pose & T265 \\
+Annotations & instance masks, object identity \\
+Metadata & questionnaire (Table~\ref{tab:sos-schema}) \\
+\bottomrule
+\end{tabular*}
+\end{minipage}\par\medskip
+
+\par\medskip\noindent\begin{minipage}{\columnwidth}
+\centering
+\input{figures/fig_sos_examples}
+\captionof{figure}{SOS capture examples: released RGB frames (top) and their instance masks (bottom).}
+\label{fig:sos-examples}
+\end{minipage}\par\medskip
+
+\begin{figure*}[p]
+\centering
+\input{figures/fig_object_gallery}
+\caption{All 70 SOS objects, each cut out of one released SOS frame with its instance mask and numbered as in Table~\ref{tab:sos-canonical}.}
+\label{fig:sos-gallery}
+\end{figure*}
+
+\subsection{Questionnaire schema}
+
+Each object has a stable \texttt{object\_id}, a contiguous \texttt{global\_object\_id}, and multiple human responses (Table~\ref{tab:sos-schema}). These responses generate regular attribute questions and supply identity references for in-context VQA. Table~\ref{tab:sos-canonical} reports one lightly normalized canonical response per field for readability; the benchmark release preserves the original annotator responses, aliases, and attribute variants.
+
+\par\medskip\noindent\begin{minipage}{\columnwidth}
+\centering
+\captionof{table}{SOS questionnaire schema.}
+\label{tab:sos-schema}
+\footnotesize
+\setlength{\tabcolsep}{0pt}
+\begin{tabular*}{\columnwidth}{@{}l@{\extracolsep{\fill}}ll@{}}
+\toprule
+Field & Meaning / prompt & Benchmark use \\
+\midrule
+Name & Names and valid aliases & Direct reference \\
+Category & Semantic object class & Attribute reference \\
+Colour & Visible colour descriptions & Attribute reference \\
+Material & Constituent material & Attribute reference \\
+Function & Common purpose or action & Functional reference \\
+\bottomrule
+\end{tabular*}
+\end{minipage}\par\medskip
+
+\subsection{Canonical catalogue}
+
+Table~\ref{tab:sos-canonical} lists all 70 objects with their canonical responses.
+
+\input{generated/sos_catalogue}

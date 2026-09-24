@@ -1,0 +1,41 @@
+% Fig. 6 -- ESD score distributions (vector, document fonts).
+% Histogram counts: 21 equal-width bins over the observed range of the released
+% scene--phase scores (300 cells) and phase-averaged scene scores (100 scenes).
+\begin{tikzpicture}
+\pgfplotsset{esd/.style={
+  width=\esdW, height=\esdH, scale only axis,
+  ybar interval, ymin=0, axis on top=false,
+  axis lines*=left, axis line style={rpxAccent,line width=.5pt},
+  tick style={rpxAccent,line width=.45pt}, tick align=outside, major tick length=2pt,
+  every tick label/.style={font=\fontsize{7.5}{9}\selectfont,text=rpxInk},
+  xtick pos=bottom, ytick pos=left,
+  x tick label style={/pgf/number format/fixed,/pgf/number format/precision=2,/pgf/number format/fixed zerofill},
+  label style={font=\footnotesize}, ylabel={Count}, ylabel shift=-3pt,
+  x tick label as interval=false, xmajorgrids=false, ymajorgrids, grid style={rpxHair,line width=.3pt},
+  title style={font=\footnotesize,anchor=base west,at={(0,1)},yshift=11.5pt,inner sep=0pt},
+  clip=false}}
+\newcommand\tierband[6]{% xmin,xmax,colour,label,ymax,texty
+  \fill[#3,opacity=.075] (axis cs:#1,0) rectangle (axis cs:#2,#5);
+  \node[font=\fontsize{7.5}{9}\selectfont,text=#3,anchor=base] at (axis cs:{(#1+#2)/2},#6) [yshift=2.5pt] {#4};}
+\newcommand\cut[4]{% x, label, ymax, labely
+  \draw[rpxInk,line width=.6pt,dash pattern=on 2.2pt off 1.4pt] (axis cs:#1,0) -- (axis cs:#1,#3);
+  \node[font=\fontsize{7.5}{9}\selectfont,fill=white,fill opacity=.9,text opacity=1,inner sep=1pt,anchor=north] at (axis cs:#1,#4) {#2};}
+\begin{groupplot}[group style={group size=\esdGroup, horizontal sep=\esdHsep, vertical sep=\esdVsep}]
+\nextgroupplot[esd, title={(a) Scene--phase cells ($n{=}300$)}, xmin=0.27, xmax=0.735, ymax=32,
+  xtick={0.3,0.4,0.5,0.6,0.7}, ytick={0,10,20,30}, \esdXlabelA]
+  \tierband{0.27}{0.443475}{tierE}{Easy (100)}{32}{32}
+  \tierband{0.443475}{0.559129}{tierM}{Medium (100)}{32}{32}
+  \tierband{0.559129}{0.735}{tierH}{Hard (100)}{32}{32}
+  \addplot[fill=rpxHair,draw=rpxSlate,line width=.4pt] coordinates {(0.27888,5) (0.30018,2) (0.32148,7) (0.34279,13) (0.36409,14) (0.38539,12) (0.40669,29) (0.42799,20) (0.44929,18) (0.47059,16) (0.49189,20) (0.51319,19) (0.53449,23) (0.55579,23) (0.57709,24) (0.59840,20) (0.61970,16) (0.64100,11) (0.66230,5) (0.68360,2) (0.70490,1) (0.72620,0)};
+  \cut{0.443475}{0.443}{32}{25.5}
+  \cut{0.559129}{0.559}{32}{25.5}
+\nextgroupplot[esd, title={(b) Scenes, phase-averaged ($n{=}100$)}, xmin=0.283, xmax=0.675, ymax=13.2,
+  xtick={0.3,0.4,0.5,0.6}, ytick={0,4,8,12}, xlabel={ESD score (higher is harder)}]
+  \tierband{0.283}{0.46135}{tierE}{Easy (33)}{13.2}{13.2}
+  \tierband{0.46135}{0.530307}{tierM}{Medium (33)}{13.2}{13.2}
+  \tierband{0.530307}{0.675}{tierH}{Hard (34)}{13.2}{13.2}
+  \addplot[fill=rpxHair,draw=rpxSlate,line width=.4pt] coordinates {(0.29182,1) (0.30961,0) (0.32741,1) (0.34520,1) (0.36300,2) (0.38079,2) (0.39859,7) (0.41638,12) (0.43418,3) (0.45197,8) (0.46977,6) (0.48756,10) (0.50535,6) (0.52315,10) (0.54094,8) (0.55874,5) (0.57653,1) (0.59433,4) (0.61212,7) (0.62992,5) (0.64771,1) (0.66551,0)};
+  \cut{0.46135}{0.461}{13.2}{11.6}
+  \cut{0.530307}{0.530}{13.2}{11.6}
+\end{groupplot}
+\end{tikzpicture}

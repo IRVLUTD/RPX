@@ -1,0 +1,104 @@
+\ifdefined\pdfminorversion
+  \pdfminorversion=4
+  \pdfobjcompresslevel=0
+\fi
+\documentclass[letterpaper, 10 pt, conference]{ieeeconf}
+\IEEEoverridecommandlockouts
+\overrideIEEEmargins
+% ieeeconf puts the text block top at 0.69in; ICRA requires 0.75in on every page
+\addtolength{\topmargin}{4.5pt}\addtolength{\textheight}{-4.5pt}
+
+% ---------------------------------------------------------------
+% RA-L / ICRA 2027 — IEEE two-column journal format
+% ---------------------------------------------------------------
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[draft]{hyperref}  % no link annotations, no bookmarks (PaperCept requirement)
+\hypersetup{hidelinks}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\let\labelindent\relax  % ieeeconf already defines it
+\usepackage{enumitem}
+\usepackage{multirow}
+\usepackage{subcaption}
+\usepackage[table]{xcolor}
+\usepackage{pifont}
+\usepackage{stfloats}
+\usepackage{cuted}
+\usepackage{capt-of}
+\usepackage{placeins}
+\usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,decorations.pathreplacing}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\usepackage{supertabular}
+\usepackage[normalem]{ulem}
+\providecommand{\degree}{\ensuremath{^\circ}}
+
+\newcommand{\yu}[1]{{\color{red} [Yu: #1] }}
+\newcommand{\jp}[1]{{\color{red} [jp: #1] }}
+\newcommand{\jpd}[1]{{\color{red}\sout{[jp: #1]}} }   % addressed; kept struck out for reference
+% BLOCKING issue banner: loud, impossible to miss, delete the macro body to hide
+\newcommand{\blocker}[1]{%
+  \par\noindent\begingroup\setlength{\fboxsep}{5pt}\setlength{\fboxrule}{2pt}%
+  \fcolorbox{red}{yellow!85}{\parbox{0.96\linewidth}{\color{red}\bfseries
+  $\blacktriangle$\,$\blacktriangle$\,$\blacktriangle$~STOP -- NUMBERS NOT FINAL~$\blacktriangle$\,$\blacktriangle$\,$\blacktriangle$\par
+  \normalfont\color{black}\small #1}}\endgroup\par\medskip}
+
+% appendix figure palette (tiers match Fig. 1d)
+\definecolor{rpxInk}{HTML}{1F2937}
+\definecolor{rpxSlate}{HTML}{475569}
+\definecolor{rpxAccent}{HTML}{334155}
+\definecolor{rpxRule}{HTML}{94A3B8}
+\definecolor{rpxHair}{HTML}{CBD5E1}
+\definecolor{rpxPale}{HTML}{EEF2F6}
+\definecolor{tierE}{HTML}{15803D}
+\definecolor{tierM}{HTML}{B45309}
+\definecolor{tierH}{HTML}{B91C1C}
+%%%%%%%%%%
+% RPX brand palette
+\definecolor{rpxR}{HTML}{4F46E5}
+\definecolor{rpxP}{HTML}{DB2777}
+\definecolor{rpxX}{HTML}{C2410C}
+\newcommand{\coolname}{\textsc{\textcolor{rpxR}{R}\textcolor{rpxP}{P}\textcolor{rpxX}{X}}}
+\newcommand{\webpage}{https://anonymous.4open.science/r/rpx-anonymous}
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\cmark}{\textcolor{green!70!black}{\checkmark}}
+\newcommand{\pmark}{\textcolor{orange!80!black}{$\sim$}}
+\newcommand{\xmark}{\textcolor{red!80!black}{\ding{55}}}
+%%%%%%%%%%
+
+\title{\LARGE \bf Same Scene, Different Story: \\Evaluating Robot Perception Across Scene Phases in the Wild}
+
+\author{Anonymous}
+
+% Force full-width floats onto page 1
+\setcounter{dbltopnumber}{2}
+\renewcommand{\dbltopfraction}{0.9}
+
+\setlength{\textfloatsep}{5pt plus 1pt minus 1pt}
+\setlength{\dbltextfloatsep}{5pt plus 1pt minus 1pt}
+\setlength{\floatsep}{4pt plus 1pt minus 1pt}
+\setlength{\dblfloatsep}{4pt plus 1pt minus 1pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{0pt}
+
+\setlength{\stripsep}{0pt}   % Fig. 1 strip sits close under the author block
+% Cross-references into the frozen main paper (numbering as printed there).
+\input{main_paper_refs}
+\begin{document}
+% Supplementary appendix, compiled on its own and appended after the frozen
+% eight-page main paper. Counters and the four main-paper cross-references
+% below reproduce the main paper's numbering (Figs. 1-4, Tables I-VII, Eqs. 1-3).
+\setcounter{figure}{4}
+\setcounter{table}{7}
+\setcounter{equation}{3}
+\input{text/08_appendix}
+\end{document}

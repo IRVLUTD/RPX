@@ -1,0 +1,35 @@
+% TODO CAMERA READY: fill the unresolved (em-dash) VQA desirability endpoints before submission.
+% Generated block table (desirability); block sizes from tools/block_splits.json -- do not edit by hand.
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\footnotesize\setlength{\tabcolsep}{4.2pt}
+{\normalsize\captionof{table}{Desirability windows of all native metrics. $d_k=0$ at the worse endpoint and $1$ at the better endpoint; range: natural bounds of the metric; fixed: frozen error cap shared by all models.}\label{tab:appendix-desirability}}
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Metric & Task(s) & Worse & Better & Dir. & Basis \\
+\midrule
+AbsRel & T1, T2 & 0.5 & 0 & $\downarrow$ & fixed \\
+RMSE (m) & T1, T2 & 2.0 & 0 & $\downarrow$ & fixed \\
+SILog & T1, T2 & 25 & 0 & $\downarrow$ & fixed \\
+$\delta_1$ & T1, T2 & 0 & 1 & $\uparrow$ & range \\
+TGM & T2 & 0.1 & 0 & $\downarrow$ & fixed \\
+TGSE & T2 & 0.1 & 0 & $\downarrow$ & fixed \\
+HOTA & T3 & 0 & 1 & $\uparrow$ & range \\
+MOTA & T3 & 0 & 1 & $\uparrow$ & range \\
+IDSW (per clip) & T3 & 100 & 0 & $\downarrow$ & fixed \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\footnotesize\setlength{\tabcolsep}{4.2pt}
+{\footnotesize TABLE~\ref{tab:appendix-desirability} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Metric & Task(s) & Worse & Better & Dir. & Basis \\
+\midrule
+AUC@$5^\circ$ & T4 & 0 & 1 & $\uparrow$ & range \\
+AUC@$10^\circ$ & T4 & 0 & 1 & $\uparrow$ & range \\
+AUC@$20^\circ$ & T4 & 0 & 1 & $\uparrow$ & range \\
+Acc@0.5 & T5, T6 & --- & --- & $\uparrow$ & --- \\
+GIoU & T5, T6 & --- & --- & $\uparrow$ & --- \\
+Center-in-GT & T5, T6 & --- & --- & $\uparrow$ & --- \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip

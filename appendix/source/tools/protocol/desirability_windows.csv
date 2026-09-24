@@ -1,0 +1,16 @@
+metric_tex,tasks,worse,better,direction,basis
+AbsRel,T1 T2,0.5,0,lower,fixed
+RMSE (m),T1 T2,2.0,0,lower,fixed
+SILog,T1 T2,25,0,lower,fixed
+$\delta_1$,T1 T2,0,1,higher,range
+TGM,T2,0.1,0,lower,fixed
+TGSE,T2,0.1,0,lower,fixed
+HOTA,T3,0,1,higher,range
+MOTA,T3,0,1,higher,range
+IDSW (per clip),T3,100,0,lower,fixed
+AUC@$5^\circ$,T4,0,1,higher,range
+AUC@$10^\circ$,T4,0,1,higher,range
+AUC@$20^\circ$,T4,0,1,higher,range
+Acc@0.5,T5 T6,,,higher,
+GIoU,T5 T6,,,higher,
+Center-in-GT,T5 T6,,,higher,
