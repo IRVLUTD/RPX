@@ -154,6 +154,14 @@ unavailable. Custom API wall time includes transport and is not a GPU-only
 latency measurement. Production runners add prediction caches, protocol
 metrics and provenance records.
 
+## Standardized hardware runs
+
+The [hardware profiling README](configs/hardware/README.md) provides the
+publication protocol and one-command runner for T1. It profiles all ten paper
+models serially on one idle GPU, using digest-pinned Docker images, one excluded
+warm-up call, and 1,000 measured frames per model. Runs are resumable and retain
+raw calls, aggregate tables, environment provenance, and the host/GPU inventory.
+
 ## Testing
 
 From `benchmark/`, in a clean virtual environment:

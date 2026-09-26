@@ -1,0 +1,62 @@
+{
+  "schema": "rpx.hardware.t1.v1",
+  "task": "T1 monocular image depth",
+  "dataset_repo": "IRVLUTD/RPX",
+  "dataset_revision": "2e2a387f7f93e98c177b2e039c141eacda94e5fc",
+  "split": "easy",
+  "samples": 1000,
+  "warmup_calls": 1,
+  "flop_calls": 1,
+  "jobs": [
+    {
+      "model": "da-v2-large",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/transformers-image/bin/python"
+    },
+    {
+      "model": "depth-pro",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/transformers-image/bin/python"
+    },
+    {
+      "model": "unidepth-v2",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/unidepth2/bin/python"
+    },
+    {
+      "model": "moge-2-vit-l",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/moge2/bin/python"
+    },
+    {
+      "model": "da3-metric-l",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/da3/bin/python"
+    },
+    {
+      "model": "metric3d-v2",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/metric3d/bin/python"
+    },
+    {
+      "model": "lotus-2",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/lotus2/bin/python"
+    },
+    {
+      "model": "hyden",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c539f021c26ce95136e72422b9ec0a8a187b531f383b6371af49dd4bc39e4d6f",
+      "python": "/opt/rpx-envs/metadepth/bin/python"
+    },
+    {
+      "model": "fe2e",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:c7235fc079b9d492e422da8e9f354da74621ad7356b2dd416ac0451ec040f9d8",
+      "python": "/opt/rpx-envs/fe2e/bin/python"
+    },
+    {
+      "model": "zipdepth",
+      "image": "narendhiranv04/rpx-depth-smoke@sha256:a6b7b6d054e09eee6b66467918283cfd851d7f101859d91ccba580731090937b",
+      "python": "/opt/rpx-envs/zipdepth/bin/python"
+    }
+  ]
+}
