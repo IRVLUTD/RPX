@@ -4,8 +4,11 @@ import requests, tarfile, io, os, sys, json, time, concurrent.futures as cf
 import pandas as pd
 from PIL import Image
 from huggingface_hub import hf_hub_url, get_token
-OUT='/home/naren/.cache/rpx_catalogue_frames'; os.makedirs(OUT,exist_ok=True)
-f=pd.read_parquet('/tmp/RPX_two_column_final_20260923_v2/appendix_data/hf_frames_v1.parquet')
+OUT=os.environ.get('RPX_CATALOGUE_CACHE', os.path.expanduser('~/.cache/rpx_catalogue_frames')); os.makedirs(OUT,exist_ok=True)
+frames=os.environ.get('RPX_FRAMES_PARQUET')
+if not frames:
+    raise SystemExit('Set RPX_FRAMES_PARQUET to the released frame-index Parquet file.')
+f=pd.read_parquet(frames)
 f=f[f.scene_type.isin(['multi_object','ego'])]
 H={'Authorization':f'Bearer {get_token()}'}
 def session():

@@ -1,31 +1,31 @@
 model,view,AbsRel,RMSE,SILog,delta1,TGM,TGSE
-DA3 (video),Clutter,,,,,,
-DA3 (video),Interaction,,,,,,
-DA3 (video),Clean,,,,,,
-Video-DA,Clutter,,,,,,
-Video-DA,Interaction,,,,,,
-Video-DA,Clean,,,,,,
-ViGeo,Clutter,,,,,,
-ViGeo,Interaction,,,,,,
-ViGeo,Clean,,,,,,
-VGGT,Clutter,,,,,,
-VGGT,Interaction,,,,,,
-VGGT,Clean,,,,,,
-MonST3R,Clutter,,,,,,
-MonST3R,Interaction,,,,,,
-MonST3R,Clean,,,,,,
-GemDepth,Clutter,,,,,,
-GemDepth,Interaction,,,,,,
-GemDepth,Clean,,,,,,
-DepthCrafter,Clutter,,,,,,
-DepthCrafter,Interaction,,,,,,
-DepthCrafter,Clean,,,,,,
-DVD v1.1,Clutter,,,,,,
-DVD v1.1,Interaction,,,,,,
-DVD v1.1,Clean,,,,,,
-ChronoDepth,Clutter,,,,,,
-ChronoDepth,Interaction,,,,,,
-ChronoDepth,Clean,,,,,,
-RollingDepth,Clutter,,,,,,
-RollingDepth,Interaction,,,,,,
-RollingDepth,Clean,,,,,,
+DA3 (video),Clutter,0.060,0.209,9.030,0.969,0.021,0.031
+DA3 (video),Interaction,0.079,0.316,12.451,0.951,0.028,0.052
+DA3 (video),Clean,0.058,0.235,9.318,0.969,0.023,0.040
+Video-DA,Clutter,0.207,0.413,24.748,0.680,0.025,0.033
+Video-DA,Interaction,0.182,0.457,23.730,0.740,0.031,0.050
+Video-DA,Clean,0.203,0.454,25.739,0.692,0.028,0.044
+ViGeo,Clutter,0.090,0.297,14.213,0.908,0.020,0.049
+ViGeo,Interaction,0.073,0.308,12.422,0.959,0.027,0.056
+ViGeo,Clean,0.062,0.272,11.545,0.957,0.022,0.051
+VGGT,Clutter,0.067,0.259,10.931,0.955,0.023,0.044
+VGGT,Interaction,0.062,0.272,11.053,0.963,0.023,0.042
+VGGT,Clean,0.057,0.255,10.022,0.963,0.023,0.045
+MonST3R,Clutter,0.191,0.413,14.436,0.693,0.037,0.035
+MonST3R,Interaction,0.169,0.459,16.980,0.769,0.043,0.057
+MonST3R,Clean,0.179,0.446,14.260,0.722,0.041,0.046
+GemDepth,Clutter,0.098,0.289,10.263,0.917,0.018,0.032
+GemDepth,Interaction,0.096,0.365,13.405,0.927,0.027,0.056
+GemDepth,Clean,0.088,0.311,10.698,0.935,0.022,0.043
+DepthCrafter,Clutter,0.226,0.475,25.033,0.625,0.028,0.036
+DepthCrafter,Interaction,0.217,0.538,24.977,0.642,0.034,0.053
+DepthCrafter,Clean,0.227,0.533,26.801,0.616,0.035,0.048
+DVD v1.1,Clutter,0.101,0.337,12.579,0.892,0.018,0.037
+DVD v1.1,Interaction,0.098,0.390,14.484,0.914,0.031,0.063
+DVD v1.1,Clean,0.094,0.351,12.314,0.912,0.024,0.051
+ChronoDepth,Clutter,0.187,0.441,16.480,0.709,0.020,0.031
+ChronoDepth,Interaction,0.177,0.499,18.180,0.752,0.029,0.049
+ChronoDepth,Clean,0.185,0.495,16.870,0.706,0.024,0.040
+RollingDepth,Clutter,0.267,0.510,29.210,0.556,0.025,0.032
+RollingDepth,Interaction,0.216,0.519,27.202,0.644,0.032,0.045
+RollingDepth,Clean,0.240,0.529,29.002,0.598,0.031,0.042

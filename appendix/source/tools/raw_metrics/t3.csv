@@ -1,45 +1,45 @@
 model,view,HOTA,MOTA,IDSW
-SAM 2 Long,Clutter,,,
-SAM 2 Long,Interaction,,,
-SAM 2 Long,Clean,,,
-SAM 2 Long,Ego,,,
-DAM4SAM,Clutter,,,
-DAM4SAM,Interaction,,,
-DAM4SAM,Clean,,,
-DAM4SAM,Ego,,,
-EdgeTAM,Clutter,,,
-EdgeTAM,Interaction,,,
-EdgeTAM,Clean,,,
-EdgeTAM,Ego,,,
-SAM 2++,Clutter,,,
-SAM 2++,Interaction,,,
-SAM 2++,Clean,,,
-SAM 2++,Ego,,,
-SAM 2,Clutter,,,
-SAM 2,Interaction,,,
-SAM 2,Clean,,,
-SAM 2,Ego,,,
-Cutie,Clutter,,,
-Cutie,Interaction,,,
-Cutie,Clean,,,
-Cutie,Ego,,,
-SAM 3.1 (bbox),Clutter,,,
-SAM 3.1 (bbox),Interaction,,,
-SAM 3.1 (bbox),Clean,,,
-SAM 3.1 (bbox),Ego,,,
-MiTS,Clutter,,,
-MiTS,Interaction,,,
-MiTS,Clean,,,
-MiTS,Ego,,,
-XMem,Clutter,,,
-XMem,Interaction,,,
-XMem,Clean,,,
-XMem,Ego,,,
-SAM 3.1 (text),Clutter,,,
-SAM 3.1 (text),Interaction,,,
-SAM 3.1 (text),Clean,,,
-SAM 3.1 (text),Ego,,,
-GSAM2 (text),Clutter,,,
-GSAM2 (text),Interaction,,,
-GSAM2 (text),Clean,,,
-GSAM2 (text),Ego,,,
+SAM 2 Long,Clutter,0.973,0.983,0.650
+SAM 2 Long,Interaction,0.930,0.938,1.100
+SAM 2 Long,Clean,0.975,0.991,0.210
+SAM 2 Long,Ego,0.952,0.953,1.730
+DAM4SAM,Clutter,0.968,0.973,0.770
+DAM4SAM,Interaction,0.923,0.922,1.930
+DAM4SAM,Clean,0.974,0.987,0.210
+DAM4SAM,Ego,0.942,0.938,2.700
+EdgeTAM,Clutter,0.949,0.967,0.610
+EdgeTAM,Interaction,0.888,0.889,1.230
+EdgeTAM,Clean,0.955,0.979,0.230
+EdgeTAM,Ego,0.884,0.877,1.840
+SAM 2++,Clutter,0.954,0.973,0.420
+SAM 2++,Interaction,0.890,0.881,1.190
+SAM 2++,Clean,0.957,0.979,0.240
+SAM 2++,Ego,0.813,0.785,0.750
+SAM 2,Clutter,0.967,0.977,0.600
+SAM 2,Interaction,0.921,0.923,1.280
+SAM 2,Clean,0.970,0.985,0.210
+SAM 2,Ego,0.904,0.888,2.000
+Cutie,Clutter,0.944,0.969,0.580
+Cutie,Interaction,0.891,0.906,1.110
+Cutie,Clean,0.955,0.988,0.190
+Cutie,Ego,0.904,0.911,1.540
+SAM 3.1 (bbox),Clutter,0.956,0.971,0.620
+SAM 3.1 (bbox),Interaction,0.838,0.816,1.620
+SAM 3.1 (bbox),Clean,0.953,0.973,0.310
+SAM 3.1 (bbox),Ego,0.886,0.875,1.960
+MiTS,Clutter,0.909,0.941,0.620
+MiTS,Interaction,0.821,0.802,2.150
+MiTS,Clean,0.931,0.959,0.190
+MiTS,Ego,0.827,0.785,3.730
+XMem,Clutter,0.927,0.958,0.330
+XMem,Interaction,0.845,0.828,1.270
+XMem,Clean,0.945,0.978,0.190
+XMem,Ego,0.868,0.861,1.490
+SAM 3.1 (text),Clutter,0.814,0.741,0.800
+SAM 3.1 (text),Interaction,0.688,0.590,1.770
+SAM 3.1 (text),Clean,0.803,0.731,0.930
+SAM 3.1 (text),Ego,0.742,0.676,4.110
+GSAM2 (text),Clutter,0.865,0.777,0.520
+GSAM2 (text),Interaction,0.776,0.643,0.630
+GSAM2 (text),Clean,0.884,0.819,0.220
+GSAM2 (text),Ego,0.843,0.757,1.500

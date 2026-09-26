@@ -5,13 +5,7 @@
 \toprule
 \multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
 \midrule
-SAM 2 Long & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-DAM4SAM & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-EdgeTAM & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-SAM 2++ & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-SAM 2 & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-Cutie & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-SAM 3.1 (bbox) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\
+SAM 2 Long & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.973\\0.930\\0.975\\0.952\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.983\\0.938\\0.991\\0.953\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.650\\1.100\\0.210\\1.730\end{tabular} \\
 \bottomrule
 \end{tabular}
 \end{minipage}\par\medskip
@@ -21,10 +15,97 @@ SAM 3.1 (bbox) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} 
 \toprule
 \multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
 \midrule
-MiTS & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-XMem & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-SAM 3.1 (text) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-GSAM2 (text) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\
+DAM4SAM & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.968\\0.923\\0.974\\0.942\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.973\\0.922\\0.987\\0.938\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.770\\1.930\\0.210\\2.700\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+EdgeTAM & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.949\\0.888\\0.955\\0.884\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.967\\0.889\\0.979\\0.877\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.610\\1.230\\0.230\\1.840\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+SAM 2++ & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.954\\0.890\\0.957\\0.813\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.973\\0.881\\0.979\\0.785\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.420\\1.190\\0.240\\0.750\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+SAM 2 & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.967\\0.921\\0.970\\0.904\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.977\\0.923\\0.985\\0.888\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.600\\1.280\\0.210\\2.000\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+Cutie & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.944\\0.891\\0.955\\0.904\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.969\\0.906\\0.988\\0.911\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.580\\1.110\\0.190\\1.540\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+SAM 3.1 (bbox) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.956\\0.838\\0.953\\0.886\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.971\\0.816\\0.973\\0.875\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.620\\1.620\\0.310\\1.960\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+MiTS & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.909\\0.821\\0.931\\0.827\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.941\\0.802\\0.959\\0.785\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.620\\2.150\\0.190\\3.730\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+XMem & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.927\\0.845\\0.945\\0.868\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.958\\0.828\\0.978\\0.861\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.330\\1.270\\0.190\\1.490\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+SAM 3.1 (text) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.814\\0.688\\0.803\\0.742\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.741\\0.590\\0.731\\0.676\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.800\\1.770\\0.930\\4.110\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t3} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.3cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}>{\centering\arraybackslash}m{1.25cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{HOTA} & \makebox[\linewidth][c]{MOTA} & \makebox[\linewidth][c]{IDSW} \\  & & $\uparrow$ & $\uparrow$ & $\downarrow$ \\
+\midrule
+GSAM2 (text) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.865\\0.776\\0.884\\0.843\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.777\\0.643\\0.819\\0.757\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.520\\0.630\\0.220\\1.500\end{tabular} \\
 \bottomrule
 \end{tabular}
 \end{minipage}\par\medskip

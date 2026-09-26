@@ -1,31 +1,31 @@
 model,view,AbsRel,RMSE,SILog,delta1
-ZipDepth,Clutter,,,,
-ZipDepth,Interaction,,,,
-ZipDepth,Clean,,,,
-HyDen,Clutter,,,,
-HyDen,Interaction,,,,
-HyDen,Clean,,,,
-FE2E,Clutter,,,,
-FE2E,Interaction,,,,
-FE2E,Clean,,,,
-DA3 Metric-L,Clutter,,,,
-DA3 Metric-L,Interaction,,,,
-DA3 Metric-L,Clean,,,,
-UniDepth V2,Clutter,,,,
-UniDepth V2,Interaction,,,,
-UniDepth V2,Clean,,,,
-MoGe-2 ViT-L,Clutter,,,,
-MoGe-2 ViT-L,Interaction,,,,
-MoGe-2 ViT-L,Clean,,,,
-Lotus-2,Clutter,,,,
-Lotus-2,Interaction,,,,
-Lotus-2,Clean,,,,
-Depth Pro,Clutter,,,,
-Depth Pro,Interaction,,,,
-Depth Pro,Clean,,,,
-Metric3D V2,Clutter,,,,
-Metric3D V2,Interaction,,,,
-Metric3D V2,Clean,,,,
-DA-V2 Large,Clutter,,,,
-DA-V2 Large,Interaction,,,,
-DA-V2 Large,Clean,,,,
+ZipDepth,Clutter,0.167,0.454,15.508,0.732
+ZipDepth,Interaction,0.161,0.506,18.096,0.761
+ZipDepth,Clean,0.158,0.483,15.269,0.756
+HyDen,Clutter,0.267,0.625,12.273,0.329
+HyDen,Interaction,0.248,0.602,13.576,0.364
+HyDen,Clean,0.256,0.657,12.073,0.348
+FE2E,Clutter,0.142,0.382,11.770,0.815
+FE2E,Interaction,0.140,0.447,14.631,0.833
+FE2E,Clean,0.145,0.439,12.533,0.807
+DA3 Metric-L,Clutter,0.126,0.323,10.706,0.849
+DA3 Metric-L,Interaction,0.117,0.387,13.675,0.909
+DA3 Metric-L,Clean,0.118,0.362,11.046,0.870
+UniDepth V2,Clutter,0.142,0.354,11.073,0.800
+UniDepth V2,Interaction,0.126,0.393,13.443,0.885
+UniDepth V2,Clean,0.129,0.387,10.690,0.830
+MoGe-2 ViT-L,Clutter,0.253,0.539,11.178,0.380
+MoGe-2 ViT-L,Interaction,0.211,0.516,13.527,0.542
+MoGe-2 ViT-L,Clean,0.227,0.553,11.365,0.479
+Lotus-2,Clutter,0.221,0.450,23.820,0.630
+Lotus-2,Interaction,0.201,0.492,22.668,0.676
+Lotus-2,Clean,0.218,0.491,24.498,0.636
+Depth Pro,Clutter,0.170,0.446,12.975,0.711
+Depth Pro,Interaction,0.139,0.460,14.862,0.858
+Depth Pro,Clean,0.165,0.492,12.855,0.736
+Metric3D V2,Clutter,0.124,0.361,11.409,0.845
+Metric3D V2,Interaction,0.109,0.384,12.951,0.908
+Metric3D V2,Clean,0.123,0.406,11.389,0.837
+DA-V2 Large,Clutter,0.210,0.392,12.541,0.704
+DA-V2 Large,Interaction,0.216,0.510,15.354,0.696
+DA-V2 Large,Clean,0.158,0.390,12.848,0.804

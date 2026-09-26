@@ -11,6 +11,6 @@ IDSW (per clip),T3,100,0,lower,fixed
 AUC@$5^\circ$,T4,0,1,higher,range
 AUC@$10^\circ$,T4,0,1,higher,range
 AUC@$20^\circ$,T4,0,1,higher,range
-Acc@0.5,T5 T6,,,higher,
-GIoU,T5 T6,,,higher,
-Center-in-GT,T5 T6,,,higher,
+Acc@0.5,T5 T6,0,1,higher,range
+GIoU,T5 T6,-1,1,higher,range
+Center-in-GT,T5 T6,0,1,higher,range

@@ -1,49 +1,49 @@
 model,view,Acc@0.5,GIoU,Center
-Cosmos Reason2 8B,Clutter,,,
-Cosmos Reason2 8B,Interaction,,,
-Cosmos Reason2 8B,Clean,,,
-Cosmos Reason2 8B,Ego,,,
-Cosmos Reason2 2B,Clutter,,,
-Cosmos Reason2 2B,Interaction,,,
-Cosmos Reason2 2B,Clean,,,
-Cosmos Reason2 2B,Ego,,,
-Qwen3-VL 8B,Clutter,,,
-Qwen3-VL 8B,Interaction,,,
-Qwen3-VL 8B,Clean,,,
-Qwen3-VL 8B,Ego,,,
-Qwen3-VL 2B,Clutter,,,
-Qwen3-VL 2B,Interaction,,,
-Qwen3-VL 2B,Clean,,,
-Qwen3-VL 2B,Ego,,,
-InternVL 3.5 14B,Clutter,,,
-InternVL 3.5 14B,Interaction,,,
-InternVL 3.5 14B,Clean,,,
-InternVL 3.5 14B,Ego,,,
-InternVL 3.5 1B,Clutter,,,
-InternVL 3.5 1B,Interaction,,,
-InternVL 3.5 1B,Clean,,,
-InternVL 3.5 1B,Ego,,,
-PaliGemma 2 10B,Clutter,,,
-PaliGemma 2 10B,Interaction,,,
-PaliGemma 2 10B,Clean,,,
-PaliGemma 2 10B,Ego,,,
-PaliGemma 2 3B,Clutter,,,
-PaliGemma 2 3B,Interaction,,,
-PaliGemma 2 3B,Clean,,,
-PaliGemma 2 3B,Ego,,,
-DeepSeek-VL2 4.5B,Clutter,,,
-DeepSeek-VL2 4.5B,Interaction,,,
-DeepSeek-VL2 4.5B,Clean,,,
-DeepSeek-VL2 4.5B,Ego,,,
-DeepSeek-VL2 1.0B,Clutter,,,
-DeepSeek-VL2 1.0B,Interaction,,,
-DeepSeek-VL2 1.0B,Clean,,,
-DeepSeek-VL2 1.0B,Ego,,,
-Florence 2 0.77B,Clutter,,,
-Florence 2 0.77B,Interaction,,,
-Florence 2 0.77B,Clean,,,
-Florence 2 0.77B,Ego,,,
-Florence 2 0.23B,Clutter,,,
-Florence 2 0.23B,Interaction,,,
-Florence 2 0.23B,Clean,,,
-Florence 2 0.23B,Ego,,,
+Cosmos Reason2 8B,Clutter,0.516,0.197,0.555
+Cosmos Reason2 8B,Interaction,0.478,0.119,0.526
+Cosmos Reason2 8B,Clean,0.514,0.116,0.538
+Cosmos Reason2 8B,Ego,0.632,0.416,0.664
+Cosmos Reason2 2B,Clutter,0.226,-0.310,0.289
+Cosmos Reason2 2B,Interaction,0.221,-0.413,0.268
+Cosmos Reason2 2B,Clean,0.194,-0.482,0.228
+Cosmos Reason2 2B,Ego,0.356,-0.181,0.388
+Qwen3-VL 8B,Clutter,0.590,0.393,0.623
+Qwen3-VL 8B,Interaction,0.538,0.245,0.566
+Qwen3-VL 8B,Clean,0.585,0.290,0.600
+Qwen3-VL 8B,Ego,0.659,0.450,0.681
+Qwen3-VL 2B,Clutter,0.398,-0.004,0.419
+Qwen3-VL 2B,Interaction,0.454,0.071,0.478
+Qwen3-VL 2B,Clean,0.434,-0.024,0.443
+Qwen3-VL 2B,Ego,0.594,0.315,0.609
+InternVL 3.5 14B,Clutter,0.458,0.275,0.484
+InternVL 3.5 14B,Interaction,0.381,0.131,0.410
+InternVL 3.5 14B,Clean,0.439,0.169,0.458
+InternVL 3.5 14B,Ego,0.502,0.252,0.531
+InternVL 3.5 1B,Clutter,0.375,0.154,0.439
+InternVL 3.5 1B,Interaction,0.316,0.010,0.385
+InternVL 3.5 1B,Clean,0.377,0.036,0.416
+InternVL 3.5 1B,Ego,0.319,0.011,0.429
+PaliGemma 2 10B,Clutter,0.385,0.026,0.410
+PaliGemma 2 10B,Interaction,0.312,-0.157,0.330
+PaliGemma 2 10B,Clean,0.341,-0.120,0.349
+PaliGemma 2 10B,Ego,0.377,0.004,0.398
+PaliGemma 2 3B,Clutter,0.346,0.124,0.377
+PaliGemma 2 3B,Interaction,0.314,0.003,0.338
+PaliGemma 2 3B,Clean,0.342,-0.007,0.352
+PaliGemma 2 3B,Ego,0.393,0.076,0.414
+DeepSeek-VL2 4.5B,Clutter,0.468,0.311,0.509
+DeepSeek-VL2 4.5B,Interaction,0.339,0.133,0.377
+DeepSeek-VL2 4.5B,Clean,0.421,0.193,0.451
+DeepSeek-VL2 4.5B,Ego,0.469,0.224,0.541
+DeepSeek-VL2 1.0B,Clutter,0.092,-0.137,0.214
+DeepSeek-VL2 1.0B,Interaction,0.057,-0.183,0.150
+DeepSeek-VL2 1.0B,Clean,0.065,-0.179,0.161
+DeepSeek-VL2 1.0B,Ego,0.113,-0.242,0.198
+Florence 2 0.77B,Clutter,0.115,-0.338,0.145
+Florence 2 0.77B,Interaction,0.108,-0.341,0.134
+Florence 2 0.77B,Clean,0.102,-0.376,0.125
+Florence 2 0.77B,Ego,0.125,-0.435,0.151
+Florence 2 0.23B,Clutter,0.087,-0.333,0.125
+Florence 2 0.23B,Interaction,0.082,-0.374,0.107
+Florence 2 0.23B,Clean,0.083,-0.380,0.105
+Florence 2 0.23B,Ego,0.120,-0.399,0.147

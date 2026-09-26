@@ -5,10 +5,7 @@
 \toprule
 \multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{AbsRel} & \makebox[\linewidth][c]{RMSE} & \makebox[\linewidth][c]{SILog} & \makebox[\linewidth][c]{$\delta_1$} & \makebox[\linewidth][c]{TGM} & \makebox[\linewidth][c]{TGSE} \\  & & $\downarrow$ & $\downarrow$ & $\downarrow$ & $\uparrow$ & $\downarrow$ & $\downarrow$ \\
 \midrule
-DA3 (video) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-Video-DA & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-ViGeo & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-VGGT & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\
+DA3 (video) & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.060\\0.079\\0.058\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.209\\0.316\\0.235\end{tabular} & \begin{tabular}[c]{@{}c@{}}9.030\\12.451\\9.318\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.969\\0.951\\0.969\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.021\\0.028\\0.023\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.031\\0.052\\0.040\end{tabular} \\
 \bottomrule
 \end{tabular}
 \end{minipage}\par\medskip
@@ -18,12 +15,51 @@ VGGT & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabula
 \toprule
 \multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{AbsRel} & \makebox[\linewidth][c]{RMSE} & \makebox[\linewidth][c]{SILog} & \makebox[\linewidth][c]{$\delta_1$} & \makebox[\linewidth][c]{TGM} & \makebox[\linewidth][c]{TGSE} \\  & & $\downarrow$ & $\downarrow$ & $\downarrow$ & $\uparrow$ & $\downarrow$ & $\downarrow$ \\
 \midrule
-MonST3R & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-GemDepth & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-DepthCrafter & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-DVD v1.1 & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-ChronoDepth & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\\rawsep
-RollingDepth & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\end{tabular} \\
+Video-DA & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.207\\0.182\\0.203\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.413\\0.457\\0.454\end{tabular} & \begin{tabular}[c]{@{}c@{}}24.748\\23.730\\25.739\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.680\\0.740\\0.692\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.025\\0.031\\0.028\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.033\\0.050\\0.044\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t2} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.0cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{AbsRel} & \makebox[\linewidth][c]{RMSE} & \makebox[\linewidth][c]{SILog} & \makebox[\linewidth][c]{$\delta_1$} & \makebox[\linewidth][c]{TGM} & \makebox[\linewidth][c]{TGSE} \\  & & $\downarrow$ & $\downarrow$ & $\downarrow$ & $\uparrow$ & $\downarrow$ & $\downarrow$ \\
+\midrule
+ViGeo & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.090\\0.073\\0.062\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.297\\0.308\\0.272\end{tabular} & \begin{tabular}[c]{@{}c@{}}14.213\\12.422\\11.545\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.908\\0.959\\0.957\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.020\\0.027\\0.022\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.049\\0.056\\0.051\end{tabular} \\\rawsep
+VGGT & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.067\\0.062\\0.057\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.259\\0.272\\0.255\end{tabular} & \begin{tabular}[c]{@{}c@{}}10.931\\11.053\\10.022\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.955\\0.963\\0.963\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.023\\0.023\\0.023\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.044\\0.042\\0.045\end{tabular} \\\rawsep
+MonST3R & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.191\\0.169\\0.179\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.413\\0.459\\0.446\end{tabular} & \begin{tabular}[c]{@{}c@{}}14.436\\16.980\\14.260\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.693\\0.769\\0.722\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.037\\0.043\\0.041\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.035\\0.057\\0.046\end{tabular} \\\rawsep
+GemDepth & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.098\\0.096\\0.088\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.289\\0.365\\0.311\end{tabular} & \begin{tabular}[c]{@{}c@{}}10.263\\13.405\\10.698\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.917\\0.927\\0.935\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.018\\0.027\\0.022\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.032\\0.056\\0.043\end{tabular} \\\rawsep
+DepthCrafter & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.226\\0.217\\0.227\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.475\\0.538\\0.533\end{tabular} & \begin{tabular}[c]{@{}c@{}}25.033\\24.977\\26.801\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.625\\0.642\\0.616\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.028\\0.034\\0.035\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.036\\0.053\\0.048\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t2} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.0cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{AbsRel} & \makebox[\linewidth][c]{RMSE} & \makebox[\linewidth][c]{SILog} & \makebox[\linewidth][c]{$\delta_1$} & \makebox[\linewidth][c]{TGM} & \makebox[\linewidth][c]{TGSE} \\  & & $\downarrow$ & $\downarrow$ & $\downarrow$ & $\uparrow$ & $\downarrow$ & $\downarrow$ \\
+\midrule
+DVD v1.1 & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.101\\0.098\\0.094\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.337\\0.390\\0.351\end{tabular} & \begin{tabular}[c]{@{}c@{}}12.579\\14.484\\12.314\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.892\\0.914\\0.912\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.018\\0.031\\0.024\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.037\\0.063\\0.051\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t2} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.0cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{AbsRel} & \makebox[\linewidth][c]{RMSE} & \makebox[\linewidth][c]{SILog} & \makebox[\linewidth][c]{$\delta_1$} & \makebox[\linewidth][c]{TGM} & \makebox[\linewidth][c]{TGSE} \\  & & $\downarrow$ & $\downarrow$ & $\downarrow$ & $\uparrow$ & $\downarrow$ & $\downarrow$ \\
+\midrule
+ChronoDepth & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.187\\0.177\\0.185\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.441\\0.499\\0.495\end{tabular} & \begin{tabular}[c]{@{}c@{}}16.480\\18.180\\16.870\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.709\\0.752\\0.706\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.020\\0.029\\0.024\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.031\\0.049\\0.040\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t2} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.0cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}>{\centering\arraybackslash}m{0.8cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{AbsRel} & \makebox[\linewidth][c]{RMSE} & \makebox[\linewidth][c]{SILog} & \makebox[\linewidth][c]{$\delta_1$} & \makebox[\linewidth][c]{TGM} & \makebox[\linewidth][c]{TGSE} \\  & & $\downarrow$ & $\downarrow$ & $\downarrow$ & $\uparrow$ & $\downarrow$ & $\downarrow$ \\
+\midrule
+RollingDepth & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.267\\0.216\\0.240\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.510\\0.519\\0.529\end{tabular} & \begin{tabular}[c]{@{}c@{}}29.210\\27.202\\29.002\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.556\\0.644\\0.598\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.025\\0.032\\0.031\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.032\\0.045\\0.042\end{tabular} \\
 \bottomrule
 \end{tabular}
 \end{minipage}\par\medskip

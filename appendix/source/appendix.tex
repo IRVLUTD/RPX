@@ -45,13 +45,6 @@
 \newcommand{\yu}[1]{{\color{red} [Yu: #1] }}
 \newcommand{\jp}[1]{{\color{red} [jp: #1] }}
 \newcommand{\jpd}[1]{{\color{red}\sout{[jp: #1]}} }   % addressed; kept struck out for reference
-% BLOCKING issue banner: loud, impossible to miss, delete the macro body to hide
-\newcommand{\blocker}[1]{%
-  \par\noindent\begingroup\setlength{\fboxsep}{5pt}\setlength{\fboxrule}{2pt}%
-  \fcolorbox{red}{yellow!85}{\parbox{0.96\linewidth}{\color{red}\bfseries
-  $\blacktriangle$\,$\blacktriangle$\,$\blacktriangle$~STOP -- NUMBERS NOT FINAL~$\blacktriangle$\,$\blacktriangle$\,$\blacktriangle$\par
-  \normalfont\color{black}\small #1}}\endgroup\par\medskip}
-
 % appendix figure palette (tiers match Fig. 1d)
 \definecolor{rpxInk}{HTML}{1F2937}
 \definecolor{rpxSlate}{HTML}{475569}
@@ -69,7 +62,6 @@
 \definecolor{rpxX}{HTML}{C2410C}
 \newcommand{\coolname}{\textsc{\textcolor{rpxR}{R}\textcolor{rpxP}{P}\textcolor{rpxX}{X}}}
 \newcommand{\webpage}{https://anonymous.4open.science/r/rpx-anonymous}
-\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
 \newcommand{\cmark}{\textcolor{green!70!black}{\checkmark}}
 \newcommand{\pmark}{\textcolor{orange!80!black}{$\sim$}}
 \newcommand{\xmark}{\textcolor{red!80!black}{\ding{55}}}

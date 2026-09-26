@@ -1,0 +1,5 @@
+model,view,HOTA,MOTA,IDSW,n_cells
+SAM 3.1 (text),Clutter,0.814,0.741,0.800,100
+SAM 3.1 (text),Interaction,0.688,0.590,1.770,100
+SAM 3.1 (text),Clean,0.803,0.731,0.930,100
+SAM 3.1 (text),Ego,0.742,0.676,4.110,100

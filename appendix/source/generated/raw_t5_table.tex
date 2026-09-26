@@ -5,7 +5,7 @@
 \toprule
 \multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
 \midrule
-Cosmos Reason2 8B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\
+Cosmos Reason2 8B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.516\\0.478\\0.514\\0.632\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.197\\0.119\\0.116\\0.416\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.555\\0.526\\0.538\\0.664\end{tabular} \\
 \bottomrule
 \end{tabular}
 \end{minipage}\par\medskip
@@ -15,17 +15,107 @@ Cosmos Reason2 8B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabula
 \toprule
 \multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
 \midrule
-Cosmos Reason2 2B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-Qwen3-VL 8B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-Qwen3-VL 2B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-InternVL 3.5 14B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-InternVL 3.5 1B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-PaliGemma 2 10B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-PaliGemma 2 3B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-DeepSeek-VL2 4.5B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-DeepSeek-VL2 1.0B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-Florence 2 0.77B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\\rawsep
-Florence 2 0.23B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} & \begin{tabular}[c]{@{}c@{}}---\\---\\---\\---\end{tabular} \\
+Cosmos Reason2 2B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.226\\0.221\\0.194\\0.356\end{tabular} & \begin{tabular}[c]{@{}c@{}}-0.310\\-0.413\\-0.482\\-0.181\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.289\\0.268\\0.228\\0.388\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+Qwen3-VL 8B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.590\\0.538\\0.585\\0.659\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.393\\0.245\\0.290\\0.450\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.623\\0.566\\0.600\\0.681\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+Qwen3-VL 2B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.398\\0.454\\0.434\\0.594\end{tabular} & \begin{tabular}[c]{@{}c@{}}-0.004\\0.071\\-0.024\\0.315\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.419\\0.478\\0.443\\0.609\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+InternVL 3.5 14B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.458\\0.381\\0.439\\0.502\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.275\\0.131\\0.169\\0.252\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.484\\0.410\\0.458\\0.531\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+InternVL 3.5 1B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.375\\0.316\\0.377\\0.319\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.154\\0.010\\0.036\\0.011\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.439\\0.385\\0.416\\0.429\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+PaliGemma 2 10B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.385\\0.312\\0.341\\0.377\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.026\\-0.157\\-0.120\\0.004\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.410\\0.330\\0.349\\0.398\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+PaliGemma 2 3B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.346\\0.314\\0.342\\0.393\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.124\\0.003\\-0.007\\0.076\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.377\\0.338\\0.352\\0.414\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+DeepSeek-VL2 4.5B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.468\\0.339\\0.421\\0.469\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.311\\0.133\\0.193\\0.224\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.509\\0.377\\0.451\\0.541\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+DeepSeek-VL2 1.0B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.092\\0.057\\0.065\\0.113\end{tabular} & \begin{tabular}[c]{@{}c@{}}-0.137\\-0.183\\-0.179\\-0.242\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.214\\0.150\\0.161\\0.198\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+Florence 2 0.77B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.115\\0.108\\0.102\\0.125\end{tabular} & \begin{tabular}[c]{@{}c@{}}-0.338\\-0.341\\-0.376\\-0.435\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.145\\0.134\\0.125\\0.151\end{tabular} \\
+\bottomrule
+\end{tabular}
+\end{minipage}\par\medskip
+\par\noindent\begin{minipage}[t]{\columnwidth}\centering\rawfont
+{\footnotesize TABLE~\ref{tab:raw-t5} (continued)}\par\vspace{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}m{2.65cm}@{\hspace{3pt}}l>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}>{\centering\arraybackslash}m{1.45cm}@{}}
+\toprule
+\multicolumn{1}{@{}l}{Model} & View & \makebox[\linewidth][c]{Acc@0.5} & \makebox[\linewidth][c]{GIoU} & \makebox[\linewidth][c]{Center} \\  & & $\uparrow$ & $\uparrow$ & $\uparrow$ \\
+\midrule
+Florence 2 0.23B & \begin{tabular}[c]{@{}l@{}}Clu.\\Int.\\Clean\\Ego\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.087\\0.082\\0.083\\0.120\end{tabular} & \begin{tabular}[c]{@{}c@{}}-0.333\\-0.374\\-0.380\\-0.399\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.125\\0.107\\0.105\\0.147\end{tabular} \\
 \bottomrule
 \end{tabular}
 \end{minipage}\par\medskip

@@ -1,8 +1,7 @@
 # RPX supplementary appendix
 
-- `RPX_final_with_appendix.pdf`: the eight-page main paper (RPX-19, unchanged) followed by Appendices A–E (36 pages).
-- `RPX_appendix_only.pdf`: the appendix alone.
-- `source/`: self-contained appendix LaTeX source and assets. See `source/README_BUILD.md`.
-  - Build the appendix: `tectonic appendix.tex`.
-  - Assemble with the frozen main paper: `python3 tools/assemble_final.py` (includes a pixel check of pages 1–8).
-- `CHANGES.md`: latest changes. `CAMERA_READY_TODO.md`: remaining author inputs (Fig. 5 asset, raw T1–T6 metrics, VQA desirability windows, VLM decoding fields).
+- `RPX_final_with_appendix.pdf`: the frozen eight-page main paper followed by the completed supplementary appendix.
+- `RPX_appendix_only.pdf`: the supplementary appendix alone.
+- `source/`: self-contained LaTeX source, generated tables, build tools, normalized raw benchmark metrics, and figure assets.
+
+See [`source/README.md`](source/README.md) for the reproducible build and validation procedure. Hardware and latency measurements are intentionally tracked separately until the standardized model runs are complete.

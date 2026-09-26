@@ -45,9 +45,6 @@
 
 RPX comprises multi-object exocentric captures (MOS), egocentric Interaction captures, and single-object captures (SOS). Table~\ref{tab:appendix-dataset-summary}(a) summarizes the indexed streams and their available annotations. MOS covers 100 scenes in Clutter, Interaction, and Clean phases; SOS covers 70 objects, each recorded alone while the hand-held rig circles it. The released question metadata are full-density banks generated at every frame: 4,529,322 single-image question--frame records (attribute, binary spatial, and box-answer spatial questions) and 749,083 in-context records. Evaluation uses fixed, seeded subsets of these banks: 12,000 regular attribute questions for T5 and 6,000 in-context attribute questions for T6, split equally over Clutter, Interaction, Clean, and Ego Interaction (3,000 and 1,500 per view). The 100 MOS scenes comprise 60 indoor and 40 outdoor captures at 20 capture sites (Appendix~\ref{sec:appendix-representative-scenes}); Table~\ref{tab:appendix-dataset-summary}(b) crosses environment with difficulty group.
 
-% TODO CAMERA READY:
-% Replace placeholder with genuine annotation-session figure supplied by author
-% (drop the final artwork in as figures/fig5_annotation_workflow.pdf).
 \begin{figure*}[b]
 \centering
 \input{figures/fig5_annotation_workflow}
@@ -260,7 +257,7 @@ Each native metric $v_k$ enters $\mathcal J$ through $d_k=\operatorname{clip}\bi
 \subsection{Detailed per-model metrics}
 \label{sec:appendix-raw-metrics}
 
-Tables~\ref{tab:raw-t1}--\ref{tab:raw-t6} list the native metrics of every published model--task evaluation, one row group per configuration in main-paper Tables~\ref{tab:t1}--\ref{tab:vqa}, aggregated per phase and view with the direction marked under each metric. These are the values that enter the desirability mapping of $\mathcal J$; $\Phi$ is computed from the underlying per-scene vectors of the same metrics. Relative pose is scored on the Clutter and Clean pair sets only (Sec.~\ref{sec:appendix-protocols}).
+Tables~\ref{tab:raw-t1}--\ref{tab:raw-t6} report the archived native metrics, aggregated per phase and view, with the direction marked under each metric. They cover every published configuration for all six tasks. For T5--T6, the aggregation is restricted to the five attribute question types used in the paper (11,997 regular and 5,999 in-context questions per model); the additional spatial and depth questions retained in the full 31,496-row evaluation archive are outside these two reported tasks. All native values come from archived metric exports; rounded $\mathcal J$ values from the main paper are not inverted or used to reconstruct them. The reported values enter the desirability mapping of $\mathcal J$; $\Phi$ is computed from the underlying per-scene vectors. Relative pose is scored on the Clutter and Clean pair sets only (Sec.~\ref{sec:appendix-protocols}).
 
 \input{generated/raw_t1_table}
 \input{generated/raw_t2_table}
