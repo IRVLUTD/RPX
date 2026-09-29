@@ -3,6 +3,7 @@
 from .cutie_tracker import CutieTracker
 from .dam4sam_tracker import DAM4SAMTracker
 from .edgetam_tracker import EdgeTAMTracker
+from .genception_tracker import GenCeption13BTracker, GenCeption14BTracker
 from .grounded_sam2_tracker import GroundedSAM2Tracker
 from .mits_tracker import MITSTracker
 from .ovtr_tracker import OVTRTracker
@@ -24,6 +25,8 @@ TRACKER_CLASSES = {
     "xmem": XMemTracker,
     "grounded-sam2": GroundedSAM2Tracker,
     "sam3.1": SAM31Tracker,
+    "genception-1.3b": GenCeption13BTracker,
+    "genception-14b": GenCeption14BTracker,
 }
 
 __all__ = [
@@ -38,5 +41,7 @@ __all__ = [
     "XMemTracker",
     "GroundedSAM2Tracker",
     "SAM31Tracker",
+    "GenCeption13BTracker",
+    "GenCeption14BTracker",
     "TRACKER_CLASSES",
 ]

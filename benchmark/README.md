@@ -34,7 +34,7 @@ revision and runtime metadata with the results.
 | Video depth | DA3, DepthCrafter, Video Depth Anything, ChronoDepth, RollingDepth, DVD, GEMDepth, ViGeo, MonST3R and VGGT; `scripts/run_video_depth.py` | [Depth](../docker/depth-smoke/README.md), [DVD](../docker/depth-dvd/README.md), [GEMDepth](../docker/depth-gemdepth/README.md) |
 | Relative pose | VGGT, DA3, CUT3R, DUSt3R, MASt3R, MUSt3R, Reloc3r, Pi3X, Fast3R and MonST3R; additional baseline adapters are retained | [Relative pose](../docker/rcpe-smoke/README.md) |
 | Tracking | Mask-, box- and text-initialized adapters, with MOS and Ego protocols; `scripts/run_tracking.py` and `scripts/run_tracking_paper.py` | [Tracking](../docker/tracking-smoke/README.md) |
-| VQA / bbox grounding | Twenty roster entries with native Transformers or vLLM backends, one- and two-image inputs; `scripts/run_vqa_benchmark.py` | [VQA](../docker/vqa-smoke/README.md) |
+| VQA / bbox grounding | Twenty-two roster entries with native JAX, Transformers or vLLM backends, one- and two-image inputs; `scripts/run_vqa_benchmark.py` | [VQA](../docker/vqa-smoke/README.md) |
 
 For segmentation, detection, open-vocabulary detection, generic grounding,
 sparse depth and keypoint matching, the toolkit supplies the callable APIs,
@@ -58,6 +58,76 @@ canonical depth roster without loading weights. Docker matrix files and adapter
 registries are the source of model identifiers and pinned checkpoint revisions.
 Model availability and successful inference are different checks: the offline
 suite tests adapters with controlled inputs, while GPU gates run real weights.
+
+### GenCeption 1.3B and 14B
+
+The two official GenCeption variants are available as `genception-1.3b` and
+`genception-14b`. The integration pins the public source revision and supports
+five RPX paths: image depth, video depth, text-initialized RefVOS tracking,
+regular grounding VQA and two-image in-context grounding VQA. Depth is
+affine-invariant and is scored with RPX's per-image or per-clip affine
+alignment. VQA support is bbox grounding; GenCeption is not a language decoder
+and therefore does not answer RPX binary questions.
+
+The paper reports camera pose, but the public release does not include a pose
+prompt, camera-pose decoder or pose demo. Its optional 2D/3D keypoint tokens do
+not uniquely define the RPX camera transform. The adapter therefore leaves
+camera pose unavailable instead of synthesizing an unvalidated result. Inspect
+the machine-readable audit with:
+
+```bash
+PYTHONPATH=scripts python scripts/genception_capabilities.py --json
+```
+
+Install the official source at the pinned revision, then install the text
+encoder dependencies used for arbitrary RPX referring expressions:
+
+```bash
+git clone https://github.com/google-deepmind/representations4d.git /opt/representations4d
+git -C /opt/representations4d checkout a47e55120cc2b00027c19c9f1937831e77541056
+python -m pip install -e '/opt/representations4d[genception]'
+python -m pip install transformers accelerate sentencepiece
+
+PYTHONPATH=scripts python scripts/download_genception.py \
+  --variant all --output /models/genception
+export RPX_GENCEPTION_ROOT=/models/genception
+```
+
+The downloads are about 2.7 GB for 1.3B, 26.7 GB for 14B, plus a shared
+484 MB VAE. Arbitrary text prompts use the pinned WAN UMT5 encoder; its weights
+are downloaded through the Hugging Face cache on first use. The released JAX
+pipeline places a model on the first visible accelerator and does not shard the
+14B checkpoint, so expose one GPU with enough memory for each process.
+
+Run a real-weight smoke across every executable path. `--reference-image`
+enables the in-context VQA check; omit it only when testing the other paths.
+
+```bash
+cd benchmark
+CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python scripts/run_genception_smoke.py \
+  --variant 1.3b \
+  --image /data/rpx/target.webp \
+  --reference-image /data/rpx/reference.webp \
+  --video-dir /data/rpx/one_clip/rgb \
+  --track-expression "the red cup" \
+  --vqa-expression "the object closest to the camera" \
+  --output ../rpx_results/genception-1.3b/smoke.json
+```
+
+For the full benchmark, use the ordinary RPX runners:
+
+```bash
+PYTHONPATH=. python scripts/run_depth.py --model genception-1.3b --split easy --max-samples 1
+PYTHONPATH=. python scripts/run_video_depth.py --model genception-1.3b --split easy --max-samples 1
+PYTHONPATH=. python scripts/run_tracking.py --model genception-1.3b --split easy \
+  --text-vocab /data/scene_condition_vocab.parquet --max-clips 1 --max-frames 8
+PYTHONPATH=. python scripts/run_vqa_benchmark.py --help
+```
+
+Replace `1.3b` with `14b` after the small variant passes. The download command
+writes streaming SHA-256 manifests beside the assets. Prompt embeddings are
+validated as `(1, 226, 4096)` and cached per expression for the lifetime of a
+process.
 
 ## Bring your own model
 

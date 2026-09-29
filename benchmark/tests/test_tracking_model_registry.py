@@ -16,6 +16,8 @@ from tracking_models import (  # noqa: E402
     CutieTracker,
     DAM4SAMTracker,
     EdgeTAMTracker,
+    GenCeption13BTracker,
+    GenCeption14BTracker,
     GroundedSAM2Tracker,
     MITSTracker,
     OVTRTracker,
@@ -31,6 +33,8 @@ from tracking_models.motip_tracker import MOTIPTracker  # noqa: E402
 
 def test_tracking_registry_contains_production_adapters() -> None:
     assert TRACKER_CLASSES == {
+        "genception-1.3b": GenCeption13BTracker,
+        "genception-14b": GenCeption14BTracker,
         "cutie": CutieTracker,
         "dam4sam": DAM4SAMTracker,
         "edgetam": EdgeTAMTracker,
@@ -47,6 +51,8 @@ def test_tracking_registry_contains_production_adapters() -> None:
 
 def test_tracking_registry_declares_initialization_protocols() -> None:
     assert {name: tracker.prompt_type for name, tracker in TRACKER_CLASSES.items()} == {
+        "genception-1.3b": "text",
+        "genception-14b": "text",
         "cutie": "mask",
         "dam4sam": "mask",
         "edgetam": "mask",

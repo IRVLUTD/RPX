@@ -245,6 +245,12 @@ def build_prompt(sample: VQASample, model_key: str) -> PromptSpec:
             f"{question}\nAnswer using exactly one lowercase word: yes or no.", 4, "binary"
         )
     if sample.question_type in BBOX_TYPES:
+        if model_key.startswith("genception-"):
+            return PromptSpec(
+                native_referring_expression(sample),
+                0,
+                "bbox_native_genception_refvos",
+            )
         if model_key.startswith("cosmos-reason2-"):
             return PromptSpec(
                 _cosmos_reason2_bbox_instruction(question),

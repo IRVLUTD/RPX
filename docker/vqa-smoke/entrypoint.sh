@@ -7,7 +7,9 @@ if [[ $# -gt 0 ]]; then
 fi
 
 python_for_model() {
-  if [[ "$1" == internvl3.5-* ]]; then
+  if [[ "$1" == genception-* ]]; then
+    printf '%s\n' /opt/rpx-envs/genception/bin/python
+  elif [[ "$1" == internvl3.5-* ]]; then
     printf '%s\n' /opt/rpx-envs/internvl/bin/python
   elif [[ "$1" == florence2-* || "$1" == paligemma2-* ]]; then
     printf '%s\n' /opt/rpx-envs/florence2/bin/python
@@ -46,7 +48,8 @@ EOF
   verify)
     florence_transformers="$([ -x /opt/rpx-envs/florence2/bin/python ] && /opt/rpx-envs/florence2/bin/python -c 'import transformers; print(transformers.__version__)')"
     internvl_transformers="$([ -x /opt/rpx-envs/internvl/bin/python ] && /opt/rpx-envs/internvl/bin/python -c 'import transformers; print(transformers.__version__)')"
-    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() in (1,2), 'expose one GPU, or two only for a TP2 model'; print(json.dumps({'backends':['vllm','transformers-florence2','transformers-paligemma2','transformers-internvl'],'vllm':vllm.__version__,'transformers':transformers.__version__,'native_transformers':'${florence_transformers}','internvl_transformers':'${internvl_transformers}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu_count':torch.cuda.device_count(),'gpu':torch.cuda.get_device_name(0)},indent=2))"
+    genception_jax="$([ -x /opt/rpx-envs/genception/bin/python ] && /opt/rpx-envs/genception/bin/python -c 'import jax; print(jax.__version__)')"
+    exec python3 -c "import json,torch,transformers,vllm; assert torch.cuda.is_available(), 'CUDA unavailable'; assert torch.cuda.device_count() in (1,2), 'expose one GPU, or two only for a TP2 model'; print(json.dumps({'backends':['vllm','transformers-florence2','transformers-paligemma2','transformers-internvl','jax-genception'],'vllm':vllm.__version__,'transformers':transformers.__version__,'native_transformers':'${florence_transformers}','internvl_transformers':'${internvl_transformers}','genception_jax':'${genception_jax}','rpx_git_sha':'${RPX_GIT_SHA}','torch':torch.__version__,'cuda':torch.version.cuda,'gpu_count':torch.cuda.device_count(),'gpu':torch.cuda.get_device_name(0)},indent=2))"
     ;;
   list-models)
     exec env PYTHONPATH=scripts python3 -c "from vqa_models.backend_registry import CHECKPOINTS,backend_name; print('\n'.join(f'{key}\t{backend_name(key)}\t{cfg.repo_id}@{cfg.revision}' for key,cfg in CHECKPOINTS.items()))"

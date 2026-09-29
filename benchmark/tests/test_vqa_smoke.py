@@ -624,6 +624,8 @@ def test_batched_chat_content_labels_both_incontext_images() -> None:
 
 def test_roster_matches_rpx_draft() -> None:
     assert [model.display_name for model in MODELS] == [
+        "GenCeption 1.3B",
+        "GenCeption 14B",
         "Florence 2 Base",
         "Florence 2 Large",
         "PaliGemma 2 3B",
@@ -686,6 +688,7 @@ def test_docker_matrix_matches_python_roster() -> None:
         "transformers-florence2",
         "transformers-paligemma2",
         "transformers-internvl",
+        "jax-genception",
     ]
     assert matrix["vllm_version"] == "0.28.0"
     assert [model["key"] for model in matrix["models"]] == [model.key for model in MODELS]

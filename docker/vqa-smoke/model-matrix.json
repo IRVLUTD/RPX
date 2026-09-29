@@ -3,9 +3,11 @@
   "single_image_only": false,
   "max_images_per_prompt": 2,
   "inference_backend": "model-specific",
-  "inference_backends": ["vllm", "transformers-florence2", "transformers-paligemma2", "transformers-internvl"],
+  "inference_backends": ["vllm", "transformers-florence2", "transformers-paligemma2", "transformers-internvl", "jax-genception"],
   "vllm_version": "0.28.0",
   "models": [
+    {"key":"genception-1.3b","name":"GenCeption 1.3B","size_b":1.3,"vram_gb":24,"bbox":"native_loc","backend":"jax-genception","tasks":["bbox"]},
+    {"key":"genception-14b","name":"GenCeption 14B","size_b":14,"vram_gb":48,"bbox":"native_loc","backend":"jax-genception","tasks":["bbox"]},
     {"key":"florence2-base","name":"Florence 2 Base","size_b":0.23,"vram_gb":4,"bbox":"native_loc","backend":"transformers-florence2","tasks":["bbox"],"diagnostic_tasks":["semantic_label","phrase_grounding"]},
     {"key":"florence2-large","name":"Florence 2 Large","size_b":0.77,"vram_gb":6,"bbox":"native_loc","backend":"transformers-florence2","tasks":["bbox"],"diagnostic_tasks":["semantic_label","phrase_grounding"]},
     {"key":"paligemma2-3b","name":"PaliGemma 2 3B","size_b":3,"vram_gb":7,"bbox":"native_loc","backend":"transformers-paligemma2","tasks":["bbox"],"diagnostic_tasks":["semantic_label","object_detection"]},

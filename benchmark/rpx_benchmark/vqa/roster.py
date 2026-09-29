@@ -23,6 +23,8 @@ FLORENCE_DIAGNOSTICS = frozenset({"semantic_label", "phrase_grounding"})
 PALIGEMMA_DIAGNOSTICS = frozenset({"semantic_label", "object_detection"})
 
 MODELS = (
+    ModelSpec("genception-1.3b", "GenCeption 1.3B", 1.3, 24, "native_loc", ALL_TASKS),
+    ModelSpec("genception-14b", "GenCeption 14B", 14.0, 48, "native_loc", ALL_TASKS),
     # Native localization models receive the original question as their
     # referring expression and return a bbox in one scored generation.
     ModelSpec(

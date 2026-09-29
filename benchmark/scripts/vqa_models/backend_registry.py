@@ -6,6 +6,8 @@ from pathlib import Path
 
 from vqa_models.florence_backend import CHECKPOINTS as FLORENCE_CHECKPOINTS
 from vqa_models.florence_backend import FlorenceVQARunner
+from vqa_models.genception_backend import CHECKPOINTS as GENCEPTION_CHECKPOINTS
+from vqa_models.genception_backend import GenCeptionVQARunner
 from vqa_models.internvl_backend import CHECKPOINTS as INTERNVL_CHECKPOINTS
 from vqa_models.internvl_backend import InternVLVQARunner
 from vqa_models.paligemma_backend import CHECKPOINTS as PALIGEMMA_CHECKPOINTS
@@ -18,10 +20,13 @@ CHECKPOINTS = {
     **FLORENCE_CHECKPOINTS,
     **PALIGEMMA_CHECKPOINTS,
     **INTERNVL_CHECKPOINTS,
+    **GENCEPTION_CHECKPOINTS,
 }
 
 
 def backend_name(model_key: str) -> str:
+    if model_key in GENCEPTION_CHECKPOINTS:
+        return "jax-genception"
     if model_key in FLORENCE_CHECKPOINTS:
         return "transformers-florence2"
     if model_key in PALIGEMMA_CHECKPOINTS:
@@ -32,6 +37,8 @@ def backend_name(model_key: str) -> str:
 
 
 def backend_version(model_key: str) -> str:
+    if model_key in GENCEPTION_CHECKPOINTS:
+        return GENCEPTION_CHECKPOINTS[model_key].revision
     if (
         model_key in FLORENCE_CHECKPOINTS
         or model_key in PALIGEMMA_CHECKPOINTS
@@ -57,6 +64,8 @@ def create_runner(
         runner_type = PaliGemmaVQARunner
     elif model_key in INTERNVL_CHECKPOINTS:
         runner_type = InternVLVQARunner
+    elif model_key in GENCEPTION_CHECKPOINTS:
+        runner_type = GenCeptionVQARunner
     else:
         runner_type = VLLMVQARunner
     return runner_type(
@@ -75,13 +84,16 @@ def provenance(model_key: str) -> dict[str, str]:
         "checkpoint": checkpoint.repo_id,
         "revision": checkpoint.revision,
     }
-    values[
-        "transformers_version"
-        if (
+    if model_key in GENCEPTION_CHECKPOINTS:
+        values["source_revision"] = values["backend_version"]
+    else:
+        values[
+            "transformers_version"
+            if (
             model_key in FLORENCE_CHECKPOINTS
             or model_key in PALIGEMMA_CHECKPOINTS
             or model_key in INTERNVL_CHECKPOINTS
-        )
-        else "vllm_version"
-    ] = values["backend_version"]
+            )
+            else "vllm_version"
+        ] = values["backend_version"]
     return values

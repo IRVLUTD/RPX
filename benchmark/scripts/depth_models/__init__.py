@@ -290,6 +290,18 @@ def _build_zipdepth(*, device: str = "cuda", batch_size: int = 1, **kwargs):
     return ZipDepthAdapter(device=device, batch_size=batch_size, **kwargs)
 
 
+def _build_genception_1_3b(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    from .genception import build_1_3b
+
+    return build_1_3b(device=device, batch_size=batch_size, **kwargs)
+
+
+def _build_genception_14b(*, device: str = "cuda", batch_size: int = 1, **kwargs):
+    from .genception import build_14b
+
+    return build_14b(device=device, batch_size=batch_size, **kwargs)
+
+
 #: Public name → builder. ``--model X`` resolves through this table.
 #: Each entry is the canonical short id (snake_case) the team uses in
 #: result.json paths and the Box upload tree, so the same key shows up
@@ -309,6 +321,8 @@ MODEL_REGISTRY: Dict[str, ModelBuilder] = {
     "depthlm": _build_depthlm,
     "fe2e": _build_fe2e,
     "zipdepth": _build_zipdepth,
+    "genception-1.3b": _build_genception_1_3b,
+    "genception-14b": _build_genception_14b,
     # ── Relative / aligned (native_alignment="ls_affine") ────────────────
     "da_v2_relative": _build_da_v2_relative,
     "da_v1": _build_da_v1,
@@ -354,6 +368,8 @@ MODEL_DISPLAY_NAMES: Dict[str, str] = {
     "moge_v1": "MoGe-v1-ViTL",
     "hyden_relative": "HyDen-DA2-Relative",
     "zipdepth": "ZipDepth",
+    "genception-1.3b": "GenCeption-1.3B",
+    "genception-14b": "GenCeption-14B",
 }
 
 
