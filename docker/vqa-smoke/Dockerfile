@@ -17,6 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HF_HUB_DISABLE_XET=1 \
     RPX_VQA_CACHE=/cache/rpx-vqa \
     RPX_VQA_OUTPUTS=/outputs \
+    RPX_GENCEPTION_ROOT=/cache/huggingface/genception \
     RPX_GIT_SHA=${RPX_GIT_SHA} \
     VLLM_WORKER_MULTIPROC_METHOD=spawn \
     NVIDIA_VISIBLE_DEVICES=all \

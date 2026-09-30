@@ -180,6 +180,7 @@ def download_assets(root: str | Path, variant: str) -> AssetManifest:
         raise ValueError(f"variant must be one of {sorted(VARIANTS)}")
     root = Path(root).expanduser().resolve()
     checkpoint = root / f"genception_{variant}"
+    shared_vae = root / "shared/vae"
     embeddings = root / "prompt_embeddings"
     files = {
         checkpoint / f"genception_{variant}_transformer.npz": (
@@ -188,18 +189,14 @@ def download_assets(root: str | Path, variant: str) -> AssetManifest:
         checkpoint / f"genception_{variant}_config.json": (
             f"{CHECKPOINT_BASE_URL}/genception_{variant}_config.json"
         ),
-        checkpoint / "vae/config.json": f"{CHECKPOINT_BASE_URL}/vae/config.json",
-        checkpoint / "vae/diffusion_pytorch_model.safetensors": (
+        shared_vae / "config.json": f"{CHECKPOINT_BASE_URL}/vae/config.json",
+        shared_vae / "diffusion_pytorch_model.safetensors": (
             f"{CHECKPOINT_BASE_URL}/vae/diffusion_pytorch_model.safetensors"
         ),
         embeddings / "depth.npy": f"{EMBEDDING_BASE_URL}/depth.npy",
     }
     for destination, url in files.items():
-        relative_name = (
-            f"vae/{destination.name}"
-            if destination.parent.name == "vae"
-            else destination.name
-        )
+        relative_name = f"vae/{destination.name}" if destination.parent.name == "vae" else destination.name
         expected_size = OFFICIAL_ASSET_SIZES[relative_name]
         if destination.is_file() and destination.stat().st_size == expected_size:
             continue
@@ -213,6 +210,10 @@ def download_assets(root: str | Path, variant: str) -> AssetManifest:
                 f"{expected_size} bytes"
             )
         os.replace(temporary, destination)
+    checkpoint.mkdir(parents=True, exist_ok=True)
+    vae_link = checkpoint / "vae"
+    if not vae_link.exists():
+        vae_link.symlink_to(Path("../shared/vae"), target_is_directory=True)
     manifest = AssetManifest(variant, checkpoint, embeddings)
     manifest.validate()
     checksums = {

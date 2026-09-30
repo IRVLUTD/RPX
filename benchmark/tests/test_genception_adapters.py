@@ -135,3 +135,11 @@ def test_vqa_docker_pins_official_genception_source() -> None:
     assert "a47e55120cc2b00027c19c9f1937831e77541056" in dockerfile
     assert "'jax[cuda12]==0.11.2'" in dockerfile
     assert '[[ "$1" == genception-* ]]' in entrypoint
+
+    dedicated = (Path(__file__).parents[2] / "docker/genception/Dockerfile").read_text()
+    dedicated_entrypoint = (
+        Path(__file__).parents[2] / "docker/genception/entrypoint.sh"
+    ).read_text()
+    assert "a47e55120cc2b00027c19c9f1937831e77541056" in dedicated
+    assert "RPX_GENCEPTION_ROOT=/models/genception" in dedicated
+    assert "download_genception.py" in dedicated_entrypoint

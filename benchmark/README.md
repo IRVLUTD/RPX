@@ -69,6 +69,10 @@ affine-invariant and is scored with RPX's per-image or per-clip affine
 alignment. VQA support is bbox grounding; GenCeption is not a language decoder
 and therefore does not answer RPX binary questions.
 
+For the reproducible all-task container, checkpoint download, Hugging Face
+cache mounts and complete smoke commands, use the
+[GenCeption Docker README](../docker/genception/README.md).
+
 The paper reports camera pose, but the public release does not include a pose
 prompt, camera-pose decoder or pose demo. Its optional 2D/3D keypoint tokens do
 not uniquely define the RPX camera transform. The adapter therefore leaves
