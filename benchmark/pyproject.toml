@@ -123,6 +123,7 @@ rpx_benchmark = [
   "guides/**/*.md",
   "guides/README.md",
   "guides/stylesheets/*.css",
+  "guides/assets/*",
   "dataset_hub/croissant_template.json",  # Croissant ML-metadata template
 ]
 

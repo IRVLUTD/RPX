@@ -8,6 +8,7 @@ use_directory_urls: true
 theme:
   name: material
   language: en
+  font: false
   palette:
     - media: '(prefers-color-scheme: light)'
       scheme: default
@@ -48,6 +49,7 @@ extra_css:
 nav:
   - Overview: README.md
   - Get started: getting-started/README.md
+  - Data and annotations: data/README.md
   - Bring your own model: models/README.md
   - Extend the toolkit:
       - Add metrics: metrics/README.md
