@@ -178,7 +178,7 @@ access. Sensor capture and annotation UI checks require their own hardware.
 
 ## Extend the toolkit
 
-See the [metric registration guide](rpx_benchmark/guides/metrics/README.md) and [task extension guide](rpx_benchmark/guides/tasks/README.md). The guides include runnable examples, validation rules, and the source changes needed for a new task identity. They are also bundled in the installed package under `rpx_benchmark/guides/`.
+See the [metric registration guide](https://irvlutd.github.io/RPX/toolkit-docs/metrics/) and [task extension guide](https://irvlutd.github.io/RPX/toolkit-docs/tasks/). The guides include runnable examples, validation rules, and the source changes needed for a new task identity. They are also bundled in the installed package under `rpx_benchmark/guides/`.
 
 Browse the [toolkit documentation](https://irvlutd.github.io/RPX/toolkit-docs/) for installation, model integration, and API reference pages.
 

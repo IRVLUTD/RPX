@@ -28,7 +28,6 @@ print(available_metrics())
 With an existing RPX manifest and a model callable that returns an `H × W` NumPy depth array in metres:
 
 ```python
-from pathlib import Path
 import rpx_benchmark as rpx
 
 # Replace this with your actual model import.
@@ -36,8 +35,10 @@ from my_model import predict_depth
 
 model = rpx.make_numpy_depth_model(predict_depth)
 cfg = rpx.MonocularDepthRunConfig(
-    manifest=Path('manifest.json'),
-    out_dir=Path('results/my-depth-model'),
+    manifest_path='manifest.json',
+    output_dir='results/my-depth-model',
+    device='cpu',
+    skip_flops=True,
     model=model,
     max_samples=10,
 )
@@ -46,7 +47,7 @@ print(result.aggregated)
 print(paths)
 ```
 
-`my_model` is your code, not an installed RPX module. A small `max_samples` is useful for checking integration; a full benchmark needs the complete protocol and split.
+`my_model` is your code, not an installed RPX module. This example uses CPU; select `device="cuda"` when your model and environment support it. A small `max_samples` is useful for checking integration; a full benchmark needs the complete protocol and split.
 
 ## Inspect results
 
