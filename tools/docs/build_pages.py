@@ -25,7 +25,18 @@ def main() -> None:
     env["PYTHONPATH"] = str(ROOT / "benchmark") + os.pathsep + env.get("PYTHONPATH", "")
     with tempfile.TemporaryDirectory(prefix="rpx-api-docs-") as tmp:
         subprocess.run(
-            [sys.executable, "-m", "pdoc", "rpx_benchmark", "--output-directory", tmp],
+            [
+                sys.executable,
+                "-m",
+                "pdoc",
+                "rpx_benchmark",
+                "rpx_benchmark.api",
+                "rpx_benchmark.adapters",
+                "rpx_benchmark.metrics.registry",
+                "rpx_benchmark.tasks.registry",
+                "--output-directory",
+                tmp,
+            ],
             check=True,
             cwd=ROOT,
             env=env,
@@ -89,6 +100,10 @@ def main() -> None:
         "metrics/index.html",
         "tasks/index.html",
         "rpx_benchmark/hub.html",
+        "rpx_benchmark/api.html",
+        "rpx_benchmark/adapters.html",
+        "rpx_benchmark/metrics/registry.html",
+        "rpx_benchmark/tasks/registry.html",
     ]:
         if not (api_output / name).is_file():
             raise RuntimeError(f"Documentation build missing {name}")
