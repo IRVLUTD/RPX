@@ -30,7 +30,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install toolkit and documentation dependencies
-        run: python -m pip install -e './benchmark[hub,schemas,docs]'
+        run: python -m pip install -e './benchmark[hub,schemas,hf-datasets,docs]'
       - name: Build toolkit API pages
         run: python tools/docs/build_pages.py --output _site
       - name: Verify published entry points
