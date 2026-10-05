@@ -1,0 +1,55 @@
+site_name: RPX Toolkit
+site_description: Benchmark robot perception. Compare pretrained models. Bring your own.
+site_url: https://irvlutd.github.io/RPX/toolkit-docs/
+repo_url: https://github.com/IRVLUTD/RPX
+repo_name: IRVLUTD/RPX
+docs_dir: benchmark/rpx_benchmark/guides
+use_directory_urls: true
+theme:
+  name: material
+  language: en
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.suggest
+    - search.highlight
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.details
+extra_css:
+  - stylesheets/extra.css
+nav:
+  - Overview: README.md
+  - Get started: getting-started/README.md
+  - Bring your own model: models/README.md
+  - Extend the toolkit:
+      - Add metrics: metrics/README.md
+      - Add tasks: tasks/README.md
+  - API reference: api/README.md

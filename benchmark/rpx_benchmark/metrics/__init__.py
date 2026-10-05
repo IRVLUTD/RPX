@@ -15,8 +15,7 @@ Adding a new metric to an existing task is a three-line change::
 
 Any number of calculators can be registered per task; the runner
 aggregates their outputs into the per-sample metric dict. To *remove*
-a built-in metric, either instantiate a new :class:`MetricSuite` with
-a specific calculator list or unregister via
+a built-in metric, unregister it via
 :func:`unregister_metric`.
 
 The built-in calculators for every task we ship live in sibling

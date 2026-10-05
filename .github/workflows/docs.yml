@@ -5,6 +5,7 @@ on:
     branches: [main, naren/all]
     paths:
       - "README.md"
+      - "mkdocs.yml"
       - "benchmark/**"
       - "tools/docs/**"
       - ".github/workflows/docs.yml"
@@ -29,13 +30,16 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install toolkit and documentation dependencies
-        run: python -m pip install -e './benchmark[hub,schemas]' 'pdoc>=15,<16'
+        run: python -m pip install -e './benchmark[hub,schemas,docs]'
       - name: Build toolkit API pages
         run: python tools/docs/build_pages.py --output _site
       - name: Verify published entry points
         run: |
           test -s _site/toolkit-docs/index.html
-          grep -q 'rpx_benchmark' _site/toolkit-docs/index.html
+          grep -q 'RPX Toolkit' _site/toolkit-docs/index.html
+          test -s _site/toolkit-docs/metrics/index.html
+          test -s _site/toolkit-docs/tasks/index.html
+          test -s _site/toolkit-docs/rpx_benchmark/hub.html
           test ! -e _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -264,3 +264,7 @@ added here once the paper is released.
 **License.** Code in this repository is **MIT**; see [LICENSE](LICENSE). The
 RPX dataset is released under **CC BY 4.0**; its terms are recorded in the
 [dataset card](https://huggingface.co/datasets/IRVLUTD/RPX).
+
+### Extend RPX
+
+The [toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) cover installation, model integration, and the API. Follow the [metric guide](https://irvlutd.github.io/RPX/toolkit-docs/metrics/) to register a calculator or the [task guide](https://irvlutd.github.io/RPX/toolkit-docs/tasks/) to extend the evaluation pipeline. These guides are included in the `rpx-benchmark` PyPI package.

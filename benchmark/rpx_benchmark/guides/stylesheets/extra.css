@@ -1,0 +1,9 @@
+:root { --md-primary-fg-color: #087f8c; }
+.md-typeset h1 { font-weight: 700; letter-spacing: -.035em; color: var(--md-default-fg-color); }
+.md-typeset h2 { font-weight: 650; letter-spacing: -.02em; }
+.md-header { box-shadow: 0 1px 0 #ffffff20; }
+.md-typeset .grid.cards > ul > li { border-radius: .6rem; padding: 1.1rem; }
+.md-typeset .grid.cards > ul > li:hover { border-color: #087f8c; }
+.md-typeset pre > code { border-radius: .35rem; }
+.md-typeset table:not([class]) { border-radius: .35rem; }
+.md-typeset .admonition { border-radius: .4rem; }

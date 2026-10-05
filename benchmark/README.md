@@ -175,3 +175,26 @@ metrics, reports, download behavior, model-call signatures and VQA parsing.
 They do not download model checkpoints. Run the linked CUDA inference gates
 on the target machine to validate real models, available memory and dataset
 access. Sensor capture and annotation UI checks require their own hardware.
+
+## Extend the toolkit
+
+See the [metric registration guide](rpx_benchmark/guides/metrics/README.md) and [task extension guide](rpx_benchmark/guides/tasks/README.md). The guides include runnable examples, validation rules, and the source changes needed for a new task identity. They are also bundled in the installed package under `rpx_benchmark/guides/`.
+
+Browse the [toolkit documentation](https://irvlutd.github.io/RPX/toolkit-docs/) for installation, model integration, and API reference pages.
+
+To locate the bundled guides after installation:
+
+```python
+from importlib.resources import files
+print(files("rpx_benchmark").joinpath("guides/tasks/README.md").read_text())
+```
+
+To build the documentation from a repository checkout:
+
+```bash
+pip install -e "./benchmark[hub,schemas,docs]"
+python tools/docs/build_pages.py --output _site
+python -m http.server --directory _site 8000
+```
+
+Open `http://localhost:8000/toolkit-docs/`. The build generates guides and API pages from the same source.

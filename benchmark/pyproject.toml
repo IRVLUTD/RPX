@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rpx-benchmark"
-version = "0.3.0"
+version = "0.3.1"
 description = "RPX — benchmark harness for evaluating robot-perception models on real-world RGB-D data"
 authors = [{name = "RPX Team"}]
 maintainers = [{name = "RPX Team"}]
@@ -47,6 +47,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+docs = [
+  "mkdocs-material>=9.6,<10",
+  "pdoc>=15,<16",
+]
+
 # HuggingFace Hub snapshot downloads (modality-aware bulk fetch),
 # packing capture trees into per-modality tar shards, and writing the
 # per-frame Parquet manifest the dataset hub ships.
@@ -114,6 +119,9 @@ include = ["rpx_benchmark*"]
 [tool.setuptools.package-data]
 rpx_benchmark = [
   "py.typed",
+  "guides/**/*.md",
+  "guides/README.md",
+  "guides/stylesheets/*.css",
   "dataset_hub/croissant_template.json",  # Croissant ML-metadata template
 ]
 
