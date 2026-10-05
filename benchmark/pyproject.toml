@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rpx-benchmark"
-version = "0.3.1"
+version = "0.3.2"
 description = "RPX — benchmark harness for evaluating robot-perception models on real-world RGB-D data"
 authors = [{name = "RPX Team"}]
 maintainers = [{name = "RPX Team"}]
@@ -51,6 +51,7 @@ dependencies = [
 docs = [
   "mkdocs-material>=9.6,<10",
   "pdoc>=15,<16",
+  "pandas>=2.0",  # public pose-pair API imports pandas
 ]
 
 # HuggingFace Hub snapshot downloads (modality-aware bulk fetch),

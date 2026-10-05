@@ -30,11 +30,11 @@ revision and runtime metadata with the results.
 
 | Evaluation | Models and commands | Environment |
 |---|---|---|
-| Image depth | Ten canonical models, including DA3, DA-V2 Large, Depth Pro, UniDepth V2, Metric3D V2, MoGe-2, HyDen, Lotus 2, FE2E and ZipDepth; `scripts/run_depth.py` | [Depth](../docker/depth-smoke/README.md), with dedicated [FE2E](../docker/depth-fe2e/README.md) and [ZipDepth](../docker/depth-zipdepth/README.md) overlays |
-| Video depth | DA3, DepthCrafter, Video Depth Anything, ChronoDepth, RollingDepth, DVD, GEMDepth, ViGeo, MonST3R and VGGT; `scripts/run_video_depth.py` | [Depth](../docker/depth-smoke/README.md), [DVD](../docker/depth-dvd/README.md), [GEMDepth](../docker/depth-gemdepth/README.md) |
-| Relative pose | VGGT, DA3, CUT3R, DUSt3R, MASt3R, MUSt3R, Reloc3r, Pi3X, Fast3R and MonST3R; additional baseline adapters are retained | [Relative pose](../docker/rcpe-smoke/README.md) |
-| Tracking | Mask-, box- and text-initialized adapters, with MOS and Ego protocols; `scripts/run_tracking.py` and `scripts/run_tracking_paper.py` | [Tracking](../docker/tracking-smoke/README.md) |
-| VQA / bbox grounding | Twenty roster entries with native Transformers or vLLM backends, one- and two-image inputs; `scripts/run_vqa_benchmark.py` | [VQA](../docker/vqa-smoke/README.md) |
+| Image depth | Ten canonical models, including DA3, DA-V2 Large, Depth Pro, UniDepth V2, Metric3D V2, MoGe-2, HyDen, Lotus 2, FE2E and ZipDepth; `scripts/run_depth.py` | [Depth](https://github.com/IRVLUTD/RPX/blob/main/docker/depth-smoke/README.md), with dedicated [FE2E](https://github.com/IRVLUTD/RPX/blob/main/docker/depth-fe2e/README.md) and [ZipDepth](https://github.com/IRVLUTD/RPX/blob/main/docker/depth-zipdepth/README.md) overlays |
+| Video depth | DA3, DepthCrafter, Video Depth Anything, ChronoDepth, RollingDepth, DVD, GEMDepth, ViGeo, MonST3R and VGGT; `scripts/run_video_depth.py` | [Depth](https://github.com/IRVLUTD/RPX/blob/main/docker/depth-smoke/README.md), [DVD](https://github.com/IRVLUTD/RPX/blob/main/docker/depth-dvd/README.md), [GEMDepth](https://github.com/IRVLUTD/RPX/blob/main/docker/depth-gemdepth/README.md) |
+| Relative pose | VGGT, DA3, CUT3R, DUSt3R, MASt3R, MUSt3R, Reloc3r, Pi3X, Fast3R and MonST3R; additional baseline adapters are retained | [Relative pose](https://github.com/IRVLUTD/RPX/blob/main/docker/rcpe-smoke/README.md) |
+| Tracking | Mask-, box- and text-initialized adapters, with MOS and Ego protocols; `scripts/run_tracking.py` and `scripts/run_tracking_paper.py` | [Tracking](https://github.com/IRVLUTD/RPX/blob/main/docker/tracking-smoke/README.md) |
+| VQA / bbox grounding | Twenty roster entries with native Transformers or vLLM backends, one- and two-image inputs; `scripts/run_vqa_benchmark.py` | [VQA](https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md) |
 
 For segmentation, detection, open-vocabulary detection, generic grounding,
 sparse depth and keypoint matching, the toolkit supplies the callable APIs,
@@ -88,7 +88,7 @@ print(paths["json"])
 For a local dataset, supply `manifest_path="/data/manifests/monocular_depth/easy.json"`
 to skip downloading. Manifests name a task and dataset root and list samples
 with modality paths, scene, phase and difficulty. Local examples and all ten
-public workflows are exercised in [tests/test_user_workflows.py](tests/test_user_workflows.py).
+public workflows are exercised in [tests/test_user_workflows.py](https://github.com/IRVLUTD/RPX/blob/main/benchmark/tests/test_user_workflows.py).
 For relative depth, set `depth_output_kind="relative"` on the factory; never
 label arbitrary relative values as metric depth.
 
@@ -135,7 +135,7 @@ Return one JSON object with `label` and `bbox` (XYXY coordinates normalized to
 0–1000); binary questions require `yes` or `no`. Parsing failures and inference
 errors remain in the denominator. Runs save raw outputs, errors, timing,
 manifest hash, model revision and scored results. Use a fresh output directory.
-The [VQA runtime README](../docker/vqa-smoke/README.md) explains manifest
+The [VQA runtime README](https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md) explains manifest
 preparation and the reference-model benchmark. The preserved Molmo adapter in
 `scripts/vqa_models/molmo_backend.py` is optional and outside the frozen roster.
 
@@ -143,9 +143,9 @@ preparation and the reference-model benchmark. The preserved Molmo adapter in
 
 The Hub loader fetches only required modalities and reuses its cache. Pin a
 dataset commit for comparable runs; do not mix results from moving revisions.
-The [data README](data/README.md) identifies the local canonical splits and
+The [data README](https://github.com/IRVLUTD/RPX/blob/main/benchmark/data/README.md) identifies the local canonical splits and
 metadata. Dataset publishing tools are documented separately in
-[rpx_benchmark/dataset_hub/README.md](rpx_benchmark/dataset_hub/README.md).
+[rpx_benchmark/dataset_hub/README.md](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/dataset_hub/README.md).
 
 Generic frame runs write `result.json`, `summary.md`, `cells.parquet` and
 `per_sample_metrics.parquet`. Video runs write clip/cell results. Hardware,

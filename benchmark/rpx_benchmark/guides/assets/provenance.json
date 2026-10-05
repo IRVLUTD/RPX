@@ -61,10 +61,10 @@
       "description": "Existing RPX appendix artwork; original pixels preserved"
     },
     {
-      "file": "mask-annotation.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/mask_annotation_pipeline.jpg",
-      "sha256": "8a1029c0cb6a25a7f114ac9bcd0d6b77a69cb7867f5c2f682f481d245334077a",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "file": "mask-annotation.png",
+      "source": "User-supplied mask annotation workflow figure (image.png)",
+      "sha256": "341d12421da394590e552b610d844072e60a5d30db4563735bbbf96ea6907908",
+      "description": "Original supplied PNG; original pixels preserved"
     }
   ]
 }

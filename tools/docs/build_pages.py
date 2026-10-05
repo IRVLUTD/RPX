@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -23,19 +24,24 @@ def main() -> None:
     api_output = output / "toolkit-docs"
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ROOT / "benchmark") + os.pathsep + env.get("PYTHONPATH", "")
+    # Explicit discovery bypasses package __all__, which otherwise hides most
+    # task, metric and loader modules from pdoc's recursive traversal.
+    modules = []
+    for source in sorted((ROOT / "benchmark/rpx_benchmark").rglob("*.py")):
+        parts = list(source.relative_to(ROOT / "benchmark").with_suffix("").parts)
+        if parts[-1] == "__init__":
+            parts.pop()
+        modules.append(".".join(parts))
     with tempfile.TemporaryDirectory(prefix="rpx-api-docs-") as tmp:
         subprocess.run(
             [
                 sys.executable,
-                "-m",
-                "pdoc",
-                "rpx_benchmark",
-                "rpx_benchmark.api",
-                "rpx_benchmark.adapters",
-                "rpx_benchmark.metrics.registry",
-                "rpx_benchmark.tasks.registry",
-                "--output-directory",
+                str(ROOT / "tools/docs/render_api.py"),
+                "--templates",
+                str(ROOT / "tools/docs/templates"),
+                "--output",
                 tmp,
+                *modules,
             ],
             check=True,
             cwd=ROOT,
@@ -75,26 +81,22 @@ def main() -> None:
                     f'<a href="{guide_root}api/">API overview</a></nav>'
                 )
                 style = (
-                    "<style>.rpx-guide-nav{display:flex;flex-wrap:wrap;gap:1.2rem;"
-                    "padding:1rem 1.5rem;background:#087f8c;color:white;"
-                    "position:sticky;top:0;z-index:1000;box-sizing:border-box;"
-                    "font:600 14px system-ui}.rpx-guide-nav a{color:white;"
-                    "text-decoration:none}.rpx-guide-nav a:hover{text-decoration:underline}"
-                    "html{scroll-padding-top:1rem}body{font-family:system-ui,sans-serif;}"
-                    "nav.pdoc{border-right:1px solid #087f8c25;top:52px;height:calc(100vh - 52px);}"
-                    "main.pdoc{max-width:1100px;}main.pdoc h1{letter-spacing:-.035em;}"
-                    "main.pdoc h2{border-bottom:1px solid #087f8c25;padding-bottom:.4rem;}"
-                    "main.pdoc a{color:#087f8c;}main.pdoc pre{border-radius:.5rem;}"
-                    "main.pdoc .docstring{line-height:1.7;}</style>"
+                    "<style>" + (ROOT / "tools/docs/api.css").read_text() + "</style>"
                 )
                 html = source.read_text()
                 html = html.replace("</head>", style + "</head>", 1)
-                import re
-
                 html = re.sub(r"(<body[^>]*>)", lambda m: m[1] + toolbar, html, count=1)
                 target.write_text(html)
             else:
                 target.write_bytes(source.read_bytes())
+    for module in modules:
+        name = module.replace(".", "/") + ".html"
+        if not (api_output / name).is_file():
+            raise RuntimeError(f"Documentation build missing public module {module}")
+    subprocess.run(
+        [sys.executable, str(ROOT / "tools/docs/check_links.py"), str(api_output)],
+        check=True,
+    )
     for name in [
         "index.html",
         "metrics/index.html",

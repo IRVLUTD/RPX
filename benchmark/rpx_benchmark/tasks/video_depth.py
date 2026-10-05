@@ -70,7 +70,8 @@ D1V_TASK = VIDEO_DEPTH_TASK = "video_depth"
 class VideoDepthRunConfig(VideoTaskRunConfig):
     """Knobs for a Video Depth run.
 
-    Inherits ``frame_budget`` and ``sampling`` from
+    Inherits `rpx_benchmark.tasks._video_pipeline.VideoTaskRunConfig.frame_budget`
+    and `rpx_benchmark.tasks._video_pipeline.VideoTaskRunConfig.sampling` from
     :class:`~rpx_benchmark.tasks._video_pipeline.VideoTaskRunConfig` for
     the temporal-resolution ablation (paper §5.2); leave the defaults
     (``frame_budget=None, sampling="all"``) for the headline run.

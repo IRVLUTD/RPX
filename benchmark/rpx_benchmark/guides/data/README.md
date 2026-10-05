@@ -2,6 +2,26 @@
 
 RPX follows the same objects across scene phases. Its inputs and annotations support several perception tasks on shared captures, rather than unrelated task datasets.
 
+## Release inventory
+
+The canonical release contains **133,121 frame records**. Count one capture
+frame once; RGB, depth, masks and stereo files are modalities of that capture,
+not additional frames.
+
+| Stream | Captures | Frames |
+| --- | --- | ---: |
+| MOS (exocentric) | 100 scenes × 3 phases × 250 frames | 75,000 |
+| SOS (single object) | 70 objects × 500 frames | 35,000 |
+| Ego | 100 Interaction clips, variable length | 23,121 |
+| **Total** | MOS + SOS + Ego | **133,121** |
+
+Use the current release's `manifest/frames_v1.parquet` through
+[`hub.fetch_manifest`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html#fetch_manifest)
+for frame discovery. Include the stream identity (`scene_type`) when checking
+uniqueness: exocentric and ego frames can share a scene, phase and frame index.
+Historical/local manifests can cover fewer ego clips and are not a substitute
+for the canonical release inventory.
+
 ## Capture views
 
 Exocentric Clutter, Interaction, and Clean provide RGB-D, masks, stereo, and pose. Egocentric RGB is captured during Interaction on an independent clock. Do not assume frame-level synchronization between the ego and exo streams.
@@ -22,7 +42,7 @@ Masks connect local frame instances to persistent/global identities. The overlay
 
 ## How masks are annotated
 
-<figure class="rpx-wide-figure"><a href="../assets/mask-annotation.jpg"><img src="../assets/mask-annotation.jpg" width="3757" height="1519" loading="lazy" alt="Seven-stage mask annotation workflow: generate boxes, verify initial masks, propagate with SAM2, verify frame by frame, automatically refine, manually relabel, and release verified masks."></a><figcaption>RPX's existing annotation-pipeline figure. Open the image for the full-resolution labels.</figcaption></figure>
+<figure class="rpx-wide-figure"><a href="../assets/mask-annotation.png"><img src="../assets/mask-annotation.png" width="3757" height="1519" loading="lazy" alt="Seven-stage mask annotation workflow: generate boxes, verify initial masks, propagate with SAM2, verify frame by frame, automatically refine, manually relabel, and release verified masks."></a><figcaption>RPX's automated and human-in-the-loop mask annotation workflow. Open the image for the full-resolution labels.</figcaption></figure>
 
 Automatic propagation is combined with human verification and correction. This figure describes dataset annotation, not the inference pipeline of every benchmark model.
 
