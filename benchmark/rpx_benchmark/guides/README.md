@@ -34,17 +34,19 @@ Evaluate pretrained models on real RGB-D captures before, during, and after mani
 Clutter captures the scene before manipulation; Interaction introduces hands, occlusion, and motion; Clean records the scene afterwards. Egocentric Interaction provides another viewpoint on an independent clock. Object identities connect the views and phases.
 
 <div class="rpx-filmstrip">
-<figure><img src="assets/clutter.jpg" width="640" height="480" loading="lazy" alt="Scene 091 before manipulation with colored instance-mask overlays."><figcaption><span>01 / CLUTTER</span>Before manipulation</figcaption></figure>
-<figure><img src="assets/interaction.jpg" width="640" height="480" loading="lazy" alt="Scene 091 during manipulation with a hand occluding objects and mask overlays."><figcaption><span>02 / INTERACTION</span>Hands, motion, occlusion</figcaption></figure>
-<figure><img src="assets/clean.jpg" width="640" height="480" loading="lazy" alt="Scene 091 after manipulation with persistent object-mask colors."><figcaption><span>03 / CLEAN</span>After manipulation</figcaption></figure>
-<figure><img src="assets/ego.jpg" width="960" height="720" loading="lazy" alt="Egocentric view of scene 091 during interaction with object-mask overlays."><figcaption><span>+ / EGOCENTRIC</span>A separate viewpoint</figcaption></figure>
+<figure><img src="assets/clutter.jpg" width="640" height="480" loading="lazy" alt="Scene 012 before manipulation with colored instance-mask overlays."><figcaption><span>01 / CLUTTER</span>Before manipulation</figcaption></figure>
+<figure><img src="assets/interaction.jpg" width="640" height="480" loading="lazy" alt="Scene 012 during manipulation with a hand occluding objects and mask overlays."><figcaption><span>02 / INTERACTION</span>Hands, motion, occlusion</figcaption></figure>
+<figure><img src="assets/clean.jpg" width="640" height="480" loading="lazy" alt="Scene 012 after manipulation with persistent object-mask colors."><figcaption><span>03 / CLEAN</span>After manipulation</figcaption></figure>
+<figure><img src="assets/ego.jpg" width="960" height="720" loading="lazy" alt="Egocentric view of scene 012 during interaction with object-mask overlays."><figcaption><span>+ / EGOCENTRIC</span>A separate viewpoint</figcaption></figure>
 </div>
 
-<p class="rpx-image-note">Representative frames from outdoor scene 091, shown with released mask overlays. The four views are not frame-synchronized.</p>
+<p class="rpx-image-note">Representative frames from indoor scene 012, shown with released mask overlays. The four views are not frame-synchronized.</p>
 
 <p class="rpx-eyebrow">02 / THE TOOLKIT</p>
 
 ## From predictions to evidence.
+
+<figure class="rpx-workflow-figure"><a href="assets/toolkit-overview.svg"><img src="assets/toolkit-overview.svg" alt="RPX data with scene012 feeds six task model interfaces, evaluation, Phi/JEDI calculation and hardware evidence."></a><figcaption>Bring your model to RPX task data. Adapters connect inference to shared scoring; annotation, profiling and extension tools complete the workflow. Open the vector figure to zoom.</figcaption></figure>
 
 A versioned manifest selects the samples. The loader resolves inputs and ground truth, an adapter connects your model, and task-specific metrics produce per-sample records and aggregate reports. Model weights remain separate from the toolkit.
 
@@ -56,6 +58,19 @@ A versioned manifest selects the samples. The loader resolves inputs and ground 
 <a href="metrics/"><span class="rpx-route-number">03</span><span><strong>Add a metric</strong><small>Register a calculator with a tested scoring contract.</small></span><span aria-hidden="true">↗</span></a>
 <a href="tasks/"><span class="rpx-route-number">04</span><span><strong>Extend the tasks</strong><small>Define inputs, ground truth, adapters, and evaluation.</small></span><span aria-hidden="true">↗</span></a>
 </div>
+
+## Tools you can use today.
+
+| Workflow | What it gives you |
+| --- | --- |
+| [Mask annotation pipeline](annotation/README.md) | Box curation, SAM2 propagation, review, refinement and identity mapping |
+| [Hardware profiler](profiling/README.md) | Warmup-excluded synchronized latency, memory and system cards |
+| [Φ/JEDI calculator](analysis/README.md) | Robustness, joint desirability and worst-phase quality from raw metrics |
+| [Six benchmark samples](benchmarks/README.md) | Installed smoke commands and real manifest/callable examples for every paper task |
+| [Bring your own model](models/README.md) | Local models and API clients through task-specific contracts |
+| [All capabilities](capabilities/README.md) | Data tools, ESD, batch adapters, visualization, additional tasks and extensions |
+
+The figures and task walkthroughs use **scene012** as a common target. The matched SOS reference required by T6 is the exception to the common target scene.
 
 ## Six tasks. Shared scenes.
 
@@ -77,21 +92,21 @@ T5 and T6 use visual-grounding tooling with distinct protocols. The toolkit also
 Exocentric captures combine RGB, metric depth, instance masks, calibrated fisheye stereo, and camera pose. Each modality plays a different role in loading, evaluation, and checking predictions.
 
 <div class="rpx-modalities">
-<figure><img src="assets/rgb.jpg" width="640" height="480" loading="lazy" alt="Single-object RGB capture of a dark handled object on the capture board."><figcaption><span>RGB</span>Appearance and model input</figcaption></figure>
-<figure><img src="assets/depth.png" width="640" height="480" loading="lazy" alt="Colorized metric-depth visualization of the same single-object capture."><figcaption><span>METRIC DEPTH</span>Geometry and depth ground truth</figcaption></figure>
-<figure><img src="assets/stereo-left.jpg" width="848" height="800" loading="lazy" alt="Left T265 fisheye view of the single-object capture board."><figcaption><span>FISHEYE / LEFT</span>Calibrated stereo input</figcaption></figure>
+<figure><img src="assets/rgb.jpg" width="640" height="480" loading="lazy" alt="Scene012 Interaction RGB frame00113."><figcaption><span>RGB</span>Appearance and model input</figcaption></figure>
+<figure><img src="assets/depth.png" width="640" height="480" loading="lazy" alt="Colorized metric-depth visualization of the same scene012 Interaction capture."><figcaption><span>METRIC DEPTH</span>Geometry and depth ground truth</figcaption></figure>
+<figure><img src="assets/stereo-left.jpg" width="848" height="800" loading="lazy" alt="Left T265 fisheye view of the scene012 Interaction capture."><figcaption><span>FISHEYE / LEFT</span>Calibrated stereo input</figcaption></figure>
 <figure><img src="assets/stereo-right.jpg" width="848" height="800" loading="lazy" alt="Right T265 fisheye view paired with the left view."><figcaption><span>FISHEYE / RIGHT</span>Paired viewpoint</figcaption></figure>
 </div>
 
-<p class="rpx-image-note">RGB, colorized depth, and stereo examples from the same SOS capture. The depth visualization is illustrative; scoring uses the released metric values, not image colors. See the <a href="data/">data guide</a> for annotation and modality details.</p>
+<p class="rpx-image-note">RGB, measured depth, and fisheye stereo from scene012 Interaction frame00113. The depth visualization is illustrative; scoring uses the released metric values, not image colors. See the <a href="data/">data guide</a> for annotation and modality details.</p>
 
 ## Concepts and acronyms
 
 - **MOS / SOS:** multi-object scenes / single-object captures.
 - **Phase:** Clutter, Interaction, or Clean. Egocentric Interaction is a separate view.
 - **ESD:** empirical scene difficulty, used to group scenes by difficulty.
-- **J / Jmin:** normalized desirability and worst-phase quality.
-- **Φ:** phase robustness from the paper analysis tools; it is not the mean of raw metric values.
+- **JEDI / J / Jmin:** Joint Empirical Desirability Index; overall mean cell desirability and the lowest phase-mean quality.
+- **Φ:** phase robustness from repeated-measures analysis of paired raw metrics. High robustness must be considered alongside prediction quality.
 - **GT:** ground truth. Keep units, coordinates, and object identities consistent across predictions and GT.
 
 <div class="rpx-closing" markdown>
@@ -104,6 +119,15 @@ Start with a small integration run. Scale to the full protocol once shapes, unit
 
 </div>
 
-The toolkit is released under the MIT license. Check dataset and pretrained-model licenses separately.
+## Cite RPX
+
+The official BibTeX entry will be added after arXiv publication.
+
+```bibtex
+% RPX citation placeholder.
+% Official BibTeX will be added after the arXiv paper is published.
+```
+
+[Licenses and citation](citation/README.md). Toolkit code is MIT; dataset and pretrained-model licenses are separate.
 
 </div>

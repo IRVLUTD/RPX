@@ -48,10 +48,24 @@ extra_css:
   - stylesheets/extra.css
 nav:
   - Overview: README.md
+  - Capabilities: capabilities/README.md
   - Get started: getting-started/README.md
-  - Data and annotations: data/README.md
+  - Data and annotation:
+      - Data contracts: data/README.md
+      - Mask annotation pipeline: annotation/README.md
   - Bring your own model: models/README.md
+  - Benchmark samples:
+      - All six tasks: benchmarks/README.md
+      - T1 Image depth: benchmarks/t1/README.md
+      - T2 Video depth: benchmarks/t2/README.md
+      - T3 Object tracking: benchmarks/t3/README.md
+      - T4 Camera pose: benchmarks/t4/README.md
+      - T5 Visual grounding: benchmarks/t5/README.md
+      - T6 In-context grounding: benchmarks/t6/README.md
+  - Hardware profiler: profiling/README.md
+  - Φ and JEDI calculator: analysis/README.md
   - Extend the toolkit:
       - Add metrics: metrics/README.md
       - Add tasks: tasks/README.md
   - API reference: api/README.md
+  - Citation and licenses: citation/README.md

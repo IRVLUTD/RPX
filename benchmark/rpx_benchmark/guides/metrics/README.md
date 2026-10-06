@@ -1,5 +1,7 @@
 # Add metrics
 
+<figure class="rpx-workflow-figure"><a href="../assets/add-metrics.svg"><img src="../assets/add-metrics.svg" alt="Metric registration, a scoring contract, and hand-computed validation." loading="lazy"></a><figcaption>Metric registration, a scoring contract, and hand-computed validation. Open the vector figure to zoom or reuse it.</figcaption></figure>
+
 ## Register a calculator
 
 A metric family subclasses `MetricCalculator`. Its `compute(prediction, ground_truth)` returns a dictionary of scalar values. Registration constructs the calculator with no arguments, so use default constructor settings.
@@ -72,3 +74,18 @@ Adding a raw metric does not automatically change the primary score, J, or Φ. `
 Use hand-computed perfect and imperfect predictions, malformed shapes, invalid GT, non-finite predictions, and empty-validity cases. Confirm the metric appears in a normal run's per-sample and aggregate outputs. Test independence from registration order when output keys are unique.
 
 [Metric registry API](../api/README.md) · [Add tasks](../tasks/README.md)
+
+## Include a custom score in Φ/JEDI
+
+Register its normalization contract separately from the calculator:
+
+```python
+from rpx_benchmark.metrics.specs import MetricSpec, register_spec
+
+register_spec(MetricSpec(
+    name='custom_depth_mae_m', direction='lower', best=0.0, worst=1.0,
+    theoretical=False, description='Example fixed MAE window in metres',
+))
+```
+
+The bounds above define an example protocol; they are not paper-calibrated bounds. Explicitly include the new key when calling the [raw-metric calculator](../analysis/README.md), and keep those bounds identical across models.

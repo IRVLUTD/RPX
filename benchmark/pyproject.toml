@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rpx-benchmark"
-version = "0.3.2"
+version = "0.3.3"
 description = "RPX — benchmark harness for evaluating robot-perception models on real-world RGB-D data"
 authors = [{name = "RPX Team"}]
 maintainers = [{name = "RPX Team"}]

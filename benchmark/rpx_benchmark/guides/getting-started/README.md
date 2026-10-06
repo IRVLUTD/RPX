@@ -1,5 +1,7 @@
 # Get started
 
+<figure class="rpx-workflow-figure"><a href="../assets/getting-started.svg"><img src="../assets/getting-started.svg" alt="Install, check integration, then connect real models." loading="lazy"></a><figcaption>Install, check integration, then connect real models. Open the vector figure to zoom or reuse it.</figcaption></figure>
+
 ## Install
 
 Python 3.10 or newer is required. Use a virtual environment:
@@ -54,3 +56,11 @@ print(paths)
 The result contains `per_sample`, `aggregated`, and `num_samples`. The returned `paths` identify generated reports and cell records. Check that the sample count and scene/phase IDs match your manifest before comparing model scores.
 
 [Connect a model](../models/README.md) or [add a metric](../metrics/README.md).
+
+## Try every task without weights
+
+```bash
+python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output results/six-task-smoke
+```
+
+These are synthetic integration checks, not pretrained model evaluations. Then follow the [six task guides](../benchmarks/README.md) for real manifest and callable commands, the [hardware profiler](../profiling/README.md) for measurements, and the [raw-metric calculator](../analysis/README.md) for Φ/JEDI.

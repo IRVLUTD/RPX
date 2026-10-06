@@ -10,10 +10,12 @@ from the same source as the published Python package.
 | --- | --- | --- |
 | Load and download RPX | [`hub.load`, `fetch_manifest`, `download_split`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html), [`RPXDataset`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/loader.html) | [Get started](../getting-started/README.md) |
 | Connect a model | [`BenchmarkableModel`, adapters and NumPy factories](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/adapters.html) | [Bring your own model](../models/README.md) |
-| Run a task | [Task runners and configurations](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks.html), [benchmark runner](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/runner.html) | [Add tasks](../tasks/README.md) |
+| Run a task | [Task runners and configurations](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks.html), [benchmark runner](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/runner.html) | [Benchmark samples](../benchmarks/README.md) |
 | Compute or extend metrics | [Metric implementations](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/metrics.html), [metric registry](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/metrics/registry.html) | [Add metrics](../metrics/README.md) |
 | Use VQA or grounding contracts | [VQA tools](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa.html), [robot VQA](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/robot_vqa_v2.html) | [Model integration](../models/README.md) |
 | Analyze robustness and efficiency | [Deployment](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/deployment.html), [Phi](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/phi.html), [JEDI](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/jedi.html), [profiler](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html) | [Concepts](../README.md#concepts-and-acronyms) |
+| Measure hardware performance | [Profiler](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html) | [Hardware guide](../profiling/README.md) |
+| Calculate Φ/JEDI from raw metrics | [Raw calculator](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/summarize_metrics.html) | [Analysis guide](../analysis/README.md) |
 
 ## Public Python interface
 
@@ -191,3 +193,11 @@ is available without loading model weights.
 | [`rpx_benchmark.vqa.sampling`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/sampling.html) | Deterministic, diversity-preferring row selection shared by the |
 
 Reference pages include search across the generated modules. Use the workflow guides for runnable integration examples and the module pages for the detailed contract.
+
+## Installed workflow examples
+
+| Module | Purpose |
+| --- | --- |
+| [`examples.benchmark_tasks`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/benchmark_tasks.html) | Six offline smoke fixtures and real manifest/callable dispatch |
+| [`examples.profile_callable`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/profile_callable.html) | Synchronized callable timing, per-device memory and system card |
+| [`examples.summarize_metrics`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/summarize_metrics.html) | Validated raw CSV/JSON/JSONL → independent Φ/JEDI summaries |

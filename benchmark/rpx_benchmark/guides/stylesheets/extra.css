@@ -23,6 +23,10 @@
   --rpx-on-accent: #172422;
 }
 body { background: var(--rpx-paper); }
+.md-typeset figure.rpx-workflow-figure { margin: 1.8rem 0; max-width: 100%; text-align: left; }
+.rpx-workflow-figure img { width: 100%; height: auto; display: block; border: 1px solid var(--rpx-line); background: white; }
+.md-typeset .rpx-workflow-figure figcaption { margin: .7rem 0 0; color: var(--rpx-muted); font-size: .65rem; font-style: normal; line-height: 1.6; }
+.rpx-workflow-figure a { display: block; }
 .md-grid { max-width: 1440px; }
 .md-typeset { font-size: .82rem; line-height: 1.75; }
 .md-typeset h1, .md-typeset h2, .md-typeset h3 {

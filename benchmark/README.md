@@ -192,9 +192,26 @@ print(files("rpx_benchmark").joinpath("guides/tasks/README.md").read_text())
 To build the documentation from a repository checkout:
 
 ```bash
-pip install -e "./benchmark[hub,schemas,docs]"
+pip install -e "./benchmark[hub,schemas,hf-datasets,docs]"
 python tools/docs/build_pages.py --output _site
 python -m http.server --directory _site 8000
 ```
 
 Open `http://localhost:8000/toolkit-docs/`. The build generates guides and API pages from the same source.
+
+## Illustrated workflows in the installed package
+
+Use the [six task benchmark samples](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/), [mask annotation pipeline](https://irvlutd.github.io/RPX/toolkit-docs/annotation/), [hardware profiler](https://irvlutd.github.io/RPX/toolkit-docs/profiling/), and [raw Φ/JEDI calculator](https://irvlutd.github.io/RPX/toolkit-docs/analysis/). Workflow figures share scene012, and the guides and runnable examples ship in the wheel. Annotation and pretrained reference runners need a source checkout and their separate environments.
+
+```bash
+python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output results/six-task-smoke
+python -m rpx_benchmark.examples.profile_callable --help
+python -m rpx_benchmark.examples.summarize_metrics --help
+```
+
+The offline command runs synthetic integration fixtures, not pretrained models. See each guide for real-data commands and protocol boundaries.
+
+```bibtex
+% RPX citation placeholder.
+% Official BibTeX will be added after the arXiv paper is published.
+```

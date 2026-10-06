@@ -1,5 +1,7 @@
 # Bring your own model
 
+<figure class="rpx-workflow-figure"><a href="../assets/bring-your-model.svg"><img src="../assets/bring-your-model.svg" alt="Input and output adapters keep your inference pipeline compatible with RPX scoring." loading="lazy"></a><figcaption>Input and output adapters keep your inference pipeline compatible with RPX scoring. Open the vector figure to zoom or reuse it.</figcaption></figure>
+
 ## Choose an integration path
 
 | Path | Use it when |
@@ -48,3 +50,9 @@ The client and response schema are service-specific. RPX does not create an API 
 Run a known synthetic case, then a small real split. Verify output shapes, finite values, IDs, and units. Confirm that all requested samples were evaluated and failed calls are accounted for. Use the same split, preprocessing, and metric settings for every comparison.
 
 [Task API](../api/README.md) · [Add metrics](../metrics/README.md)
+
+## Task-specific callable commands
+
+Use the [six benchmark samples](../benchmarks/README.md) to connect a module/function from an installed wheel. T1–T4 wrap task-specific NumPy callables; T5/T6 use `evaluate_vqa` with canonical prompts, parser, and retained failures. The two-image contract and verified SOS crop are required for T6.
+
+[Tool capabilities](../capabilities/README.md) · [Hardware profiler](../profiling/README.md)

@@ -1,5 +1,7 @@
 # Add tasks
 
+<figure class="rpx-workflow-figure"><a href="../assets/add-tasks.svg"><img src="../assets/add-tasks.svg" alt="Task contracts connect loaders, adapters, scoring and reporting." loading="lazy"></a><figcaption>Task contracts connect loaders, adapters, scoring and reporting. Open the vector figure to zoom or reuse it.</figcaption></figure>
+
 ## Runtime extension versus a new task identity
 
 The current public task identities are members of `TaskType`, a fixed enum. You can register a new metric or replace the runner for an existing identity at runtime. A completely new identity requires a toolkit source change; an arbitrary string is not a supported replacement for `TaskType` in the metric registration API.

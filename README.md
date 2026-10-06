@@ -268,3 +268,11 @@ RPX dataset is released under **CC BY 4.0**; its terms are recorded in the
 ### Extend RPX
 
 The [toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) cover installation, model integration, and the API. Follow the [metric guide](https://irvlutd.github.io/RPX/toolkit-docs/metrics/) to register a calculator or the [task guide](https://irvlutd.github.io/RPX/toolkit-docs/tasks/) to extend the evaluation pipeline. These guides are included in the `rpx-benchmark` PyPI package.
+
+
+The illustrated [toolkit capabilities](https://irvlutd.github.io/RPX/toolkit-docs/capabilities/) include [mask annotation](https://irvlutd.github.io/RPX/toolkit-docs/annotation/), [hardware profiling](https://irvlutd.github.io/RPX/toolkit-docs/profiling/), [Φ/JEDI from raw metrics](https://irvlutd.github.io/RPX/toolkit-docs/analysis/), and [examples for all six tasks](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/). Guides and offline examples are included in the PyPI package.
+
+```bibtex
+% RPX citation placeholder.
+% Official BibTeX will be added after the arXiv paper is published.
+```

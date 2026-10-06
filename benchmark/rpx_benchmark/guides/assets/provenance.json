@@ -8,63 +8,199 @@
     },
     {
       "file": "clutter.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/cells/scene091_clutter.jpg",
-      "sha256": "d3f4ddc8127a1d784d2f83707c8e3c312440040d197a936e3d292eaf9ba8695e",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "RPX appendix/cells/scene012_clutter.jpg",
+      "sha256": "af9b1bc2d831989dbf903c2c8816fde1aac5efb658c69ad569815e6e29a92b6a",
+      "description": "Scene 012; original published figure pixels preserved"
     },
     {
       "file": "interaction.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/cells/scene091_interaction.jpg",
-      "sha256": "2d510fda2ac04b9df321e4ed6040683b0a8f99b097b924b5dac4aa76ee877483",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "RPX appendix/cells/scene012_interaction.jpg",
+      "sha256": "1cd46c8f9df755e76078f3438c90acd7b8d9def8a4a4bed27b442f7e65db8e6e",
+      "description": "Scene 012; original published figure pixels preserved"
     },
     {
       "file": "clean.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/cells/scene091_clean.jpg",
-      "sha256": "8c91197c4fa9ce80f11e0a2b5c67221311c0791fcde03a54d68cfcfa9781d146",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "RPX appendix/cells/scene012_clean.jpg",
+      "sha256": "ef1da8826005b09b73155041346825af56a186900dbf88f47705f61929b6a5a5",
+      "description": "Scene 012; original published figure pixels preserved"
     },
     {
       "file": "ego.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/cells/scene091_ego.jpg",
-      "sha256": "4d4dab99e16bfb2642a9b8365f615535805d7a348b9fa943f95920bc77da3ac3",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "RPX appendix/cells/scene012_ego.jpg",
+      "sha256": "264ed7921b23ab43e9b822f88487acba82d1b9ebddbc0e649f648fa26b812609",
+      "description": "Scene 012; original published figure pixels preserved"
     },
     {
       "file": "rgb.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/objects/sosmod_rgb.jpg",
-      "sha256": "0ea5730031410e01b2dc885237cf6ebf88136de73e9155b70a73ee27a05cd236",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "scenes/scene012/1/rgb.tar#rgb/00113.png",
+      "sha256": "29f385f59cf96a70233a304f4132a6c97d252181fd63077ff3c8422667921faa",
+      "description": "Real released scene012 Interaction frame00113; visualized RGB/stereo or integer mask labels; not a model prediction",
+      "source_sha256": "c38c33ee4ba96d68baec70173539f60f3eb383284e6ac25fa4441b5e518d04be"
     },
     {
       "file": "depth.png",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/objects/sosmod_depth.png",
-      "sha256": "4ac2af33389223258bbd6a27a71f9281183df4138e404e7e09ef33d1fc6b4fda",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "scenes/scene012/1/depth.tar#depth/00113.png",
+      "sha256": "b87e9590725d130c07bcd735c9e9d173a77f3fe2f96f94c3395df657b5ab9f4f",
+      "description": "Measured D435 depth; display color ramp 0.3\u20135 m, zero invalid pixels black; not a model prediction",
+      "source_sha256": "3d0ab2f38164afc367de52b21aa3e6d8f6e6ac1979876993b37ae168f6594732"
     },
     {
       "file": "mask.png",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/objects/sosmod_mask.png",
-      "sha256": "d4eace6ac541a42c690cddb588e8ea07b87d81f5ed607e7d0ca7b35b818d567e",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "scenes/scene012/1/labels/masks/v1.tar#sam2/masks/00113.png",
+      "sha256": "b078f5bb4fe9a078563f1c1282647c304665204c2dd120c73989bc81b6ec139c",
+      "description": "Real released scene012 Interaction frame00113; visualized RGB/stereo or integer mask labels; not a model prediction",
+      "source_sha256": "119e6be79fda85d069556bcc7e28c55c4f8c0e069828321ef333a7c88bdd0ade"
     },
     {
       "file": "stereo-left.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/objects/sosmod_fishl.jpg",
-      "sha256": "3993b239e10381a021ddb3e592f7d7b42faa67c80d7d6f08fa741345fcfdbd15",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "scenes/scene012/1/fisheye.tar#fisheye/left/00113.png",
+      "sha256": "af48868b2776e60792aead87e9180e3c9c29b622dde330e97037e7dc23ccd98a",
+      "description": "Real released scene012 Interaction frame00113; visualized RGB/stereo or integer mask labels; not a model prediction",
+      "source_sha256": "6da96b9e438bb860e95e62e232c31582fbff2dd5e7de175a941470ebd0248283"
     },
     {
       "file": "stereo-right.jpg",
-      "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/objects/sosmod_fishr.jpg",
-      "sha256": "6a111eddbc4ab7fd4233de5f0010fa78a9c056189cdd9a9c2cd6c6d24736d1c1",
-      "description": "Existing RPX appendix artwork; original pixels preserved"
+      "source": "scenes/scene012/1/fisheye.tar#fisheye/right/00113.png",
+      "sha256": "7f9421e0b264a66b301ee39732d7048a0a3f2cd9c3460c8a486a7ed1b980dc0d",
+      "description": "Real released scene012 Interaction frame00113; visualized RGB/stereo or integer mask labels; not a model prediction",
+      "source_sha256": "1924395c0df7c3209e2326fe430188a9172d00bff7036fa6509f803deefb58dd"
     },
     {
       "file": "mask-annotation.png",
       "source": "User-supplied mask annotation workflow figure (image.png)",
       "sha256": "341d12421da394590e552b610d844072e60a5d30db4563735bbbf96ea6907908",
       "description": "Original supplied PNG; original pixels preserved"
+    },
+    {
+      "file": "scene012-rgb.png",
+      "source": "scenes/scene012/1/rgb.tar#rgb/00113.png",
+      "source_sha256": "c38c33ee4ba96d68baec70173539f60f3eb383284e6ac25fa4441b5e518d04be",
+      "sha256": "9e50648b5e64e59695c638f8685285136b52be60f72d1081046d5cc1f894c57b",
+      "description": "Exact released RGB input, scene012 Interaction frame00113"
+    },
+    {
+      "file": "scene012-depth.png",
+      "source": "scenes/scene012/1/depth.tar#depth/00113.png",
+      "source_sha256": "3d0ab2f38164afc367de52b21aa3e6d8f6e6ac1979876993b37ae168f6594732",
+      "sha256": "b87e9590725d130c07bcd735c9e9d173a77f3fe2f96f94c3395df657b5ab9f4f",
+      "description": "Measured D435 depth; display color ramp 0.3\u20135 m, zero invalid pixels black; not a model prediction"
+    },
+    {
+      "file": "scene012-next.png",
+      "source": "scenes/scene012/1/rgb.tar#rgb/00114.png",
+      "source_sha256": "28098ef31f1cc6c0258f23b9de0ce35049e46e0d03a1e6a480f6fb6d151aef4d",
+      "sha256": "e6793ab54bb74649887001d6f84ec6c74604a32ea024b1be004d2be3cee10404",
+      "description": "Actual adjacent RGB frame for the pair/sequence illustration; not a selected pose benchmark pair"
+    },
+    {
+      "file": "scene012-sos-reference.png",
+      "source": "objects/teapot/0/rgb.tar#rgb/00125.png",
+      "source_sha256": "652f5dbac8955a16c7a08ddfaabbd3970be6ad3d0a826ec0bfc099a9fc837377",
+      "mask_source": "objects/teapot/0/labels/masks/v1.tar#sam2/masks/00125.png",
+      "mask_sha256": "3a592663e863412859589a6e6cccce2a36d9c10cd7384130b81975c1a0b5f49f",
+      "crop_bbox_inclusive": [
+        335,
+        93,
+        442,
+        231
+      ],
+      "sha256": "1b3e47c0b016f279de264cb88956870502804f906826661f5b4420676ca03534",
+      "global_object_id": 65,
+      "object_id": "teapot",
+      "scene_mask_id": 3,
+      "description": "Real matched SOS teapot crop, identity joined through mos_mask_object_map_v1; illustrative crop, not a claim of a specific canonical VQA request"
+    }
+  ],
+  "workflow_figures": [
+    {
+      "file": "add-metrics.svg",
+      "sha256": "426b1b95dd632a4bbd78b79c5a3a05bb217b7831698ef9cf6305451ac1fa37d2",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "add-tasks.svg",
+      "sha256": "f2754d67d36e1df24a86b445d7d9ec8ea0e52df193ebe0d786fd1925f6583f16",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "benchmark-t1.svg",
+      "sha256": "9b9d2ba889df922a129fb3fdb251a3ca6b07007fe92f5317e5cd5cb201fb3fb8",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "benchmark-t2.svg",
+      "sha256": "af691571032f44742c704d81c2a4df3874023bd4bcb784d70d920d10ef4e8cb3",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "benchmark-t3.svg",
+      "sha256": "391b627a438fee945b09cb4d90b3da4ccd5d8ff61774cd8e54f5e10922dfbc36",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "benchmark-t4.svg",
+      "sha256": "46ea33857c95df190814b617fe682a22f7bc1fca35ce87c9d7d210c315a54535",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "benchmark-t5.svg",
+      "sha256": "7e26950ea31b0f2a36164e46ae71f4c3cdee616d52fba8e39490f7a40ea48a37",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "benchmark-t6.svg",
+      "sha256": "8aef4023442c6299b2d134266ab712af1740f5972e4e42e287b3deac8ad5fc39",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "bring-your-model.svg",
+      "sha256": "133bef8dfec091e8bf59275b2038275985cb93987f407b3c9d6a6cb91de075cc",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "data-contract.svg",
+      "sha256": "a917f882a45f49cc5472656835565e9314a6706999a5ebce6f47d1cd11b7e210",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "getting-started.svg",
+      "sha256": "126a8fb49d5ea11da7d778288c57f7b5f86fe144effcd7b65a388b1e3f04fdcc",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "hardware-profiler.svg",
+      "sha256": "2c46282932acd55a131c1f7025de2953b95c0b0c1b32cbadfd776c8ea20d0b23",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "mask-pipeline.svg",
+      "sha256": "28fb5e963b2189309712070e04a46c77a2ada4e83f3fa00da884158752c77883",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "phi-jedi.svg",
+      "sha256": "f649908da14f7e3bdcf04ba1f6f7e92967592bbe4b844b9be83395fce6aaf0c3",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
+    },
+    {
+      "file": "toolkit-overview.svg",
+      "sha256": "946e11f634149763c6244f726bfe06048f406b0192edcdf7b4213cf498d5af6e",
+      "generator": "tools/docs/build_figures.py",
+      "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
     }
   ]
 }
