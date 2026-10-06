@@ -1,29 +1,55 @@
-# Benchmark all six tasks
+<div class="rpx-benchmark-page" markdown="1">
 
-Use one shared dataset and task-specific protocols. The figures use **scene012** throughout, so you can follow the same scene from image depth to grounding. The command examples accept real task manifests and your model callables; the packaged smoke mode verifies integration without downloading models or data.
+<p class="rpx-task-kicker">RPX / BENCHMARK EXAMPLES</p>
 
-<figure class="rpx-workflow-figure"><a href="../assets/toolkit-overview.svg"><img src="../assets/toolkit-overview.svg" alt="Shared RPX scene data feeds six model task interfaces and produces metrics, robustness and hardware evidence." loading="lazy"></a><figcaption>T6 additionally uses a matched SOS reference crop. Ground truth remains inside the evaluator. Open the vector figure to zoom or reuse it.</figcaption></figure>
+# One scene. Six ways to benchmark.
 
-## Choose a task
+<div class="rpx-task-lead" markdown="1">
+Follow **scene012** from depth estimation to in-context grounding. Each walkthrough shows the inputs, adapter, runnable command and scoring protocol for one task.
+</div>
 
-| Task | Model input → prediction | Example |
-| --- | --- | --- |
-| T1 Image depth | RGB → metric depth map | [Run T1](t1/README.md) |
-| T2 Video depth | RGB clip → depth sequence | [Run T2](t2/README.md) |
-| T3 Tracking | Frames and initialization → persistent tracks | [Run T3](t3/README.md) |
-| T4 Relative camera pose | RGB pair → relative rotation/translation | [Run T4](t4/README.md) |
-| T5 Visual grounding | Target RGB + question → target box | [Run T5](t5/README.md) |
-| T6 In-context grounding | SOS reference crop + target RGB + question → target box | [Run T6](t6/README.md) |
+<div class="rpx-benchmark-gallery">
+<a class="rpx-task-preview" href="t1/">
+<img src="../assets/scene012-depth.png" alt="" width="640" height="480" loading="lazy">
+<div><span class="rpx-task-id">T1 / WALKTHROUGH</span><strong>Image depth</strong><span class="rpx-task-description">One RGB image → Depth map in metres</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+</a>
+<a class="rpx-task-preview" href="t2/">
+<img src="../assets/scene012-next.png" alt="" width="640" height="480" loading="lazy">
+<div><span class="rpx-task-id">T2 / WALKTHROUGH</span><strong>Video depth</strong><span class="rpx-task-description">Ordered RGB clip → Depth sequence</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+</a>
+<a class="rpx-task-preview" href="t3/">
+<img src="../assets/hero-interaction.jpg" alt="" width="640" height="480" loading="lazy">
+<div><span class="rpx-task-id">T3 / WALKTHROUGH</span><strong>Object tracking</strong><span class="rpx-task-description">Frames + initialization → Boxes + persistent IDs</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+</a>
+<a class="rpx-task-preview" href="t4/">
+<img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
+<div><span class="rpx-task-id">T4 / WALKTHROUGH</span><strong>Camera pose</strong><span class="rpx-task-description">Two RGB frames → Relative rotation + translation</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+</a>
+<a class="rpx-task-preview" href="t5/">
+<img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
+<div><span class="rpx-task-id">T5 / WALKTHROUGH</span><strong>Visual grounding</strong><span class="rpx-task-description">Target image + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+</a>
+<a class="rpx-task-preview" href="t6/">
+<img src="../assets/scene012-sos-reference.png" alt="" width="640" height="480" loading="lazy">
+<div><span class="rpx-task-id">T6 / WALKTHROUGH</span><strong>In-context grounding</strong><span class="rpx-task-description">SOS reference + target + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+</a>
+</div>
 
-## Six offline integration runs
+<p class="rpx-image-note">Real RPX imagery and released annotations. Thumbnails show inputs or ground truth, not model predictions. T6 adds a matched SOS reference to the same scene012 target.</p>
 
-```bash
+## Start with an offline check
+
+```bash title="Terminal · six-task integration check"
 python -m pip install 'rpx-benchmark[hub,schemas]'
 python -m rpx_benchmark.examples.benchmark_tasks \
   --task all --smoke --output results/six-task-smoke
 ```
 
-Use a fresh output directory. This creates tiny **synthetic** RGB/depth/mask/pose/question fixtures and runs the installed public pipelines. The toy callables do not load pretrained models or establish full paper-protocol accuracy. Each task writes reports under its own directory. T5/T6 use the canonical VQA parser and evaluator; T6 checks the ordered two-image interface.
+The installed toolkit creates tiny **synthetic** fixtures and runs all six public pipelines. Each task writes reports into its own directory. Use a fresh output directory.
+
+<div class="rpx-task-note" markdown="1">
+**What this checks:** adapter interfaces, scoring and report generation. Toy callables do not load pretrained models or establish paper accuracy. T5/T6 exercise the canonical VQA parser; T6 checks the ordered two-image interface.
+</div>
 
 ## Move to real data
 
@@ -68,3 +94,5 @@ The repository provides pretrained model runners and container recipes separatel
 Frame/clip runners return `(result, deployment_report, paths)` and write JSON, summaries and cell logs. VQA writes `run_config.json`, `predictions.jsonl`, and `result.json`; parsing/inference failures remain in the denominator. Check the number of requested and scored samples before aggregating.
 
 [Hardware measurements](../profiling/README.md) · [Φ/JEDI calculation](../analysis/README.md) · [Bring your own model](../models/README.md)
+
+</div>
