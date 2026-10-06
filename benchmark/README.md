@@ -3,16 +3,23 @@
 Load RPX data, run reference or custom perception models, and compare accuracy,
 scene-change robustness and compute cost with Python 3.10–3.12:
 
+![RPX toolkit overview: shared scene data, six task adapters, model inference, raw metrics, phase robustness and hardware evidence](https://irvlutd.github.io/RPX/toolkit-docs/assets/toolkit-overview.svg)
+
 ```bash
 python -m pip install 'rpx-benchmark[hub,schemas]'
-git clone https://github.com/IRVLUTD/RPX.git
-cd RPX
-python benchmark/examples/run_depth.py
+python -m rpx_benchmark.examples.benchmark_tasks \
+  --task all --smoke --output results/six-task-smoke
 ```
 
-The example is a CPU-only installation check using synthetic data. Reference
+This is a CPU-only installation check for all six tasks using synthetic data. Reference
 checkpoints need their own runtime, weights and GPU resources. The package
 installation alone does not install every model's dependencies.
+
+Explore [mask annotation](https://irvlutd.github.io/RPX/toolkit-docs/annotation/),
+[hardware profiling](https://irvlutd.github.io/RPX/toolkit-docs/profiling/),
+[Φ/JEDI calculation](https://irvlutd.github.io/RPX/toolkit-docs/analysis/), and
+[task-specific benchmark samples](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/)
+in the illustrated guides. Their diagrams use scene012 as a shared walkthrough.
 
 For toolkit development, replace the PyPI install with an editable source
 install from the repository root:
