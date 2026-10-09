@@ -5,6 +5,13 @@ Source-pinned Docker overlays support `vggt-omega`, `da3`, `cut3r`, `dust3r`,
 `build_<model>_rpx.sh` selects its Dockerfile and pinned upstream runtime.
 Run a build script with `--help` to inspect its image options.
 
+> **Published image:** pull `irvlutd/rpx:rcpe-monst3r-rpx-latest`. The overlays are
+> built cumulatively and this final image contains all ten pose models, each in
+> its own environment. Set `RCPE_IMAGE=irvlutd/rpx:rcpe-monst3r-rpx-latest`, pick
+> the model with `--model`, and pass its interpreter with
+> `--python /opt/rpx-envs/<env>/bin/python` (`<env>` is the model name; `vggt` for
+> `vggt-omega`). See the [image table](../README.md#which-image-to-pull).
+
 The gate launcher needs Docker, NVIDIA Container Toolkit, a compatible GPU,
 model-checkpoint access and a pinned RPX dataset revision. From the repository
 root:

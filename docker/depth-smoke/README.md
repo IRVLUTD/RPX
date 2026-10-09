@@ -6,6 +6,11 @@ pinned Python environments, and pinned upstream source checkouts. It does not
 contain RPX data, model checkpoints, Hugging Face credentials, or test results;
 those remain in mounted host directories.
 
+> **Published image:** pull `irvlutd/rpx:depth-zipdepth-latest`. It is the final cumulative depth
+> image: the 16 models of this Dockerfile plus the FE2E and ZipDepth overlays,
+> i.e. all ten T1 models and every T2 model except DVD (`irvlutd/rpx:depth-dvd-latest`)
+> and GemDepth (build-only). See the [image table](../README.md#which-image-to-pull).
+
 The Dockerfile is cumulative: every named stage extends the preceding stage.
 The current final stage, `depth_all_hyden`, contains runtimes for 16 models.
 "Present in the image" means that the dependencies and upstream imports build;

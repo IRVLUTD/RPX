@@ -8,6 +8,9 @@ their native Transformers task interfaces. The scored contract is bbox-only: one
 receives the original question and every required image and returns the region.
 Generated text labels are retained for analysis but never affect the bbox score.
 
+> **Published image:** pull `irvlutd/rpx:vqa-vllm`; it serves all twelve paper VLM
+> configurations for both T5 and T6. See the [image table](../README.md#which-image-to-pull).
+
 ## Florence-2 native adapter
 
 `florence2-base` and `florence2-large` use the pinned Microsoft `-ft`

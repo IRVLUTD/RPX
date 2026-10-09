@@ -97,7 +97,7 @@ Run a reference-model gate before a full sweep:
 
 ```bash
 # The runtime reports the complete, pinned VQA roster without loading weights.
-docker run --rm narendhiranv04/rpx-vqa-smoke:vllm list-models
+docker run --rm irvlutd/rpx:vqa-vllm list-models
 
 # Model-specific depth, tracking and pose commands live in their Docker READMEs.
 python benchmark/scripts/run_depth_smoke_matrix.py --list-models
