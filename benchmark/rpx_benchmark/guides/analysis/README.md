@@ -34,7 +34,7 @@ python -m rpx_benchmark.examples.summarize_metrics \
 
 The output records the source SHA256, chosen metric specs, canonical phase order, independent model/task summaries, `n_eff`, `n_dropped`, per-phase means, transition tests, statistical notes and `j_min`. Insufficient or singular data can leave Φ unavailable while JEDI remains reported; do not interpret unavailable Φ as zero robustness. Φ needs more complete scenes than metric columns (`N_eff > K`) and adequate within-phase variation.
 
-The three-metric command is an **integration example**. Reproduce the paper using its task-specific frozen metric vector and bounds: image depth uses `(absrel, rmse, delta1, silog, fscore_5cm)` and video depth uses `(absrel, rmse, delta1, silog, tgm, tgse)`. Other task protocols require their corresponding metric vectors. A printed aggregate table cannot recover the paired raw observations needed for Φ.
+The three-metric command is an **integration example**. Reproduce the paper using its task-specific frozen metric vector and bounds: image depth uses `(absrel, rmse, silog, delta1)` and video depth uses `(absrel, rmse, silog, delta1, tgm, tgse)`, as in the paper's Tables III and IV. Other task protocols require their corresponding metric vectors. A printed aggregate table cannot recover the paired raw observations needed for Φ.
 
 ## A complete synthetic check
 
