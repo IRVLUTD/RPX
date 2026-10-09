@@ -136,14 +136,14 @@
           "@type": "cr:Field",
           "@id": "frames/rgb_path",
           "name": "rgb_path",
-          "description": "Relative path to RGB image (PNG, 1920x1080)",
+          "description": "Relative path to RGB image (lossless WebP, RGB uint8)",
           "dataType": "sc:Text"
         },
         {
           "@type": "cr:Field",
           "@id": "frames/depth_path",
           "name": "depth_path",
-          "description": "Relative path to depth map (NPY float32, metres)",
+          "description": "Relative path to depth map (lossless PNG, uint16 millimetres)",
           "dataType": "sc:Text"
         },
         {
@@ -157,7 +157,7 @@
           "@type": "cr:Field",
           "@id": "frames/camera_pose",
           "name": "camera_pose",
-          "description": "4x4 SE(3) camera-to-world matrix from T265 (float64)",
+          "description": "Relative path to a (7,) float64 NPY pose vector [x, y, z, qx, qy, qz, qw] from T265",
           "dataType": "sc:Text"
         },
         {
