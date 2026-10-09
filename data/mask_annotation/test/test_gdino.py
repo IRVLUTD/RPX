@@ -5,6 +5,7 @@
 #----------------------------------------------------------------------------------------------------
 
 
+import sys
 from absl import app, logging
 from PIL import Image as PILImg
 from robokit.utils import annotate, overlay_masks
@@ -49,5 +50,7 @@ if __name__ == "__main__":
     # Run the main function with the input image path
     # app.run(main, ['imgs/color-000078.png'])
     # app.run(main, ['imgs/color-000019.png'])
-    app.run(main, ['/home/jishnu/Projects/mm-demo/vie/data/iteach-overlay-data-capture-5-8-25/sugarbox_overlay_4/rgb/000004.jpg'])
+    if len(sys.argv) != 2:
+        sys.exit("usage: python test_gdino.py IMAGE")
+    app.run(main, [sys.argv[1]])
     # app.run(main, ['imgs/irvl-clutter-test.png'])

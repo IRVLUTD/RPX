@@ -1,4 +1,5 @@
 # imports
+import sys
 import numpy as np
 from PIL import Image as PILImg
 import matplotlib.pyplot as plt
@@ -6,7 +7,9 @@ import matplotlib.patches as patches
 
 # Load the image using PIL
 # image_path = "./imgs/sam2-test/rgb/000000.jpg"  # Replace with the path to your image
-image_path = "/home/jishnu/Projects/iTeach-UOIS/uois-models/UnseenObjectsWithMeanShift/data/humanplay_data/scene_0424T194846/jpg/000000.jpg"  # Replace with the path to your image
+if len(sys.argv) != 2:
+    sys.exit("usage: python collect_bbox_prompts.py IMAGE")
+image_path = sys.argv[1]
 
 print(image_path)
 

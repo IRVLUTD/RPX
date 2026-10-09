@@ -1,10 +1,14 @@
+import sys
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
 from PIL import Image
 
 # Load the image
-img_path = '/home/itaykadosh/Desktop/SCENES_W_MASKS/fill_ins_2/scene64.ecsw.axxess-atrium/2/sam2/masks/00002.png'
+# Print the mask IDs in one mask PNG, e.g. <scene>/2/sam2/masks/00002.png
+if len(sys.argv) != 2:
+    sys.exit("usage: python test.py MASK_PNG")
+img_path = sys.argv[1]
 img = Image.open(img_path)
 
 

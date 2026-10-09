@@ -2,14 +2,20 @@
 
 import os
 import json
+import argparse
 from PIL import Image as PILImg
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-# Paths
-image_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/rgb/00249.png"
-bbox_json_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/bbox_prompts.json"
-output_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/annotated.png"
+# Paths, e.g. <scene>/0/rgb/00249.png and <scene>/0/bbox_prompts.json
+parser = argparse.ArgumentParser(description="Draw saved bbox prompts on an image.")
+parser.add_argument("image", help="RGB frame to annotate")
+parser.add_argument("bboxes", help="bbox_prompts.json written by collect_bbox_prompts.py")
+parser.add_argument("--output", help="output image (default: annotated.png next to the bbox JSON)")
+args = parser.parse_args()
+image_path = args.image
+bbox_json_path = args.bboxes
+output_path = args.output or os.path.join(os.path.dirname(os.path.abspath(bbox_json_path)), "annotated.png")
 
 # Load image and bboxes
 image = PILImg.open(image_path)
