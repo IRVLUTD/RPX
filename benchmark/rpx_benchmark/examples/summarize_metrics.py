@@ -34,7 +34,14 @@ def read_records(path: Path) -> list[dict[str, Any]]:
     else:
         records = json.loads(path.read_text())
         if isinstance(records, dict):
-            records = records.get("per_sample")
+            wrapper = records
+            records = wrapper.get("per_sample")
+            if isinstance(records, list):
+                # Runner JSON keeps model and task once, at the top level.
+                inherited = {k: wrapper[k] for k in ("model", "task") if isinstance(wrapper.get(k), str)}
+                records = [
+                    {**inherited, **r} if isinstance(r, dict) else r for r in records
+                ]
     if (
         not isinstance(records, list)
         or not records
@@ -102,11 +109,23 @@ def main() -> None:
     parser.add_argument("--metrics", nargs="+", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    result = calculate(read_records(args.input), args.metrics)
+    try:
+        result = calculate(read_records(args.input), args.metrics)
+    except MetricError as exc:
+        parser.exit(2, f"rpx: cannot compute Φ/JEDI: {exc}\n")
     result["input_sha256"] = hashlib.sha256(args.input.read_bytes()).hexdigest()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
-    print(args.output)
+    for row in result["results"]:
+        phi = (row.get("phi") or {}).get("phi_conservative")
+        per_phase = (row.get("jedi") or {}).get("per_phase") or {}
+        phases = "  ".join(f"{name} {value:.2f}" for name, value in per_phase.items())
+        phi_text = f"{phi:.2f}" if isinstance(phi, (int, float)) else "n/a"
+        print(
+            f"{row['model']} / {row['task']}: Φ {phi_text}   Jmin {row['j_min']:.2f}"
+            f"   ({row['n_eff']} scenes; J per phase: {phases})"
+        )
+    print(f"Full report: {args.output}")
 
 
 if __name__ == "__main__":

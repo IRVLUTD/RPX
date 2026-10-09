@@ -11,13 +11,13 @@ hide:
 
 <p class="rpx-eyebrow">RPX / ROBOT PERCEPTION TOOLKIT</p>
 
-# Perception,<br>under interaction.
+# Same scene.<br>Different story.
 
-<p class="rpx-lead">The same objects. A changing scene.<br>Understand how your model holds up.</p>
+<p class="rpx-lead">Score any perception model on real scenes before, during and after manipulation, and see where it breaks.</p>
 
-Evaluate pretrained models on real RGB-D captures before, during, and after manipulation. Bring your own model, extend the metrics, and keep every comparison grounded in the same data.
+Six tasks, one evaluator, and the paper's robustness diagnosis. Wrap your model or API in a few lines; RPX handles the data, splits and metrics.
 
-<div class="rpx-actions"><a class="rpx-primary" href="getting-started/">Start benchmarking <span aria-hidden="true">↗</span></a><a class="rpx-secondary" href="api/">Explore the API <span aria-hidden="true">→</span></a></div>
+<div class="rpx-actions"><a class="rpx-primary" href="getting-started/">Score your model <span aria-hidden="true">↗</span></a><a class="rpx-secondary" href="benchmarks/">See the six tasks <span aria-hidden="true">→</span></a></div>
 
 </div>
 
@@ -27,20 +27,26 @@ Evaluate pretrained models on real RGB-D captures before, during, and after mani
 
 <div class="rpx-numbers" aria-label="Dataset at a glance"><div><strong>100</strong><span>multi-object scenes</span></div><div><strong>3</strong><span>capture phases</span></div><div><strong>6</strong><span>paper tasks</span></div><div><strong>70</strong><span>single-object captures</span></div></div>
 
-<p class="rpx-eyebrow">01 / THE DATA</p>
+## Try it now
+
+```bash
+pip install 'rpx-benchmark[hub,schemas]'
+python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output rpx-check
+```
+
+All six evaluators run on synthetic inputs in about a second, on CPU. [Score your own model on real scenes →](getting-started/README.md)
+
+<p class="rpx-eyebrow">01 / THE FINDING</p>
 
 ## One scene. A changing world.
 
-Clutter captures the scene before manipulation; Interaction introduces hands, occlusion, and motion; Clean records the scene afterwards. Egocentric Interaction provides another viewpoint on an independent clock. Object identities connect the views and phases.
+Each scene is recorded before manipulation (Clutter), while hands move objects (Interaction) and afterwards (Clean), plus an egocentric view. Here is what the paper found:
 
-<div class="rpx-filmstrip">
-<figure><img src="assets/clutter.jpg" width="640" height="480" loading="lazy" alt="Scene 012 before manipulation with colored instance-mask overlays."><figcaption><span>01 / CLUTTER</span>Before manipulation</figcaption></figure>
-<figure><img src="assets/interaction.jpg" width="640" height="480" loading="lazy" alt="Scene 012 during manipulation with a hand occluding objects and mask overlays."><figcaption><span>02 / INTERACTION</span>Hands, motion, occlusion</figcaption></figure>
-<figure><img src="assets/clean.jpg" width="640" height="480" loading="lazy" alt="Scene 012 after manipulation with persistent object-mask colors."><figcaption><span>03 / CLEAN</span>After manipulation</figcaption></figure>
-<figure><img src="assets/ego.jpg" width="960" height="720" loading="lazy" alt="Egocentric view of scene 012 during interaction with object-mask overlays."><figcaption><span>+ / EGOCENTRIC</span>A separate viewpoint</figcaption></figure>
-</div>
+<figure class="rpx-workflow-figure"><a href="assets/rpx-finding.jpg"><img src="assets/rpx-finding.jpg" width="2400" height="1376" alt="Scene 012 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."></a><figcaption>Bars: mean quality 𝒥 over all evaluated models, from the paper's Tables III–VI. Map: all 65 evaluations from the paper's Fig. 4. The four views of indoor scene 012 are not frame-synchronized.</figcaption></figure>
 
-<p class="rpx-image-note">Representative frames from indoor scene 012, shown with released mask overlays. The four views are not frame-synchronized.</p>
+
+
+
 
 <p class="rpx-eyebrow">02 / THE TOOLKIT</p>
 
@@ -104,7 +110,7 @@ Exocentric captures combine RGB, metric depth, instance masks, calibrated fishey
 
 - **MOS / SOS:** multi-object scenes / single-object captures.
 - **Phase:** Clutter, Interaction, or Clean. Egocentric Interaction is a separate view.
-- **ESD:** empirical scene difficulty, used to group scenes by difficulty.
+- **Easy / Medium / Hard:** difficulty tiers of 33, 33 and 34 scenes, stratified by how much correction each scene's masks needed.
 - **JEDI / J / Jmin:** Joint Empirical Desirability Index; overall mean cell desirability and the lowest phase-mean quality.
 - **Φ:** phase robustness from repeated-measures analysis of paired raw metrics. High robustness must be considered alongside prediction quality.
 - **GT:** ground truth. Keep units, coordinates, and object identities consistent across predictions and GT.
@@ -121,11 +127,14 @@ Start with a small integration run. Scale to the full protocol once shapes, unit
 
 ## Cite RPX
 
-The official BibTeX entry will be added after arXiv publication.
-
 ```bibtex
-% RPX citation placeholder.
-% Official BibTeX will be added after the arXiv paper is published.
+@misc{rpx2026,
+  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
+  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
+            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
+  year   = {2026},
+  note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
+}
 ```
 
 [Licenses and citation](citation/README.md). Toolkit code is MIT; dataset and pretrained-model licenses are separate.

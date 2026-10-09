@@ -1,15 +1,18 @@
 # Citation and licenses
 
-If you use RPX data, toolkit code, annotation tools, or benchmark protocols, please cite the RPX paper once its arXiv record is published.
-
-## BibTeX placeholder
-
-The official entry will be populated after arXiv publication. The block below intentionally contains no guessed author list, identifier, year, or publication venue.
+If you use RPX data, toolkit code, annotation tools or benchmark protocols, please cite the RPX paper:
 
 ```bibtex
-% RPX citation placeholder.
-% Official BibTeX will be added after the arXiv paper is published.
+@misc{rpx2026,
+  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
+  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
+            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
+  year   = {2026},
+  note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
+}
 ```
+
+The repository's [CITATION.cff](https://github.com/IRVLUTD/RPX/blob/main/CITATION.cff) carries the same entry.
 
 ## Licenses
 

@@ -1,0 +1,817 @@
+{
+ "source": "Paper Tables III-VI (per-phase J, Jmin, Phi) and Fig. 4 (all 65 Phi-Jmin points)",
+ "rows": {
+  "T1": [
+   {
+    "model": "ZipDepth",
+    "clu": 0.58,
+    "int": 0.51,
+    "cln": 0.6,
+    "jmin": 0.51,
+    "phi": 0.6
+   },
+   {
+    "model": "HyDen",
+    "clu": 0.42,
+    "int": 0.45,
+    "cln": 0.45,
+    "jmin": 0.42,
+    "phi": 0.79
+   },
+   {
+    "model": "FE2E",
+    "clu": 0.7,
+    "int": 0.65,
+    "cln": 0.68,
+    "jmin": 0.65,
+    "phi": 0.59
+   },
+   {
+    "model": "DA3 Metric-L",
+    "clu": 0.73,
+    "int": 0.7,
+    "cln": 0.73,
+    "jmin": 0.7,
+    "phi": 0.53
+   },
+   {
+    "model": "UniDepth V2",
+    "clu": 0.7,
+    "int": 0.69,
+    "cln": 0.72,
+    "jmin": 0.69,
+    "phi": 0.56
+   },
+   {
+    "model": "MoGe-2 ViT-L",
+    "clu": 0.48,
+    "int": 0.54,
+    "cln": 0.53,
+    "jmin": 0.48,
+    "phi": 0.66
+   },
+   {
+    "model": "Lotus-2",
+    "clu": 0.35,
+    "int": 0.38,
+    "cln": 0.35,
+    "jmin": 0.35,
+    "phi": 0.64
+   },
+   {
+    "model": "Depth Pro",
+    "clu": 0.62,
+    "int": 0.64,
+    "cln": 0.63,
+    "jmin": 0.62,
+    "phi": 0.57
+   },
+   {
+    "model": "Metric3D V2",
+    "clu": 0.72,
+    "int": 0.72,
+    "cln": 0.71,
+    "jmin": 0.71,
+    "phi": 0.68
+   },
+   {
+    "model": "DA-V2 Large",
+    "clu": 0.6,
+    "int": 0.55,
+    "cln": 0.66,
+    "jmin": 0.55,
+    "phi": 0.54
+   }
+  ],
+  "T2": [
+   {
+    "model": "DA3 (video)",
+    "clu": 0.78,
+    "int": 0.64,
+    "cln": 0.74,
+    "jmin": 0.64,
+    "phi": 0.48
+   },
+   {
+    "model": "Video-DA",
+    "clu": 0.35,
+    "int": 0.35,
+    "cln": 0.3,
+    "jmin": 0.3,
+    "phi": 0.54
+   },
+   {
+    "model": "ViGeo",
+    "clu": 0.63,
+    "int": 0.63,
+    "cln": 0.67,
+    "jmin": 0.63,
+    "phi": 0.54
+   },
+   {
+    "model": "VGGT",
+    "clu": 0.7,
+    "int": 0.73,
+    "cln": 0.72,
+    "jmin": 0.7,
+    "phi": 0.77
+   },
+   {
+    "model": "MonST3R",
+    "clu": 0.58,
+    "int": 0.49,
+    "cln": 0.57,
+    "jmin": 0.49,
+    "phi": 0.52
+   },
+   {
+    "model": "GemDepth",
+    "clu": 0.76,
+    "int": 0.61,
+    "cln": 0.71,
+    "jmin": 0.61,
+    "phi": 0.45
+   },
+   {
+    "model": "DepthCrafter",
+    "clu": 0.31,
+    "int": 0.31,
+    "cln": 0.26,
+    "jmin": 0.26,
+    "phi": 0.57
+   },
+   {
+    "model": "DVD v1.1",
+    "clu": 0.69,
+    "int": 0.55,
+    "cln": 0.62,
+    "jmin": 0.55,
+    "phi": 0.47
+   },
+   {
+    "model": "ChronoDepth",
+    "clu": 0.59,
+    "int": 0.49,
+    "cln": 0.55,
+    "jmin": 0.49,
+    "phi": 0.54
+   },
+   {
+    "model": "RollingDepth",
+    "clu": 0.23,
+    "int": 0.24,
+    "cln": 0.2,
+    "jmin": 0.2,
+    "phi": 0.58
+   }
+  ],
+  "T3": [
+   {
+    "model": "SAM 2 Long",
+    "clu": 0.98,
+    "int": 0.96,
+    "cln": 0.99,
+    "ego": 0.96,
+    "jmin": 0.96,
+    "phi": 0.69
+   },
+   {
+    "model": "DAM4SAM",
+    "clu": 0.98,
+    "int": 0.95,
+    "cln": 0.99,
+    "ego": 0.95,
+    "jmin": 0.95,
+    "phi": 0.71
+   },
+   {
+    "model": "EdgeTAM",
+    "clu": 0.97,
+    "int": 0.93,
+    "cln": 0.98,
+    "ego": 0.92,
+    "jmin": 0.93,
+    "phi": 0.71
+   },
+   {
+    "model": "SAM 2++",
+    "clu": 0.98,
+    "int": 0.92,
+    "cln": 0.98,
+    "ego": 0.86,
+    "jmin": 0.92,
+    "phi": 0.73
+   },
+   {
+    "model": "SAM 2",
+    "clu": 0.98,
+    "int": 0.95,
+    "cln": 0.99,
+    "ego": 0.93,
+    "jmin": 0.95,
+    "phi": 0.73
+   },
+   {
+    "model": "Cutie",
+    "clu": 0.97,
+    "int": 0.93,
+    "cln": 0.98,
+    "ego": 0.94,
+    "jmin": 0.93,
+    "phi": 0.67
+   },
+   {
+    "model": "SAM 3.1",
+    "clu": 0.97,
+    "int": 0.87,
+    "cln": 0.97,
+    "ego": 0.9,
+    "jmin": 0.87,
+    "phi": 0.5
+   },
+   {
+    "model": "MiTS",
+    "clu": 0.95,
+    "int": 0.87,
+    "cln": 0.97,
+    "ego": 0.86,
+    "jmin": 0.87,
+    "phi": 0.63
+   },
+   {
+    "model": "XMem",
+    "clu": 0.96,
+    "int": 0.89,
+    "cln": 0.98,
+    "ego": 0.91,
+    "jmin": 0.89,
+    "phi": 0.66
+   },
+   {
+    "model": "SAM 3.1\u2021",
+    "clu": 0.83,
+    "int": 0.72,
+    "cln": 0.82,
+    "ego": 0.74,
+    "jmin": 0.72,
+    "phi": 0.62
+   },
+   {
+    "model": "GSAM2",
+    "clu": 0.87,
+    "int": 0.79,
+    "cln": 0.9,
+    "ego": 0.86,
+    "jmin": 0.79,
+    "phi": 0.75
+   }
+  ],
+  "T5": [
+   {
+    "model": "Cosmos Reason2",
+    "clu": 0.55,
+    "int": 0.52,
+    "cln": 0.54,
+    "ego": 0.67,
+    "jmin": 0.52,
+    "phi": 0.8
+   },
+   {
+    "model": "Cosmos Reason2",
+    "clu": 0.28,
+    "int": 0.26,
+    "cln": 0.22,
+    "ego": 0.38,
+    "jmin": 0.22,
+    "phi": 0.77
+   },
+   {
+    "model": "Qwen3-VL",
+    "clu": 0.63,
+    "int": 0.57,
+    "cln": 0.61,
+    "ego": 0.69,
+    "jmin": 0.57,
+    "phi": 0.62
+   },
+   {
+    "model": "Qwen3-VL",
+    "clu": 0.43,
+    "int": 0.49,
+    "cln": 0.45,
+    "ego": 0.62,
+    "jmin": 0.43,
+    "phi": 0.85
+   },
+   {
+    "model": "InternVL 3.5",
+    "clu": 0.52,
+    "int": 0.44,
+    "cln": 0.49,
+    "ego": 0.55,
+    "jmin": 0.44,
+    "phi": 0.74
+   },
+   {
+    "model": "InternVL 3.5",
+    "clu": 0.45,
+    "int": 0.39,
+    "cln": 0.43,
+    "ego": 0.41,
+    "jmin": 0.39,
+    "phi": 0.62
+   },
+   {
+    "model": "PaliGemma 2",
+    "clu": 0.43,
+    "int": 0.35,
+    "cln": 0.37,
+    "ego": 0.42,
+    "jmin": 0.35,
+    "phi": 0.75
+   },
+   {
+    "model": "PaliGemma 2",
+    "clu": 0.42,
+    "int": 0.37,
+    "cln": 0.39,
+    "ego": 0.44,
+    "jmin": 0.37,
+    "phi": 0.66
+   },
+   {
+    "model": "DeepSeek-VL2",
+    "clu": 0.54,
+    "int": 0.41,
+    "cln": 0.48,
+    "ego": 0.53,
+    "jmin": 0.41,
+    "phi": 0.72
+   },
+   {
+    "model": "DeepSeek-VL2",
+    "clu": 0.19,
+    "int": 0.12,
+    "cln": 0.14,
+    "ego": 0.19,
+    "jmin": 0.12,
+    "phi": 0.92
+   },
+   {
+    "model": "Florence 2",
+    "clu": 0.16,
+    "int": 0.15,
+    "cln": 0.14,
+    "ego": 0.16,
+    "jmin": 0.14,
+    "phi": 0.98
+   },
+   {
+    "model": "Florence 2",
+    "clu": 0.14,
+    "int": 0.12,
+    "cln": 0.12,
+    "ego": 0.16,
+    "jmin": 0.12,
+    "phi": 0.96
+   }
+  ],
+  "T6": [
+   {
+    "model": "Cosmos Reason2",
+    "clu": 0.15,
+    "int": 0.11,
+    "cln": 0.14,
+    "ego": 0.33,
+    "jmin": 0.11,
+    "phi": 0.77
+   },
+   {
+    "model": "Cosmos Reason2",
+    "clu": 0.12,
+    "int": 0.09,
+    "cln": 0.09,
+    "ego": 0.21,
+    "jmin": 0.09,
+    "phi": 0.83
+   },
+   {
+    "model": "Qwen3-VL",
+    "clu": 0.31,
+    "int": 0.23,
+    "cln": 0.28,
+    "ego": 0.34,
+    "jmin": 0.23,
+    "phi": 0.65
+   },
+   {
+    "model": "Qwen3-VL",
+    "clu": 0.25,
+    "int": 0.22,
+    "cln": 0.22,
+    "ego": 0.35,
+    "jmin": 0.22,
+    "phi": 0.75
+   },
+   {
+    "model": "InternVL 3.5",
+    "clu": 0.24,
+    "int": 0.15,
+    "cln": 0.17,
+    "ego": 0.12,
+    "jmin": 0.15,
+    "phi": 0.76
+   },
+   {
+    "model": "InternVL 3.5",
+    "clu": 0.07,
+    "int": 0.03,
+    "cln": 0.04,
+    "ego": 0.02,
+    "jmin": 0.03,
+    "phi": 0.79
+   },
+   {
+    "model": "PaliGemma 2",
+    "clu": 0.04,
+    "int": 0.03,
+    "cln": 0.03,
+    "ego": 0.09,
+    "jmin": 0.03,
+    "phi": 0.95
+   },
+   {
+    "model": "PaliGemma 2",
+    "clu": 0.04,
+    "int": 0.03,
+    "cln": 0.05,
+    "ego": 0.07,
+    "jmin": 0.03,
+    "phi": 0.81
+   },
+   {
+    "model": "DeepSeek-VL2",
+    "clu": 0.1,
+    "int": 0.05,
+    "cln": 0.05,
+    "ego": 0.1,
+    "jmin": 0.05,
+    "phi": 0.93
+   },
+   {
+    "model": "DeepSeek-VL2",
+    "clu": 0.03,
+    "int": 0.02,
+    "cln": 0.02,
+    "ego": 0.01,
+    "jmin": 0.02,
+    "phi": 0.94
+   },
+   {
+    "model": "Florence 2",
+    "clu": 0.02,
+    "int": 0.01,
+    "cln": 0.01,
+    "ego": 0.02,
+    "jmin": 0.01,
+    "phi": 0.94
+   },
+   {
+    "model": "Florence 2",
+    "clu": 0.02,
+    "int": 0.02,
+    "cln": 0.02,
+    "ego": 0.02,
+    "jmin": 0.02,
+    "phi": 0.96
+   }
+  ]
+ },
+ "points": [
+  {
+   "task": "T1",
+   "jmin": 0.51,
+   "phi": 0.6
+  },
+  {
+   "task": "T1",
+   "jmin": 0.42,
+   "phi": 0.79
+  },
+  {
+   "task": "T1",
+   "jmin": 0.65,
+   "phi": 0.59
+  },
+  {
+   "task": "T1",
+   "jmin": 0.7,
+   "phi": 0.53
+  },
+  {
+   "task": "T1",
+   "jmin": 0.69,
+   "phi": 0.56
+  },
+  {
+   "task": "T1",
+   "jmin": 0.48,
+   "phi": 0.66
+  },
+  {
+   "task": "T1",
+   "jmin": 0.35,
+   "phi": 0.64
+  },
+  {
+   "task": "T1",
+   "jmin": 0.62,
+   "phi": 0.57
+  },
+  {
+   "task": "T1",
+   "jmin": 0.71,
+   "phi": 0.68
+  },
+  {
+   "task": "T1",
+   "jmin": 0.55,
+   "phi": 0.54
+  },
+  {
+   "task": "T2",
+   "jmin": 0.64,
+   "phi": 0.48
+  },
+  {
+   "task": "T2",
+   "jmin": 0.3,
+   "phi": 0.54
+  },
+  {
+   "task": "T2",
+   "jmin": 0.63,
+   "phi": 0.54
+  },
+  {
+   "task": "T2",
+   "jmin": 0.7,
+   "phi": 0.77
+  },
+  {
+   "task": "T2",
+   "jmin": 0.49,
+   "phi": 0.52
+  },
+  {
+   "task": "T2",
+   "jmin": 0.61,
+   "phi": 0.45
+  },
+  {
+   "task": "T2",
+   "jmin": 0.26,
+   "phi": 0.57
+  },
+  {
+   "task": "T2",
+   "jmin": 0.55,
+   "phi": 0.47
+  },
+  {
+   "task": "T2",
+   "jmin": 0.49,
+   "phi": 0.54
+  },
+  {
+   "task": "T2",
+   "jmin": 0.2,
+   "phi": 0.58
+  },
+  {
+   "task": "T3",
+   "jmin": 0.96,
+   "phi": 0.69
+  },
+  {
+   "task": "T3",
+   "jmin": 0.95,
+   "phi": 0.71
+  },
+  {
+   "task": "T3",
+   "jmin": 0.93,
+   "phi": 0.71
+  },
+  {
+   "task": "T3",
+   "jmin": 0.92,
+   "phi": 0.73
+  },
+  {
+   "task": "T3",
+   "jmin": 0.95,
+   "phi": 0.73
+  },
+  {
+   "task": "T3",
+   "jmin": 0.93,
+   "phi": 0.67
+  },
+  {
+   "task": "T3",
+   "jmin": 0.87,
+   "phi": 0.5
+  },
+  {
+   "task": "T3",
+   "jmin": 0.87,
+   "phi": 0.63
+  },
+  {
+   "task": "T3",
+   "jmin": 0.89,
+   "phi": 0.66
+  },
+  {
+   "task": "T3",
+   "jmin": 0.72,
+   "phi": 0.62
+  },
+  {
+   "task": "T3",
+   "jmin": 0.79,
+   "phi": 0.75
+  },
+  {
+   "task": "T4",
+   "jmin": 0.38,
+   "phi": 0.87
+  },
+  {
+   "task": "T4",
+   "jmin": 0.34,
+   "phi": 0.91
+  },
+  {
+   "task": "T4",
+   "jmin": 0.37,
+   "phi": 0.91
+  },
+  {
+   "task": "T4",
+   "jmin": 0.34,
+   "phi": 0.93
+  },
+  {
+   "task": "T4",
+   "jmin": 0.08,
+   "phi": 0.86
+  },
+  {
+   "task": "T4",
+   "jmin": 0.24,
+   "phi": 0.92
+  },
+  {
+   "task": "T4",
+   "jmin": 0.26,
+   "phi": 0.95
+  },
+  {
+   "task": "T4",
+   "jmin": 0.28,
+   "phi": 0.91
+  },
+  {
+   "task": "T4",
+   "jmin": 0.32,
+   "phi": 0.96
+  },
+  {
+   "task": "T4",
+   "jmin": 0.16,
+   "phi": 0.97
+  },
+  {
+   "task": "T5",
+   "jmin": 0.52,
+   "phi": 0.8
+  },
+  {
+   "task": "T5",
+   "jmin": 0.22,
+   "phi": 0.77
+  },
+  {
+   "task": "T5",
+   "jmin": 0.57,
+   "phi": 0.62
+  },
+  {
+   "task": "T5",
+   "jmin": 0.43,
+   "phi": 0.85
+  },
+  {
+   "task": "T5",
+   "jmin": 0.44,
+   "phi": 0.74
+  },
+  {
+   "task": "T5",
+   "jmin": 0.39,
+   "phi": 0.62
+  },
+  {
+   "task": "T5",
+   "jmin": 0.35,
+   "phi": 0.75
+  },
+  {
+   "task": "T5",
+   "jmin": 0.37,
+   "phi": 0.66
+  },
+  {
+   "task": "T5",
+   "jmin": 0.41,
+   "phi": 0.72
+  },
+  {
+   "task": "T5",
+   "jmin": 0.12,
+   "phi": 0.92
+  },
+  {
+   "task": "T5",
+   "jmin": 0.14,
+   "phi": 0.98
+  },
+  {
+   "task": "T5",
+   "jmin": 0.12,
+   "phi": 0.96
+  },
+  {
+   "task": "T6",
+   "jmin": 0.11,
+   "phi": 0.77
+  },
+  {
+   "task": "T6",
+   "jmin": 0.09,
+   "phi": 0.83
+  },
+  {
+   "task": "T6",
+   "jmin": 0.23,
+   "phi": 0.65
+  },
+  {
+   "task": "T6",
+   "jmin": 0.22,
+   "phi": 0.75
+  },
+  {
+   "task": "T6",
+   "jmin": 0.15,
+   "phi": 0.76
+  },
+  {
+   "task": "T6",
+   "jmin": 0.03,
+   "phi": 0.79
+  },
+  {
+   "task": "T6",
+   "jmin": 0.03,
+   "phi": 0.95
+  },
+  {
+   "task": "T6",
+   "jmin": 0.03,
+   "phi": 0.81
+  },
+  {
+   "task": "T6",
+   "jmin": 0.05,
+   "phi": 0.93
+  },
+  {
+   "task": "T6",
+   "jmin": 0.02,
+   "phi": 0.94
+  },
+  {
+   "task": "T6",
+   "jmin": 0.01,
+   "phi": 0.94
+  },
+  {
+   "task": "T6",
+   "jmin": 0.02,
+   "phi": 0.96
+  }
+ ]
+}

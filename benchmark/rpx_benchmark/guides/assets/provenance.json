@@ -109,6 +109,18 @@
       "object_id": "teapot",
       "scene_mask_id": 3,
       "description": "Real matched SOS teapot crop, identity joined through mos_mask_object_map_v1; illustrative crop, not a claim of a specific canonical VQA request"
+    },
+    {
+      "file": "rpx-hero.jpg",
+      "source": "tools/docs/hero/build_hero.py",
+      "sha256": "d3b6089b1a3573f21ff291a014ce0306c2f3e45d2de2365eb5bee4e704859206",
+      "description": "README/PyPI banner rendered by tools/docs/hero/build_hero.py (full variant) from scene012 guide images and the paper's Tables III-VI and Fig. 4 (tools/docs/hero/hero_data.json)"
+    },
+    {
+      "file": "rpx-finding.jpg",
+      "source": "tools/docs/hero/build_hero.py",
+      "sha256": "5f386a1e48b04302f116aa07447c4f721f1160e6dcaca479a6eacfe84359fb35",
+      "description": "Docs home figure rendered by tools/docs/hero/build_hero.py (panel variant) from the same inputs as rpx-hero.jpg"
     }
   ],
   "workflow_figures": [

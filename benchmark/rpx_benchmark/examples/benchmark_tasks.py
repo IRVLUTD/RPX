@@ -227,6 +227,37 @@ def run_task(
     }
 
 
+TASK_LABELS = {
+    "T1": "Image depth",
+    "T2": "Video depth",
+    "T3": "Object tracking",
+    "T4": "Relative camera pose",
+    "T5": "VQA grounding",
+    "T6": "In-context VQA",
+}
+# Headline metrics shown in the console summary (all metrics are in result files).
+HEADLINE = {
+    "T1": (("absrel", "AbsRel"), ("delta1", "δ1")),
+    "T2": (("absrel", "AbsRel"), ("tgm", "TGM")),
+    "T3": (("mota", "MOTA"), ("idsw", "IDSW")),
+    "T4": (("rotation_error_deg", "Rot°"), ("translation_angular_deg", "Transl°")),
+    "T5": (("bbox_accuracy_at_0_5", "Acc@0.5"), ("bbox_mean_giou", "GIoU")),
+    "T6": (("bbox_accuracy_at_0_5", "Acc@0.5"), ("bbox_mean_giou", "GIoU")),
+}
+
+
+def summary_line(task: str, report: dict[str, Any], out_dir: Path) -> str:
+    """One readable console line: task, sample count, headline metrics, output folder."""
+    metrics = report.get("aggregated") or report.get("metrics") or {}
+    shown = []
+    for key, label in HEADLINE[task]:
+        value = metrics.get(key)
+        if isinstance(value, (int, float)):
+            shown.append(f"{label} {value:.3f}")
+    samples = report.get("num_samples", "?")
+    return f"  {task}  {TASK_LABELS[task]:<21}{samples:>5} samples   {' · '.join(shown):<34} → {out_dir}"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", choices=[*TASKS, "T5", "T6", "all"], required=True)
@@ -241,6 +272,9 @@ def main() -> None:
     parser.add_argument("--depth-output-kind", choices=["metric", "relative"], default="metric")
     parser.add_argument("--image-cache", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--json", action="store_true", help="print the full reports as JSON lines instead of a summary"
+    )
     args = parser.parse_args()
     if args.smoke:
         if args.model or args.manifest or args.image_cache or args.device != "cpu":
@@ -250,6 +284,8 @@ def main() -> None:
         if args.output.exists() and any(args.output.iterdir()):
             parser.error("Use a new, empty smoke output directory")
         task_list = list(TASKS) + ["T5", "T6"] if args.task == "all" else [args.task]
+        if not args.json:
+            print("RPX smoke check: synthetic inputs, CPU, real evaluators")
         for task in task_list:
             root = args.output / task
             manifest, fn = create_smoke(root / "synthetic_inputs", task)
@@ -263,7 +299,15 @@ def main() -> None:
                 model_name="synthetic-integration-fixture",
                 model_revision="demo-v1",
             )
-            print(json.dumps({"task": task, "synthetic": True, "report": report}, default=str))
+            if args.json:
+                print(json.dumps({"task": task, "synthetic": True, "report": report}, default=str))
+            else:
+                print(summary_line(task, report, root / "results"))
+        if not args.json:
+            print(
+                f"Done: {len(task_list)} task(s) ran end to end; full results under {args.output}/.\n"
+                "Next, score your own model: https://irvlutd.github.io/RPX/toolkit-docs/models/"
+            )
     else:
         if args.task == "all" or not args.model or not args.manifest:
             parser.error("Real runs require one --task, --manifest and --model")
@@ -280,7 +324,10 @@ def main() -> None:
             model_revision=args.model_revision,
             depth_output_kind=args.depth_output_kind,
         )
-        print(json.dumps(report, default=str))
+        if args.json:
+            print(json.dumps(report, default=str))
+        else:
+            print(summary_line(args.task, report, args.output))
 
 
 if __name__ == "__main__":

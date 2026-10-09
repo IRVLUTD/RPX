@@ -2,32 +2,61 @@
 
 <figure class="rpx-workflow-figure"><a href="../assets/getting-started.svg"><img src="../assets/getting-started.svg" alt="Install, check integration, then connect real models." loading="lazy"></a><figcaption>Install, check integration, then connect real models. Open the vector figure to zoom or reuse it.</figcaption></figure>
 
-## Install
-
-Python 3.10 or newer is required. Use a virtual environment:
+## 1. Install
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
 pip install 'rpx-benchmark[hub,schemas]'
 ```
 
-The core package supplies loaders, adapters, metrics, and reporting. The `hub` extra adds Hugging Face downloading and Parquet support; `schemas` adds manifest validation. Install model dependencies separately or use a reference model container from the repository.
+Python 3.10–3.12. `hub` downloads RPX from Hugging Face; `schemas` validates manifests. Your model's own dependencies
+are installed separately.
 
-## Discover tasks and metrics
+## 2. Check the install (one second, no downloads)
 
-```python
-from rpx_benchmark.tasks import available_tasks
-from rpx_benchmark.metrics import available_metrics
-
-print([task.value for task in available_tasks()])
-print(available_metrics())
+```bash
+python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output rpx-check
 ```
 
-## Run image depth
+Every task's evaluator runs on tiny synthetic inputs and prints one line per task, T1 to T6. These are integration
+checks, not model scores.
 
-With an existing RPX manifest and a model callable that returns an `H × W` NumPy depth array in metres:
+## 3. Score your model on real RPX scenes
+
+```python
+import numpy as np
+import rpx_benchmark as rpx
+
+# Your model: RGB image (H, W, 3) -> metric depth in metres (H, W).
+def predict_depth(rgb):
+    return np.ones(rgb.shape[:2], np.float32)
+
+model = rpx.make_numpy_depth_model(predict_depth, name="my-depth")
+result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
+    model=model, split="easy", repo_id="IRVLUTD/RPX",
+    max_samples=6, output_dir="rpx_results/my-depth",
+))
+print(result.aggregated["absrel"], result.aggregated["delta1"])
+```
+
+Replace `predict_depth` with your model or an API call. The first run fetches about 160 MB, only what this task needs.
+Remove `max_samples` to score the whole Easy tier (33 scenes, all three phases). `result.json`, `summary.md` and
+per-sample tables land in `output_dir`. The other tasks follow the same pattern: see the
+[six task guides](../benchmarks/README.md).
+
+## 4. Get Φ and 𝒥<sub>min</sub>
+
+```bash
+python -m rpx_benchmark.examples.summarize_metrics \
+  --input rpx_results/my-depth/result.json \
+  --metrics absrel rmse silog delta1 --output rpx_results/my-depth/phi.json
+```
+
+This prints your model's phase robustness Φ, worst-phase quality 𝒥<sub>min</sub> and quality per phase. Φ needs all three
+phases of many scenes, so run a full tier first. See the [Φ and JEDI guide](../analysis/README.md).
+
+## Use a local copy of the data
+
+If RPX is already on disk, point the runner at a task manifest instead of the Hub:
 
 ```python
 import rpx_benchmark as rpx
@@ -49,18 +78,18 @@ print(result.aggregated)
 print(paths)
 ```
 
-`my_model` is your code, not an installed RPX module. This example uses CPU; select `device="cuda"` when your model and environment support it. A small `max_samples` is useful for checking integration; a full benchmark needs the complete protocol and split.
+`my_model` is your code, not an installed RPX module. Use `device="cuda"` when your model supports it. Check that the
+sample count and scene/phase IDs match your manifest before comparing scores.
 
-## Inspect results
+## What else is here
 
-The result contains `per_sample`, `aggregated`, and `num_samples`. The returned `paths` identify generated reports and cell records. Check that the sample count and scene/phase IDs match your manifest before comparing model scores.
+```python
+from rpx_benchmark.tasks import available_tasks
+from rpx_benchmark.metrics import available_metrics
 
-[Connect a model](../models/README.md) or [add a metric](../metrics/README.md).
-
-## Try every task without weights
-
-```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output results/six-task-smoke
+print([task.value for task in available_tasks()])
+print(available_metrics())
 ```
 
-These are synthetic integration checks, not pretrained model evaluations. Then follow the [six task guides](../benchmarks/README.md) for real manifest and callable commands, the [hardware profiler](../profiling/README.md) for measurements, and the [raw-metric calculator](../analysis/README.md) for Φ/JEDI.
+[Connect any model or API](../models/README.md) · [Hardware profiler](../profiling/README.md) ·
+[Add a metric](../metrics/README.md) · [Add a task](../tasks/README.md)
