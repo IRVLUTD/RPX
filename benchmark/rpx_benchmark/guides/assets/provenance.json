@@ -111,16 +111,34 @@
       "description": "Real matched SOS teapot crop, identity joined through mos_mask_object_map_v1; illustrative crop, not a claim of a specific canonical VQA request"
     },
     {
-      "file": "rpx-hero.jpg",
-      "source": "tools/docs/hero/build_hero.py",
-      "sha256": "d3b6089b1a3573f21ff291a014ce0306c2f3e45d2de2365eb5bee4e704859206",
-      "description": "README/PyPI banner rendered by tools/docs/hero/build_hero.py (full variant) from scene012 guide images and the paper's Tables III-VI and Fig. 4 (tools/docs/hero/hero_data.json)"
+      "file": "rpx-hero-light.webp",
+      "source": "tools/docs/hero/build_hero.py with tools/docs/hero/hero_data.json (paper Tables III-VI, Fig. 4) and scene012 guide images",
+      "sha256": "1b4f8d35d24351e61dac1a892f1c590a7493e15a85462b5452c41060852063ae",
+      "description": "README banner, light theme: tools/docs/hero/build_hero.py --variant full --theme light"
     },
     {
-      "file": "rpx-finding.jpg",
-      "source": "tools/docs/hero/build_hero.py",
-      "sha256": "5f386a1e48b04302f116aa07447c4f721f1160e6dcaca479a6eacfe84359fb35",
-      "description": "Docs home figure rendered by tools/docs/hero/build_hero.py (panel variant) from the same inputs as rpx-hero.jpg"
+      "file": "rpx-hero-dark.webp",
+      "source": "tools/docs/hero/build_hero.py with tools/docs/hero/hero_data.json (paper Tables III-VI, Fig. 4) and scene012 guide images",
+      "sha256": "67952ba985496a03c2d2abb5542751d8c0c7be4585900274c261b83952fa5acf",
+      "description": "README banner, dark theme: tools/docs/hero/build_hero.py --variant full --theme dark"
+    },
+    {
+      "file": "rpx-hero.jpg",
+      "source": "tools/docs/hero/build_hero.py with tools/docs/hero/hero_data.json (paper Tables III-VI, Fig. 4) and scene012 guide images",
+      "sha256": "e3e8404403afd38a14af1f4fce7b464537c38c6dd2dd2ee5f226db6daa75f474",
+      "description": "rpx-hero-light.webp flattened on white for the PyPI page"
+    },
+    {
+      "file": "rpx-finding-light.webp",
+      "source": "tools/docs/hero/build_hero.py with tools/docs/hero/hero_data.json (paper Tables III-VI, Fig. 4) and scene012 guide images",
+      "sha256": "5d1ccaf1be87e8460805a537b43f5d8af0b08e3e796072e222a145dd36a4635b",
+      "description": "Docs home figure, light theme: build_hero.py --variant panel --theme light"
+    },
+    {
+      "file": "rpx-finding-dark.webp",
+      "source": "tools/docs/hero/build_hero.py with tools/docs/hero/hero_data.json (paper Tables III-VI, Fig. 4) and scene012 guide images",
+      "sha256": "571c5853351d5ea47511e2789d3fcffca3a6f22fee4ce9a134fd6e6fc7e569b8",
+      "description": "Docs home figure, dark theme: build_hero.py --variant panel --theme dark"
     }
   ],
   "workflow_figures": [

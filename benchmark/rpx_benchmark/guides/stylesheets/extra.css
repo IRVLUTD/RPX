@@ -171,3 +171,6 @@ body { background: var(--rpx-paper); }
 .rpx-task-shortcuts { display: flex; flex-wrap: wrap; gap: 1.4rem; margin: -.25rem 0 1.25rem; font-size: .65rem; font-weight: 650; }
 .rpx-task-shortcuts a { padding: .3rem 0; border-bottom: 1px solid var(--rpx-line); }
 .rpx-task-shortcuts span { margin-left: .35rem; }
+
+/* Findings figure: the image is a rounded card on a transparent background, so drop the frame. */
+.rpx-workflow-figure.rpx-finding img { border: 0; background: transparent; }
