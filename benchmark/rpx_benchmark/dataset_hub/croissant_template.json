@@ -6,10 +6,16 @@
     "column": "cr:column",
     "conformsTo": "dct:conformsTo",
     "cr": "http://mlcommons.org/croissant/",
-    "data": {"@id": "cr:data", "@type": "@json"},
+    "data": {
+      "@id": "cr:data",
+      "@type": "@json"
+    },
     "dataBiases": "cr:dataBiases",
     "dataCollection": "cr:dataCollection",
-    "dataType": {"@id": "cr:dataType", "@type": "@vocab"},
+    "dataType": {
+      "@id": "cr:dataType",
+      "@type": "@vocab"
+    },
     "dct": "http://purl.org/dc/terms/",
     "extract": "cr:extract",
     "field": "cr:field",
@@ -38,55 +44,59 @@
   },
   "@type": "sc:Dataset",
   "name": "RPX",
-  "description": "RPX (Robot Perception X) is a unified real-world RGB-D benchmark for evaluating robot perception under embodied deployment conditions. It comprises 75,000 frames across 100 indoor scenes with ~70 daily object categories, captured under a three-phase reconfiguration protocol (clutter, human interaction, clean) using Intel D435 and T265 sensors. Ground-truth annotations include instance masks, tracklets, metric depth, 6-DoF camera pose, and language attributes, enabling evaluation of 8 perception tasks on identical scenes and objects.",
+  "description": "RPX (Robot Perception X) is a real-world benchmark for evaluating robot perception as manipulation changes a scene. It captures 100 scenes (50 indoor, 50 outdoor, at 20 sites) in three exocentric phases, before (Clutter), during (Interaction) and after (Clean) manipulation, plus an egocentric view during Interaction, and scans 70 everyday objects alone in 360 degrees: about 133,000 frames in total (75,000 multi-object, 23,121 egocentric, 35,000 single-object). Annotations include instance masks, tracklets, metric depth, 6-DoF camera pose, object questionnaires and VQA questions. Six tasks are scored on the same scenes: image depth, video depth, multi-object tracking, relative camera pose, VQA localization and in-context VQA.",
   "conformsTo": "http://mlcommons.org/croissant/1.0",
-  "citeAs": "TODO: add bibtex citation after paper is published",
+  "citeAs": "@misc{rpx2026, title={Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild}, author={{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu}, year={2026}, note={Dataset: https://huggingface.co/datasets/IRVLUTD/RPX}}",
   "license": "https://creativecommons.org/licenses/by/4.0/",
-  "url": "https://anonymous.4open.science/r/RPX",
+  "url": "https://huggingface.co/datasets/IRVLUTD/RPX",
   "version": "1.0.0",
   "isLiveDataset": false,
-
   "creator": {
     "@type": "Organization",
-    "name": "Anonymous (for review)",
-    "url": "https://anonymous.4open.science/r/RPX"
+    "name": "Intelligent Robotics and Vision Lab, The University of Texas at Dallas",
+    "url": "https://github.com/IRVLUTD"
   },
-
-  "dataCollection": "Data was collected using a hand-held sensor rig (Intel RealSense D435 RGB-D + T265 tracking camera) by human operators in indoor environments. Each of 100 scenes was captured across three phases: clutter, human interaction, and clean. Per-frame instance masks were generated using SAM2 with iterative human refinement. Camera poses are from T265 visual-inertial odometry. Language annotations are derived from FewSOL object questionnaires.",
-
-  "dataBiases": "The dataset is limited to indoor tabletop and room-scale environments with D435 depth range (0.3-3m). Object categories skew toward household and laboratory manipulation objects. Capture trajectories are human-driven and may not cover all robot motion profiles. All capture was performed by lab personnel; annotator diversity is limited.",
-
+  "dataCollection": "Data was collected with a hand-held sensor rig (Intel RealSense D435 RGB-D and T265 fisheye stereo with visual-inertial pose) operated by lab members, plus a head-mounted GoPro during Interaction. Each of 100 scenes was captured in three phases: Clutter, Interaction and Clean. Instance masks were generated with SAM2 propagation and iterative human correction. Camera poses come from T265 visual-inertial odometry. Object attributes come from per-object questionnaires.",
+  "dataBiases": "Scenes come from 20 capture sites (10 indoor, 10 outdoor) and arrange 6-8 of 70 everyday household and workplace objects on surfaces such as tables, benches and steps. Depth is limited to the D435 sensing range; trajectories are hand-held rather than robot-mounted; capture and annotation were done by lab personnel, so annotator diversity is limited.",
   "personalSensitiveInformation": "The dataset contains video footage of human hands during the interaction phase. No faces, biometric identifiers, or personally identifiable information are captured or released. Participants provided informed consent for data collection and release.",
-
   "distribution": [
     {
       "@type": "cr:FileObject",
-      "@id": "rpx-sample",
-      "name": "rpx-sample",
-      "description": "5-scene reviewer sample (<4GB), available without registration",
-      "contentUrl": "https://anonymous.4open.science/r/RPX/sample",
-      "encodingFormat": "application/zip",
-      "sha256": "TODO"
+      "@id": "rpx-frames",
+      "name": "rpx-frames",
+      "description": "Canonical frame inventory: one record per frame (133,121) with modality availability and shard locations.",
+      "contentUrl": "https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/manifest/frames_v1.parquet",
+      "encodingFormat": "application/x-parquet",
+      "sha256": "9a082a41555ee6d978472059a8763f7cf44fe2e79faf56515f060dd2b2a47ff5"
     },
     {
       "@type": "cr:FileObject",
-      "@id": "rpx-full",
-      "name": "rpx-full",
-      "description": "Full 75,000-frame dataset with all annotations",
-      "contentUrl": "https://anonymous.4open.science/r/RPX/full",
-      "encodingFormat": "application/zip",
-      "sha256": "TODO"
+      "@id": "rpx-difficulty-tiers",
+      "name": "rpx-difficulty-tiers",
+      "description": "Scene difficulty tiers (33 Easy, 33 Medium, 34 Hard) with per-scene and per-phase scores and scoring provenance.",
+      "contentUrl": "https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/splits/scene_splits.json",
+      "encodingFormat": "application/json",
+      "sha256": "f927d7b633c348884eaba7a3b5fd8808da95be270698e093bb169a1cac3f9945"
     },
     {
       "@type": "cr:FileObject",
-      "@id": "rpx-manifests",
-      "name": "rpx-manifests",
-      "description": "JSON manifest files for train/val/test splits and ESD labels",
-      "contentUrl": "https://anonymous.4open.science/r/RPX/manifests",
-      "encodingFormat": "application/json"
+      "@id": "rpx-object-catalog",
+      "name": "rpx-object-catalog",
+      "description": "The 70-object catalogue: global identities, names and questionnaire paths.",
+      "contentUrl": "https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/manifest/object_catalog_v1.json",
+      "encodingFormat": "application/json",
+      "sha256": "8181d895b536ebab830dd1e7b9b087f15eb780d87d65495e09766de33cadb653"
+    },
+    {
+      "@type": "cr:FileObject",
+      "@id": "rpx-file-checksums",
+      "name": "rpx-file-checksums",
+      "description": "SHA-256 checksums of every file in the release.",
+      "contentUrl": "https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/manifest/file_checksums.json",
+      "encodingFormat": "application/json",
+      "sha256": "37160804ab71b13b690bec83bd478313bb19f94985b87a6a0b57a470a1166f19"
     }
   ],
-
   "recordSet": [
     {
       "@type": "cr:RecordSet",
@@ -94,15 +104,69 @@
       "name": "frames",
       "description": "Per-frame records with RGB, depth, instance mask, camera pose, phase, and ESD label",
       "field": [
-        {"@type": "cr:Field", "@id": "frames/id", "name": "id", "description": "Unique frame identifier (scene_phase_framenum)", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/scene_id", "name": "scene_id", "description": "Scene index (0-99)", "dataType": "sc:Integer"},
-        {"@type": "cr:Field", "@id": "frames/phase", "name": "phase", "description": "Scene phase: clutter | interaction | clean", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/difficulty", "name": "difficulty", "description": "ESD difficulty level: easy | medium | hard", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/rgb_path", "name": "rgb_path", "description": "Relative path to RGB image (PNG, 1920x1080)", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/depth_path", "name": "depth_path", "description": "Relative path to depth map (NPY float32, metres)", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/mask_path", "name": "mask_path", "description": "Relative path to instance mask (PNG, pixel values = instance IDs)", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/camera_pose", "name": "camera_pose", "description": "4x4 SE(3) camera-to-world matrix from T265 (float64)", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "frames/split", "name": "split", "description": "Dataset split: train | val | test", "dataType": "sc:Text"}
+        {
+          "@type": "cr:Field",
+          "@id": "frames/id",
+          "name": "id",
+          "description": "Unique frame identifier (scene_phase_framenum)",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/scene_id",
+          "name": "scene_id",
+          "description": "Scene index (0-99)",
+          "dataType": "sc:Integer"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/phase",
+          "name": "phase",
+          "description": "Scene phase: clutter | interaction | clean",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/difficulty",
+          "name": "difficulty",
+          "description": "ESD difficulty level: easy | medium | hard",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/rgb_path",
+          "name": "rgb_path",
+          "description": "Relative path to RGB image (lossless WebP, RGB uint8)",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/depth_path",
+          "name": "depth_path",
+          "description": "Relative path to depth map (lossless PNG, uint16 millimetres)",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/mask_path",
+          "name": "mask_path",
+          "description": "Relative path to instance mask (PNG, pixel values = instance IDs)",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/camera_pose",
+          "name": "camera_pose",
+          "description": "Relative path to a (7,) float64 NPY pose vector [x, y, z, qx, qy, qz, qw] from T265",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "frames/split",
+          "name": "split",
+          "description": "Dataset split: train | val | test",
+          "dataType": "sc:Text"
+        }
       ]
     },
     {
@@ -111,11 +175,39 @@
       "name": "tracklets",
       "description": "Per-object tracklets with consistent IDs across frames within a phase",
       "field": [
-        {"@type": "cr:Field", "@id": "tracklets/scene_id", "name": "scene_id", "dataType": "sc:Integer"},
-        {"@type": "cr:Field", "@id": "tracklets/phase", "name": "phase", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "tracklets/track_id", "name": "track_id", "description": "Unique object track identifier within scene+phase", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "tracklets/object_category", "name": "object_category", "description": "Object category name", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "tracklets/language_description", "name": "language_description", "description": "Natural language referring expression from FewSOL attributes", "dataType": "sc:Text"}
+        {
+          "@type": "cr:Field",
+          "@id": "tracklets/scene_id",
+          "name": "scene_id",
+          "dataType": "sc:Integer"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tracklets/phase",
+          "name": "phase",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tracklets/track_id",
+          "name": "track_id",
+          "description": "Unique object track identifier within scene+phase",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tracklets/object_category",
+          "name": "object_category",
+          "description": "Object category name",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "tracklets/language_description",
+          "name": "language_description",
+          "description": "Natural language referring expression from FewSOL attributes",
+          "dataType": "sc:Text"
+        }
       ]
     },
     {
@@ -124,16 +216,68 @@
       "name": "esd_scores",
       "description": "Per-(scene, phase) ESD feature values and RPX-DS scores",
       "field": [
-        {"@type": "cr:Field", "@id": "esd/scene_id", "name": "scene_id", "dataType": "sc:Integer"},
-        {"@type": "cr:Field", "@id": "esd/phase", "name": "phase", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "esd/rpx_ds", "name": "rpx_ds", "description": "RPX Difficulty Score (higher = harder)", "dataType": "sc:Float"},
-        {"@type": "cr:Field", "@id": "esd/difficulty", "name": "difficulty", "description": "ESD split assignment: easy | medium | hard", "dataType": "sc:Text"},
-        {"@type": "cr:Field", "@id": "esd/occ_mean", "name": "occ_mean", "dataType": "sc:Float"},
-        {"@type": "cr:Field", "@id": "esd/iter_mean", "name": "iter_mean", "dataType": "sc:Float"},
-        {"@type": "cr:Field", "@id": "esd/area_cv", "name": "area_cv", "dataType": "sc:Float"},
-        {"@type": "cr:Field", "@id": "esd/depth_invalid_mask", "name": "depth_invalid_mask", "dataType": "sc:Float"},
-        {"@type": "cr:Field", "@id": "esd/vis_instability", "name": "vis_instability", "dataType": "sc:Float"},
-        {"@type": "cr:Field", "@id": "esd/jerk", "name": "jerk", "dataType": "sc:Float"}
+        {
+          "@type": "cr:Field",
+          "@id": "esd/scene_id",
+          "name": "scene_id",
+          "dataType": "sc:Integer"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/phase",
+          "name": "phase",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/rpx_ds",
+          "name": "rpx_ds",
+          "description": "RPX Difficulty Score (higher = harder)",
+          "dataType": "sc:Float"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/difficulty",
+          "name": "difficulty",
+          "description": "ESD split assignment: easy | medium | hard",
+          "dataType": "sc:Text"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/occ_mean",
+          "name": "occ_mean",
+          "dataType": "sc:Float"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/iter_mean",
+          "name": "iter_mean",
+          "dataType": "sc:Float"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/area_cv",
+          "name": "area_cv",
+          "dataType": "sc:Float"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/depth_invalid_mask",
+          "name": "depth_invalid_mask",
+          "dataType": "sc:Float"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/vis_instability",
+          "name": "vis_instability",
+          "dataType": "sc:Float"
+        },
+        {
+          "@type": "cr:Field",
+          "@id": "esd/jerk",
+          "name": "jerk",
+          "dataType": "sc:Float"
+        }
       ]
     }
   ]

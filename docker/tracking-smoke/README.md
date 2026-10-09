@@ -2,6 +2,13 @@
 
 There are two deliberately separate Docker paths:
 
+> **Published image:** pull `irvlutd/rpx:tracking-dam4sam-rpx-latest` for the eight
+> mask-initialized paper trackers (SAM 2, EdgeTAM, Cutie, SAM2Long, SAM 2++, MiTS,
+> XMem, DAM4SAM); it is the final image of the cumulative chain described below.
+> Prompt-initialized runs use their own images:
+> `tracking-sam3.1-bbox-rpx-latest`, `tracking-sam3.1-text-rpx-latest` and
+> `tracking-grounded-sam2-text-rpx-latest`. See the [image table](../README.md#which-image-to-pull).
+
 - `Dockerfile` is the already-tested YOLOE engineering smoke plus the RPX SAM 2
   adapter image.
 - `Dockerfile.models` is the weight-free, cumulative environment matrix for the

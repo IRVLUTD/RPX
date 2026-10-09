@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use RPX, the dataset, the toolkit or any part of this repository, please cite it as below."
+title: "Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild"
+type: software
+authors:
+  - given-names: Jishnu Jaykumar
+    family-names: P
+    affiliation: The University of Texas at Dallas
+  - given-names: Itay
+    family-names: Kadosh
+    affiliation: University of Florida
+  - given-names: Narendhiran
+    family-names: Vijayakumar
+    affiliation: IIIT Hyderabad
+  - given-names: Srinanditha
+    family-names: Kamath
+    affiliation: The University of Texas at Austin
+  - given-names: Sai Haneesh
+    family-names: Allu
+    affiliation: The University of Texas at Dallas
+  - given-names: Govind Tyagi
+    family-names: Rangappa
+    affiliation: The University of Texas at Dallas
+  - given-names: Animesh
+    family-names: Maheshwari
+    affiliation: The University of Texas at Dallas
+  - given-names: Jikai
+    family-names: Wang
+    affiliation: The University of Texas at Dallas
+  - given-names: Yu
+    family-names: Xiang
+    affiliation: The University of Texas at Dallas
+repository-code: "https://github.com/IRVLUTD/RPX"
+url: "https://huggingface.co/datasets/IRVLUTD/RPX"
+license: MIT
+keywords:
+  - robotics
+  - robot perception
+  - benchmark
+  - RGB-D
+  - depth estimation
+  - object tracking
+  - camera pose
+  - visual question answering

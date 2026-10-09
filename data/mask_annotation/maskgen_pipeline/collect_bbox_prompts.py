@@ -2,13 +2,18 @@
 
 import os
 import json
+import argparse
 from PIL import Image as PILImg
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-# Path to your image and output JSON
-image_path = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/rgb/00249.png"
-output_json = "/home/itaykadosh/Desktop/scene97.jsom.atrium/0/bbox_prompts.json"
+# Image to annotate (e.g. <scene>/0/rgb/00249.png) and output JSON
+parser = argparse.ArgumentParser(description="Click bbox prompts on an image and save them as JSON.")
+parser.add_argument("image", help="RGB frame to annotate")
+parser.add_argument("--output", help="output JSON (default: bbox_prompts.json in the phase directory, i.e. two levels above the image)")
+args = parser.parse_args()
+image_path = args.image
+output_json = args.output or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(image_path))), "bbox_prompts.json")
 
 # Load the image
 image = PILImg.open(image_path)

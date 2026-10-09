@@ -38,7 +38,7 @@ the task-specific environments and commands in
 
 | Dataset | Benchmark surface | Reference coverage | Custom models |
 |---|---|---|---|
-| 100 scenes · 3 states · 75k+ RGB-D frames | 10 task APIs · 3 evaluation axes | Depth · video depth · pose · tracking · VQA | Local checkpoints or inference APIs |
+| 100 scenes · 3 phases + ego view · ~133K frames | 10 task APIs · 3 evaluation axes | Depth · video depth · pose · tracking · VQA | Local checkpoints or inference APIs |
 
 ---
 
@@ -49,8 +49,8 @@ a static scene. That number does not say how the model behaves when the same
 room is rearranged, when a person reaches into the frame, or what the
 prediction costs to compute.
 
-RPX evaluates perception across **100 indoor scenes** captured in three
-states — clutter, human interaction, and clean — and reports every model on
+RPX evaluates perception across **100 real scenes** (50 indoor, 50 outdoor)
+captured in three states — clutter, human interaction, and clean — and reports every model on
 **three independent axes**, never collapsed into a single composite:
 
 1. **Task performance** — the per-task primary metric (AbsRel, mIoU, rotation
@@ -69,8 +69,9 @@ evaluation operates on whole phase clips. The VQA benchmark adds egocentric
 and two-image questions.
 
 Images, depth, instance masks, poses and question data live in the
-[RPX dataset](https://huggingface.co/datasets/IRVLUTD/RPX) — roughly 75,000
-frames over 100 scenes and ~70 object categories, with instance masks,
+[RPX dataset](https://huggingface.co/datasets/IRVLUTD/RPX) — about 133,000
+frames (75,000 multi-object, 23,121 egocentric, 35,000 single-object) over
+100 scenes and 70 everyday objects, with instance masks,
 tracklets, metric depth, 6-DoF camera pose and language attributes. Model
 weights and large experiment outputs are downloaded or generated separately.
 
@@ -97,7 +98,7 @@ Run a reference-model gate before a full sweep:
 
 ```bash
 # The runtime reports the complete, pinned VQA roster without loading weights.
-docker run --rm narendhiranv04/rpx-vqa-smoke:vllm list-models
+docker run --rm irvlutd/rpx:vqa-vllm list-models
 
 # Model-specific depth, tracking and pose commands live in their Docker READMEs.
 python benchmark/scripts/run_depth_smoke_matrix.py --list-models
@@ -258,8 +259,18 @@ Keep documentation in README files, dataset metadata in its designated
 folders, and generated outputs out of Git.
 
 **Citation.** If you use RPX — the dataset, the toolkit, or any part of this
-repository — please cite the accompanying paper. The BibTeX entry will be
-added here once the paper is released.
+repository — please cite the accompanying paper (GitHub's *Cite this
+repository* button uses [CITATION.cff](CITATION.cff)):
+
+```bibtex
+@misc{rpx2026,
+  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
+  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
+            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
+  year   = {2026},
+  note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
+}
+```
 
 **License.** Code in this repository is **MIT**; see [LICENSE](LICENSE). The
 RPX dataset is released under **CC BY 4.0**; its terms are recorded in the
@@ -271,8 +282,3 @@ The [toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) cover installati
 
 
 The illustrated [toolkit capabilities](https://irvlutd.github.io/RPX/toolkit-docs/capabilities/) include [mask annotation](https://irvlutd.github.io/RPX/toolkit-docs/annotation/), [hardware profiling](https://irvlutd.github.io/RPX/toolkit-docs/profiling/), [Φ/JEDI from raw metrics](https://irvlutd.github.io/RPX/toolkit-docs/analysis/), and [examples for all six tasks](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/). Guides and offline examples are included in the PyPI package.
-
-```bibtex
-% RPX citation placeholder.
-% Official BibTeX will be added after the arXiv paper is published.
-```
