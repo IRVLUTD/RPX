@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-hero.jpg" alt="RPX: the same real scene before, during and after manipulation and from an egocentric view; mean quality per view for video depth, tracking and VQA drops when hands enter the scene; none of the 65 evaluations in the paper reaches both worst-phase quality 0.75 and phase robustness 0.86; three steps: pip install rpx-benchmark, run your model, get phi and J-min." width="100%"/>
+  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview (paper Fig. 1): six perception tasks scored on the same real scenes, captured before (Clutter), during (Interaction) and after (Clean) manipulation plus an egocentric view; one pipeline and two diagnostics; 100 multi-object scenes in three difficulty tiers; 70 single objects; sensors and annotation modalities." width="100%"/>
 </p>
 
 <p align="center">
@@ -29,6 +29,15 @@
 | Comparing a new model means re-implementing protocols | Wrap your function or API; RPX applies the paper's data, splits and metrics |
 
 ---
+
+### What RPX reveals
+
+The same scene, scored before, during and after manipulation: quality drops when hands enter, and no model in the
+paper is both accurate and robust.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-hero-light.webp" alt="RPX: the same real scene before, during and after manipulation and from an egocentric view; mean quality per view for video depth, tracking and VQA drops when hands enter the scene; none of the 65 evaluations in the paper reaches both worst-phase quality 0.75 and phase robustness 0.86; three steps: pip install rpx-benchmark, run your model, get phi and J-min." width="100%"/>
+</p>
 
 ## Quick start
 

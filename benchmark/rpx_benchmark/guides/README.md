@@ -5,7 +5,7 @@ hide:
 
 <div class="rpx-home" markdown>
 
-<div class="rpx-hero" markdown>
+<div class="rpx-hero rpx-hero-single" markdown>
 
 <div class="rpx-hero-copy" markdown>
 
@@ -21,9 +21,11 @@ Six tasks, one evaluator, and the paper's robustness diagnosis. Wrap your model 
 
 </div>
 
-<figure class="rpx-hero-figure"><img src="assets/hero-interaction.jpg" width="640" height="480" alt="Indoor RPX scene 012 during human interaction, with instance masks overlaid on everyday objects."><figcaption><span>SCENE 012 / INTERACTION</span><span>Released instance-mask overlay</span></figcaption></figure>
+
 
 </div>
+
+<figure class="rpx-overview-figure"><img src="assets/rpx-overview.webp" width="2400" height="1375" alt="RPX overview (paper Fig. 1): six perception tasks scored on the same real scenes, captured before (Clutter), during (Interaction) and after (Clean) manipulation plus an egocentric view; one pipeline and two diagnostics; 100 multi-object scenes in three difficulty tiers; 70 single objects; sensors and annotation modalities."><figcaption>RPX at a glance (paper Fig. 1): today each task is benchmarked on its own data; RPX scores six tasks on the same real scenes, before, during and after manipulation.</figcaption></figure>
 
 <div class="rpx-numbers" aria-label="Dataset at a glance"><div><strong>100</strong><span>multi-object scenes</span></div><div><strong>3</strong><span>capture phases</span></div><div><strong>6</strong><span>paper tasks</span></div><div><strong>70</strong><span>single-object captures</span></div></div>
 

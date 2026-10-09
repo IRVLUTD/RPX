@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="benchmark/rpx_benchmark/guides/assets/rpx-hero-dark.webp">
-    <img src="benchmark/rpx_benchmark/guides/assets/rpx-hero-light.webp" alt="RPX: the same real scene before, during and after manipulation and from an egocentric view; mean quality per view for video depth, tracking and VQA drops when hands enter the scene; none of the 65 evaluations in the paper reaches both worst-phase quality 0.75 and phase robustness 0.86; three steps: pip install rpx-benchmark, run your model, get phi and J-min." width="100%">
-  </picture>
+  <img src="benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview (paper Fig. 1): (a) today each perception task is benchmarked on its own data with its own metric; (b) RPX evaluates six tasks on the same real scenes, captured before (Clutter), during (Interaction) and after (Clean) manipulation, plus an egocentric view; (c) one pipeline and two diagnostics, phase robustness and worst-phase quality; (d) 100 multi-object scenes by difficulty and phase; (e) 70 objects, each captured alone in 360 degrees; (f) sensors and annotation modalities." width="100%">
 </p>
 
 <p align="center">
@@ -39,6 +36,18 @@ working when that happens. RPX can.
 - **Before, during, after**: Every scene is recorded in its Clutter, Interaction and Clean phases with RGB-D, stereo and pose, plus an egocentric view during Interaction: ~133K annotated frames.
 - **Two numbers per model**: **Φ** measures phase robustness and **𝒥<sub>min</sub>** measures quality in the worst phase. None of the 65 evaluations in the paper reaches both 𝒥<sub>min</sub> ≥ 0.75 and Φ ≥ 0.86.
 - **Your model in minutes**: Wrap a function or an API call; the toolkit applies the paper's data, splits and metrics.
+
+### What RPX reveals
+
+The same scene, scored before, during and after manipulation: quality drops when hands enter, and no model in the
+paper is both accurate and robust.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="benchmark/rpx_benchmark/guides/assets/rpx-hero-dark.webp">
+    <img src="benchmark/rpx_benchmark/guides/assets/rpx-hero-light.webp" alt="RPX: the same real scene before, during and after manipulation and from an egocentric view; mean quality per view for video depth, tracking and VQA drops when hands enter the scene; none of the 65 evaluations in the paper reaches both worst-phase quality 0.75 and phase robustness 0.86; three steps: pip install rpx-benchmark, run your model, get phi and J-min." width="100%">
+  </picture>
+</p>
 
 ## Quick start
 

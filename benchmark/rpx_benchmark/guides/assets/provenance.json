@@ -1,6 +1,12 @@
 {
   "images": [
     {
+      "file": "rpx-overview.webp",
+      "source": "Paper Fig. 1, rendered from the camera-ready PDF page (vector number overlays included), as on the Hugging Face card (assets/rpx-overview.jpg)",
+      "sha256": "bfb43eda0c191b247c63c59387267454fe8ba96d05d8fe61551fb9fccc9f3131",
+      "description": "Paper overview figure on a white rounded card with transparent corners"
+    },
+    {
       "file": "hero-interaction.jpg",
       "source": "RPX_camera_ready_20260930_polished_v4/RPX_appendix_source/assets/images/appendix/cells/scene012_interaction.jpg",
       "sha256": "1cd46c8f9df755e76078f3438c90acd7b8d9def8a4a4bed27b442f7e65db8e6e",

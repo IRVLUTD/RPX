@@ -174,3 +174,10 @@ body { background: var(--rpx-paper); }
 
 /* Findings figure: the image is a rounded card on a transparent background, so drop the frame. */
 .rpx-workflow-figure.rpx-finding img { border: 0; background: transparent; }
+
+/* Single-column hero (copy only) followed by the full-width paper overview figure. */
+.rpx-hero.rpx-hero-single { grid-template-columns: 1fr; padding-bottom: 1.2rem; }
+.rpx-hero.rpx-hero-single .rpx-hero-copy { max-width: 46rem; }
+.md-typeset figure.rpx-overview-figure { margin: 0 0 2rem; max-width: 100%; text-align: left; }
+.rpx-overview-figure img { display: block; width: 100%; height: auto; }
+.md-typeset .rpx-overview-figure figcaption { margin: .7rem 0 0; color: var(--rpx-muted); font-size: .65rem; font-style: normal; line-height: 1.6; max-width: none; }
