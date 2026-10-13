@@ -3,12 +3,13 @@
 ``--smoke`` creates tiny synthetic fixtures and runs the real public evaluators.
 It needs no dataset, weights, GPU, or network.
 
-For a real run of T1-T4, name the task and split: the task's data is downloaded
-first (only the files it needs), then scored. ``--model module:function`` plugs
-in your model; without it a constant demo model shows the pipeline end to end.
-``--manifest`` scores an existing manifest instead of downloading. T5/T6 use
-the canonical VQA JSONL contract, including the verified reference crop for T6,
-and always need ``--manifest``.
+For a real run, name the task: its data is downloaded first (only the files it
+needs), then scored. ``--model module:function`` plugs in your model; without it
+the matching function in ``rpx_benchmark.examples.dummy_models`` is scored, so
+every paper task runs before you write code. ``--manifest`` scores an existing
+manifest instead of downloading. T5/T6 use the canonical VQA JSONL contract,
+including the verified reference crop for T6; without ``--manifest`` they use
+the packaged, revision-pinned questions in ``rpx_benchmark/vqa/quickstart_v1``.
 """
 
 from __future__ import annotations
@@ -29,7 +30,8 @@ from ..exceptions import ConfigError
 from ..tasks._pipeline import PipelineResult, TaskRunConfig
 from ..vqa.contract import VQASample, image_locator, load_manifest, write_manifest
 from ..vqa.evaluate import evaluate_vqa
-from ..vqa.hub_rgb import image_cache_name, reference_cache_name
+from ..vqa.hub_rgb import fetch_images_many, image_cache_name, reference_cache_name
+from . import dummy_models
 from .profile_callable import load_callable
 
 TASKS: dict[
@@ -46,6 +48,19 @@ TASKS: dict[
 
 
 #: Hub manifest folder for each task's ``download_split`` call.
+#: Packaged, revision-pinned VQA questions for T5/T6 runs without --manifest.
+VQA_QUICKSTART = Path(__file__).resolve().parents[1] / "vqa" / "quickstart_v1"
+
+#: Dummy model scored for each task when no --model is given.
+DUMMY_MODELS: dict[str, Callable[..., Any]] = {
+    "T1": dummy_models.image_depth,
+    "T2": dummy_models.video_depth,
+    "T3": dummy_models.tracking,
+    "T4": dummy_models.camera_pose,
+    "T5": dummy_models.vqa,
+    "T6": dummy_models.incontext_vqa,
+}
+
 HUB_MANIFESTS = {
     "T1": ("monocular_depth", None),
     "T2": ("video_depth", None),
@@ -77,14 +92,6 @@ def demo_pose(rgb_a, rgb_b):
 def demo_vqa(image_paths, prompt, max_new_tokens, output_kind):
     """Fixed synthetic localization; never use this as a benchmark model."""
     return '{"label":"cup","bbox":[0,0,1000,1000]}'
-
-
-SMOKE_MODELS: dict[str, Callable[..., Any]] = {
-    "T1": demo_depth,
-    "T2": demo_video_depth,
-    "T3": demo_tracking,
-    "T4": demo_pose,
-}
 
 
 def create_smoke(root: Path, task: str) -> tuple[Path, Callable[..., Any]]:
@@ -282,7 +289,7 @@ def summary_line(task: str, report: dict[str, Any], out_dir: Path) -> str:
 
 def default_output(task: str, model: str | None) -> Path:
     """``rpx_results/<task>/<model>``, numbered so repeated runs never collide."""
-    label = model.replace(":", "-").replace("/", "-") if model else "demo"
+    label = model.replace(":", "-").replace("/", "-") if model else "dummy"
     base = Path("rpx_results") / task / label
     candidate, n = base, 1
     while candidate.exists() and any(candidate.iterdir()):
@@ -351,14 +358,20 @@ def main() -> None:
     else:
         if args.task == "all":
             parser.error("Real runs score one task at a time: pass --task T1 ... T6")
-        if args.task in {"T5", "T6"} and not (args.manifest and args.model):
-            parser.error(
-                "T5/T6 need --manifest (a VQA JSONL) and --model; see "
-                "https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md"
-            )
         output = args.output or default_output(args.task, args.model)
         manifest = args.manifest
-        if manifest is None:
+        max_samples = args.max_samples
+        image_cache = args.image_cache
+        if manifest is None and args.task in {"T5", "T6"}:
+            samples = load_manifest(VQA_QUICKSTART / f"{args.task.lower()}.jsonl")
+            samples = samples[:max_samples] if max_samples else samples
+            image_cache = image_cache or Path("rpx-data") / "vqa-images"
+            print(f"Downloading {TASK_LABELS[args.task]} images ({len(samples)} questions) ...")
+            fetch_images_many(samples, image_cache)
+            manifest = image_cache.parent / f"{args.task}_quickstart.jsonl"
+            write_manifest(samples, manifest)
+            max_samples = None  # the subset manifest already holds exactly these rows
+        elif manifest is None:
             name, hub_name = HUB_MANIFESTS[args.task]
             amount = f"{args.max_samples} samples" if args.max_samples else "full split"
             print(f"Downloading {TASK_LABELS[args.task]} data ({args.split}, {amount}) ...")
@@ -370,9 +383,9 @@ def main() -> None:
         if args.model:
             fn, model_name = load_callable(args.model), args.model_name
         else:
-            fn, model_name = SMOKE_MODELS[args.task], "demo"
+            fn, model_name = DUMMY_MODELS[args.task], "dummy"
             print(
-                "No --model given: scoring a constant demo model to show the pipeline. "
+                "No --model given: scoring the dummy model in rpx_benchmark.examples.dummy_models. "
                 "Pass --model my_model:predict to score yours."
             )
         print(f"Scoring {TASK_LABELS[args.task]} ...")
@@ -383,8 +396,8 @@ def main() -> None:
             output,
             device=args.device,
             split=args.split,
-            max_samples=args.max_samples,
-            image_cache=args.image_cache,
+            max_samples=max_samples,
+            image_cache=image_cache,
             model_name=model_name,
             model_revision=args.model_revision,
             depth_output_kind=args.depth_output_kind,
