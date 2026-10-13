@@ -66,6 +66,20 @@ recorded before, during and after manipulation, scored on six tasks.
 
 <br>
 
+## 🧰 What you get
+
+| Piece | What it gives you | Call |
+|:--|:--|:--|
+| 📦 **Data** | 100 real scenes in three phases, downloaded per task | `rpx.download` |
+| 🧪 **Benchmark** | the six paper tasks with the paper's protocol and metrics | `rpx.benchmark` |
+| 🧮 **Metrics calculator** | Φ (phase robustness) and 𝒥<sub>min</sub> (worst-phase quality) | `summarize_metrics` |
+
+**Your part is one adapter**: a function that turns RPX's input into your model's input, and your model's output
+into RPX's format. Adding a new task or metric? See the toolkit docs on [tasks](https://irvlutd.github.io/RPX/toolkit-docs/tasks/) and
+[metrics](https://irvlutd.github.io/RPX/toolkit-docs/metrics/).
+
+<br>
+
 ## 🚀 Get started
 
 **1 · Install**
@@ -74,23 +88,42 @@ recorded before, during and after manipulation, scored on six tasks.
 pip install 'rpx-benchmark[hub,schemas]'
 ```
 
-**2 · Download a task's data.** Only the files that task needs: about 160 MB here, no login.
+**2 · Wrap your model in an adapter.** For T1 image depth:
+
+```python
+import numpy as np
+
+def my_model(x):                              # stand-in for your network
+    return np.ones(x.shape[-2:], np.float32)
+
+def predict(rgb):                             # RPX gives: RGB image (H, W, 3), uint8
+    x = rgb.transpose(2, 0, 1)[None] / 255.0  # input adapter: RPX -> your model
+    depth = my_model(x)
+    return np.asarray(depth, np.float32)      # output adapter: your model -> depth (H, W) in metres
+```
+
+The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show what each task's adapter receives and returns.
+
+**3 · Download the data and run the benchmark**
 
 ```python
 import rpx_benchmark as rpx
 
-data = rpx.download("T1", split="easy", max_samples=6)
+data = rpx.download("T1", split="easy", max_samples=6)  # only this task's files, ~160 MB
+result = rpx.benchmark("T1", data, predict, name="my-model")
 ```
 
-**3 · Run the benchmark** with the paper's metrics.
+**4 · Calculate Φ and 𝒥<sub>min</sub>.** These need all three phases of many scenes, so drop max_samples to download
+the full tier first.
 
-```python
-result = rpx.benchmark("T1", data, rpx.dummy_models.image_depth)
+```bash
+python -m rpx_benchmark.examples.summarize_metrics --input rpx_results/T1/my-model/result.json \
+  --metrics absrel rmse silog delta1 --output rpx_results/T1/my-model/phi.json
 ```
 
-To score your model, pass your own function in place of the dummy one. The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show what each
-task's function receives and returns. Every paper task works the same way: **T1** image depth · **T2** video depth ·
-**T3** tracking · **T4** camera pose · **T5** VQA grounding · **T6** in-context VQA. Results are saved in rpx_results.
+Every paper task works the same way: **T1** image depth · **T2** video depth · **T3** tracking · **T4** camera pose ·
+**T5** VQA grounding · **T6** in-context VQA. The paper's metric list for each task is in the
+[calculator guide](https://irvlutd.github.io/RPX/toolkit-docs/analysis/).
 
 <br>
 
