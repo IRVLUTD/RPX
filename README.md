@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview (paper Fig. 1): (a) today each perception task is benchmarked on its own data with its own metric; (b) RPX evaluates six tasks on the same real scenes, captured before (Clutter), during (Interaction) and after (Clean) manipulation, plus an egocentric view; (c) one pipeline and two diagnostics, phase robustness and worst-phase quality; (d) 100 multi-object scenes by difficulty and phase; (e) 70 objects, each captured alone in 360 degrees; (f) sensors and annotation modalities." width="100%">
+  <img src="benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires." width="100%">
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@ Perception benchmarks usually score each task on its own static images, so they 
 working when that happens. RPX can.
 
 - **Same scenes, every task**: 100 real scenes (50 indoor, 50 outdoor) and 70 objects, scored on six tasks: image and video depth, multi-object tracking, relative camera pose, VQA grounding and in-context VQA.
-- **Before, during, after**: Every scene is recorded in its Clutter, Interaction and Clean phases with RGB-D, stereo and pose, plus an egocentric view during Interaction: ~133K annotated frames.
+- **Before, during, after**: Every scene is recorded in its Clutter, Interaction and Clean phases with RGB-D, stereo and pose, plus an egocentric view during Interaction: ~133K frames in all.
 - **Two numbers per model**: **Φ** measures phase robustness and **𝒥<sub>min</sub>** measures quality in the worst phase. None of the 65 evaluations in the paper reaches both 𝒥<sub>min</sub> ≥ 0.75 and Φ ≥ 0.86.
 - **Your model in minutes**: Wrap a function or an API call; the toolkit applies the paper's data, splits and metrics.
 

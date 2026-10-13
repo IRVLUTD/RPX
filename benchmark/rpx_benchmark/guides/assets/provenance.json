@@ -2,9 +2,9 @@
   "images": [
     {
       "file": "rpx-overview.webp",
-      "source": "Paper Fig. 1, rendered from the camera-ready PDF page (vector number overlays included), as on the Hugging Face card (assets/rpx-overview.jpg)",
-      "sha256": "bfb43eda0c191b247c63c59387267454fe8ba96d05d8fe61551fb9fccc9f3131",
-      "description": "Paper overview figure on a white rounded card with transparent corners"
+      "source": "paper-icra27/arxiv/assets/images/rpx-hero-nolabels.pdf rendered at 335 dpi, resized to 2400 px wide",
+      "sha256": "fbdc352978288c52943dc9f28025cd5674ecd5d57435d34caf3c150ddc1b5267",
+      "description": "RPX overview figure (redesigned Fig. 1 hero, no panel labels) on a white background"
     },
     {
       "file": "hero-interaction.jpg",
