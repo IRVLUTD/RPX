@@ -24,37 +24,20 @@ reviews one keyframe per phase per scene; the rest is automatic.
 
 ## 🗺️ Pipeline at a glance
 
-```mermaid
-flowchart TD
-    A[Raw scene<br/>rgb/, depth/, cam_pose/, fisheye/] --> B["<b>1. interactive_gsam2</b><br/>curate bboxes + SAM2 propagation<br/>(per phase)"]
-    B --> C[sam2/masks/<br/>all frames]
-    C --> D["<b>2. review_faulty_masks</b><br/>frame-by-frame verify<br/>(S=verified, X=unverify)"]
-    D --> E[verified_masks.txt]
-    E --> F["<b>3. gen_faulty_from_verified</b><br/>(bridge: all − verified)"]
-    F --> G{"iter{N}_faulty.txt<br/>empty?"}
-    G -- yes --> M["<b>6. mask_to_object</b><br/>mask-id ↔ object-name mapping"]
-    G -- no --> H["<b>4. refine_masks_flow</b><br/>SAM2 seeded from verified neighbours<br/>(no human input)"]
-    H --> I["<b>5. review_faulty_masks --no_verified</b><br/>re-verify only the previously-faulty"]
-    I --> J{"still faulty<br/>after 2-3 iters?"}
-    J -- no, converged --> M
-    J -- yes, stubborn frames --> K["<b>5b. manual_label_faulty</b><br/>per-frame manual redraw<br/>(seeded from nearest verified)"]
-    K --> M
-    M --> N[Zip + upload to Box<br/>iter-2 results folder]
+<p align="center">
+  <img src="assets/mask-annotation-pipeline.webp" width="100%" alt="Mask annotation pipeline. Automated: (1) generate initial bounding boxes, (3) SAM2 propagates masks through every frame, (5) automatic refinement of faulty masks, (7) final verified masks across all frames. Human in the loop: (2) verify or redraw masks for one frame, (4) verify masks frame by frame, (6) manually relabel faulty frames.">
+</p>
 
-    classDef human fill:#ffe0b3,stroke:#e07a00,color:#222
-    classDef auto fill:#cfe8ff,stroke:#0a6fb5,color:#222
-    classDef gate fill:#f0e6ff,stroke:#6a3ec2,color:#222
-    classDef terminal fill:#d4f5d4,stroke:#2a8a2a,color:#222
-    class B,D,I,K human
-    class H,F auto
-    class G,J gate
-    class M,N terminal
-```
-
-Legend: 🟧 human-in-the-loop · 🟦 fully automatic · 🟪 decision · 🟩 terminal step.
+| Step in the figure | Command (in `maskgen_pipeline/` unless noted) |
+|:--|:--|
+| 1–3 · boxes, one-frame check, SAM2 propagation | `interactive_gsam2` |
+| 4 · verify frame by frame | `review_faulty_masks` |
+| 5 · automatic refinement | `gen_faulty_from_verified`, then `refine_masks_flow` |
+| 6 · manual relabel | `manual_label_faulty` |
+| 7 · final masks, then object names | `visual_grounding_gt.mask_to_object` |
 
 Most scenes converge after iter 1 → review → iter 2 → re-review. The
-manual-labeling step (5b) is only needed for the handful of frames where
+manual relabel (step 6; 5b below) is only needed for the handful of frames where
 SAM2 propagation keeps disagreeing with the verified neighbours.
 
 ---
