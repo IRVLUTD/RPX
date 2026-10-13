@@ -86,9 +86,9 @@ configs:
 
 ### Evaluating Robot Perception Across Scene Phases in the Wild
 
-**Jishnu Jaykumar P\*, Itay Kadosh\*, Narendhiran Vijayakumar\*, Srinanditha Kamath, Sai Haneesh Allu,<br>
-Govind Tyagi Rangappa, Animesh Maheshwari, Jikai Wang, Yu Xiang**<br>
-<sub>UT Dallas · UF Gainesville · IIIT Hyderabad · UT Austin   \*equal contribution</sub>
+**Jishnu Jaykumar P<sup>1\*</sup>, Itay Kadosh<sup>2\*</sup>, Narendhiran Vijayakumar<sup>3\*</sup>, Srinanditha Kamath<sup>4</sup>, Sai Haneesh Allu<sup>1</sup>,<br>
+Govind Tyagi Rangappa<sup>1</sup>, Animesh Maheshwari<sup>1</sup>, Jikai Wang<sup>1</sup>, Yu Xiang<sup>1</sup>**<br>
+<sub><sup>1</sup>UT Dallas · <sup>2</sup>UF · <sup>3</sup>IIIT Hyderabad · <sup>4</sup>UT Austin · \*equal contribution</sub>
 
 [**Toolkit docs**](https://irvlutd.github.io/RPX/toolkit-docs/) ·
 [**Code**](https://github.com/IRVLUTD/RPX) ·
@@ -98,7 +98,7 @@ Govind Tyagi Rangappa, Animesh Maheshwari, Jikai Wang, Yu Xiang**<br>
 
 </div>
 
-![RPX overview: the same real scenes captured before (Clutter), during (Interaction) and after (Clean) manipulation plus an egocentric view; six perception tasks evaluated through one pipeline; 100 multi-object scenes in three difficulty tiers; 70 single objects; RGB-D, stereo, pose, masks and questionnaires](https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/assets/rpx-overview.webp)
+![RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires](https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/assets/rpx-overview.webp)
 
 **A robot's scene does not hold still.** A tabletop starts cluttered, a hand rearranges it, and it ends clean.
 RPX captures **the same real scenes before, during and after manipulation** on robot-grade sensors, and scores
@@ -108,7 +108,7 @@ six perception tasks on them through one pipeline. Two numbers summarize every m
 
 | 100 | 3 + 1 | 70 | 133,121 | 6 | 65 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| real scenes<br><sub>50 indoor · 50 outdoor · 20 sites</sub> | phases + ego view<br><sub>Clutter · Interaction · Clean · Ego</sub> | everyday objects<br><sub>each scanned alone in 360°</sub> | annotated frames<br><sub>RGB-D · stereo · pose · masks</sub> | tasks<br><sub>depth to grounding</sub> | zero-shot evaluations |
+| real scenes<br><sub>50 indoor · 50 outdoor · 20 sites</sub> | phases + ego view<br><sub>Clutter · Interaction · Clean · Ego</sub> | everyday objects<br><sub>each scanned alone in 360°</sub> | frames<br><sub>RGB-D · stereo · pose · masks</sub> | tasks<br><sub>depth to grounding</sub> | zero-shot evaluations |
 
 **What it shows.** Depth and tracking change significantly across phases (p < 0.001); model rankings shift
 across tasks, prompting modes and input modalities on the very same scenes; and no evaluation reaches both
@@ -124,43 +124,44 @@ across tasks, prompting modes and input modalities on the very same scenes; and 
 | T2 | Video depth | 3 phases | T1 metrics + TGM · TGSE | `irvlutd/rpx:depth-zipdepth-latest` |
 | T3 | Multi-object tracking | 3 phases + Ego | HOTA · MOTA · IDSW | `irvlutd/rpx:tracking-dam4sam-rpx-latest` |
 | T4 | Relative camera pose | Clutter · Clean | AUC@5° · @10° · @20° | `irvlutd/rpx:rcpe-monst3r-rpx-latest` |
-| T5 | VQA localization | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
+| T5 | VQA | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
 | T6 | In-context VQA | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
 
 Every task keeps its field's native metrics; each result is mapped onto the same scene–phase scale, from which Φ
 and 𝒥<sub>min</sub> are computed. The [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull)
 lists which image holds which model.
 
-## Get started in two minutes
+## Benchmark your model
+
+RPX gives you the data, an adapter per task that connects your model's inputs and outputs, the benchmark with the
+paper's protocol and metrics, and a calculator for Φ and 𝒥<sub>min</sub>. You write one function.
 
 ```bash
-python -m pip install 'rpx-benchmark[hub,schemas]'
-
-# Check the install on all six tasks with synthetic data (CPU, no downloads):
-python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output results/six-task-smoke
+pip install 'rpx-benchmark[hub,schemas]'
 ```
-
-**Score your own model.** Wrap any callable, local model or API, and the toolkit fetches only the shards that
-task needs, runs it, and writes the metrics:
 
 ```python
+import numpy as np
 import rpx_benchmark as rpx
-from my_model import predict_depth          # RGB array -> depth in metres
 
-model = rpx.make_numpy_depth_model(predict_depth, name="my-depth")
-result, report, paths = rpx.run_monocular_depth(
-    rpx.MonocularDepthRunConfig(
-        model=model, split="easy", repo_id="IRVLUTD/RPX",
-        output_dir="rpx_results/my-depth/easy",
-    )
-)
-print(result.aggregated)
+# 1. Download one task's data: only its files, about 160 MB for this 6-frame trial
+manifest = rpx.download_split("monocular_depth", "easy", max_samples=6)
+
+# 2. Wrap your model in the task's adapter and run the benchmark
+def predict(rgb):                               # RPX passes an RGB image (H, W, 3)
+    return np.ones(rgb.shape[:2], np.float32)   # return depth (H, W) in metres; replace with your model
+
+model = rpx.make_numpy_depth_model(predict, name="my-model")
+result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
+    model=model, manifest_path=str(manifest), output_dir="rpx_results/my-model",
+))
+print(result.aggregated["absrel"], result.aggregated["delta1"])
 ```
 
-The same pattern covers video depth, tracking, relative pose and VQA; see the
-[toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/). The toolkit pins a dataset commit by default
-(`rpx.DEFAULT_REVISION`), so two runs always read identical data. **Do not download the whole 237 GB
-repository** for one task.
+Drop `max_samples` for the full tier, then compute Φ and 𝒥<sub>min</sub> with the toolkit's calculator. Every task
+follows the same pattern; the [toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/getting-started/) list each
+task's download name, adapter and runner. The toolkit pins a dataset commit by default (`rpx.DEFAULT_REVISION`), so
+two runs always read identical data. **Do not download the whole 237 GB repository** for one task.
 
 **Just browse the data:**
 
