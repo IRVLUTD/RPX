@@ -1,22 +1,71 @@
-# Tracking text-initialization vocabulary v1
+# 🎯 Tracking text prompts · v1
 
-## Intended use
+Fixed text prompts such as **`black hammer`** or **`silver alarm clock`** for every tracked object in RPX, used to
+initialize text-promptable trackers (Grounded SAM 2 and SAM 3.1 in the paper) instead of a first-frame mask or box.
 
-A constant, per-video (scene-condition) text prompt for every tracked
-object, for text-promptable trackers that need a fixed initialization label
-rather than a mask or box. The prompt is:
+- 🧸 **Objects**: 70, one prompt each: `<primary color> <object name>`
+- 🎬 **Clips**: 400 scene-conditions: 100 scenes × 3 phases (MOS) + 100 egocentric (Ego)
+- 📝 **Prompts**: 2,739 rows, **one per object per clip**, constant across frames (occluded objects keep theirs)
+- 🔗 **Join key**: `scene_id` + `kind` + `phase` + `mask_index`, matching the released masks
 
-    <primary color> <canonical object name>
+## 🚀 Use it
 
-e.g. `black hammer`, `white boot`, `silver alarm clock`, `grey air duster can`.
+```python
+import pandas as pd
 
-This vocabulary is **constant for the whole clip** -- one prompt per object
-per (scene, kind, phase), not one prompt per frame. A tracked object keeps
-its one fixed prompt even in frames where it is temporarily occluded; this
-is intentional (see "Scene-condition vocabulary vs. per-frame visibility"
-below), not a bug to fix.
+vocab = pd.read_parquet("scene_condition_vocab.parquet")
+clip = vocab.query("scene_id == 'scene001' and kind == 'mos' and phase == 1")
+prompts = dict(zip(clip.mask_index, clip.prompt_text))   # {1: 'tan lion', 2: 'white boot', ...}
+```
 
-## Why question strings alone are insufficient
+`phase` is `0`, `1`, `2` (Clutter, Interaction, Clean) for MOS and empty for Ego. The `.jsonl` files hold the same rows.
+
+## 📁 Files
+
+| File | Rows | What it holds |
+|:--|--:|:--|
+| `scene_condition_vocab.parquet` / `.jsonl` | 2,739 | One row per object per clip: `mask_index`, `prompt_text`, identity and the source annotation it was joined from |
+| `object_catalog_vocab.parquet` / `.jsonl` | 70 | One row per object: name, all authored colors, materials, functions and categories, `primary_color`, `prompt_text` |
+| `manifest_summary.json` | | Counts, source revisions, validation results, known limitations and output hashes |
+| `SHA256SUMS` | | SHA-256 of every file here |
+
+## 🧩 How a prompt is built
+
+`prompt_text = primary_color + " " + display_name`, where:
+
+- **`display_name`** is the object's catalog name with underscores as spaces (`air_duster_can` → `air duster can`).
+- **`primary_color`** is the **first** color in the object's authored questionnaire, lowercased, with `gray` → `grey`.
+  It is deterministic, not the most visible color in a given clip.
+
+Identities come from the dataset's object catalog and each clip's released `mask_to_object.json`; the VQA attribute
+table is used only as a cross-check.
+
+## ⚠️ Known limitations
+
+- **60 Ego mask entries labelled `unknown`/`unlabeled`** have no identity, so they get no prompt (reported, not hidden).
+- **252 of 658,254 visible Ego object occurrences (0.038%)** use a mask index with no identity in the released
+  annotations, in 14 of 100 Ego clips (179 of them in `scene058`, index 8). MOS is unaffected. A tracker may meet these
+  indices without a matching row.
+- **Colors are free text**: a `primary_color` can read `black and white`, and the same object keeps the same prompt in
+  every scene.
+
+## 🔁 Reproduce
+
+```bash
+cd benchmark/scripts/tracking_text_vocab
+python3 build_tracking_text_vocab.py --out-dir /path/to/out
+python3 validate_tracking_text_vocab.py --bundle-dir /path/to/out --report /path/to/out/validation_report.json
+```
+
+The validator **exits nonzero by design** on this bundle, because of the 252 occurrences above. Check that your
+`missing_mappings_count` matches the one in `manifest_summary.json`.
+
+---
+
+<details>
+<summary><b>📖 Design notes</b> <sub>(why each choice was made, in full)</sub></summary>
+
+### Why question strings alone are insufficient
 
 `vqa/attribute.parquet`'s `attr_single_color` question is only emitted when
 color uniquely identifies one visible object in that specific frame -- it is
@@ -35,7 +84,7 @@ published objects regardless of whether any VQA question ever used it.
 `vqa/attribute.parquet` is used here only as an independent cross-check
 (see below), never to fill in an attribute the questionnaire doesn't have.
 
-## Source revisions (all immutable 40-character commit SHAs)
+### Source revisions (all immutable 40-character commit SHAs)
 
 Three distinct revisions are used, each for a different purpose -- do not
 conflate them:
@@ -47,7 +96,7 @@ conflate them:
 | Ego `sam2_meta`/`masks` tars | `f082723002bad5800dd85e583115b4ea05734d31` | `PINNED_EGO_DATASET_REVISION`, same file. |
 | VQA cross-check only | `vqa` (the dataset's `vqa` branch) | `vqa/attribute.parquet`, read-only, see below. |
 
-## Join logic
+### Join logic
 
 1. **Catalog identity**: `manifest/object_catalog_v1.json` lists exactly 70
    officially published objects. Each entry's `source_catalog_id` (a
@@ -72,7 +121,7 @@ conflate them:
    are parsed and their union is checked against the same catalog. This
    proves consistency; it never fills in a missing attribute.
 
-## Normalization
+### Normalization
 
 - `colors_raw`/`materials_raw`/`functions_raw`/`categories_raw` preserve the
   complete authored list, verbatim, in authored order.
@@ -93,7 +142,7 @@ conflate them:
   no suffix-stripping logic was needed at all.
 - `prompt_text` = `f"{primary_color} {display_name}"`.
 
-## Sentinel entries: "unknown"/"unlabeled"
+### Sentinel entries: "unknown"/"unlabeled"
 
 Some Ego `mask_to_object.json` entries carry the literal placeholder
 `{"id": "unknown", "name": "unlabeled"}` for a tracked mask instance that
@@ -106,7 +155,7 @@ every excluded entry is reported (see `manifest_summary.json` and the
 validator's report), separately from a genuine unresolved catalog gap
 (there were zero of those).
 
-## Known limitation: undeclared Ego mask indices (documented, not fixed)
+### Known limitation: undeclared Ego mask indices
 
 The validator's exhaustive per-frame mask-coverage check (requirement 9,
 streaming every one of 98,124 real MOS+Ego frames) found 252 visible
@@ -144,7 +193,7 @@ has no way to fill would not serve anyone. A tracker consuming this
 vocabulary should be prepared to encounter a mask index in these 14 scenes
 that has no corresponding `scene_condition_vocab` row.
 
-## Scene-condition vocabulary vs. per-frame visibility
+### Scene-condition vocabulary vs. per-frame visibility
 
 `scene_condition_vocab` is **one row per object per (scene, kind, phase)**,
 not one row per object per frame. It answers "what may this tracker need to
@@ -159,17 +208,7 @@ any frame is covered by this constant, clip-level vocabulary -- it is a
 coverage proof, not a step toward a changing, per-frame prompt vocabulary,
 which this release deliberately does not produce.
 
-## Prompt examples
-
-    black hammer
-    white boot
-    silver alarm clock
-    grey air duster can
-    tan lion
-    red doll
-    yellow and white mustard bottle
-
-## Limitations of authored color descriptions
+### Limitations of authored color descriptions
 
 - Authored colors come from free-text questionnaire answers, not a
   controlled color palette -- values like `"black and white"`, `"grey and
@@ -187,22 +226,7 @@ which this release deliberately does not produce.
   everywhere that exact physical object appears, across every scene and
   condition it was placed in.
 
-## Files in this bundle
-
-| File | Rows | Contents |
-|---|---|---|
-| `object_catalog_vocab.parquet` / `.jsonl` | 70 | One row per officially published catalog object: identity, full authored attribute lists, deterministic `primary_color`/`prompt_text`. |
-| `scene_condition_vocab.parquet` / `.jsonl` | see `manifest_summary.json` | One row per object per scene-condition: identity, `mask_index`, `prompt_text`, source revision, and the exact `sam2_meta` shard/member locator it was joined from. |
-| `manifest_summary.json` | -- | Generation timestamp, generator commit, all immutable source revisions, counts, coverage/validation results, output hashes. |
-| `SHA256SUMS` | -- | SHA-256 of every file in this bundle. |
-
-## Reproduce
-
-```bash
-cd benchmark/scripts/tracking_text_vocab
-python3 build_tracking_text_vocab.py --out-dir /path/to/out
-python3 validate_tracking_text_vocab.py --bundle-dir /path/to/out --report /path/to/out/validation_report.json
-```
+### Reproduction details
 
 The validator's exhaustive per-frame mask-coverage check streams every MOS
 and Ego mask archive one condition at a time, staging and deleting local
@@ -217,3 +241,5 @@ mask indices" above (requirement 9's exhaustive mask-coverage check reports
 check passes. This is expected, not a sign the reproduction failed; compare
 your `missing_mappings_count` against the value recorded in
 `manifest_summary.json` to confirm you reproduced the same result.
+
+</details>
