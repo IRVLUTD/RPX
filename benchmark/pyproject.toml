@@ -126,6 +126,7 @@ rpx_benchmark = [
   "guides/stylesheets/*.css",
   "guides/assets/*",
   "dataset_hub/croissant_template.json",  # Croissant ML-metadata template
+  "vqa/quickstart_v1/*",  # revision-pinned T5/T6 quick-start questions
 ]
 
 [tool.pytest.ini_options]

@@ -24,7 +24,7 @@
 ## Get started
 
 **Try any task in two commands.** No GPU, no login, no code: the task's data downloads first (only what it needs),
-then a demo model is scored on it.
+then a dummy model is scored on it.
 
 ```bash
 pip install 'rpx-benchmark[hub,schemas]'
@@ -34,12 +34,13 @@ python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-sa
 ```text
 Downloading Image depth data (easy, 6 samples) ...
 Scoring Image depth ...
-  T1  Image depth              6 samples   AbsRel 0.295 · δ1 0.440            → rpx_results/T1
+  T1  Image depth              6 samples   AbsRel 0.258 · δ1 0.530            → rpx_results/T1/dummy
 ```
 
-Swap `T1` for `T2`, `T3` or `T4` to try another task.
+Swap `T1` for any paper task, `T2` to `T6` (table below).
 
-**Score your own model.** Put one function in `my_model.py` and point the same command at it:
+**Score your own model.** Put one function in `my_model.py` and point the same command at it. The
+[dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) (`rpx_benchmark.examples.dummy_models`) show the inputs and outputs for every task:
 
 ```python
 # my_model.py  (T1: RGB image (H, W, 3) -> metric depth in metres (H, W))
@@ -131,8 +132,8 @@ model the paper evaluated on that task.
   [illustrated walkthrough](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/) per task.
 - **From Python**: every task is also a two-call API (`rpx.download_split`, then `rpx.run_monocular_depth` and
   friends); see the [Python quick start](#use-it-from-python).
-- **T5 / T6** take a VQA question list (`--manifest`) and a model or API that returns text; see
-  [custom VQA model or API](#custom-vqa-model-or-api).
+- **T5 / T6** run on a packaged set of questions out of the box; pass `--manifest` for your own VQA question list,
+  and see [custom VQA model or API](#custom-vqa-model-or-api) for API-backed models.
 - **Docker**: always name a tag, since bare `irvlutd/rpx` is an unrelated legacy image. Box- and text-prompted
   trackers and GemDepth (build recipe only) are covered in the [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull).
 - **Paper metrics**: the generic T3 and T4 runners report per-sample errors; the paper's HOTA and pooled pose AUC
