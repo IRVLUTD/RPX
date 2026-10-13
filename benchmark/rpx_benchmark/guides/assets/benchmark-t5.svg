@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="670" viewBox="0 0 1440 670" role="img" aria-labelledby="title desc">
-<title id="title">T5 / Visual grounding</title><desc id="desc">Target RGB + question. Same scene012 walkthrough, task-specific inputs and scoring.</desc>
+<title id="title">T5 / VQA</title><desc id="desc">Target RGB + question. Same scene012 walkthrough, task-specific inputs and scoring.</desc>
 <rect width="100%" height="100%" fill="#fff"/>
 <g font-family="Arial, Helvetica, sans-serif">
 <text x="40" y="49" font-size="17" fill="#50665f" font-weight="700">RPX / TOOLKIT WORKFLOWS</text>
-<text x="40" y="104" font-size="40" fill="#183b38" font-weight="700">T5 / Visual grounding</text>
+<text x="40" y="104" font-size="40" fill="#183b38" font-weight="700">T5 / VQA</text>
 <text x="40" y="143" font-size="23" fill="#50665f" font-weight="400">Target RGB + question. Same scene012 walkthrough, task-specific inputs and scoring.</text>
 <path d="M40 168H1400" stroke="#d5dfd9"/>
 <rect x="40" y="200" width="370" height="392" fill="#f8faf8" stroke="#d5dfd9"/>

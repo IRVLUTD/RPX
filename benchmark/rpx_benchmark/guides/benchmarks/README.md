@@ -27,11 +27,11 @@ Follow **scene012** from depth estimation to in-context grounding. Each walkthro
 </a>
 <a class="rpx-task-preview" href="t5/">
 <img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T5 / WALKTHROUGH</span><strong>Visual grounding</strong><span class="rpx-task-description">Target image + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T5 / WALKTHROUGH</span><strong>VQA</strong><span class="rpx-task-description">Target image + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t6/">
 <img src="../assets/scene012-sos-reference.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T6 / WALKTHROUGH</span><strong>In-context grounding</strong><span class="rpx-task-description">SOS reference + target + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T6 / WALKTHROUGH</span><strong>In-context VQA</strong><span class="rpx-task-description">SOS reference + target + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
 </a>
 </div>
 

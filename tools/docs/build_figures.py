@@ -96,10 +96,10 @@ def main():
         parts += [text(937, 283 + i * 49, label, size=22)]
     parts += [arrow(420, 443, 397), arrow(880, 903, 397)]
     save("toolkit-overview.svg", parts, "Annotation tools create GT in a source checkout. Benchmarking consumes the released GT.")
-    workflow("getting-started.svg", "A small run, from installation to evidence.",
-             "Validate the interface on synthetic inputs, then run a pinned real-data subset.",
-             "RUN", ["Install rpx-benchmark", "Discover tasks and metrics", "Run six offline smoke examples", "Connect your actual model", "Select a task-specific manifest"],
-             "CHECK", ["Prediction shapes, units and IDs", "Every requested sample accounted for", "Per-sample + aggregate metrics", "Reports and cell records", "Expand to the full protocol"])
+    workflow("getting-started.svg", "Install, download, benchmark, diagnose.",
+             "Download one task's data, wrap your model in its adapter, run the benchmark, then compute Φ and Jmin.",
+             "RUN", ["Install rpx-benchmark", "Download one task's data", "Write predict for your model", "Wrap it in the task's adapter", "Run the task's benchmark"],
+             "CHECK", ["Prediction shapes, units and IDs", "Per-sample + aggregate metrics", "Reports and cell records", "Φ and Jmin on the full tier", "Repeat for all six tasks"])
     workflow("bring-your-model.svg", "Your inference pipeline. RPX's scoring contract.",
              "Input adapter → local model or API → output adapter → shared task metrics.",
              "ADAPT", ["Preprocess inputs for your model", "Run local or remote inference", "Decode task-specific predictions", "Preserve frame/object identities", "Keep T6 reference → target order"],
@@ -124,8 +124,8 @@ def main():
         ("T2", "Video depth", "A phase RGB sequence", ["T × H × W × 3 RGB clip", "Return T × H × W depth", "One prediction per input frame", "Declare metric/relative depth"], ["Framewise depth accuracy", "TGM / TGSE temporal errors", "Per-clip scene/phase cell records", "Use the same frame budget"]),
         ("T3", "Object tracking", "Frames + initialization", ["Track objects across frames", "Keep persistent track IDs", "Return boxes with frame identity", "Reset state at sequence boundaries"], ["Generic per-frame tracking scores", "Paper sequence evaluator separately", "MOTA / IDF1 / HOTA per protocol", "Coverage and ID consistency"]),
         ("T4", "Relative camera pose", "Two RGB frames", ["Image A + image B", "Return rotation + translation", "Honor the frame convention", "Use task-defined pose pairs"], ["Rotation / translation errors", "Threshold AUC under the protocol", "Pair IDs and phase eligibility", "Metrics → raw cell records"]),
-        ("T5", "Visual grounding", "Target RGB + question", ["One image + canonical prompt", "Return JSON label + bbox", "XYXY normalized to 0–1000", "No answer or target box in inputs"], ["Box IoU / localization accuracy", "Parser validity and question types", "Failures stay in the denominator", "Raw predictions + scored JSON"]),
-        ("T6", "In-context grounding", "Reference crop + target", ["Image 1: verified SOS crop", "Image 2: target scene012 frame", "Question → JSON label + bbox", "Box belongs to the TARGET image"], ["Reference hash and crop checks", "Ordered two-image requests", "Shared grounding metrics", "Distinct in-context protocol"]),
+        ("T5", "VQA", "Target RGB + question", ["One image + canonical prompt", "Return JSON label + bbox", "XYXY normalized to 0–1000", "No answer or target box in inputs"], ["Box IoU / localization accuracy", "Parser validity and question types", "Failures stay in the denominator", "Raw predictions + scored JSON"]),
+        ("T6", "In-context VQA", "Reference crop + target", ["Image 1: verified SOS crop", "Image 2: target scene012 frame", "Question → JSON label + bbox", "Box belongs to the TARGET image"], ["Reference hash and crop checks", "Ordered two-image requests", "Shared grounding metrics", "Distinct in-context protocol"]),
     ]
     for task, title, input_kind, middle, right in specifications:
         workflow(f"benchmark-{task.lower()}.svg", f"{task} / {title}", f"{input_kind}. Same scene012 walkthrough, task-specific inputs and scoring.",

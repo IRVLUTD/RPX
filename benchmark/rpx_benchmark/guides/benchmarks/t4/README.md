@@ -5,8 +5,8 @@
 <a href="../t2/"><span>T2</span>Video depth</a>
 <a href="../t3/"><span>T3</span>Object tracking</a>
 <a href="../t4/" aria-current="page"><span>T4</span>Camera pose</a>
-<a href="../t5/"><span>T5</span>Visual grounding</a>
-<a href="../t6/"><span>T6</span>In-context grounding</a>
+<a href="../t5/"><span>T5</span>VQA</a>
+<a href="../t6/"><span>T6</span>In-context VQA</a>
 </div>
 
 <p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T4</p>

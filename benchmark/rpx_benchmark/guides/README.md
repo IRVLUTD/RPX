@@ -56,8 +56,8 @@ Each scene is recorded before manipulation (Clutter), while hands move objects (
 | T2 · Video depth | RGB sequence | Depth accuracy and temporal consistency |
 | T3 · Object tracking | Video and initialization | Multi-object tracking and identity consistency |
 | T4 · Relative camera pose | Image pairs | Relative-pose errors and threshold AUC |
-| T5 · Visual grounding | Image and text question | Localization accuracy |
-| T6 · In-context grounding | Image, question, and reference image | Reference-conditioned localization |
+| T5 · VQA | Image and text question | Localization accuracy |
+| T6 · In-context VQA | Image, question, and reference image | Reference-conditioned localization |
 
 T5 and T6 use visual-grounding tooling with distinct protocols. The toolkit also exposes detection, segmentation, sparse depth, and keypoint matching; `available_tasks()` lists the registered runners.
 

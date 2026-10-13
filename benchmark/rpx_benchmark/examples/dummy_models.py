@@ -57,7 +57,7 @@ def camera_pose(rgb_a: np.ndarray, rgb_b: np.ndarray) -> dict:
 
 
 def vqa(image_paths: tuple[Path, ...], prompt: str, max_new_tokens: int, output_kind: str) -> str:
-    """T5 VQA grounding: one image and a question -> your model's raw text answer.
+    """T5 VQA: one image and a question -> your model's raw text answer.
 
     ``image_paths`` holds the target image. Answer with one JSON object: the
     object's ``label`` and its ``bbox`` as ``[x1, y1, x2, y2]`` normalized to 0-1000.

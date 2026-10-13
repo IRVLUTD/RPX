@@ -5,13 +5,13 @@
 <a href="../t2/"><span>T2</span>Video depth</a>
 <a href="../t3/"><span>T3</span>Object tracking</a>
 <a href="../t4/"><span>T4</span>Camera pose</a>
-<a href="../t5/" aria-current="page"><span>T5</span>Visual grounding</a>
-<a href="../t6/"><span>T6</span>In-context grounding</a>
+<a href="../t5/" aria-current="page"><span>T5</span>VQA</a>
+<a href="../t6/"><span>T6</span>In-context VQA</a>
 </div>
 
 <p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T5</p>
 
-# Visual grounding
+# VQA
 
 <div class="rpx-task-lead" markdown="1">
 One target image + canonical question → raw text containing a JSON `label` and `bbox`.

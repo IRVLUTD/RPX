@@ -41,7 +41,8 @@ def test_get_started_example(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "my_model", model_module)
     monkeypatch.chdir(tmp_path)
     text = (Path(rpx_benchmark.__file__).parent / "guides/getting-started/README.md").read_text()
-    example = re.findall(r"```python\n(.*?)```", text, re.DOTALL)[1]
+    blocks = re.findall(r"```python\n(.*?)```", text, re.DOTALL)
+    example = next(block for block in blocks if "from my_model import" in block)
     namespace = {}
     exec(compile(example, "getting-started/README.md", "exec"), namespace)
     assert namespace["result"].num_samples == 1

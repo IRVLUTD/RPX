@@ -78,7 +78,7 @@ summary = calculate(read_records(paths["json"]), ["absrel", "rmse", "silog", "de
 | **T2** Video depth | `"video_depth"` | `make_numpy_video_depth_model` | `run_video_depth` | T1's + tgm · tgse |
 | **T3** Tracking | `"object_tracking"` | `make_numpy_tracking_model` | `run_object_tracking` | HOTA · MOTA · IDSW |
 | **T4** Camera pose | `"relative_camera_pose"`, `manifest_name="relative_pose"` | `make_numpy_pose_model` | `run_relative_pose` | AUC @ 5° · 10° · 20° |
-| **T5** VQA grounding | `rpx.download("T5")` (packaged questions) | none: your function returns text | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5 · GIoU · center-in-GT |
+| **T5** VQA | `rpx.download("T5")` (packaged questions) | none: your function returns text | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5 · GIoU · center-in-GT |
 | **T6** In-context VQA | `rpx.download("T6")` | none | `rpx_benchmark.vqa.evaluate_vqa` | same as T5 |
 
 All functions are under `rpx` unless named in full. To try any task with a ready-made dummy model before writing
@@ -105,7 +105,7 @@ on it.
 | **T2** Video depth | clip `(T, H, W, 3)` → depth `(T, H, W)` | `depth-zipdepth-latest` (8)<br>`depth-dvd-latest` (DVD) |
 | **T3** Object tracking | frame `(H, W, 3)` → `[{"track_id", "boxes"}]` | `tracking-dam4sam-rpx-latest` (8) |
 | **T4** Relative camera pose | `(rgb_a, rgb_b)` → `{"rotation", "translation"}` | `rcpe-monst3r-rpx-latest` (10) |
-| **T5** VQA grounding | image path + question → JSON `{"label", "bbox"}` | `vqa-vllm` (12) |
+| **T5** VQA | image path + question → JSON `{"label", "bbox"}` | `vqa-vllm` (12) |
 | **T6** In-context VQA | reference crop + image + question → same | `vqa-vllm` (12) |
 
 - **Examples**: the [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) are runnable versions of each row.

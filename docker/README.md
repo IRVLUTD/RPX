@@ -21,7 +21,7 @@ Each task's images are built cumulatively, so **one tag per task holds every mod
 | **T3** Tracking, text prompt | `tracking-sam3.1-text-rpx-latest` | SAM 3.1 |
 | | `tracking-grounded-sam2-text-rpx-latest` | Grounded SAM 2 |
 | **T4** Relative camera pose | `rcpe-monst3r-rpx-latest` | VGGT, DA3, CUT3R, DUSt3R, MASt3R, MUSt3R, Reloc3R, Pi3X, Fast3R, MonST3R |
-| **T5 / T6** VQA grounding, one or two images | `vqa-vllm` | 12 configurations of Cosmos Reason2, DeepSeek-VL2, Florence-2, InternVL 3.5, PaliGemma 2 and Qwen3-VL |
+| **T5 / T6** VQA and in-context VQA | `vqa-vllm` | 12 configurations of Cosmos Reason2, DeepSeek-VL2, Florence-2, InternVL 3.5, PaliGemma 2 and Qwen3-VL |
 
 Always name a tag: bare `irvlutd/rpx` (`latest`) is an unrelated legacy capture environment, and every tag not listed
 above is an earlier build stage kept for provenance. DA3, MonST3R and VGGT appear in both depth and pose images; use

@@ -262,7 +262,7 @@ TASK_LABELS = {
     "T2": "Video depth",
     "T3": "Object tracking",
     "T4": "Relative camera pose",
-    "T5": "VQA grounding",
+    "T5": "VQA",
     "T6": "In-context VQA",
 }
 # Headline metrics shown in the console summary (all metrics are in result files).

@@ -5,7 +5,7 @@
 >>> result = rpx.benchmark("T1", data, rpx.dummy_models.image_depth)  # doctest: +SKIP
 
 ``task`` is the paper's task ID: T1 image depth, T2 video depth, T3 tracking,
-T4 relative camera pose, T5 VQA grounding, T6 in-context VQA. ``predict`` is a
+T4 relative camera pose, T5 VQA, T6 in-context VQA. ``predict`` is a
 plain function; :mod:`rpx_benchmark.examples.dummy_models` shows the inputs and
 outputs for each task.
 """
