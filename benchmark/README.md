@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires." width="100%"/>
 </p>
 
-<h3 align="center">Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild</h3>
+<h3 align="center">Same Scene, Different Story:<br> Evaluating Robot Perception Across Scene Phases in the Wild</h3>
 
 <p align="center">
   Score any perception model on 100 real scenes recorded <b>before, during and after manipulation</b>,<br/>
