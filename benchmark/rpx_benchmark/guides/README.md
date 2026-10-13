@@ -21,13 +21,9 @@ Six tasks, one evaluator, and the paper's robustness diagnosis. Wrap your model 
 
 </div>
 
-
-
 </div>
 
 <figure class="rpx-overview-figure"><img src="assets/rpx-overview.webp" width="2400" height="1393" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires."><figcaption>RPX at a glance: today each task is benchmarked on its own data; RPX scores six tasks on the same real scenes, before, during and after manipulation.</figcaption></figure>
-
-<div class="rpx-numbers" aria-label="Dataset at a glance"><div><strong>100</strong><span>multi-object scenes</span></div><div><strong>3</strong><span>capture phases</span></div><div><strong>6</strong><span>paper tasks</span></div><div><strong>70</strong><span>single-object captures</span></div></div>
 
 ## Try it now
 
@@ -36,7 +32,7 @@ pip install 'rpx-benchmark[hub,schemas]'
 python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output rpx-check
 ```
 
-All six evaluators run on synthetic inputs in about a second, on CPU. [Score your own model on real scenes →](getting-started/README.md)
+All six evaluators run on synthetic inputs in a few seconds, on CPU, with no download. [Score your own model on real scenes →](getting-started/README.md)
 
 <p class="rpx-eyebrow">01 / THE FINDING</p>
 
@@ -46,39 +42,11 @@ Each scene is recorded before manipulation (Clutter), while hands move objects (
 
 <figure class="rpx-workflow-figure rpx-finding"><img src="assets/rpx-finding-light.webp#only-light" width="2400" height="1482" alt="Scene 012 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."><img src="assets/rpx-finding-dark.webp#only-dark" width="2400" height="1482" alt="Scene 012 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."><figcaption>Bars: mean quality 𝒥 over all evaluated models, from the paper's Tables III–VI. Map: all 65 evaluations from the paper's Fig. 4. The four views of indoor scene 012 are not frame-synchronized.</figcaption></figure>
 
-
-
-
-
 <p class="rpx-eyebrow">02 / THE TOOLKIT</p>
 
 ## From predictions to evidence.
 
 <figure class="rpx-workflow-figure"><a href="assets/toolkit-overview.svg"><img src="assets/toolkit-overview.svg" alt="RPX data with scene012 feeds six task model interfaces, evaluation, Phi/JEDI calculation and hardware evidence."></a><figcaption>Bring your model to RPX task data. Adapters connect inference to shared scoring; annotation, profiling and extension tools complete the workflow. Open the vector figure to zoom.</figcaption></figure>
-
-A versioned manifest selects the samples. The loader resolves inputs and ground truth, an adapter connects your model, and task-specific metrics produce per-sample records and aggregate reports. Model weights remain separate from the toolkit.
-
-<div class="rpx-flow" aria-label="Benchmark workflow"><span><b>01</b> Manifest</span><i aria-hidden="true">→</i><span><b>02</b> Loader</span><i aria-hidden="true">→</i><span><b>03</b> Your model</span><i aria-hidden="true">→</i><span><b>04</b> Metrics</span><i aria-hidden="true">→</i><span><b>05</b> Reports</span></div>
-
-<div class="rpx-routes">
-<a href="getting-started/"><span class="rpx-route-number">01</span><span><strong>Run a benchmark</strong><small>Install, load your manifest, and inspect results.</small></span><span aria-hidden="true">↗</span></a>
-<a href="models/"><span class="rpx-route-number">02</span><span><strong>Bring your own model</strong><small>Connect a local callable or an API-backed model.</small></span><span aria-hidden="true">↗</span></a>
-<a href="metrics/"><span class="rpx-route-number">03</span><span><strong>Add a metric</strong><small>Register a calculator with a tested scoring contract.</small></span><span aria-hidden="true">↗</span></a>
-<a href="tasks/"><span class="rpx-route-number">04</span><span><strong>Extend the tasks</strong><small>Define inputs, ground truth, adapters, and evaluation.</small></span><span aria-hidden="true">↗</span></a>
-</div>
-
-## Tools you can use today.
-
-| Workflow | What it gives you |
-| --- | --- |
-| [Mask annotation pipeline](annotation/README.md) | Box curation, SAM2 propagation, review, refinement and identity mapping |
-| [Hardware profiler](profiling/README.md) | Warmup-excluded synchronized latency, memory and system cards |
-| [Φ/JEDI calculator](analysis/README.md) | Robustness, joint desirability and worst-phase quality from raw metrics |
-| [Six benchmark samples](benchmarks/README.md) | Installed smoke commands and real manifest/callable examples for every paper task |
-| [Bring your own model](models/README.md) | Local models and API clients through task-specific contracts |
-| [All capabilities](capabilities/README.md) | Data tools, ESD, batch adapters, visualization, additional tasks and extensions |
-
-The figures and task walkthroughs use **scene012** as a common target. The matched SOS reference required by T6 is the exception to the common target scene.
 
 ## Six tasks. Shared scenes.
 
@@ -108,24 +76,31 @@ Exocentric captures combine RGB, metric depth, instance masks, calibrated fishey
 
 <p class="rpx-image-note">RGB, measured depth, and fisheye stereo from scene012 Interaction frame00113. The depth visualization is illustrative; scoring uses the released metric values, not image colors. See the <a href="data/">data guide</a> for annotation and modality details.</p>
 
-## Concepts and acronyms
+<p class="rpx-eyebrow">04 / NEXT STEPS</p>
 
-- **MOS / SOS:** multi-object scenes / single-object captures.
-- **Phase:** Clutter, Interaction, or Clean. Egocentric Interaction is a separate view.
-- **Easy / Medium / Hard:** difficulty tiers of 33, 33 and 34 scenes, stratified by how much correction each scene's masks needed.
-- **JEDI / J / Jmin:** Joint Empirical Desirability Index; overall mean cell desirability and the lowest phase-mean quality.
-- **Φ:** phase robustness from repeated-measures analysis of paired raw metrics. High robustness must be considered alongside prediction quality.
-- **GT:** ground truth. Keep units, coordinates, and object identities consistent across predictions and GT.
+## Where to go next
 
-<div class="rpx-closing" markdown>
-
-## Build on the benchmark.
-
-Start with a small integration run. Scale to the full protocol once shapes, units, IDs, and sample coverage agree.
-
-[Get started →](getting-started/README.md) · [API reference](api/README.md) · [GitHub](https://github.com/IRVLUTD/RPX) · [PyPI](https://pypi.org/project/rpx-benchmark/)
-
+<div class="rpx-routes">
+<a href="getting-started/"><span class="rpx-route-number">01</span><span><strong>Run a benchmark</strong><small>Install, score a model on real scenes, read the results.</small></span><span aria-hidden="true">↗</span></a>
+<a href="models/"><span class="rpx-route-number">02</span><span><strong>Bring your own model</strong><small>Wrap a local callable or an API client.</small></span><span aria-hidden="true">↗</span></a>
+<a href="benchmarks/"><span class="rpx-route-number">03</span><span><strong>Six task walkthroughs</strong><small>Smoke commands and real examples for every paper task.</small></span><span aria-hidden="true">↗</span></a>
+<a href="analysis/"><span class="rpx-route-number">04</span><span><strong>Φ/JEDI calculator</strong><small>Robustness and worst-phase quality from raw metrics.</small></span><span aria-hidden="true">↗</span></a>
+<a href="profiling/"><span class="rpx-route-number">05</span><span><strong>Hardware profiler</strong><small>Latency, memory and system cards, warmup excluded.</small></span><span aria-hidden="true">↗</span></a>
+<a href="annotation/"><span class="rpx-route-number">06</span><span><strong>Mask annotation pipeline</strong><small>Box curation, SAM2 propagation, review and identity mapping.</small></span><span aria-hidden="true">↗</span></a>
+<a href="metrics/"><span class="rpx-route-number">07</span><span><strong>Add a metric</strong><small>Register a calculator with a tested scoring contract.</small></span><span aria-hidden="true">↗</span></a>
+<a href="tasks/"><span class="rpx-route-number">08</span><span><strong>Extend the tasks</strong><small>Define inputs, ground truth, adapters and evaluation.</small></span><span aria-hidden="true">↗</span></a>
 </div>
+
+Everything else, including data tools, batch adapters and visualization, is under [all capabilities](capabilities/README.md).
+
+??? info "Concepts and acronyms"
+
+    - **MOS / SOS:** multi-object scenes / single-object captures.
+    - **Phase:** Clutter, Interaction, or Clean. Egocentric Interaction is a separate view.
+    - **Easy / Medium / Hard:** difficulty tiers of 33, 33 and 34 scenes, stratified by how much correction each scene's masks needed.
+    - **JEDI / J / Jmin:** Joint Empirical Desirability Index; overall mean cell desirability and the lowest phase-mean quality.
+    - **Φ:** phase robustness from repeated-measures analysis of paired raw metrics. High robustness must be considered alongside prediction quality.
+    - **GT:** ground truth. Keep units, coordinates, and object identities consistent across predictions and GT.
 
 ## Cite RPX
 
