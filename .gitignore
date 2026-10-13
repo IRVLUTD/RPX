@@ -32,6 +32,11 @@ data/mask_annotation/*
 !data/mask_annotation/pyproject.toml
 !data/mask_annotation/requirements.txt
 !data/mask_annotation/docker/
+!data/mask_annotation/assets/
+# README figures for the capture rig; the rest of data/capture/ is tracked explicitly.
+!data/capture/
+data/capture/*
+!data/capture/assets/
 
 # Paper-submission is local-only: strategy briefs, the overleaf LaTeX
 # project, figure artefacts, compiled PDFs. The Croissant ML-metadata

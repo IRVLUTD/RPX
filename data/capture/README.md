@@ -17,6 +17,15 @@ here open both, time-synchronise their frames within a configurable
 millisecond tolerance, and write one folder per scene with one file
 per modality per frame — the layout the rest of the toolkit expects.
 
+<p align="center">
+  <img src="assets/capture-rig.webp" width="90%" alt="RPX capture rig: (a) a D435 and a T265 on a 3D-printed mount clamped to a laptop; (b) the camera frames, T_265_435 from the T265 to the D435 and T_world_265 for the T265 pose, with the T265 mounted flipped 180 degrees; (c) one scene in its Clutter, Interaction and Clean phases, with a head-mounted GoPro recording the egocentric view during Interaction.">
+  <br>
+  <sub><i>(a) The hand-held rig: D435 and T265 on a 3D-printed mount, clamped to a laptop. (b) Camera frames:
+  T_265_435 links the T265 to the D435, T_world_265 is the T265 pose; the T265 is mounted flipped 180°.
+  (c) Each scene is captured in its Clutter, Interaction and Clean phases; a head-mounted GoPro records the
+  egocentric view during Interaction (recorded separately, not by these scripts).</i></sub>
+</p>
+
 ---
 
 ## ⚡ Quick start (one scene)
