@@ -2,7 +2,7 @@
 
 # 🤖 RPX
 
-### Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild
+### Same Scene, Different Story:<br> Evaluating Robot Perception Across Scene Phases in the Wild
 
 <br>
 
