@@ -68,29 +68,30 @@ recorded before, during and after manipulation, scored on six tasks.
 
 ## 🚀 Get started
 
+**1 · Install**
+
 ```bash
 pip install 'rpx-benchmark[hub,schemas]'
+```
+
+**2 · Try a task.** This downloads the data for one task, then scores a demo model on it. No GPU, login or code needed.
+
+```bash
 python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6
 ```
 
-```text
-Downloading Image depth data (easy, 6 samples) ...
-Scoring Image depth ...
-  T1  Image depth              6 samples   AbsRel 0.295 · δ1 0.440            → rpx_results/T1
-```
+Tasks: **T1** image depth · **T2** video depth · **T3** tracking · **T4** camera pose. Results are saved in rpx_results.
 
-That downloads one task's data (only what it needs), then scores a demo model on it. No GPU, login or code needed.
-Swap `T1` for `T2` video depth, `T3` tracking or `T4` camera pose.
-
-**Score your own model:** put one function in `my_model.py` and add `--model`.
+**3 · Score your own model.** Save it as a predict function in my_model.py:
 
 ```python
-# my_model.py  (T1: RGB image (H, W, 3) -> metric depth in metres (H, W))
 import numpy as np
 
-def predict(rgb):
+def predict(rgb):                              # T1: RGB image -> depth in metres
     return np.ones(rgb.shape[:2], np.float32)  # replace with your model
 ```
+
+Then run the same command with your model:
 
 ```bash
 python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6 --model my_model:predict
@@ -100,10 +101,10 @@ python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-sa
 
 ## 📚 Learn more
 
-- 📘 [**Toolkit docs**](https://irvlutd.github.io/RPX/toolkit-docs/): what `predict` takes for each task, the full protocol, Φ and 𝒥<sub>min</sub>, metrics, annotation tools
+- 📘 [**Toolkit docs**](https://irvlutd.github.io/RPX/toolkit-docs/): what predict takes for each task, the full protocol, Φ and 𝒥<sub>min</sub>, metrics, annotation tools
 - 🤗 [**Dataset**](https://huggingface.co/datasets/IRVLUTD/RPX): 100 scenes, 70 objects, 133K frames, CC BY 4.0
 - 🐳 [**Paper's models**](docker/README.md): ready-to-run Docker images for the models evaluated in the paper
-- 🐍 [**Python API**](benchmark/README.md): the `rpx-benchmark` package, also on [PyPI](https://pypi.org/project/rpx-benchmark/)
+- 🐍 [**Python API**](benchmark/README.md): the rpx-benchmark package, also on [PyPI](https://pypi.org/project/rpx-benchmark/)
 
 <br>
 

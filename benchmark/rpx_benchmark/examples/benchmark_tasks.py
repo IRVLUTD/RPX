@@ -280,6 +280,17 @@ def summary_line(task: str, report: dict[str, Any], out_dir: Path) -> str:
     return f"  {task}  {TASK_LABELS[task]:<21}{samples:>5} samples   {' · '.join(shown):<34} → {out_dir}"
 
 
+def default_output(task: str, model: str | None) -> Path:
+    """``rpx_results/<task>/<model>``, numbered so repeated runs never collide."""
+    label = model.replace(":", "-").replace("/", "-") if model else "demo"
+    base = Path("rpx_results") / task / label
+    candidate, n = base, 1
+    while candidate.exists() and any(candidate.iterdir()):
+        n += 1
+        candidate = base.with_name(f"{label}-{n}")
+    return candidate
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task", choices=[*TASKS, "T5", "T6", "all"], required=True)
@@ -293,7 +304,11 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--depth-output-kind", choices=["metric", "relative"], default="metric")
     parser.add_argument("--image-cache", type=Path)
-    parser.add_argument("--output", type=Path, help="results folder (default: rpx_results/<task>)")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        help="results folder (default: rpx_results/<task>/<model>, numbered if taken)",
+    )
     parser.add_argument(
         "--json",
         action="store_true",
@@ -341,7 +356,7 @@ def main() -> None:
                 "T5/T6 need --manifest (a VQA JSONL) and --model; see "
                 "https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md"
             )
-        output = args.output or Path("rpx_results") / args.task
+        output = args.output or default_output(args.task, args.model)
         manifest = args.manifest
         if manifest is None:
             name, hub_name = HUB_MANIFESTS[args.task]
