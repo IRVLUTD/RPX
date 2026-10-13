@@ -1,9 +1,14 @@
 """Run six paper task examples from an installed wheel.
 
 ``--smoke`` creates tiny synthetic fixtures and runs the real public evaluators.
-It needs no dataset, weights, GPU, or network. For a real run, provide a
-task-specific manifest and ``--model module:function``. T5/T6 use the canonical
-VQA JSONL contract, including the verified reference crop for T6.
+It needs no dataset, weights, GPU, or network.
+
+For a real run of T1-T4, name the task and split: the task's data is downloaded
+first (only the files it needs), then scored. ``--model module:function`` plugs
+in your model; without it a constant demo model shows the pipeline end to end.
+``--manifest`` scores an existing manifest instead of downloading. T5/T6 use
+the canonical VQA JSONL contract, including the verified reference crop for T6,
+and always need ``--manifest``.
 """
 
 from __future__ import annotations
@@ -40,6 +45,15 @@ TASKS: dict[
 }
 
 
+#: Hub manifest folder for each task's ``download_split`` call.
+HUB_MANIFESTS = {
+    "T1": ("monocular_depth", None),
+    "T2": ("video_depth", None),
+    "T3": ("object_tracking", None),
+    "T4": ("relative_camera_pose", "relative_pose"),
+}
+
+
 def demo_depth(rgb):
     """Constant integration fixture; not pretrained inference."""
     return np.full(rgb.shape[:-1], 2.1, np.float32)
@@ -63,6 +77,14 @@ def demo_pose(rgb_a, rgb_b):
 def demo_vqa(image_paths, prompt, max_new_tokens, output_kind):
     """Fixed synthetic localization; never use this as a benchmark model."""
     return '{"label":"cup","bbox":[0,0,1000,1000]}'
+
+
+SMOKE_MODELS: dict[str, Callable[..., Any]] = {
+    "T1": demo_depth,
+    "T2": demo_video_depth,
+    "T3": demo_tracking,
+    "T4": demo_pose,
+}
 
 
 def create_smoke(root: Path, task: str) -> tuple[Path, Callable[..., Any]]:
@@ -271,12 +293,15 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int)
     parser.add_argument("--depth-output-kind", choices=["metric", "relative"], default="metric")
     parser.add_argument("--image-cache", type=Path)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path, help="results folder (default: rpx_results/<task>)")
     parser.add_argument(
-        "--json", action="store_true", help="print the full reports as JSON lines instead of a summary"
+        "--json",
+        action="store_true",
+        help="print the full reports as JSON lines instead of a summary",
     )
     args = parser.parse_args()
     if args.smoke:
+        args.output = args.output or Path("rpx-check")
         if args.model or args.manifest or args.image_cache or args.device != "cpu":
             parser.error(
                 "--smoke uses isolated synthetic fixtures and CPU; omit model/manifest/cache"
@@ -309,25 +334,50 @@ def main() -> None:
                 "Next, score your own model: https://irvlutd.github.io/RPX/toolkit-docs/models/"
             )
     else:
-        if args.task == "all" or not args.model or not args.manifest:
-            parser.error("Real runs require one --task, --manifest and --model")
+        if args.task == "all":
+            parser.error("Real runs score one task at a time: pass --task T1 ... T6")
+        if args.task in {"T5", "T6"} and not (args.manifest and args.model):
+            parser.error(
+                "T5/T6 need --manifest (a VQA JSONL) and --model; see "
+                "https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md"
+            )
+        output = args.output or Path("rpx_results") / args.task
+        manifest = args.manifest
+        if manifest is None:
+            name, hub_name = HUB_MANIFESTS[args.task]
+            amount = f"{args.max_samples} samples" if args.max_samples else "full split"
+            print(f"Downloading {TASK_LABELS[args.task]} data ({args.split}, {amount}) ...")
+            manifest = Path(
+                rpx.download_split(
+                    name, args.split, max_samples=args.max_samples, manifest_name=hub_name
+                )
+            )
+        if args.model:
+            fn, model_name = load_callable(args.model), args.model_name
+        else:
+            fn, model_name = SMOKE_MODELS[args.task], "demo"
+            print(
+                "No --model given: scoring a constant demo model to show the pipeline. "
+                "Pass --model my_model:predict to score yours."
+            )
+        print(f"Scoring {TASK_LABELS[args.task]} ...")
         report = run_task(
             args.task,
-            args.manifest,
-            load_callable(args.model),
-            args.output,
+            manifest,
+            fn,
+            output,
             device=args.device,
             split=args.split,
             max_samples=args.max_samples,
             image_cache=args.image_cache,
-            model_name=args.model_name,
+            model_name=model_name,
             model_revision=args.model_revision,
             depth_output_kind=args.depth_output_kind,
         )
         if args.json:
             print(json.dumps(report, default=str))
         else:
-            print(summary_line(args.task, report, args.output))
+            print(summary_line(args.task, report, output))
 
 
 if __name__ == "__main__":
