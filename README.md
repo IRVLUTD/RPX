@@ -59,7 +59,7 @@ function or an API call; the toolkit applies the paper's data, splits and metric
 ## 📑 Contents
 
 <p align="center">
-<a href="#-get-started"><img src="media/toc/01.svg" width="49%" alt="01 · Get started: install, check, score your model in minutes"></a>
+<a href="#-get-started"><img src="media/toc/01.svg" width="49%" alt="01 · Get started: install, download a task, score your model"></a>
 <a href="#-tasks-and-models"><img src="media/toc/02.svg" width="49%" alt="02 · Tasks and models: six tasks, their API and the paper's images"></a>
 <a href="#-what-rpx-reveals"><img src="media/toc/03.svg" width="49%" alt="03 · What RPX reveals: quality drops when hands enter the scene"></a>
 <a href="#-the-dataset"><img src="media/toc/04.svg" width="49%" alt="04 · The dataset: 100 scenes, 70 objects, sensors and labels"></a>
@@ -86,11 +86,19 @@ pip install 'rpx-benchmark[hub,schemas]'
 python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output rpx-check
 ```
 
-**3 · Score your model on real RPX scenes** &nbsp;<sub>~160 MB on first run · under a minute · no Hugging Face login</sub>
+**3 · Download the task's data** &nbsp;<sub>~160 MB for a 6-sample trial · seconds · no Hugging Face login</sub>
+
+```python
+import rpx_benchmark as rpx
+
+# Fetches only the files this task needs (here: 6 Easy samples) and returns a local manifest.
+manifest = rpx.download_split("monocular_depth", "easy", max_samples=6, cache_dir="rpx-data")
+```
+
+**4 · Score your model on it** &nbsp;<sub>runs offline from the downloaded copy</sub>
 
 ```python
 import numpy as np
-import rpx_benchmark as rpx
 
 # Your model: RGB image (H, W, 3) -> metric depth in metres (H, W).
 def predict_depth(rgb):
@@ -98,14 +106,13 @@ def predict_depth(rgb):
 
 model = rpx.make_numpy_depth_model(predict_depth, name="my-depth")
 result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
-    model=model, split="easy", repo_id="IRVLUTD/RPX",
-    max_samples=6, output_dir="rpx_results/my-depth",
+    model=model, manifest_path=str(manifest), output_dir="rpx_results/my-depth",
 ))
 print(result.aggregated["absrel"], result.aggregated["delta1"])
 ```
 
 > [!TIP]
-> **Next:** remove `max_samples` to score the full Easy tier (33 scenes × 3 phases), then
+> **Next:** drop `max_samples` from the download to get the full Easy tier (33 scenes × 3 phases), score it, then
 > [compute Φ and 𝒥<sub>min</sub>](benchmark/README.md#get-the-papers-diagnosis) from the results.
 > Φ needs all three phases of many scenes, so a 6-frame trial cannot produce it.
 
@@ -137,6 +144,8 @@ evaluated on that task.
 
 - 📏 **Inputs, shapes and units** for each factory: [model guide](https://irvlutd.github.io/RPX/toolkit-docs/models/). Each task also has an
   [illustrated walkthrough](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/).
+- 📥 **Data for the other tasks**: `rpx.download_split("<task>", "<split>")` with `video_depth`, `object_tracking` or
+  `relative_camera_pose`; VQA manifests are prepared as in the [VQA guide](docker/vqa-smoke/README.md).
 - 🔌 **VLMs and APIs** (T5, T6): `vqa` is `rpx_benchmark.vqa`; see [custom VQA model or API](benchmark/README.md#custom-vqa-model-or-api).
 - 🐳 **Docker**: always name a tag, since bare `irvlutd/rpx` is an unrelated legacy image. Box- and text-prompted
   trackers and GemDepth (build recipe only) are covered in the [Docker guide](docker/README.md#which-image-to-pull).
