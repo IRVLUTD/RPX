@@ -17,7 +17,7 @@
 <a href="https://jwroboticsvision.github.io/">Jikai Wang</a> &nbsp;·&nbsp;
 <a href="https://yuxng.github.io/">Yu Xiang</a>
 
-<sub><sup>&ast;</sup>Equal contribution · UT Dallas · UF Gainesville · IIIT Hyderabad · UT Austin</sub>
+<sub><sup>&ast;</sup>Equal contribution · UT Dallas · UF · IIIT Hyderabad · UT Austin</sub>
 
 <br><br>
 
