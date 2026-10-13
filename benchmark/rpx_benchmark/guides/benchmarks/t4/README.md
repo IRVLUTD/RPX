@@ -103,7 +103,7 @@ Use [`pose_pairs`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/pose
     [Open the T4 vector workflow](../../assets/benchmark-t4.svg). It describes the interface and scoring stages, not a pretrained prediction.
 
 <div class="rpx-task-next" markdown="1">
-[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#reference-models)
+[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models)
 </div>
 
 </div>

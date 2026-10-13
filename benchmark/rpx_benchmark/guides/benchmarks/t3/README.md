@@ -101,7 +101,7 @@ For paper-model tracking runs and sequence-level metrics, use [`run_tracking_pap
     [Open the T3 vector workflow](../../assets/benchmark-t3.svg). It describes the interface and scoring stages, not a pretrained prediction.
 
 <div class="rpx-task-next" markdown="1">
-[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#reference-models)
+[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models)
 </div>
 
 </div>
