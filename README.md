@@ -74,30 +74,23 @@ recorded before, during and after manipulation, scored on six tasks.
 pip install 'rpx-benchmark[hub,schemas]'
 ```
 
-**2 · Try a task.** This downloads the data for one task, then scores a dummy model on it. No GPU, login or code needed.
-
-```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6
-```
-
-Every paper task works the same way: **T1** image depth · **T2** video depth · **T3** tracking · **T4** camera pose ·
-**T5** VQA grounding · **T6** in-context VQA. Results are saved in rpx_results.
-
-**3 · Score your own model.** Save it as a predict function in my_model.py. The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show the
-inputs and outputs for every task; this one is T1:
+**2 · Download a task's data.** Only the files that task needs: about 160 MB here, no login.
 
 ```python
-import numpy as np
+import rpx_benchmark as rpx
 
-def predict(rgb):                              # T1: RGB image -> depth in metres
-    return np.ones(rgb.shape[:2], np.float32)  # replace with your model
+data = rpx.download("T1", split="easy", max_samples=6)
 ```
 
-Then run the same command with your model:
+**3 · Run the benchmark** with the paper's metrics.
 
-```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6 --model my_model:predict
+```python
+result = rpx.benchmark("T1", data, rpx.dummy_models.image_depth)
 ```
+
+To score your model, pass your own function in place of the dummy one. The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show what each
+task's function receives and returns. Every paper task works the same way: **T1** image depth · **T2** video depth ·
+**T3** tracking · **T4** camera pose · **T5** VQA grounding · **T6** in-context VQA. Results are saved in rpx_results.
 
 <br>
 

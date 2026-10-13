@@ -23,90 +23,63 @@
 
 ## Get started
 
-**Try any task in two commands.** No GPU, no login, no code: the task's data downloads first (only what it needs),
-then a dummy model is scored on it.
+**1 · Install**
 
 ```bash
 pip install 'rpx-benchmark[hub,schemas]'
-python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6
+```
+
+**2 · Download a task's data.** Only the files that task needs: about 160 MB here, no login.
+
+```python
+import rpx_benchmark as rpx
+
+data = rpx.download("T1", split="easy", max_samples=6)
+```
+
+**3 · Run the benchmark** with the paper's metrics.
+
+```python
+result = rpx.benchmark("T1", data, rpx.dummy_models.image_depth)
 ```
 
 ```text
-Downloading Image depth data (easy, 6 samples) ...
-Scoring Image depth ...
-  T1  Image depth              6 samples   AbsRel 0.258 · δ1 0.530            → rpx_results/T1/dummy
+Scoring Image depth with image_depth ...
+  T1  Image depth              6 samples   AbsRel 0.258 · δ1 0.530            → rpx_results/T1/image_depth
 ```
 
-Swap `T1` for any paper task, `T2` to `T6` (table below).
-
-**Score your own model.** Put one function in `my_model.py` and point the same command at it. The
-[dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) (`rpx_benchmark.examples.dummy_models`) show the inputs and outputs for every task:
+**Your model** is any function with the same inputs and outputs as the task's
+[dummy model](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py):
 
 ```python
-# my_model.py  (T1: RGB image (H, W, 3) -> metric depth in metres (H, W))
 import numpy as np
 
-def predict(rgb):
+def predict(rgb):                              # T1: RGB image (H, W, 3) -> depth in metres (H, W)
     return np.ones(rgb.shape[:2], np.float32)  # replace with your model
-```
 
-```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6 \
-  --model my_model:predict --output rpx_results/my-model
+result = rpx.benchmark("T1", data, predict, name="my-model")
+print(result["metrics"]["absrel"])
 ```
-
-What `predict` receives and returns for each task is in the [table below](#tasks-and-reference-models).
 
 <details>
-<summary>Check the install without downloading anything</summary>
+<summary>Prefer the command line?</summary>
 
 ```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke
+python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6 --model my_model:predict
+python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke   # check the install, no download
 ```
-
-Runs all six evaluators on synthetic inputs in a few seconds.
 
 </details>
 
-## Use it from Python
-
-The same run as two calls: download the task's data, then score your function on it.
-
-```python
-import numpy as np
-import rpx_benchmark as rpx
-
-# 1. Download one task's data (only the files it needs: ~160 MB for this 6-sample trial)
-manifest = rpx.download_split("monocular_depth", "easy", max_samples=6)
-
-# 2. Your model: RGB image (H, W, 3) -> metric depth in metres (H, W)
-def my_model(rgb):
-    return np.ones(rgb.shape[:2], np.float32)
-
-# 3. Benchmark it on the downloaded data
-result, *_ = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
-    model=rpx.make_numpy_depth_model(my_model, name="my-model"),
-    manifest_path=str(manifest), output_dir="rpx_results/my-model",
-))
-print(result.aggregated["absrel"], result.aggregated["delta1"])
-```
-
-| Task | Download name | Wrap with | Run with |
-|---|---|---|---|
-| **T1** Image depth | `monocular_depth` | `make_numpy_depth_model` | `run_monocular_depth` |
-| **T2** Video depth | `video_depth` | `make_numpy_video_depth_model` | `run_video_depth` |
-| **T3** Object tracking | `object_tracking` | `make_numpy_tracking_model` | `run_object_tracking` |
-| **T4** Relative camera pose | `relative_camera_pose`, `manifest_name="relative_pose"` | `make_numpy_pose_model` | `run_relative_pose` |
-
 ## Get the paper's diagnosis
 
-Drop `--max-samples` to score the full Easy tier (33 scenes × 3 phases), then turn the per-sample results into Φ and
+Drop `max_samples` to score the full Easy tier (33 scenes × 3 phases), then turn the per-sample results into Φ and
 𝒥<sub>min</sub>:
 
 ```bash
 python -m rpx_benchmark.examples.summarize_metrics \
-  --input rpx_results/my-model/result.json \
-  --metrics absrel rmse silog delta1 --output rpx_results/my-model/phi.json
+  --input rpx_results/T1/my-model/result.json \
+  --metrics absrel rmse silog delta1 --output rpx_results/T1/my-model/phi.json
 # prints: my-model / monocular_depth: Φ …   Jmin …
 #         (33 scenes; J per phase: clutter …  interaction …  clean …)
 ```
@@ -115,10 +88,10 @@ python -m rpx_benchmark.examples.summarize_metrics \
 
 ## Tasks and reference models
 
-Every task runs through the same command; only `--task` and your `predict` change. The Docker column holds every
-model the paper evaluated on that task.
+Every task uses the same two calls; only the task ID and your function change. The Docker column holds every model
+the paper evaluated on that task.
 
-| Task | ID | Your `predict` receives → returns | Paper's models, `irvlutd/rpx:` |
+| Task | ID | Your function receives → returns | Paper's models, `irvlutd/rpx:` |
 |:--|:-:|:--|:--|
 | Image depth | `T1` | RGB `(H, W, 3)` → depth `(H, W)` in metres | `depth-zipdepth-latest` (10) |
 | Video depth | `T2` | clip `(T, H, W, 3)` → depth `(T, H, W)` | `depth-zipdepth-latest` (8)<br>`depth-dvd-latest` (DVD) |
@@ -127,12 +100,10 @@ model the paper evaluated on that task.
 | VQA grounding | `T5` | image path + question → JSON `{"label", "bbox"}` | `vqa-vllm` (12) |
 | In-context VQA | `T6` | reference crop + image + question → same | `vqa-vllm` (12) |
 
-- **Details**: relative-depth models add `--depth-output-kind relative`; full input contracts are in the
+- **Details**: relative-depth models pass `depth_output_kind="relative"` to `rpx.benchmark`; full input contracts are in the
   [model guide](https://irvlutd.github.io/RPX/toolkit-docs/models/), with an
   [illustrated walkthrough](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/) per task.
-- **From Python**: every task is also a two-call API (`rpx.download_split`, then `rpx.run_monocular_depth` and
-  friends); see the [Python quick start](#use-it-from-python).
-- **T5 / T6** run on a packaged set of questions out of the box; pass `--manifest` for your own VQA question list,
+- **T5 / T6** download a packaged set of questions; pass your own VQA question list file as `data` instead,
   and see [custom VQA model or API](#custom-vqa-model-or-api) for API-backed models.
 - **Docker**: always name a tag, since bare `irvlutd/rpx` is an unrelated legacy image. Box- and text-prompted
   trackers and GemDepth (build recipe only) are covered in the [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull).

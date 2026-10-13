@@ -27,10 +27,11 @@ from PIL import Image
 import rpx_benchmark as rpx
 
 from ..exceptions import ConfigError
+from ..quickstart import download
 from ..tasks._pipeline import PipelineResult, TaskRunConfig
 from ..vqa.contract import VQASample, image_locator, load_manifest, write_manifest
 from ..vqa.evaluate import evaluate_vqa
-from ..vqa.hub_rgb import fetch_images_many, image_cache_name, reference_cache_name
+from ..vqa.hub_rgb import image_cache_name, reference_cache_name
 from . import dummy_models
 from .profile_callable import load_callable
 
@@ -362,24 +363,11 @@ def main() -> None:
         manifest = args.manifest
         max_samples = args.max_samples
         image_cache = args.image_cache
-        if manifest is None and args.task in {"T5", "T6"}:
-            samples = load_manifest(VQA_QUICKSTART / f"{args.task.lower()}.jsonl")
-            samples = samples[:max_samples] if max_samples else samples
-            image_cache = image_cache or Path("rpx-data") / "vqa-images"
-            print(f"Downloading {TASK_LABELS[args.task]} images ({len(samples)} questions) ...")
-            fetch_images_many(samples, image_cache)
-            manifest = image_cache.parent / f"{args.task}_quickstart.jsonl"
-            write_manifest(samples, manifest)
-            max_samples = None  # the subset manifest already holds exactly these rows
-        elif manifest is None:
-            name, hub_name = HUB_MANIFESTS[args.task]
-            amount = f"{args.max_samples} samples" if args.max_samples else "full split"
-            print(f"Downloading {TASK_LABELS[args.task]} data ({args.split}, {amount}) ...")
-            manifest = Path(
-                rpx.download_split(
-                    name, args.split, max_samples=args.max_samples, manifest_name=hub_name
-                )
-            )
+        if manifest is None:
+            manifest = download(args.task, args.split, args.max_samples)
+            max_samples = None  # the downloaded manifest already holds exactly these rows
+            if args.task in {"T5", "T6"}:
+                image_cache = image_cache or manifest.parent / "vqa-images"
         if args.model:
             fn, model_name = load_callable(args.model), args.model_name
         else:
