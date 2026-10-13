@@ -48,8 +48,9 @@ python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output rpx
 import numpy as np
 import rpx_benchmark as rpx
 
-def predict_depth(rgb):                       # RGB (H, W, 3) -> metric depth in metres (H, W)
-    return np.ones(rgb.shape[:2], np.float32)  # replace with your model
+# Your model: RGB image (H, W, 3) -> metric depth in metres (H, W).
+def predict_depth(rgb):
+    return np.ones(rgb.shape[:2], np.float32)
 
 model = rpx.make_numpy_depth_model(predict_depth, name="my-depth")
 result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
@@ -72,14 +73,14 @@ Hugging Face login is required.
 Wrap your model with the task's factory and run it, or pull the Docker image that holds every model the paper
 evaluated on that task.
 
-| | Task | Wrap your model with | Run with | Paper's models: `irvlutd/rpx:` tag |
-|---|---|---|---|---|
-| T1 | Image depth | `make_numpy_depth_model` | `run_monocular_depth` | `depth-zipdepth-latest` (10) |
-| T2 | Video depth | `make_numpy_video_depth_model` | `run_video_depth` | `depth-zipdepth-latest` (8), `depth-dvd-latest` (DVD) |
-| T3 | Object tracking | `make_numpy_tracking_model` | `run_object_tracking` | `tracking-dam4sam-rpx-latest` (8) |
-| T4 | Relative camera pose | `make_numpy_pose_model` | `run_relative_pose` | `rcpe-monst3r-rpx-latest` (10) |
-| T5 | VQA grounding | a `predict_vqa` callable | `vqa.evaluate_vqa` | `vqa-vllm` (12) |
-| T6 | In-context VQA | the same callable, two images | `vqa.evaluate_vqa` | `vqa-vllm` (12) |
+| Task | Wrap your model with | Run with | Paper's models, `irvlutd/rpx:` |
+|---|---|---|---|
+| **T1** Image depth | `make_numpy_depth_model` | `run_monocular_depth` | `depth-zipdepth-latest` (10) |
+| **T2** Video depth | `make_numpy_video_depth_model` | `run_video_depth` | `depth-zipdepth-latest` (8)<br>`depth-dvd-latest` (DVD) |
+| **T3** Object tracking | `make_numpy_tracking_model` | `run_object_tracking` | `tracking-dam4sam-rpx-latest` (8) |
+| **T4** Relative camera pose | `make_numpy_pose_model` | `run_relative_pose` | `rcpe-monst3r-rpx-latest` (10) |
+| **T5** VQA grounding | a `predict_vqa` callable | `vqa.evaluate_vqa` | `vqa-vllm` (12) |
+| **T6** In-context VQA | the same callable, two images | `vqa.evaluate_vqa` | `vqa-vllm` (12) |
 
 - **Inputs, shapes and units** for each factory: [model guide](https://irvlutd.github.io/RPX/toolkit-docs/models/). Each task also has an
   [illustrated walkthrough](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/).

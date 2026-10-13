@@ -2,6 +2,13 @@
   <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires." width="100%"/>
 </p>
 
+<h3 align="center">Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild</h3>
+
+<p align="center">
+  Score any perception model on 100 real scenes recorded <b>before, during and after manipulation</b>,<br/>
+  and see where it breaks with two numbers: <b>Φ</b> (phase robustness) and <b>𝒥<sub>min</sub></b> (worst-phase quality).
+</p>
+
 <p align="center">
   <a href="https://pypi.org/project/rpx-benchmark/"><img src="https://img.shields.io/pypi/v/rpx-benchmark?color=4F46E5" alt="PyPI"></a>
   <a href="https://pypi.org/project/rpx-benchmark/"><img src="https://img.shields.io/badge/python-3.10%E2%80%933.12-blue" alt="Python 3.10–3.12"></a>
@@ -9,44 +16,27 @@
   <a href="https://irvlutd.github.io/RPX/toolkit-docs/"><img src="https://img.shields.io/badge/docs-toolkit-0d9488" alt="Docs"></a>
   <a href="https://huggingface.co/datasets/IRVLUTD/RPX"><img src="https://img.shields.io/badge/%F0%9F%A4%97%20dataset-IRVLUTD%2FRPX-yellow" alt="Dataset"></a>
   <a href="https://hub.docker.com/r/irvlutd/rpx"><img src="https://img.shields.io/badge/docker-irvlutd%2Frpx-2496ED" alt="Docker"></a>
-  <a href="https://github.com/IRVLUTD/RPX/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
-</p>
-
-<p align="center">
-  <b>Score any perception model on the same real scenes, before, during and after manipulation.</b><br/>
-  Six tasks, one evaluator, and the paper's robustness diagnosis, in a few lines of Python.
+  <a href="https://github.com/IRVLUTD/RPX"><img src="https://img.shields.io/badge/github-IRVLUTD%2FRPX-24292f" alt="GitHub"></a>
 </p>
 
 ---
 
-## Why RPX?
+## Get started in three steps
 
-| The usual way | With RPX |
-|---|---|
-| Each task is benchmarked on its own static images | Six tasks are scored on the **same 100 real scenes** |
-| A scene is recorded once, in one state | Every scene is recorded **before, during and after** manipulation, plus an **egocentric** view |
-| One accuracy number hides where a model breaks | **Φ** (phase robustness) and **𝒥<sub>min</sub>** (worst-phase quality) show it |
-| Comparing a new model means re-implementing protocols | Wrap your function or API; RPX applies the paper's data, splits and metrics |
-
----
-
-### What RPX reveals
-
-The same scene, scored before, during and after manipulation: quality drops when hands enter, and no model in the
-paper is both accurate and robust.
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-hero-light.webp" alt="RPX: the same real scene before, during and after manipulation and from an egocentric view; mean quality per view for video depth, tracking and VQA drops when hands enter the scene; none of the 65 evaluations in the paper reaches both worst-phase quality 0.75 and phase robustness 0.86; three steps: pip install rpx-benchmark, run your model, get phi and J-min." width="100%"/>
-</p>
-
-## Quick start
+**1. Install** (Python 3.10–3.12; CPU is enough to start)
 
 ```bash
 pip install 'rpx-benchmark[hub,schemas]'
+```
+
+**2. Check the install**: all six evaluators on synthetic inputs, in a few seconds, with no download.
+
+```bash
 python -m rpx_benchmark.examples.benchmark_tasks --task all --smoke --output rpx-check
 ```
 
-Runs all six evaluators on tiny synthetic inputs in about a second, on CPU:
+<details>
+<summary>What you should see</summary>
 
 ```text
 RPX smoke check: synthetic inputs, CPU, real evaluators
@@ -59,7 +49,9 @@ RPX smoke check: synthetic inputs, CPU, real evaluators
 Done: 6 task(s) ran end to end; full results under rpx-check/.
 ```
 
-### Score your own model on real RPX scenes
+</details>
+
+**3. Score your model on real RPX scenes.** Swap in your own function; RPX loads the data and applies the paper's metrics.
 
 ```python
 import numpy as np
@@ -77,72 +69,57 @@ result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
 print(result.aggregated["absrel"], result.aggregated["delta1"])
 ```
 
-The first run downloads about 160 MB and takes under a minute. Only the files this task needs are fetched, never the whole
-237 GB dataset. Remove `max_samples` to score the full Easy tier (33 scenes × 3 phases).
+The first run fetches about 160 MB, only the files this task needs, and finishes in under a minute. No Hugging Face
+login is required.
 
-### Get the paper's diagnosis
+## Get the paper's diagnosis
 
-Run a full tier, then turn its per-sample results into Φ and 𝒥<sub>min</sub>:
+Remove `max_samples` to score the full Easy tier (33 scenes × 3 phases), then turn the per-sample results into Φ and
+𝒥<sub>min</sub>:
 
 ```bash
 python -m rpx_benchmark.examples.summarize_metrics \
   --input rpx_results/my-depth/result.json \
   --metrics absrel rmse silog delta1 --output rpx_results/my-depth/phi.json
-# prints:  my-depth / monocular_depth: Φ …   Jmin …
-#          (33 scenes; J per phase: clutter …  interaction …  clean …)
+# prints: my-depth / monocular_depth: Φ …   Jmin …
+#         (33 scenes; J per phase: clutter …  interaction …  clean …)
 ```
 
-Φ needs all three phases of many scenes, so it is not available from a 6-frame trial run.
+Φ needs all three phases of many scenes, so a 6-frame trial cannot produce it.
 
----
+## Tasks and reference models
 
-## Six tasks
+Wrap your model with the task's factory and run it, or pull the Docker image that holds every model the paper
+evaluated on that task.
 
-| | Task | Wrap your model with | Run it with | Paper metrics |
-|---|---|---|---|---|
-| T1 | Image depth | `make_numpy_depth_model` | `run_monocular_depth` | AbsRel · RMSE · SILog · δ<sub>1</sub> |
-| T2 | Video depth | `make_numpy_video_depth_model` | `run_video_depth` | T1 metrics + TGM · TGSE |
-| T3 | Object tracking | `make_numpy_tracking_model` | `run_object_tracking` | HOTA · MOTA · IDSW |
-| T4 | Relative camera pose | `make_numpy_pose_model` | `run_relative_pose` | AUC@5° · @10° · @20° |
-| T5 | VQA grounding | a `predict_vqa` callable | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5 · GIoU · Center-in-GT |
-| T6 | In-context VQA | the same callable, two images | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5 · GIoU · Center-in-GT |
+| Task | Wrap your model with | Run with | Paper's models, `irvlutd/rpx:` |
+|---|---|---|---|
+| **T1** Image depth | `make_numpy_depth_model` | `run_monocular_depth` | `depth-zipdepth-latest` (10) |
+| **T2** Video depth | `make_numpy_video_depth_model` | `run_video_depth` | `depth-zipdepth-latest` (8)<br>`depth-dvd-latest` (DVD) |
+| **T3** Object tracking | `make_numpy_tracking_model` | `run_object_tracking` | `tracking-dam4sam-rpx-latest` (8) |
+| **T4** Relative camera pose | `make_numpy_pose_model` | `run_relative_pose` | `rcpe-monst3r-rpx-latest` (10) |
+| **T5** VQA grounding | a `predict_vqa` callable | `vqa.evaluate_vqa` | `vqa-vllm` (12) |
+| **T6** In-context VQA | the same callable, two images | `vqa.evaluate_vqa` | `vqa-vllm` (12) |
 
-Everything is under `rpx` unless named in full. The generic T3 and T4 runners report per-sample tracking and pose
-errors; the paper's HOTA and pooled AUC come from the clip- and pair-level reference runners in the
-[repository](https://github.com/IRVLUTD/RPX/tree/main/benchmark/scripts). Each task has an illustrated walkthrough in
-the [benchmark samples](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/).
-
-## Reference models
-
-Every model in the paper except GemDepth (build recipe only) ships in a ready-to-pull Docker image. Pull the final
-image for your task; it already contains every earlier model of that task.
-
-| Task | Image | Models |
-|---|---|---|
-| T1, T2 | `irvlutd/rpx:depth-zipdepth-latest` | all 10 image-depth and 8 video-depth models |
-| T2 | `irvlutd/rpx:depth-dvd-latest` | DVD |
-| T3 | `irvlutd/rpx:tracking-dam4sam-rpx-latest` | 8 mask-initialized trackers (box- and text-prompted runs use their own images) |
-| T4 | `irvlutd/rpx:rcpe-monst3r-rpx-latest` | all 10 pose models |
-| T5, T6 | `irvlutd/rpx:vqa-vllm` | all 12 vision-language models |
-
-The [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull) lists every image and
-model, and how to run each one.
-
-## Bring your own model
-
-A model is any Python function, local or a call to an inference API. Wrap it with the task's factory (table above);
-RPX loads the inputs, calls your function, and scores the outputs exactly as in the paper. Shapes and units are in
-each factory's docstring and in the [model guide](https://irvlutd.github.io/RPX/toolkit-docs/models/). The toolkit
-also includes segmentation, detection, open-vocabulary detection, grounding, sparse-depth and keypoint-matching
-runners: `rpx_benchmark.tasks.available_tasks()` lists them.
+- **Inputs, shapes and units** for each factory are in its docstring and the [model guide](https://irvlutd.github.io/RPX/toolkit-docs/models/). Each task
+  also has an [illustrated walkthrough](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/).
+- **Paper metrics**: the generic T3 and T4 runners report per-sample errors; the paper's HOTA and pooled pose AUC come
+  from the clip- and pair-level reference runners in the [repository](https://github.com/IRVLUTD/RPX/tree/main/benchmark/scripts).
+- **Docker**: always name a tag, since bare `irvlutd/rpx` is an unrelated legacy image. Box- and text-prompted
+  trackers and GemDepth (build recipe only) are covered in the [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull).
+- **More tasks**: segmentation, detection, open-vocabulary detection, grounding, sparse depth and keypoint matching
+  runners are also included; `rpx_benchmark.tasks.available_tasks()` lists them.
 
 ## Custom VQA model or API
+
+Any local model or hosted API works, as long as it returns text:
 
 ```python
 from rpx_benchmark.vqa import evaluate_vqa
 
 def predict_vqa(image_paths, prompt, max_new_tokens, output_kind):
-    ...  # image_paths is (target,) or (reference_crop, target); return your model's raw text
+    # image_paths is (target,) or (reference_crop, target); return your model's raw text.
+    ...
 
 report = evaluate_vqa(
     "vqa_manifest.jsonl", predict_vqa, model_name="my-vlm", model_revision="v1",
@@ -151,21 +128,31 @@ report = evaluate_vqa(
 print(report["metrics"]["bbox_accuracy_at_0_5"])
 ```
 
-Return one JSON object with `label` and `bbox` (XYXY, normalized to 0–1000). The evaluator never shows your model the
-answers; parse failures count as misses. The [VQA guide](https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md)
-explains manifest preparation.
+Return one JSON object with `label` and `bbox` (XYXY, normalized to 0–1000). Your model never sees the answers, and
+unparseable replies count as misses. The [VQA guide](https://github.com/IRVLUTD/RPX/blob/main/docker/vqa-smoke/README.md) explains how to
+prepare the manifest.
 
-## More tools
+## What RPX reveals
 
-- **[Mask annotation pipeline](https://irvlutd.github.io/RPX/toolkit-docs/annotation/)**: SAM2 propagation with human correction, as used to label RPX
-- **[Hardware profiler](https://irvlutd.github.io/RPX/toolkit-docs/profiling/)**: latency, throughput and memory for any callable
-- **[Φ and JEDI calculator](https://irvlutd.github.io/RPX/toolkit-docs/analysis/)**: robustness and quality from raw metric records
-- **[Add a metric or task](https://irvlutd.github.io/RPX/toolkit-docs/metrics/)**: register your own evaluation
-- **[Dataset](https://huggingface.co/datasets/IRVLUTD/RPX)**: 100 scenes, 70 objects, ~133K frames on Hugging Face
+Quality drops when hands enter the scene, and no model in the paper is both accurate and robust.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-hero-light.webp" alt="RPX: the same real scene before, during and after manipulation and from an egocentric view; mean quality per view for video depth, tracking and VQA drops when hands enter the scene; none of the 65 evaluations in the paper reaches both worst-phase quality 0.75 and phase robustness 0.86; three steps: pip install rpx-benchmark, run your model, get phi and J-min." width="100%"/>
+</p>
+
+## Go further
+
+| I want to… | Go to |
+|---|---|
+| Compute Φ and 𝒥<sub>min</sub> from results I already have | [Φ and JEDI calculator](https://irvlutd.github.io/RPX/toolkit-docs/analysis/) |
+| Profile latency, throughput and memory | [Hardware profiler](https://irvlutd.github.io/RPX/toolkit-docs/profiling/) |
+| Label my own scenes the way RPX was labelled | [Mask annotation pipeline](https://irvlutd.github.io/RPX/toolkit-docs/annotation/) |
+| Add a metric or a new task | [Metrics](https://irvlutd.github.io/RPX/toolkit-docs/metrics/) · [Tasks](https://irvlutd.github.io/RPX/toolkit-docs/tasks/) |
+| Explore the data: 100 scenes, 70 objects, 133,121 frames | [Dataset card](https://huggingface.co/datasets/IRVLUTD/RPX) · [Data guide](https://irvlutd.github.io/RPX/toolkit-docs/data/) |
 
 ## Testing
 
-From `benchmark/` in a source checkout:
+From `benchmark/` in a [source checkout](https://github.com/IRVLUTD/RPX):
 
 ```bash
 python -m pip install -e '.[dev,hub,schemas,hf-datasets,analysis,ar-pose-audit]' \
@@ -184,11 +171,9 @@ The tests never download checkpoints; real-model checks run through the per-imag
 
 ```bibtex
 @misc{rpx2026,
-  title  = {Same Scene, Different Story: Evaluating Robot
-            Perception Across Scene Phases in the Wild},
-  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran
-            and Kamath, Srinanditha and Allu, Sai Haneesh and Rangappa, Govind Tyagi
-            and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
+  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
+  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
+            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
   year   = {2026},
   note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
 }
