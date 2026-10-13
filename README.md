@@ -7,13 +7,13 @@
 <br>
 
 <a href="https://jishnujayakumar.github.io">Jishnu Jaykumar P</a><sup>&ast;</sup> &nbsp;·&nbsp;
-Itay Kadosh<sup>&ast;</sup> &nbsp;·&nbsp;
-Narendhiran Vijayakumar<sup>&ast;</sup> &nbsp;·&nbsp;
-Srinanditha Kamath &nbsp;·&nbsp;
+<a href="https://github.com/Optimax14">Itay Kadosh</a><sup>&ast;</sup> &nbsp;·&nbsp;
+<a href="https://narendhiranv04.github.io">Narendhiran Vijayakumar</a><sup>&ast;</sup> &nbsp;·&nbsp;
+<a href="https://github.com/srinandithak">Srinanditha Kamath</a> &nbsp;·&nbsp;
 <a href="https://saihaneeshallu.github.io/">Sai Haneesh Allu</a>
 <br>
-Govind Tyagi Rangappa &nbsp;·&nbsp;
-Animesh Maheshwari &nbsp;·&nbsp;
+<a href="https://github.com/GovindRangappa">Govind Tyagi Rangappa</a> &nbsp;·&nbsp;
+<a href="https://github.com/AnimeshMaheshwari22">Animesh Maheshwari</a> &nbsp;·&nbsp;
 <a href="https://jwroboticsvision.github.io/">Jikai Wang</a> &nbsp;·&nbsp;
 <a href="https://yuxng.github.io/">Yu Xiang</a>
 
@@ -276,7 +276,7 @@ Texas at Dallas. The dataset is **CC BY 4.0**. Pretrained models keep their own 
 | | |
 |:--|:--|
 | 🛠️ Bugs and questions | [Open an issue](https://github.com/IRVLUTD/RPX/issues) |
-| 📧 Direct | [Jishnu Jaykumar P](https://jishnujayakumar.github.io/) |
+| 📧 Direct | [Jishnu Jaykumar P](https://jishnujayakumar.github.io/) · [Itay Kadosh](https://github.com/Optimax14) · [Narendhiran Vijayakumar](https://narendhiranv04.github.io) |
 
 <br>
 
