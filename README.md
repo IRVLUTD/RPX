@@ -6,28 +6,28 @@
 
 <br>
 
-<a href="https://jishnujayakumar.github.io">Jishnu Jaykumar P</a><sup>&ast;</sup> &nbsp;·&nbsp;
-<a href="https://github.com/Optimax14">Itay Kadosh</a><sup>&ast;</sup> &nbsp;·&nbsp;
-<a href="https://narendhiranv04.github.io">Narendhiran Vijayakumar</a><sup>&ast;</sup> &nbsp;·&nbsp;
-<a href="https://github.com/srinandithak">Srinanditha Kamath</a> &nbsp;·&nbsp;
-<a href="https://saihaneeshallu.github.io/">Sai Haneesh Allu</a>
+<a href="https://jishnujayakumar.github.io">Jishnu Jaykumar P</a><sup>1&ast;</sup> &nbsp;·&nbsp;
+<a href="https://github.com/Optimax14">Itay Kadosh</a><sup>2&ast;</sup> &nbsp;·&nbsp;
+<a href="https://narendhiranv04.github.io">Narendhiran Vijayakumar</a><sup>3&ast;</sup> &nbsp;·&nbsp;
+<a href="https://github.com/srinandithak">Srinanditha Kamath</a><sup>4</sup> &nbsp;·&nbsp;
+<a href="https://saihaneeshallu.github.io/">Sai Haneesh Allu</a><sup>1</sup>
 <br>
-<a href="https://github.com/GovindRangappa">Govind Tyagi Rangappa</a> &nbsp;·&nbsp;
-<a href="https://github.com/AnimeshMaheshwari22">Animesh Maheshwari</a> &nbsp;·&nbsp;
-<a href="https://jwroboticsvision.github.io/">Jikai Wang</a> &nbsp;·&nbsp;
-<a href="https://yuxng.github.io/">Yu Xiang</a>
+<a href="https://github.com/GovindRangappa">Govind Tyagi Rangappa</a><sup>1</sup> &nbsp;·&nbsp;
+<a href="https://github.com/AnimeshMaheshwari22">Animesh Maheshwari</a><sup>1</sup> &nbsp;·&nbsp;
+<a href="https://jwroboticsvision.github.io/">Jikai Wang</a><sup>1</sup> &nbsp;·&nbsp;
+<a href="https://yuxng.github.io/">Yu Xiang</a><sup>1</sup>
 
-<sub><sup>&ast;</sup>Equal contribution · UT Dallas · UF · IIIT Hyderabad · UT Austin</sub>
-
-<br><br>
-
-[![Dataset](https://img.shields.io/badge/🤗%20Dataset-IRVLUTD%2FRPX-ffcc4d?style=for-the-badge)](https://huggingface.co/datasets/IRVLUTD/RPX)
-[![Docs](https://img.shields.io/badge/Docs-Toolkit-0d9488?style=for-the-badge)](https://irvlutd.github.io/RPX/toolkit-docs/)
-[![PyPI](https://img.shields.io/pypi/v/rpx-benchmark?style=for-the-badge&color=4F46E5&label=PyPI)](https://pypi.org/project/rpx-benchmark/)
-[![Docker](https://img.shields.io/badge/Docker-irvlutd%2Frpx-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://hub.docker.com/r/irvlutd/rpx)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
-
+<sup>1</sup>UT Dallas &nbsp;&nbsp; <sup>2</sup>UF &nbsp;&nbsp; <sup>3</sup>IIIT Hyderabad &nbsp;&nbsp; <sup>4</sup>UT Austin
 <br>
+<sub><sup>&ast;</sup>Equal contribution</sub>
+
+<p>
+  <a href="https://huggingface.co/datasets/IRVLUTD/RPX"><img alt="Dataset" src="https://img.shields.io/badge/Dataset-IRVLUTD%2FRPX-ffcc4d?style=for-the-badge&logo=huggingface&logoColor=white"></a>&nbsp;
+  <a href="https://irvlutd.github.io/RPX/toolkit-docs/"><img alt="Docs" src="https://img.shields.io/badge/Docs-Toolkit-0d9488?style=for-the-badge&logo=materialformkdocs&logoColor=white"></a>&nbsp;
+  <a href="https://pypi.org/project/rpx-benchmark/"><img alt="PyPI" src="https://img.shields.io/pypi/v/rpx-benchmark?style=for-the-badge&color=4F46E5&label=PyPI&logo=pypi&logoColor=white"></a>&nbsp;
+  <a href="https://hub.docker.com/r/irvlutd/rpx"><img alt="Docker" src="https://img.shields.io/badge/Docker-irvlutd%2Frpx-2496ED?style=for-the-badge&logo=docker&logoColor=white"></a>&nbsp;
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-MIT-3da639?style=for-the-badge&logo=opensourceinitiative&logoColor=white"></a>
+</p>
 
 <img src="benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" width="95%" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires.">
 <br>
