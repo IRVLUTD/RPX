@@ -93,14 +93,14 @@ Exocentric captures combine RGB, metric depth, instance masks, calibrated fishey
 
 Everything else, including data tools, batch adapters and visualization, is under [all capabilities](capabilities/README.md).
 
-??? info "Concepts and acronyms"
+## Concepts and acronyms
 
-    - **MOS / SOS:** multi-object scenes / single-object captures.
-    - **Phase:** Clutter, Interaction, or Clean. Egocentric Interaction is a separate view.
-    - **Easy / Medium / Hard:** difficulty tiers of 33, 33 and 34 scenes, stratified by how much correction each scene's masks needed.
-    - **JEDI / J / Jmin:** Joint Empirical Desirability Index; overall mean cell desirability and the lowest phase-mean quality.
-    - **Φ:** phase robustness from repeated-measures analysis of paired raw metrics. High robustness must be considered alongside prediction quality.
-    - **GT:** ground truth. Keep units, coordinates, and object identities consistent across predictions and GT.
+- **MOS / SOS:** multi-object scenes / single-object captures.
+- **Phase:** Clutter, Interaction, or Clean. Egocentric Interaction is a separate view.
+- **Easy / Medium / Hard:** difficulty tiers of 33, 33 and 34 scenes, stratified by how much correction each scene's masks needed.
+- **JEDI / J / Jmin:** Joint Empirical Desirability Index; overall mean cell desirability and the lowest phase-mean quality.
+- **Φ:** phase robustness from repeated-measures analysis of paired raw metrics. High robustness must be considered alongside prediction quality.
+- **GT:** ground truth. Keep units, coordinates, and object identities consistent across predictions and GT.
 
 ## Cite RPX
 
