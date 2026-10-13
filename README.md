@@ -52,6 +52,18 @@ recorded before, during and after manipulation, scored on six tasks.
 
 <br>
 
+## 📝 Citation
+
+```bibtex
+@misc{rpx2026,
+  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
+  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
+            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
+  year   = {2026},
+  note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
+}
+```
+
 <br>
 
 ## 🚀 Get started
@@ -92,20 +104,6 @@ python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-sa
 - 🤗 [**Dataset**](https://huggingface.co/datasets/IRVLUTD/RPX): 100 scenes, 70 objects, 133K frames, CC BY 4.0
 - 🐳 [**Paper's models**](docker/README.md): ready-to-run Docker images for the models evaluated in the paper
 - 🐍 [**Python API**](benchmark/README.md): the `rpx-benchmark` package, also on [PyPI](https://pypi.org/project/rpx-benchmark/)
-
-<br>
-
-## 📝 Citation
-
-```bibtex
-@misc{rpx2026,
-  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
-  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
-            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
-  year   = {2026},
-  note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
-}
-```
 
 <br>
 
