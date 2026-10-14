@@ -1,21 +1,11 @@
-# `data/capture/` — Intel D435 + T265 capture rig
+# Capture
 
-> End-to-end capture for one RPX scene: synchronised **RGB + depth (D435)**
-> with **6-DoF pose (T265)**, logged in the layout the rest of the toolkit
-> consumes.
+The scripts we used to record RPX scenes with an Intel RealSense D435 (RGB and depth at 30 fps) and a T265 (6-DoF
+pose at 200 Hz). They open both cameras, keep only frames whose timestamps agree within a tolerance you set, and
+write one folder per scene with one file per modality per frame.
 
-> [!IMPORTANT]
-> **Most users do not need this directory.** Capture is how the RPX
-> dataset was *created*. To *benchmark* a model against the
-> already-captured dataset, use [`../benchmark/`](../../benchmark/README.md)
-> instead. You only come here if you're physically plugging two Intel
-> RealSense cameras into a machine to record new scenes.
-
-**What it does.** Two cameras stream over USB: a D435 produces RGB +
-depth at 30 fps, a T265 produces 6-DoF pose at 200 Hz. The scripts
-here open both, time-synchronise their frames within a configurable
-millisecond tolerance, and write one folder per scene with one file
-per modality per frame — the layout the rest of the toolkit expects.
+You only need this to record new scenes. To benchmark a model on the published data, use
+[`benchmark/`](../../benchmark/README.md).
 
 <p align="center">
   <img src="assets/capture-rig.webp" width="90%" alt="RPX capture rig: (a) a D435 and a T265 on a 3D-printed mount clamped to a laptop; (b) the camera frames, T_265_435 from the T265 to the D435 and T_world_265 for the T265 pose, with the T265 mounted flipped 180 degrees; (c) one scene in its Clutter, Interaction and Clean phases, with a head-mounted GoPro recording the egocentric view during Interaction.">
@@ -26,80 +16,50 @@ per modality per frame — the layout the rest of the toolkit expects.
   egocentric view during Interaction (recorded separately, not by these scripts).</i></sub>
 </p>
 
----
+## Requirements
 
-## ⚡ Quick start (one scene)
+- Intel RealSense D435 and T265
+- `librealsense2==2.47.0` and `pyrealsense2==2.47.0.3313`. Later librealsense releases dropped T265 support, so
+  these versions are pinned. Build that SDK release on the capture machine or use the capture image described in
+  the [Docker guide](../../docker/README.md).
 
-```bash
-# 0. Plug in both cameras (D435 first, then T265).
-# 1. Reset USB if either device is in a stuck state:
-python reset_vision_usb.py --name_list 4xx,Intel
-
-# 2. Capture the scene at 30 fps with a 5 ms sync threshold:
-python save_device_data.py <task-or-object-name> 30 5
-
-# 3. Eyeball the captured trajectory:
-python plot_poses.py recorded_data/<task-or-object-name>/cam_pose/
-```
-
-Output goes to `recorded_data/<task-or-object-name>/` with one file per
-modality per frame. The benchmark loader reads exactly this layout.
-
----
-
-## 🛠️ Requirements
-
-- **Intel RealSense D435** (RGB-D, mandatory)
-- **Intel RealSense T265** (6-DoF VIO, mandatory)
-- `librealsense2 == 2.47.0` and `pyrealsense2 == 2.47.0.3313` — **pinned**
-  because T265 support was removed in librealsense > 2.47.0. Install
-  use the pinned capture image in [Docker](../../docker/README.md) or build that SDK release on the capture host.
-
-Verify both devices enumerate:
+Check that both cameras show up (one line each):
 
 ```bash
 lsusb | grep -E "RealSense|Movidius"
 ```
 
-You should see two lines — one per camera. If you don't, run the reset
-script above.
+## Recording a scene
 
----
+Plug in the D435 first, then the T265.
 
-## 📂 Scripts
+```bash
+# Reset the cameras if either one is stuck
+python reset_vision_usb.py --name_list 4xx,Intel
+
+# Record at 30 fps, keeping frames whose timestamps agree within 5 ms
+python save_device_data.py <task-or-object-name> 30 5
+
+# Plot the recorded trajectory to check it
+python plot_poses.py recorded_data/<task-or-object-name>/cam_pose/
+```
+
+The recording is written to `recorded_data/<task-or-object-name>/`, one file per modality per frame.
+
+## Scripts
 
 | Script | Purpose |
 |---|---|
-| `save_device_data.py <name> <fps> <sync_ms>` | Main capture loop. Streams RGB+depth+pose+fisheye-L/R at the given fps; only writes frames whose D435 and T265 timestamps are within `<sync_ms>` of each other. |
-| `reset_vision_usb.py --name_list <a,b>` | Power-cycles the listed USB devices via `usbreset`. Useful when a camera locks up between captures. |
-| `plot_poses.py <pose-dir>` | Renders the T265 trajectory as a 3D matplotlib plot — fast sanity check after a capture. |
-| `test_t265.py [--save]` | Lightweight T265-only loop: prints pose + fisheye stream. `--save` writes the xyz trajectory. |
-| `test_d4xx.py` | D435-only smoke test: opens the depth + colour streams and prints frame counts. |
-| `test_tracking_n_depth_cameras.py` | Joint D435 + T265 smoke test (no save) — useful to check that both come up before a real capture. |
-| `check_devices_connected.py` | One-shot: lists every connected RealSense device with its serial number. |
-| `test_callbacks.py` | Callback-based capture variant (alternative to the polling loop in `save_device_data.py`). |
+| `save_device_data.py <name> <fps> <sync_ms>` | Main capture loop. Streams RGB, depth, pose and both fisheye images, and writes only frames whose D435 and T265 timestamps are within `<sync_ms>` |
+| `reset_vision_usb.py --name_list <a,b>` | Power-cycles the listed USB devices with `usbreset` |
+| `plot_poses.py <pose-dir>` | Plots the T265 trajectory in 3D |
+| `test_t265.py [--save]` | T265 on its own: prints pose and fisheye frames; `--save` writes the xyz trajectory |
+| `test_d4xx.py` | D435 on its own: opens depth and color and prints frame counts |
+| `test_tracking_n_depth_cameras.py` | Opens both cameras without saving, to check they start together |
+| `check_devices_connected.py` | Lists connected RealSense devices with their serial numbers |
+| `test_callbacks.py` | Callback-based version of the capture loop |
 
-Per-modality config (preset filters, serial numbers, D435 JSON config)
-lives in [`config/`](config/).
+Camera settings (serial numbers, post-processing filters, the D435 JSON preset) are in [`config/`](config/).
+[`data/T265/`](data/T265/) has two short T265 recordings you can pass to `plot_poses.py` to try it out.
 
-Two small sample T265 captures from earlier dev sessions are kept in
-[`data/T265/`](data/T265/) so `plot_poses.py` has something to render
-out-of-the-box.
-
----
-
-## 🐳 Docker
-
-A pre-built Docker image with all RealSense dependencies is available
-under [`../docker/`](../../docker/README.md). Use it if you don't want to
-deal with the librealsense pin on your host.
-
----
-
-## 🔗 Related
-
-- [`../benchmark/`](../../benchmark/README.md) — benchmark a model against
-  already-captured RPX scenes (the common case; doesn't need any of these
-  scripts).
-- [`../mask_annotation/`](../mask_annotation/README.md) — generate
-  ground-truth instance masks for a captured scene.
+See also [`../mask_annotation/`](../mask_annotation/README.md), which turns a recorded scene into instance masks.

@@ -9,77 +9,75 @@
 <a href="../t6/"><span>T6</span>In-context VQA</a>
 </div>
 
-<p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T5</p>
+<p class="rpx-task-kicker">T5 WALKTHROUGH</p>
 
 # VQA
 
 <div class="rpx-task-lead" markdown="1">
-One target image + canonical question → raw text containing a JSON `label` and `bbox`.
+Takes one image and a question and returns the model's raw text, which should contain a JSON object with a `label` and a `bbox`.
 </div>
 
-<div class="rpx-task-shortcuts"><a href="#02-run-the-task">Run the example <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Prepare data <span aria-hidden="true">↗</span></a></div>
+<div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
 <figure><img src="../../assets/scene012-rgb.png" alt="MODEL INPUT: Target RGB + canonical question" width="640" height="480"><figcaption><span>MODEL INPUT</span>Target RGB + canonical question</figcaption></figure>
 <figure><img src="../../assets/hero-interaction.jpg" alt="ANNOTATION CONTEXT: Instance masks stay with the evaluator" width="640" height="480"><figcaption><span>ANNOTATION CONTEXT</span>Instance masks stay with the evaluator</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene012 · Interaction · frame 00113. The annotation overlay explains the scoring context; the model receives the RGB image and public question only.</p>
+<p class="rpx-image-note">Scene 012, Interaction, frame 00113. The masks on the right are what the evaluator scores against; the model only gets the RGB image and the question.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Target image + question</strong></div>
-<div><span>PREDICTION</span><strong>Target box or binary answer</strong></div>
+<div><span>PREDICTION</span><strong>Box or yes/no answer</strong></div>
 <div><span>EVALUATION</span><strong>Localization + response validity</strong></div>
 </div>
 
-## 01 / Connect your model
+## Connect your model
 
-Save your callable in **`my_model.py`**. Initialize your own model or API client once in that module; the example below shows the adapter boundary.
+Put your prediction function in `my_model.py`. Load the model or API client once, at module level, rather than on every call.
 
-```python title="my_model.py · adapter interface"
+```python title="my_model.py"
 def predict_vqa(image_paths, prompt, max_new_tokens, output_kind):
-    # One target image; use your own local or API client and image template.
+    # image_paths holds the target image; client is your local model or API client
     return client.generate(images=image_paths, prompt=prompt,
                            max_new_tokens=max_new_tokens)
 ```
 
 <div class="rpx-task-note" markdown="1">
-**Check every response.** Use the canonical question type and response schema. Parsing or inference failures remain in the scored denominator.
+Return the model's text as is; RPX parses it. Responses that fail to parse, and calls that raise, are scored as failures rather than skipped.
 </div>
 
-## 02 / Run the task
+## Run the benchmark
 
-Choose an offline integration check or run your callable on released RPX data. Install the toolkit first with `python -m pip install 'rpx-benchmark[hub,schemas]'`.
+Install the toolkit with `pip install 'rpx-benchmark[hub,schemas]'`. The smoke test checks the install; the second tab scores your model.
 
-=== "Offline smoke test"
+=== "Smoke test (offline)"
 
     ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T5 --smoke --output results/t5-smoke
     ```
 
-    This runs a tiny synthetic fixture with a toy callable. Use a fresh output directory; no model weights or dataset downloads are required.
+    This runs the real evaluator on a few synthetic inputs with a placeholder model. Nothing is downloaded and no weights are needed. The output directory must be new or empty.
 
 
-=== "Your model + RPX data"
+=== "Your model on RPX data"
 
-    Prepare a [task manifest](../README.md#move-to-real-data) and make `my_model.py` importable from your working directory.
+    Run this from the directory that contains `my_model.py`. Without `--manifest`, it scores the 58 T5 questions packaged with the toolkit, pinned to the dataset release, and downloads only their images.
 
-    ```bash title="Terminal · real-data run"
+    ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T5 \
-      --manifest manifests/T5/hard.jsonl \
       --model my_model:predict_vqa \
       --model-name my-model \
       --model-revision exact-checkpoint-or-api-version \
-      --output results/my-model/T5 \
-      --image-cache .cache/rpx-vqa
+      --output results/my-model/T5
     ```
 
 
-    Every row in the VQA manifest is scored. Select a smaller canonical manifest beforehand for a smoke run. Keep its question, bbox, image locator and reference metadata intact.
+    The packaged questions are a quick-start set, not the paper's full split. To score more, build a canonical manifest ([how](../README.md#prepare-canonical-vqa-samples)) and pass it with `--manifest` and `--image-cache`. Every row of a manifest you pass is scored, and `--max-samples` is refused, so cut the manifest itself for a short run. Keep each row's question, box, image locator and reference metadata intact.
 
 
-## 03 / Inspect the results
+## Read the results
 
 <div class="rpx-result-files">
 <div><code>run_config.json</code><span>Model and evaluation settings</span></div>
@@ -87,24 +85,24 @@ Choose an offline integration check or run your callable on released RPX data. I
 <div><code>result.json</code><span>Scored metrics and failure counts</span></div>
 </div>
 
-Confirm that every requested sample is accounted for before aggregating. Keep raw scene/phase records for [Φ and JEDI](../../analysis/README.md), and measure inference separately with the [hardware profiler](../../profiling/README.md).
+Check that the number of scored samples matches what you asked for. Keep the per-sample records: [Φ and 𝒥<sub>min</sub>](../../analysis/README.md) are computed from them. Latency and memory are measured separately, with the [hardware profiler](../../profiling/README.md).
 
 ### Scoring and protocol
 
-The model sees images and the public prompt. Target boxes and GT answers stay inside the evaluator. Box output uses **XYXY normalized to 0–1000**: `{"label":"cup","bbox":[100,200,600,800]}`. Binary questions instead require `yes` or `no`. These numbers illustrate the response schema; they are not scene012 GT.
+The model sees only the image and the prompt; boxes and answers stay with the evaluator. Boxes are `[x1, y1, x2, y2]` normalized to 0–1000, for example `{"label":"cup","bbox":[100,200,600,800]}` (an illustration, not scene012's ground truth). Yes/no questions expect `yes` or `no`.
 
-Scoring includes bbox IoU, localization at IoU thresholds, parser validity and per-question-type diagnostics. Malformed responses and inference exceptions count as failures; dataset-fetch errors abort. Label diagnostics are reported separately from the primary localization score. Request wall time includes API transport when the callable uses an API.
+Scores include box IoU, accuracy at IoU thresholds, parse validity and a breakdown by question type. Malformed responses and inference errors count as failures; an error fetching the dataset stops the run. Label accuracy is reported separately from localization. For API models, the recorded wall time includes network transport.
 
-??? note "Before a full benchmark"
+??? note "Before a full run"
 
-    Verify units and shapes, input ordering, frame/object/sample IDs, and that every requested prediction is accounted for. Load the model once per process, pin its revision, and keep the same data split and preprocessing across comparisons. Real pretrained inference requires that model's environment and weights; the packaged smoke fixture does not replace it.
+    Check units, shapes, input order and sample IDs on a small run first. Pin the model revision, and keep the split and preprocessing the same for every model you compare. The smoke test only exercises the evaluator; your model still needs its own environment and weights.
 
-??? info "Download the workflow figure"
+??? info "Workflow figure"
 
-    [Open the T5 vector workflow](../../assets/benchmark-t5.svg). It describes the interface and scoring stages, not a pretrained prediction.
+    [T5 workflow (SVG)](../../assets/benchmark-t5.svg): the inputs, adapter and scoring stages for this task.
 
 <div class="rpx-task-next" markdown="1">
-[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models)
+[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [The paper's models](https://github.com/IRVLUTD/RPX/tree/main/docker)
 </div>
 
 </div>

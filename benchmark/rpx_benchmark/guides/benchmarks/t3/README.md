@@ -9,21 +9,21 @@
 <a href="../t6/"><span>T6</span>In-context VQA</a>
 </div>
 
-<p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T3</p>
+<p class="rpx-task-kicker">T3 WALKTHROUGH</p>
 
 # Object tracking
 
 <div class="rpx-task-lead" markdown="1">
-RGB frames, sequence boundaries and protocol-specific initialization → boxes with persistent track IDs.
+Takes RGB frames in order, with sequence boundaries and an initialization, and returns boxes with persistent track IDs.
 </div>
 
-<div class="rpx-task-shortcuts"><a href="#02-run-the-task">Run the example <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Prepare data <span aria-hidden="true">↗</span></a></div>
+<div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
 <figure><img src="../../assets/scene012-rgb.png" alt="MODEL INPUT: RGB · frame 00113" width="640" height="480"><figcaption><span>MODEL INPUT</span>RGB · frame 00113</figcaption></figure>
 <figure><img src="../../assets/hero-interaction.jpg" alt="GROUND TRUTH: Released instance-mask overlay" width="640" height="480"><figcaption><span>GROUND TRUTH</span>Released instance-mask overlay</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene012 · Interaction · frame 00113. The overlay shows released ground-truth masks, not tracker predictions. Persistent identities must survive the sequence.</p>
+<p class="rpx-image-note">Scene 012, Interaction, frame 00113. The overlay shows the released ground-truth masks, whose identities persist across the sequence.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Frames + initialization</strong></div>
@@ -31,77 +31,76 @@ RGB frames, sequence boundaries and protocol-specific initialization → boxes w
 <div><span>EVALUATION</span><strong>Tracking consistency</strong></div>
 </div>
 
-## 01 / Connect your model
+## Connect your model
 
-Save your callable in **`my_model.py`**. Initialize your own model or API client once in that module; the example below shows the adapter boundary.
+Put your prediction function in `my_model.py`. Load the model or API client once, at module level, rather than on every call.
 
-```python title="my_model.py · adapter interface"
-# Stateful object: initialize once per sequence, then update per frame.
+```python title="my_model.py"
+# tracker is yours: initialize it once per sequence, then update it per frame.
 def predict_tracks(rgb):
     return tracker.update(rgb)  # [{"track_id": "1", "boxes": boxes_xyxy}, ...]
 ```
 
 <div class="rpx-task-note" markdown="1">
-**Check state and identities.** Initialize once per sequence, reset at sequence boundaries, and preserve track IDs. Use the sequence evaluator for paper HOTA/IDF1.
+Keep state between calls, reset it at each sequence boundary, and keep track IDs stable. Paper HOTA and IDF1 numbers come from the sequence evaluator described below.
 </div>
 
-## 02 / Run the task
+## Run the benchmark
 
-Choose an offline integration check or run your callable on released RPX data. Install the toolkit first with `python -m pip install 'rpx-benchmark[hub,schemas]'`.
+Install the toolkit with `pip install 'rpx-benchmark[hub,schemas]'`. The smoke test checks the install; the second tab scores your model.
 
-=== "Offline smoke test"
+=== "Smoke test (offline)"
 
     ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T3 --smoke --output results/t3-smoke
     ```
 
-    This runs a tiny synthetic fixture with a toy callable. Use a fresh output directory; no model weights or dataset downloads are required.
+    This runs the real evaluator on a few synthetic inputs with a placeholder model. Nothing is downloaded and no weights are needed. The output directory must be new or empty.
 
 
-=== "Your model + RPX data"
+=== "Your model on RPX data"
 
-    Prepare a [task manifest](../README.md#move-to-real-data) and make `my_model.py` importable from your working directory.
+    Run this from the directory that contains `my_model.py`. Without `--manifest`, the command downloads the data it needs first.
 
-    ```bash title="Terminal · real-data run"
+    ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T3 \
-      --manifest manifests/T3/hard.json \
       --model my_model:predict_tracks \
       --model-name my-model \
       --model-revision exact-checkpoint-or-api-version \
       --output results/my-model/T3 \
       --device cuda \
-      --split hard \
+      --split easy \
       --max-samples 10
     ```
 
 
-    For an installed Hub manifest, download a supported task split with `download_split`, then pass its returned local JSON path. `max_samples=10` is an integration subset; omit it for the full protocol.
+    Ten samples are enough to check the wiring; drop `--max-samples` to score the whole split. To use data you already have on disk, add `--manifest path/to/manifest.json` (see [using local data](../README.md#move-to-real-data)).
 
 
-## 03 / Inspect the results
+## Read the results
 
-Open the generated reports and cell logs under your output directory. `run_config.json` records the model revision and manifest hash; the frame/clip runner returns `(result, deployment_report, paths)` with the saved artifact paths.
+The output directory holds `result.json`, `summary.md`, per-sample tables and cell logs. `run_config.json` records the model revision and the manifest hash. From Python, the `run_*` functions return `(result, report, paths)`.
 
-Confirm that every requested sample is accounted for before aggregating. Keep raw scene/phase records for [Φ and JEDI](../../analysis/README.md), and measure inference separately with the [hardware profiler](../../profiling/README.md).
+Check that the number of scored samples matches what you asked for. Keep the per-sample records: [Φ and 𝒥<sub>min</sub>](../../analysis/README.md) are computed from them. Latency and memory are measured separately, with the [hardware profiler](../../profiling/README.md).
 
 ### Scoring and protocol
 
-The simple callable path invokes the per-frame tracking adapter and registered tracking metrics. It expects instance identities consistent with the local GT contract; it is an integration path, **not the full sequence-level paper evaluator**. Provide state/initialization in your module and reset it at sequence boundaries. Do not treat each frame as an independent detector when evaluating a tracker.
+This command runs the per-frame tracking adapter and the registered tracking metrics. It is a way to check your integration, not the sequence-level evaluator used in the paper. Your module owns the tracker state and must reset it between sequences; a detector that treats every frame independently isn't a tracker.
 
-For paper-model tracking runs and sequence-level metrics, use [`run_tracking_paper.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/run_tracking_paper.py), [`run_tracking_gate.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/run_tracking_gate.py), and the pinned evaluator protocol. Their `--help` defines the model-specific initialization, mask outputs and sequence settings. HOTA/IDF1 values from a sequence evaluator should not be substituted with framewise smoke scores.
+For sequence-level metrics and the paper's trackers, use [`run_tracking_paper.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/run_tracking_paper.py) and [`run_tracking_gate.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/run_tracking_gate.py) with the pinned evaluator; their `--help` lists the per-model initialization, mask outputs and sequence settings. Don't report per-frame scores from this command as HOTA or IDF1.
 
-??? note "Before a full benchmark"
+??? note "Before a full run"
 
-    Verify units and shapes, input ordering, frame/object/sample IDs, and that every requested prediction is accounted for. Load the model once per process, pin its revision, and keep the same data split and preprocessing across comparisons. Real pretrained inference requires that model's environment and weights; the packaged smoke fixture does not replace it.
+    Check units, shapes, input order and sample IDs on a small run first. Pin the model revision, and keep the split and preprocessing the same for every model you compare. The smoke test only exercises the evaluator; your model still needs its own environment and weights.
 
-??? info "Download the workflow figure"
+??? info "Workflow figure"
 
-    [Open the T3 vector workflow](../../assets/benchmark-t3.svg). It describes the interface and scoring stages, not a pretrained prediction.
+    [T3 workflow (SVG)](../../assets/benchmark-t3.svg): the inputs, adapter and scoring stages for this task.
 
 <div class="rpx-task-next" markdown="1">
-[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models)
+[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [The paper's models](https://github.com/IRVLUTD/RPX/tree/main/docker)
 </div>
 
 </div>

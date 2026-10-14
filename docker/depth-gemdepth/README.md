@@ -1,12 +1,11 @@
-# GemDepth RPX overlay
+# GemDepth overlay
 
-This overlay adds the official GemDepth source and its isolated pinned
-environment to an existing cumulative RPX video-depth image.
+Adds the official GemDepth source, in its own pinned environment, to the cumulative video-depth image. There is no
+published image; build it yourself.
 
-The adapter verifies the pinned Hugging Face checkpoint SHA-256 before strict
-state-dict loading. GemDepth emits inverse depth; RPX follows the official
-evaluation convention by fitting one affine transform in disparity space over
-the complete scene-phase clip and then converting to metric depth.
+The adapter checks the pinned checkpoint's SHA-256 before loading the state dict strictly. GemDepth predicts inverse
+depth, so, following the official evaluation, RPX fits one affine transform in disparity space over each full
+scene-phase clip and converts the result to metric depth.
 
 ```bash
 docker build \

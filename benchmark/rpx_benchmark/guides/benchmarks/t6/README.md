@@ -9,77 +9,75 @@
 <a href="../t6/" aria-current="page"><span>T6</span>In-context VQA</a>
 </div>
 
-<p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T6</p>
+<p class="rpx-task-kicker">T6 WALKTHROUGH</p>
 
 # In-context VQA
 
 <div class="rpx-task-lead" markdown="1">
-Verified SOS reference crop **first**, target RGB **second**, plus a canonical question → a box in the target image.
+Takes a reference crop of the object (from its single-object capture), then the target image, plus a question, and returns a box in the target image.
 </div>
 
-<div class="rpx-task-shortcuts"><a href="#02-run-the-task">Run the example <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Prepare data <span aria-hidden="true">↗</span></a></div>
+<div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-sos-reference.png" alt="IMAGE 1 / REFERENCE: Matched SOS teapot · global ID 65" width="108" height="139" class="rpx-reference-crop"><figcaption><span>IMAGE 1 / REFERENCE</span>Matched SOS teapot · global ID 65</figcaption></figure>
+<figure><img src="../../assets/scene012-sos-reference.png" alt="IMAGE 1 / REFERENCE: Teapot, global ID 65" width="108" height="139" class="rpx-reference-crop"><figcaption><span>IMAGE 1 / REFERENCE</span>Teapot, global ID 65</figcaption></figure>
 <figure><img src="../../assets/scene012-rgb.png" alt="IMAGE 2 / TARGET: Return coordinates in this image" width="640" height="480"><figcaption><span>IMAGE 2 / TARGET</span>Return coordinates in this image</figcaption></figure>
 </div>
-<p class="rpx-image-note">Same scene012 target, plus a matched SOS teapot reference. This crop illustrates the interface; actual requests use the manifest’s stored crop, pinned revision and hash.</p>
+<p class="rpx-image-note">The same scene 012 target, with a reference crop of the teapot from its single-object capture. In a real run the crop comes from the manifest, with a pinned revision and hash.</p>
 
 <div class="rpx-task-contract">
-<div><span>INPUT</span><strong>SOS reference + target + question</strong></div>
-<div><span>PREDICTION</span><strong>Target box or binary answer</strong></div>
+<div><span>INPUT</span><strong>Reference crop, target, question</strong></div>
+<div><span>PREDICTION</span><strong>Box or yes/no answer</strong></div>
 <div><span>EVALUATION</span><strong>Localization + response validity</strong></div>
 </div>
 
-## 01 / Connect your model
+## Connect your model
 
-Save your callable in **`my_model.py`**. Initialize your own model or API client once in that module; the example below shows the adapter boundary.
+Put your prediction function in `my_model.py`. Load the model or API client once, at module level, rather than on every call.
 
-```python title="my_model.py · adapter interface"
+```python title="my_model.py"
 def predict_vqa(image_paths, prompt, max_new_tokens, output_kind):
-    assert len(image_paths) == 2  # verified reference, then target
+    assert len(image_paths) == 2  # reference crop, then target
     return client.generate(images=image_paths, prompt=prompt,
                            max_new_tokens=max_new_tokens)
 ```
 
 <div class="rpx-task-note" markdown="1">
-**Check both images.** Send the verified reference crop first and target second. Boxes use target-image coordinates; a one-image endpoint cannot run T6.
+`image_paths` is `(reference_crop, target)`; send them to the model in that order. Box coordinates refer to the target image. A model that accepts only one image can't run T6.
 </div>
 
-## 02 / Run the task
+## Run the benchmark
 
-Choose an offline integration check or run your callable on released RPX data. Install the toolkit first with `python -m pip install 'rpx-benchmark[hub,schemas]'`.
+Install the toolkit with `pip install 'rpx-benchmark[hub,schemas]'`. The smoke test checks the install; the second tab scores your model.
 
-=== "Offline smoke test"
+=== "Smoke test (offline)"
 
     ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T6 --smoke --output results/t6-smoke
     ```
 
-    This runs a tiny synthetic fixture with a toy callable. Use a fresh output directory; no model weights or dataset downloads are required.
+    This runs the real evaluator on a few synthetic inputs with a placeholder model. Nothing is downloaded and no weights are needed. The output directory must be new or empty.
 
 
-=== "Your model + RPX data"
+=== "Your model on RPX data"
 
-    Prepare a [task manifest](../README.md#move-to-real-data) and make `my_model.py` importable from your working directory.
+    Run this from the directory that contains `my_model.py`. Without `--manifest`, it scores the 16 T6 questions packaged with the toolkit, pinned to the dataset release, and downloads only their images.
 
-    ```bash title="Terminal · real-data run"
+    ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T6 \
-      --manifest manifests/T6/hard.jsonl \
       --model my_model:predict_vqa \
       --model-name my-model \
       --model-revision exact-checkpoint-or-api-version \
-      --output results/my-model/T6 \
-      --image-cache .cache/rpx-vqa
+      --output results/my-model/T6
     ```
 
 
-    Every row in the VQA manifest is scored. Select a smaller canonical manifest beforehand for a smoke run. Keep its question, bbox, image locator and reference metadata intact.
+    The packaged questions are a quick-start set, not the paper's full split. To score more, build a canonical manifest ([how](../README.md#prepare-canonical-vqa-samples)) and pass it with `--manifest` and `--image-cache`. Every row of a manifest you pass is scored, and `--max-samples` is refused, so cut the manifest itself for a short run. Keep each row's question, box, image locator and reference metadata intact.
 
 
-## 03 / Inspect the results
+## Read the results
 
 <div class="rpx-result-files">
 <div><code>run_config.json</code><span>Model and evaluation settings</span></div>
@@ -87,24 +85,24 @@ Choose an offline integration check or run your callable on released RPX data. I
 <div><code>result.json</code><span>Scored metrics and failure counts</span></div>
 </div>
 
-Confirm that every requested sample is accounted for before aggregating. Keep raw scene/phase records for [Φ and JEDI](../../analysis/README.md), and measure inference separately with the [hardware profiler](../../profiling/README.md).
+Check that the number of scored samples matches what you asked for. Keep the per-sample records: [Φ and 𝒥<sub>min</sub>](../../analysis/README.md) are computed from them. Latency and memory are measured separately, with the [hardware profiler](../../profiling/README.md).
 
 ### Scoring and protocol
 
-Use a canonical **in-context** JSONL manifest. The evaluator reconstructs the SOS crop using the stored inclusive crop box and verifies its SHA256. It preserves the manifest's immutable reference and target revisions. Do not substitute a full SOS frame, an unrelated reference object, or swap the two images.
+T6 needs an in-context manifest. The evaluator rebuilds each reference crop from its stored crop box, checks its SHA-256, and loads both images at the revisions pinned in the manifest. Don't substitute the full single-object frame or a different object, and don't swap the two images.
 
-The returned box uses XYXY normalized to 0–1000 in the **target** image. The same localization parser and metrics as T5 apply, with the in-context question types and two-image inputs. A one-image/text-only endpoint cannot satisfy this task. The SOS reference is the necessary exception to the common scene012 target walkthrough.
+The box is `[x1, y1, x2, y2]` normalized to 0–1000 in the target image. Parsing and metrics are the same as [T5](../t5/README.md), with the in-context question types.
 
-??? note "Before a full benchmark"
+??? note "Before a full run"
 
-    Verify units and shapes, input ordering, frame/object/sample IDs, and that every requested prediction is accounted for. Load the model once per process, pin its revision, and keep the same data split and preprocessing across comparisons. Real pretrained inference requires that model's environment and weights; the packaged smoke fixture does not replace it.
+    Check units, shapes, input order and sample IDs on a small run first. Pin the model revision, and keep the split and preprocessing the same for every model you compare. The smoke test only exercises the evaluator; your model still needs its own environment and weights.
 
-??? info "Download the workflow figure"
+??? info "Workflow figure"
 
-    [Open the T6 vector workflow](../../assets/benchmark-t6.svg). It describes the interface and scoring stages, not a pretrained prediction.
+    [T6 workflow (SVG)](../../assets/benchmark-t6.svg): the inputs, adapter and scoring stages for this task.
 
 <div class="rpx-task-next" markdown="1">
-[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models)
+[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [The paper's models](https://github.com/IRVLUTD/RPX/tree/main/docker)
 </div>
 
 </div>

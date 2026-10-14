@@ -1,8 +1,8 @@
 # API reference
 
-Browse the toolkit by workflow below. Each module page documents its classes,
-functions, signatures, type contracts, and source. The reference is generated
-from the same source as the published Python package.
+Start from what you want to do, or browse by module further down. Each module
+page lists its classes and functions with signatures, types and source, generated
+from the same code as the PyPI package.
 
 ## Start with a workflow
 
@@ -10,7 +10,7 @@ from the same source as the published Python package.
 | --- | --- | --- |
 | Load and download RPX | [`hub.load`, `fetch_manifest`, `download_split`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html), [`RPXDataset`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/loader.html) | [Get started](../getting-started/README.md) |
 | Connect a model | [`BenchmarkableModel`, adapters and NumPy factories](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/adapters.html) | [Bring your own model](../models/README.md) |
-| Run a task | [Task runners and configurations](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks.html), [benchmark runner](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/runner.html) | [Benchmark samples](../benchmarks/README.md) |
+| Run a task | [Task runners and configurations](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks.html), [benchmark runner](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/runner.html) | [Task walkthroughs](../benchmarks/README.md) |
 | Compute or extend metrics | [Metric implementations](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/metrics.html), [metric registry](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/metrics/registry.html) | [Add metrics](../metrics/README.md) |
 | Use VQA or grounding contracts | [VQA tools](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa.html), [robot VQA](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/robot_vqa_v2.html) | [Model integration](../models/README.md) |
 | Analyze robustness and efficiency | [Deployment](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/deployment.html), [Phi](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/phi.html), [JEDI](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/jedi.html), [profiler](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html) | [Concepts](../README.md#concepts-and-acronyms) |
@@ -19,9 +19,9 @@ from the same source as the published Python package.
 
 ## Public Python interface
 
-[`rpx_benchmark`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark.html) is the convenient top-level interface.
+Most users only need the top-level [`rpx_benchmark`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark.html) package.
 [`api`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/api.html) defines samples, task identities, ground truths,
-and predictions. Module pages below expose the more specialized interfaces.
+and predictions. The modules below cover the rest.
 
 ```python
 import numpy as np
@@ -46,12 +46,12 @@ config = rpx.MonocularDepthRunConfig(
 python -m pip install 'rpx-benchmark[hub,schemas]'
 ```
 
-Core evaluators use NumPy and SciPy. Dataset downloads and Parquet manifests use
-`[hub]`; schema validation uses `[schemas]`; the Hugging Face Datasets bridge
-uses `[hf-datasets]`; statistical analysis uses `[analysis]`; marker audits use
-`[ar-pose-audit]`. Model runtimes remain isolated from the toolkit. Optional
-modules may require these extras when called, even though their documentation
-is available without loading model weights.
+The evaluators need only NumPy and SciPy. The extras add the rest: `[hub]` for
+downloads and Parquet manifests, `[schemas]` for manifest validation,
+`[hf-datasets]` for the Hugging Face Datasets bridge, `[analysis]` for the
+statistics, and `[ar-pose-audit]` for marker audits. Model dependencies are never
+installed by the toolkit. A module that needs an extra raises an error when
+called without it.
 
 ## Core harness and analysis
 
@@ -59,10 +59,10 @@ is available without loading model weights.
 | --- | --- |
 | [`rpx_benchmark.api`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/api.html) | Core task enums, data contracts, and the base model interface. |
 | [`rpx_benchmark.ar_pose_audit`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/ar_pose_audit.html) | AR-board consistency audit for RPX single-object camera poses. |
-| [`rpx_benchmark.box_upload`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/box_upload.html) | Box upload primitives — used by every task runner and the post-hoc |
-| [`rpx_benchmark.cell_log`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/cell_log.html) | Per-(scene, phase) metric log — the canonical experiment artifact. |
-| [`rpx_benchmark.cleanup`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/cleanup.html) | Graceful-shutdown plumbing for long-running CLI scripts. |
-| [`rpx_benchmark.cli_ux`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/cli_ux.html) | Industry-grade colored logging + progress UI for the RPX CLI scripts. |
+| [`rpx_benchmark.box_upload`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/box_upload.html) | Box upload helpers used by the task runners and post-hoc tools. |
+| [`rpx_benchmark.cell_log`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/cell_log.html) | Per-scene, per-phase metric log: the record every analysis starts from. |
+| [`rpx_benchmark.cleanup`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/cleanup.html) | Clean shutdown handling for long-running scripts. |
+| [`rpx_benchmark.cli_ux`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/cli_ux.html) | Colored logging and progress bars for the command-line scripts. |
 | [`rpx_benchmark.decode_contracts`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/decode_contracts.html) | Canonical decode helpers with runtime contracts. |
 | [`rpx_benchmark.deployment`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/deployment.html) | Deployment-readiness metrics for RPX: TS, STR, SGC, ESD, weighted scoring. |
 | [`rpx_benchmark.determinism`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/determinism.html) | Deterministic seeding for reproducible benchmark runs. |
@@ -78,7 +78,7 @@ is available without loading model weights.
 | [`rpx_benchmark.phi`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/phi.html) | State-Transition Robustness Φ via repeated-measures MANOVA. |
 | [`rpx_benchmark.phi_jedi_summary`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/phi_jedi_summary.html) | Glue between the runner's per-sample metrics and Φ / JEDI. |
 | [`rpx_benchmark.pose_conventions`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/pose_conventions.html) | Coordinate conventions shared by RPX camera-pose benchmarks. |
-| [`rpx_benchmark.pose_metrics`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/pose_metrics.html) | RPX-RCPE evaluation metrics — novel + standard. |
+| [`rpx_benchmark.pose_metrics`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/pose_metrics.html) | Relative camera pose metrics, standard and RPX-specific. |
 | [`rpx_benchmark.pose_pairs`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/pose_pairs.html) | On-the-fly deterministic pose-pair generation for RPX-RCPE. |
 | [`rpx_benchmark.profiler`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html) | Hardware-agnostic model efficiency profiling for RPX. |
 | [`rpx_benchmark.reports`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/reports.html) | Result serialisation: JSON + markdown summary for benchmark runs. |
@@ -106,9 +106,9 @@ is available without loading model weights.
 | Module | Purpose |
 | --- | --- |
 | [`rpx_benchmark.data`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data.html) | HuggingFace datasets integration for RPX. |
-| [`rpx_benchmark.data.clip_dataset`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/clip_dataset.html) | Per-(scene, phase) clip iteration for Video Depth and other |
+| [`rpx_benchmark.data.clip_dataset`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/clip_dataset.html) | Per-scene, per-phase clip iteration for video tasks. |
 | [`rpx_benchmark.data.esd`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/esd.html) | Effort-Stratified Difficulty (ESD) feature extraction. |
-| [`rpx_benchmark.data.esd_scoring`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/esd_scoring.html) | ESD scoring methods: turn the 27-feature table into a single difficulty |
+| [`rpx_benchmark.data.esd_scoring`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/esd_scoring.html) | ESD scoring: turns the 27-feature table into a difficulty score per scene and phase, and Easy/Medium/Hard tiers. |
 | [`rpx_benchmark.data.features`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/features.html) | Canonical datasets.Features definitions for every RPX task. |
 | [`rpx_benchmark.data.hf_bridge`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/hf_bridge.html) | Row-level bridge between datasets.Dataset and :class:Sample. |
 | [`rpx_benchmark.data.load`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/data/load.html) | One-line datasets.load_dataset entry point for RPX. |
@@ -118,8 +118,8 @@ is available without loading model weights.
 
 | Module | Purpose |
 | --- | --- |
-| [`rpx_benchmark.dataset_hub`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub.html) | RPX dataset hub — selective HuggingFace download/upload pipeline. |
-| [`rpx_benchmark.dataset_hub.cli`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/cli.html) | python -m rpx_benchmark.dataset_hub.cli — sub-commands for the dataset hub. |
+| [`rpx_benchmark.dataset_hub`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub.html) | Selective Hugging Face download and upload pipeline for the dataset. |
+| [`rpx_benchmark.dataset_hub.cli`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/cli.html) | `python -m rpx_benchmark.dataset_hub.cli`: dataset hub sub-commands. |
 | [`rpx_benchmark.dataset_hub.croissant`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/croissant.html) | Stage the Croissant metadata JSON into the upload tree. |
 | [`rpx_benchmark.dataset_hub.dataset_card`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/dataset_card.html) | Generate the HuggingFace dataset card (README.md) at the repo root. |
 | [`rpx_benchmark.dataset_hub.downloader`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/downloader.html) | Selective download from the RPX HuggingFace dataset repo. |
@@ -131,7 +131,7 @@ is available without loading model weights.
 | [`rpx_benchmark.dataset_hub.recipes`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/recipes.html) | Task → modality recipes for selective dataset downloads. |
 | [`rpx_benchmark.dataset_hub.scanner`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/scanner.html) | Walk an on-disk RPX capture tree and report structured inventory. |
 | [`rpx_benchmark.dataset_hub.split_manifests`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/split_manifests.html) | Per-task, per-split manifest writer for the dataset hub. |
-| [`rpx_benchmark.dataset_hub.staging`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/staging.html) | File-staging helpers — non-tar artefacts that ship to the HF repo root. |
+| [`rpx_benchmark.dataset_hub.staging`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/staging.html) | Staging helpers for the non-tar files at the dataset repo root. |
 | [`rpx_benchmark.dataset_hub.uploader`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/dataset_hub/uploader.html) | Upload a packed staging directory to a HuggingFace dataset repo. |
 
 ## Metric implementations
@@ -168,8 +168,8 @@ is available without loading model weights.
 | [`rpx_benchmark.tasks.monocular_depth`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/monocular_depth.html) | Monocular absolute depth. |
 | [`rpx_benchmark.tasks.registry`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/registry.html) | Task plugin registry. |
 | [`rpx_benchmark.tasks.relative_pose`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/relative_pose.html) | Relative camera pose between two frames. |
-| [`rpx_benchmark.tasks.robot_vqa`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/robot_vqa.html) | RPX Robot-Grounded VQA — tasks a robot actually needs. |
-| [`rpx_benchmark.tasks.robot_vqa_v2`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/robot_vqa_v2.html) | RPX Robot VQA v2 — three context modes, all GT from recorded data. |
+| [`rpx_benchmark.tasks.robot_vqa`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/robot_vqa.html) | Robot-grounded VQA task definitions. |
+| [`rpx_benchmark.tasks.robot_vqa_v2`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/robot_vqa_v2.html) | Robot VQA v2: three context modes, with all ground truth from recorded data. |
 | [`rpx_benchmark.tasks.segmentation`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/segmentation.html) | Object (instance) segmentation. |
 | [`rpx_benchmark.tasks.sparse_depth`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/sparse_depth.html) | Sparse depth: predict depth at a set of pixel locations. |
 | [`rpx_benchmark.tasks.tracking`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/tasks/tracking.html) | Object tracking: per-frame MOT with stable track IDs. |
@@ -182,22 +182,22 @@ is available without loading model weights.
 | Module | Purpose |
 | --- | --- |
 | [`rpx_benchmark.vqa`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa.html) | Benchmark contracts for RPX's single-image VQA tasks. |
-| [`rpx_benchmark.vqa.canonical`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/canonical.html) | Canonicalization for detecting semantic (not just literal-string) |
+| [`rpx_benchmark.vqa.canonical`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/canonical.html) | Canonical forms used to avoid sampling semantically duplicate questions. |
 | [`rpx_benchmark.vqa.contract`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/contract.html) | Canonical, model-independent contract for RPX VQA benchmark rows. |
 | [`rpx_benchmark.vqa.evaluate`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/evaluate.html) | Run any callable VQA model with the published RPX prompts and scoring. |
-| [`rpx_benchmark.vqa.hub_rgb`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/hub_rgb.html) | Fetch one or two members from RPX's uncompressed RGB tar shards via HTTP |
+| [`rpx_benchmark.vqa.hub_rgb`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/hub_rgb.html) | Fetches single images from RPX's uncompressed RGB tar shards over HTTP range requests. |
 | [`rpx_benchmark.vqa.metrics`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/metrics.html) | Benchmark metrics and smoke-gate aggregation for RPX VQA. |
 | [`rpx_benchmark.vqa.outputs`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/outputs.html) | Strict parsing and normalization of VQA model outputs. |
 | [`rpx_benchmark.vqa.prompts`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/prompts.html) | Task prompts before each model's official chat/image template is applied. |
 | [`rpx_benchmark.vqa.roster`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/roster.html) | Frozen single-image model roster supplied for the RPX VQA benchmark. |
-| [`rpx_benchmark.vqa.sampling`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/sampling.html) | Deterministic, diversity-preferring row selection shared by the |
+| [`rpx_benchmark.vqa.sampling`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/sampling.html) | Deterministic row selection that prefers diverse samples. |
 
-Reference pages include search across the generated modules. Use the workflow guides for runnable integration examples and the module pages for the detailed contract.
+The reference pages are searchable. The guides have runnable examples; the module pages have the full contracts.
 
 ## Installed workflow examples
 
 | Module | Purpose |
 | --- | --- |
-| [`examples.benchmark_tasks`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/benchmark_tasks.html) | Six offline smoke fixtures and real manifest/callable dispatch |
-| [`examples.profile_callable`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/profile_callable.html) | Synchronized callable timing, per-device memory and system card |
-| [`examples.summarize_metrics`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/summarize_metrics.html) | Validated raw CSV/JSON/JSONL → independent Φ/JEDI summaries |
+| [`examples.benchmark_tasks`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/benchmark_tasks.html) | Smoke fixtures for the six tasks and the `benchmark_tasks` command line. |
+| [`examples.profile_callable`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/profile_callable.html) | Times a callable with device synchronization and records memory and a system card. |
+| [`examples.summarize_metrics`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/examples/summarize_metrics.html) | Φ and JEDI summaries from raw CSV, JSON or JSONL metric records. |

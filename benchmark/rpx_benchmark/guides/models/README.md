@@ -1,18 +1,18 @@
 # Bring your own model
 
-<figure class="rpx-workflow-figure"><a href="../assets/bring-your-model.svg"><img src="../assets/bring-your-model.svg" alt="Input and output adapters keep your inference pipeline compatible with RPX scoring." loading="lazy"></a><figcaption>Input and output adapters keep your inference pipeline compatible with RPX scoring. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/bring-your-model.svg"><img src="../assets/bring-your-model.svg" alt="Input and output adapters keep your inference pipeline compatible with RPX scoring." loading="lazy"></a><figcaption>Adapters sit between your inference code and RPX scoring. Open the SVG to zoom.</figcaption></figure>
 
-## Choose an integration path
+## Pick an integration path
 
 | Path | Use it when |
 | --- | --- |
-| `make_numpy_*_model` | Your callable can accept the task's NumPy inputs and return the expected arrays or dictionaries |
-| `BenchmarkableModel` and adapters | You need custom preprocessing, batching, device handling, or output conversion |
-| Reference model runners | You want the repository's model-specific benchmark protocol and containers |
+| `make_numpy_*_model` | Your function can take the task's NumPy inputs and return the expected arrays or dictionaries |
+| `BenchmarkableModel` and adapters | You need custom preprocessing, batching, device handling or output conversion |
+| The paper's model runners | You want the repository's per-model protocol and containers |
 
-Start with `make_numpy_depth_model`, `make_numpy_video_depth_model`, `make_numpy_tracking_model`, or `make_numpy_grounding_model` as appropriate. Their API pages define the exact input and output contracts.
+Most models only need the first: `make_numpy_depth_model`, `make_numpy_video_depth_model`, `make_numpy_tracking_model`, `make_numpy_pose_model` or `make_numpy_grounding_model`. Each one's API page gives the exact input and output contract. T5 and T6 skip the adapter: `evaluate_vqa` calls your function with the prompt and image paths and parses the text it returns.
 
-## Local callable
+## A local model
 
 ```python
 import numpy as np
@@ -24,9 +24,9 @@ model = rpx.make_numpy_depth_model(
 )
 ```
 
-## API-backed model
+## A model behind an API
 
-An API client can be wrapped as the same callable. Decode its response into the required prediction format before returning it:
+An API client fits the same way. Decode the response into the prediction format before returning it:
 
 ```python
 import numpy as np
@@ -43,16 +43,12 @@ def predict_depth(rgb):
 model = rpx.make_numpy_depth_model(predict_depth)
 ```
 
-The client and response schema are service-specific. RPX does not create an API endpoint or authenticate a service for you. Configure timeouts and retries in your client, and validate coordinates, units, missing outputs, and sample identity. Keep reference-image inputs for T6; a text-only callable does not establish in-context grounding support.
+The client and its response format are yours; RPX doesn't create endpoints or handle authentication. Set timeouts and retries in the client, and check coordinates, units, missing outputs and sample identity in your function. For T6, the endpoint has to accept the reference image as well as the target.
 
-## Validate before a full run
+## Check it before a full run
 
-Run a known synthetic case, then a small real split. Verify output shapes, finite values, IDs, and units. Confirm that all requested samples were evaluated and failed calls are accounted for. Use the same split, preprocessing, and metric settings for every comparison.
+Run the [smoke test](../benchmarks/README.md#check-the-install), then a small real split. Look at output shapes, finite values, IDs and units, and confirm that every requested sample was scored and failed calls were counted. Use the same split, preprocessing and metric settings for every model you compare.
 
-[Task API](../api/README.md) · [Add metrics](../metrics/README.md)
+The [task walkthroughs](../benchmarks/README.md) show the function signature and command for each of the six tasks.
 
-## Task-specific callable commands
-
-Use the [six benchmark samples](../benchmarks/README.md) to connect a module/function from an installed wheel. T1–T4 wrap task-specific NumPy callables; T5/T6 use `evaluate_vqa` with canonical prompts, parser, and retained failures. The two-image contract and verified SOS crop are required for T6.
-
-[Tool capabilities](../capabilities/README.md) · [Hardware profiler](../profiling/README.md)
+[Task API](../api/README.md) · [Add metrics](../metrics/README.md) · [All capabilities](../capabilities/README.md) · [Hardware profiler](../profiling/README.md)

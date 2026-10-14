@@ -90,33 +90,33 @@ configs:
 Govind Tyagi Rangappa<sup>1</sup>, Animesh Maheshwari<sup>1</sup>, Jikai Wang<sup>1</sup>, Yu Xiang<sup>1</sup>**<br>
 <sub><sup>1</sup>UT Dallas · <sup>2</sup>UF · <sup>3</sup>IIIT Hyderabad · <sup>4</sup>UT Austin · \*equal contribution</sub>
 
-[**Toolkit docs**](https://irvlutd.github.io/RPX/toolkit-docs/) ·
-[**Code**](https://github.com/IRVLUTD/RPX) ·
-[**`pip install rpx-benchmark`**](https://pypi.org/project/rpx-benchmark/) ·
-[**Docker images**](https://hub.docker.com/r/irvlutd/rpx) ·
-[**Cite**](#citation)
+[Toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) |
+[Code](https://github.com/IRVLUTD/RPX) |
+[PyPI](https://pypi.org/project/rpx-benchmark/) |
+[Docker images](https://hub.docker.com/r/irvlutd/rpx) |
+[Citation](#citation)
 
 </div>
 
 ![RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires](https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/assets/rpx-overview.webp)
 
-**A robot's scene does not hold still.** A tabletop starts cluttered, a hand rearranges it, and it ends clean.
-RPX captures **the same real scenes before, during and after manipulation** on robot-grade sensors, and scores
-six perception tasks on them through one pipeline. Two numbers summarize every model on a common scale:
-**phase robustness Φ** (does quality hold as the scene changes?) and **worst-phase quality 𝒥<sub>min</sub>**
-(how good is it at its weakest?).
+A robot's workspace changes as it works: a table starts cluttered, a hand rearranges it, and it ends clean.
+RPX records the same real scenes before, during and after manipulation with robot sensors, and scores six
+perception tasks on them with one pipeline. Two numbers put every model on a common scale: phase robustness Φ,
+which measures whether quality holds as the scene changes, and worst-phase quality 𝒥<sub>min</sub>, which
+measures how good the model is in its weakest phase.
 
 | 100 | 3 + 1 | 70 | 133,121 | 6 | 65 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | real scenes<br><sub>50 indoor · 50 outdoor · 20 sites</sub> | phases + ego view<br><sub>Clutter · Interaction · Clean · Ego</sub> | everyday objects<br><sub>each scanned alone in 360°</sub> | frames<br><sub>RGB-D · stereo · pose · masks</sub> | tasks<br><sub>depth to grounding</sub> | zero-shot evaluations |
 
-**What it shows.** Depth and tracking change significantly across phases (p < 0.001); model rankings shift
-across tasks, prompting modes and input modalities on the very same scenes; and no evaluation reaches both
+In the paper, depth and tracking quality change significantly across phases (p < 0.001), model rankings shift
+across tasks, prompting modes and input modalities on the same scenes, and no evaluation reaches both
 𝒥<sub>min</sub> ≥ 0.75 and Φ ≥ 0.86.
 
 ![What RPX reveals: the same scene in Clutter, Interaction, Clean and egocentric views, with mean quality per view for video depth, tracking and VQA dropping when hands enter; a map of all 65 evaluations by worst-phase quality and phase robustness with none in the golden zone](https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/assets/rpx-findings.webp)
 
-## Six tasks, one pipeline
+## Tasks
 
 | | Task | Scored on | Native metrics | Reference runtime |
 |---|---|---|---|---|
@@ -127,14 +127,14 @@ across tasks, prompting modes and input modalities on the very same scenes; and 
 | T5 | VQA | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
 | T6 | In-context VQA | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
 
-Every task keeps its field's native metrics; each result is mapped onto the same scene–phase scale, from which Φ
-and 𝒥<sub>min</sub> are computed. The [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull)
+Each task keeps its field's usual metrics. Results are mapped onto a common scene–phase scale, and Φ and
+𝒥<sub>min</sub> are computed from that. The [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull)
 lists which image holds which model.
 
 ## Benchmark your model
 
-RPX gives you the data, an adapter per task that connects your model's inputs and outputs, the benchmark with the
-paper's protocol and metrics, and a calculator for Φ and 𝒥<sub>min</sub>. You write one function.
+The `rpx-benchmark` package downloads the data, runs the paper's protocol and metrics, and computes Φ and
+𝒥<sub>min</sub>. You write one function that runs your model, and a per-task adapter connects it to RPX.
 
 ```bash
 pip install 'rpx-benchmark[hub,schemas]'
@@ -158,12 +158,13 @@ result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
 print(result.aggregated["absrel"], result.aggregated["delta1"])
 ```
 
-Drop `max_samples` for the full tier, then compute Φ and 𝒥<sub>min</sub> with the toolkit's calculator. Every task
-follows the same pattern; the [toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/getting-started/) list each
-task's download name, adapter and runner. The toolkit pins a dataset commit by default (`rpx.DEFAULT_REVISION`), so
-two runs always read identical data. **Do not download the whole 237 GB repository** for one task.
+Drop `max_samples` for the full tier, then compute Φ and 𝒥<sub>min</sub> with the toolkit's calculator. The
+other tasks work the same way; the [toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/getting-started/)
+list each task's download name, adapter and runner. The toolkit pins a dataset commit by default
+(`rpx.DEFAULT_REVISION`), so two runs read identical data. There is no need to download the whole 237 GB
+repository for one task.
 
-**Just browse the data:**
+To browse the data without the toolkit:
 
 ```python
 from datasets import load_dataset
@@ -174,9 +175,9 @@ objects = load_dataset("IRVLUTD/RPX", "single_object", split="objects")
 
 ## Difficulty tiers
 
-Scenes are stratified into **Easy (33), Medium (33) and Hard (34)** by annotation-refinement effort, the number
-of correction passes a scene's masks needed, as a proxy for perceptual ambiguity. A tier always contains **all
-three phases of its scenes**, exactly as in the paper and in every benchmark manifest.
+Scenes are split into Easy (33), Medium (33) and Hard (34) tiers by annotation effort, measured as the number
+of correction passes a scene's masks needed, which serves as a proxy for perceptual ambiguity. A tier always
+contains all three phases of its scenes, as in the paper and in every benchmark manifest.
 
 | File | Contents |
 |---|---|
@@ -188,14 +189,14 @@ Each split row also keeps the phase's own score (`rpx_ds`) and the tier that sco
 (`phase_difficulty`), for analyses at phase level. Ego captures are not scored for difficulty; they follow
 their scene's tier.
 
-## What is included
+## Contents
 
 | Collection | Coverage | Modalities |
 |---|---:|---|
-| Multi-object scenes (MOS) | 100 scenes × 3 phases × 250 frames = **75,000** | RGB, metric depth, fisheye stereo, 6-DoF pose, instance masks, tracklets |
-| Egocentric view (Ego) | 100 Interaction clips, **23,121** frames | RGB (1920 × 1080), instance masks, tracklets |
-| Single-object scans (SOS) | 70 objects × 500 frames = **35,000** | RGB, metric depth, fisheye stereo, pose, masks, questionnaire |
-| VQA question bank | **4,529,322** single-image + **749,083** two-image records | attribute, spatial-box and spatial-binary questions |
+| Multi-object scenes (MOS) | 100 scenes × 3 phases × 250 frames = 75,000 | RGB, metric depth, fisheye stereo, 6-DoF pose, instance masks, tracklets |
+| Egocentric view (Ego) | 100 Interaction clips, 23,121 frames | RGB (1920 × 1080), instance masks, tracklets |
+| Single-object scans (SOS) | 70 objects × 500 frames = 35,000 | RGB, metric depth, fisheye stereo, pose, masks, questionnaire |
+| VQA question bank | 4,529,322 single-image and 749,083 two-image records | attribute, spatial-box and spatial-binary questions |
 | Benchmark VQA subset | 31,500 runnable questions | fixed, seeded evaluation manifests |
 | Tracking text prompts | 70 objects, 2,739 scene–condition entries | stable IDs, canonical names, fixed prompts |
 
@@ -204,7 +205,7 @@ hand-held rig, plus a head-mounted GoPro during Interaction. Every object keeps 
 phases, views and the single-object catalogue.
 
 <details>
-<summary><b>Repository layout and file formats</b></summary>
+<summary>Repository layout and file formats</summary>
 
 ```text
 assets/                         dataset-card media
@@ -227,7 +228,7 @@ with absent Ego depth, fisheye and pose marked explicitly); `frames_v2.parquet` 
 </details>
 
 <details>
-<summary><b>Object and mask identifiers</b></summary>
+<summary>Object and mask identifiers</summary>
 
 | Field | Scope and rule |
 |---|---|
@@ -244,7 +245,7 @@ The source of truth is `manifest/object_catalog_v1.json`. Join MOS masks through
 </details>
 
 <details>
-<summary><b>VQA files</b></summary>
+<summary>VQA files</summary>
 
 | File | Rows | Purpose |
 |---|---:|---|
@@ -263,7 +264,7 @@ ground truth to the model.
 </details>
 
 <details>
-<summary><b>Reproducibility</b></summary>
+<summary>Reproducibility</summary>
 
 - Pin the dataset commit you used and report it with your results.
 - Verify downloads with the SHA-256 manifests under `manifest/`, `vqa/metadata/` and `tracking/metadata/`.
@@ -287,5 +288,5 @@ ground truth to the model.
 ## License
 
 The RPX dataset is released under [Creative Commons Attribution 4.0 (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/):
-share and adapt it with attribution. The benchmark code is MIT-licensed in the
+you may share and adapt it with attribution. The benchmark code is MIT-licensed in the
 [GitHub repository](https://github.com/IRVLUTD/RPX).

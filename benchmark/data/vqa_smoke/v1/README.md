@@ -1,18 +1,15 @@
-# RPX VQA smoke fixture v1
+# VQA smoke fixture v1
 
-This is a deterministic **single-image, bbox-only** mechanical smoke sample,
-not a paper score subset. It is generated from the benchmark VQA parquets with
-`scripts/build_vqa_smoke_sample.py` and contains 14 questions over four real
-RPX RGB frames: two General bbox questions in each of CLU, INT, CLN, and EGO,
-plus two Spatial bbox questions in each of CLU, INT, and CLN.
+A small, deterministic set of single-image bounding-box questions for checking that a VQA model runs end to end and
+produces parseable output. It is not a scoring subset, and its accuracy numbers mean nothing.
 
-Every answer object has its bbox centroid in the middle 50% of both image axes.
-Spatial rows with exact or near ties in their serialized evidence are excluded.
-Every row has a stable ID, explicit inclusive-pixel `xyxy` convention, original
-image dimensions, and a portable Hub tar-member locator. RGB data is not
-duplicated in git.
+`scripts/build_vqa_smoke_sample.py` draws the questions from the benchmark VQA Parquets: two General questions from
+each of Clutter, Interaction, Clean and the egocentric view, and two Spatial questions from each of Clutter,
+Interaction and Clean. It keeps only answers whose box centre lies in the middle half of the image on both axes, and
+drops Spatial questions whose evidence has exact or near ties. Each row has a stable ID, a box in inclusive-pixel
+`xyxy`, the original image size and a Hub tar-member locator, so no images are stored in Git.
 
-Rebuild from the raw parquets:
+Rebuild it from the Parquets:
 
 ```bash
 cd benchmark
@@ -21,7 +18,7 @@ PYTHONPATH=. python scripts/build_vqa_smoke_sample.py \
   --out data/vqa_smoke/v1/manifest.jsonl
 ```
 
-Fetch only the required tar members and create model-neutral requests:
+Fetch the images the manifest needs and write model-ready requests:
 
 ```bash
 PYTHONPATH=. python scripts/prepare_vqa_smoke.py \
@@ -31,10 +28,8 @@ PYTHONPATH=. python scripts/prepare_vqa_smoke.py \
   --out .rpx_cache/vqa-smoke-v1/paligemma2-3b.requests.jsonl
 ```
 
-The shared container runs every roster checkpoint through vLLM and writes the
-raw output, latency, model key, backend, vLLM version, checkpoint, and immutable
-revision for each sample. Score that result without any model-specific
-normalization hidden in the evaluator:
+The shared vLLM container runs each model on those requests and records, per sample, the raw output, latency, model
+key, backend, vLLM version, checkpoint and its pinned revision. Score the result:
 
 ```bash
 PYTHONPATH=. python scripts/run_vqa_smoke_gate.py \
@@ -44,7 +39,7 @@ PYTHONPATH=. python scripts/run_vqa_smoke_gate.py \
   --report report.json
 ```
 
-The smoke gate verifies complete one-to-one prediction coverage and a 95%
-parse rate. Accuracy thresholds belong to the later acceptance/gate stages;
-they must be frozen from validated baseline runs, not invented before the
-models run.
+The evaluator applies no model-specific clean-up. The gate fails if any sample is missing, duplicated or extra, or if
+the provenance changes partway through a run. Parse failures count against the model rather than failing the gate;
+`--min-parse-rate` adds a threshold when you want one. Accuracy thresholds belong to the later acceptance stage and
+should be set from validated baseline runs.

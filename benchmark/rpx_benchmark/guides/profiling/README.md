@@ -1,10 +1,10 @@
 # Hardware profiler
 
-Measure latency and memory at a declared inference boundary, and save the hardware/software configuration alongside every result. The same callable interface can profile frames, clips, image pairs, or API requests.
+The profiler times your prediction function and records its memory use, along with the hardware and software it ran on. It works the same way for frames, clips, image pairs and API calls.
 
-<figure class="rpx-workflow-figure"><a href="../assets/hardware-profiler.svg"><img src="../assets/hardware-profiler.svg" alt="Preloaded RPX inputs pass through warmup, synchronized timing and a latency/memory report." loading="lazy"></a><figcaption>The scene012 input remains constant while the measured operation changes by task. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/hardware-profiler.svg"><img src="../assets/hardware-profiler.svg" alt="Preloaded RPX inputs pass through warmup, synchronized timing and a latency/memory report." loading="lazy"></a><figcaption>The same scene 012 input, timed for each kind of task. Open the SVG to zoom.</figcaption></figure>
 
-## Three kinds of evidence
+## What it measures
 
 | Layer | Tools | Meaning |
 | --- | --- | --- |
@@ -12,11 +12,11 @@ Measure latency and memory at a declared inference boundary, and save the hardwa
 | Hardware-parametric estimate | `GPUSpec`, `RooflineBound` | Ideal compute/memory lower bounds, not measured inference time |
 | Measured execution | `LatencyProfiler`, `MemoryProfiler`, `SystemCard` | Wall-time percentiles, memory readings, and hardware/software context |
 
-Unavailable counters remain unavailable. An API does not expose its remote GPU memory or parameter count merely because its request latency is measured.
+Anything that can't be measured is reported as unavailable, not zero. Timing an API, for example, says nothing about the remote GPU's memory or the model's size.
 
-## A runnable CPU example
+## Try it on CPU
 
-The following command profiles the packaged synthetic depth callable, **not pretrained inference**. It checks installation and report generation without a GPU or model download.
+This profiles the packaged placeholder depth function, not a real model, so it needs no GPU or download. It checks that the profiler and its report work.
 
 ```bash
 python - <<'PYINPUT'
@@ -31,7 +31,7 @@ python -m rpx_benchmark.examples.profile_callable \
 
 ## Profile your real model
 
-Create `my_model.py` with a callable `predict_depth(rgb)` that loads its model once, places it on the selected GPU, and includes the preprocessing/postprocessing you intend to time. NPZ key names become keyword arguments. For a pair model use keys `rgb_a`, `rgb_b`; for a clip model use the keyword your callable accepts.
+Write `my_model.py` with a `predict_depth(rgb)` that loads the model once, puts it on the GPU, and includes whatever pre- and post-processing you want timed. Each key in the NPZ file becomes a keyword argument: use `rgb_a` and `rgb_b` for a pair model, and your function's own argument name for a clip model.
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python -m rpx_benchmark.examples.profile_callable \
@@ -40,15 +40,15 @@ CUDA_VISIBLE_DEVICES=0 python -m rpx_benchmark.examples.profile_callable \
   --warmup 10 --repeats 1000 --output results/my-model/profile.json
 ```
 
-`--precision` records the precision; it does **not** cast or configure your model. The callable controls placement, inference mode, generation limits, and autocast. CUDA must actually be available when requested; the profiler refuses CPU fallback. It synchronizes **all visible CUDA devices** before and after each call. For a required two-GPU model set `CUDA_VISIBLE_DEVICES=0,1` and record that configuration consistently.
+`--precision` is only recorded; it doesn't cast your model. Your function controls device placement, inference mode, generation limits and autocast. If you ask for CUDA and it isn't available, the profiler stops rather than falling back to CPU. It synchronizes every visible CUDA device before and after each call, so for a model that needs two GPUs, set `CUDA_VISIBLE_DEVICES=0,1` and keep that setting for every comparison.
 
-Fixed-input `--repeats 1000` means **1,000 timed calls**, not 1,000 distinct dataset samples. Use representative inputs and the same timing scope across models. Record clip length or question/token budgets in addition to the image dimensions. Run exclusive workloads on the measured GPUs to make comparisons interpretable.
+`--repeats 1000` means 1,000 timed calls on the same input, not 1,000 different samples. Use representative inputs and time the same work for every model. Record the clip length or token budget as well as the image size, and keep other jobs off the GPUs while you measure.
 
 ## Read the JSON
 
 `latency` contains p50, p95, p99 and mean in milliseconds. `latency_samples_ms` preserves every measured call; warmup calls are excluded. `inputs` records each NPZ array's shape and dtype. `system_card` records the detected hardware/software and declared precision.
 
-`memory.cpu_process_lifetime_peak_mb` is process high-water RSS and includes setup; it is not isolated incremental inference memory. CUDA values are per-device PyTorch allocator peaks after warmup, including already-resident weights; they are not total board usage or a measurement of every non-PyTorch allocation. CPU profiling can also time an API callable, but its time includes transport and server execution while memory is local-client memory.
+`memory.cpu_process_lifetime_peak_mb` is the process's peak resident memory, setup included, not the memory used by inference alone. The CUDA numbers are per-device PyTorch allocator peaks after warmup, weights included; they don't cover the whole board or allocations outside PyTorch. Profiling an API call from the CPU measures network and server time, while the memory figures are for your local client.
 
 ## Use the profiler APIs in a runner
 
@@ -61,8 +61,8 @@ latency.add_sample_seconds(0.020)
 assert latency.percentiles()['p50_ms'] == 15.0
 ```
 
-Use [`ModelProfiler`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/model_profiler.html#ModelProfiler) to prepare cost metadata and build a `ProfileReport` from runner-populated efficiency measurements. Use [`profile_model`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html#profile_model) for supported standalone PyTorch cost estimates. FLOP counting is model/input dependent; unknown values must not be filled with zero.
+[`ModelProfiler`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/model_profiler.html#ModelProfiler) prepares cost metadata and builds a `ProfileReport` from the measurements a runner collects. [`profile_model`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html#profile_model) estimates the cost of a standalone PyTorch model. FLOP counts depend on the model and input; leave unknown values empty rather than zero.
 
-For the repository's pretrained depth roster, [`profile_depth_efficiency.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/profile_depth_efficiency.py) profiles staged task manifests with model-specific loading and input checks; [`aggregate_depth_efficiency.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/aggregate_depth_efficiency.py) validates and combines those reports.
+For the paper's depth models, [`profile_depth_efficiency.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/profile_depth_efficiency.py) profiles each model on staged task manifests, and [`aggregate_depth_efficiency.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/aggregate_depth_efficiency.py) checks and combines the reports.
 
 [Task benchmarks](../benchmarks/README.md) · [Profiler API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/profiler.html) · [Citation](../citation/README.md)

@@ -9,21 +9,21 @@
 <a href="../t6/"><span>T6</span>In-context VQA</a>
 </div>
 
-<p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T2</p>
+<p class="rpx-task-kicker">T2 WALKTHROUGH</p>
 
 # Video depth
 
 <div class="rpx-task-lead" markdown="1">
-One `T × H × W × 3` phase RGB clip → a `T × H × W` depth sequence.
+Takes an ordered `T × H × W × 3` RGB clip from one phase and returns a `T × H × W` depth sequence.
 </div>
 
-<div class="rpx-task-shortcuts"><a href="#02-run-the-task">Run the example <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Prepare data <span aria-hidden="true">↗</span></a></div>
+<div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
 <figure><img src="../../assets/scene012-rgb.png" alt="FRAME 00113: RGB clip · preserve frame order" width="640" height="480"><figcaption><span>FRAME 00113</span>RGB clip · preserve frame order</figcaption></figure>
 <figure><img src="../../assets/scene012-next.png" alt="FRAME 00114: Adjacent frame · same capture" width="640" height="480"><figcaption><span>FRAME 00114</span>Adjacent frame · same capture</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene012 · Interaction · adjacent frames 00113–00114 illustrate the sequence input. The actual clip and frame budget come from your manifest.</p>
+<p class="rpx-image-note">Scene 012, Interaction, frames 00113 and 00114. Real clips are longer; their length comes from the manifest.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Ordered RGB clip</strong></div>
@@ -31,11 +31,11 @@ One `T × H × W × 3` phase RGB clip → a `T × H × W` depth sequence.
 <div><span>EVALUATION</span><strong>Depth + temporal accuracy</strong></div>
 </div>
 
-## 01 / Connect your model
+## Connect your model
 
-Save your callable in **`my_model.py`**. Initialize your own model or API client once in that module; the example below shows the adapter boundary.
+Put your prediction function in `my_model.py`. Load the model or API client once, at module level, rather than on every call.
 
-```python title="my_model.py · adapter interface"
+```python title="my_model.py"
 import numpy as np
 
 def predict_video_depth(rgb):
@@ -43,66 +43,65 @@ def predict_video_depth(rgb):
 ```
 
 <div class="rpx-task-note" markdown="1">
-**Check order and clip length.** Return one depth map per input frame. Keep sampling, clip length and alignment identical across comparisons.
+Return one depth map per input frame, in the order you received them. A constant map is rejected as degenerate.
 </div>
 
-## 02 / Run the task
+## Run the benchmark
 
-Choose an offline integration check or run your callable on released RPX data. Install the toolkit first with `python -m pip install 'rpx-benchmark[hub,schemas]'`.
+Install the toolkit with `pip install 'rpx-benchmark[hub,schemas]'`. The smoke test checks the install; the second tab scores your model.
 
-=== "Offline smoke test"
+=== "Smoke test (offline)"
 
     ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T2 --smoke --output results/t2-smoke
     ```
 
-    This runs a tiny synthetic fixture with a toy callable. Use a fresh output directory; no model weights or dataset downloads are required.
+    This runs the real evaluator on a few synthetic inputs with a placeholder model. Nothing is downloaded and no weights are needed. The output directory must be new or empty.
 
 
-=== "Your model + RPX data"
+=== "Your model on RPX data"
 
-    Prepare a [task manifest](../README.md#move-to-real-data) and make `my_model.py` importable from your working directory.
+    Run this from the directory that contains `my_model.py`. Without `--manifest`, the command downloads the data it needs first.
 
-    ```bash title="Terminal · real-data run"
+    ```bash
     python -m rpx_benchmark.examples.benchmark_tasks \
       --task T2 \
-      --manifest manifests/T2/hard.json \
       --model my_model:predict_video_depth \
       --model-name my-model \
       --model-revision exact-checkpoint-or-api-version \
       --output results/my-model/T2 \
       --device cuda \
-      --split hard \
+      --split easy \
       --max-samples 10
     ```
 
 
-    For an installed Hub manifest, download a supported task split with `download_split`, then pass its returned local JSON path. `max_samples=10` is an integration subset; omit it for the full protocol.
+    Ten samples are enough to check the wiring; drop `--max-samples` to score the whole split. To use data you already have on disk, add `--manifest path/to/manifest.json` (see [using local data](../README.md#move-to-real-data)).
 
 
-## 03 / Inspect the results
+## Read the results
 
-Open the generated reports and cell logs under your output directory. `run_config.json` records the model revision and manifest hash; the frame/clip runner returns `(result, deployment_report, paths)` with the saved artifact paths.
+The output directory holds `result.json`, `summary.md`, per-sample tables and cell logs. `run_config.json` records the model revision and the manifest hash. From Python, the `run_*` functions return `(result, report, paths)`.
 
-Confirm that every requested sample is accounted for before aggregating. Keep raw scene/phase records for [Φ and JEDI](../../analysis/README.md), and measure inference separately with the [hardware profiler](../../profiling/README.md).
+Check that the number of scored samples matches what you asked for. Keep the per-sample records: [Φ and 𝒥<sub>min</sub>](../../analysis/README.md) are computed from them. Latency and memory are measured separately, with the [hardware profiler](../../profiling/README.md).
 
 ### Scoring and protocol
 
-The callable must preserve input frame order and return the same `T`. Use `--depth-output-kind relative` only for relative predictions; those receive the documented per-clip scale/shift fit. Compare models with the same clip length, frame sampling and alignment protocol.
+Your function must keep the input frame order and return the same `T`. Pass `--depth-output-kind relative` only for up-to-scale predictions; those get a per-clip scale and shift fit before scoring. Compare models with the same clip length, frame sampling and alignment.
 
-Video scoring combines framewise depth accuracy and RGB-D temporal metrics (`tgm`, `tgse`). The paper headline vector excludes pose- and flow-dependent diagnostics. In this runner, `--max-samples` limits **clips**, not individual frames. The `VideoDepthRunConfig` API exposes frame-budget and sampling controls for ablations.
+Scores combine per-frame depth accuracy with two temporal metrics, `tgm` and `tgse`. The paper's metric vector leaves out the pose- and flow-dependent diagnostics. Here `--max-samples` counts clips, not frames. `VideoDepthRunConfig` has frame-budget and sampling options for ablations.
 
-??? note "Before a full benchmark"
+??? note "Before a full run"
 
-    Verify units and shapes, input ordering, frame/object/sample IDs, and that every requested prediction is accounted for. Load the model once per process, pin its revision, and keep the same data split and preprocessing across comparisons. Real pretrained inference requires that model's environment and weights; the packaged smoke fixture does not replace it.
+    Check units, shapes, input order and sample IDs on a small run first. Pin the model revision, and keep the split and preprocessing the same for every model you compare. The smoke test only exercises the evaluator; your model still needs its own environment and weights.
 
-??? info "Download the workflow figure"
+??? info "Workflow figure"
 
-    [Open the T2 vector workflow](../../assets/benchmark-t2.svg). It describes the interface and scoring stages, not a pretrained prediction.
+    [T2 workflow (SVG)](../../assets/benchmark-t2.svg): the inputs, adapter and scoring stages for this task.
 
 <div class="rpx-task-next" markdown="1">
-[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [Reference models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models)
+[All six tasks](../README.md) · [Bring your own model](../../models/README.md) · [The paper's models](https://github.com/IRVLUTD/RPX/tree/main/docker)
 </div>
 
 </div>

@@ -1,61 +1,61 @@
 <div class="rpx-benchmark-page" markdown="1">
 
-<p class="rpx-task-kicker">RPX / BENCHMARK EXAMPLES</p>
+<p class="rpx-task-kicker">BENCHMARK WALKTHROUGHS</p>
 
-# One scene. Six ways to benchmark.
+# The six tasks
 
 <div class="rpx-task-lead" markdown="1">
-Follow **scene012** from depth estimation to in-context grounding. Each walkthrough shows the inputs, adapter, runnable command and scoring protocol for one task.
+Each walkthrough covers one paper task: what your model receives and returns, the command that scores it, and how it is scored. All six use scene 012 as the running example.
 </div>
 
 <div class="rpx-benchmark-gallery">
 <a class="rpx-task-preview" href="t1/">
 <img src="../assets/scene012-depth.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T1 / WALKTHROUGH</span><strong>Image depth</strong><span class="rpx-task-description">One RGB image → Depth map in metres</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T1</span><strong>Image depth</strong><span class="rpx-task-description">One RGB image → depth map in metres</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t2/">
 <img src="../assets/scene012-next.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T2 / WALKTHROUGH</span><strong>Video depth</strong><span class="rpx-task-description">Ordered RGB clip → Depth sequence</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T2</span><strong>Video depth</strong><span class="rpx-task-description">Ordered RGB clip → depth sequence</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t3/">
 <img src="../assets/hero-interaction.jpg" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T3 / WALKTHROUGH</span><strong>Object tracking</strong><span class="rpx-task-description">Frames + initialization → Boxes + persistent IDs</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T3</span><strong>Object tracking</strong><span class="rpx-task-description">Frames + initialization → boxes with persistent IDs</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t4/">
 <img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T4 / WALKTHROUGH</span><strong>Camera pose</strong><span class="rpx-task-description">Two RGB frames → Relative rotation + translation</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T4</span><strong>Camera pose</strong><span class="rpx-task-description">Two RGB frames → relative rotation and translation</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t5/">
 <img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T5 / WALKTHROUGH</span><strong>VQA</strong><span class="rpx-task-description">Target image + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T5</span><strong>VQA</strong><span class="rpx-task-description">Target image + question → box or yes/no answer</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t6/">
 <img src="../assets/scene012-sos-reference.png" alt="" width="640" height="480" loading="lazy">
-<div><span class="rpx-task-id">T6 / WALKTHROUGH</span><strong>In-context VQA</strong><span class="rpx-task-description">SOS reference + target + question → Target box or binary answer</span><span class="rpx-task-open">Open example <span aria-hidden="true">↗</span></span></div>
+<div><span class="rpx-task-id">T6</span><strong>In-context VQA</strong><span class="rpx-task-description">Reference crop, target and question → box or yes/no answer</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 </div>
 
-<p class="rpx-image-note">Real RPX imagery and released annotations. Thumbnails show inputs or ground truth, not model predictions. T6 adds a matched SOS reference to the same scene012 target.</p>
+<p class="rpx-image-note">Thumbnails are real RPX inputs or released ground truth, not model predictions. The T6 thumbnail is the reference crop it pairs with the scene 012 target.</p>
 
-## Start with an offline check
+## Check the install
 
-```bash title="Terminal · six-task integration check"
+```bash
 python -m pip install 'rpx-benchmark[hub,schemas]'
 python -m rpx_benchmark.examples.benchmark_tasks \
   --task all --smoke --output results/six-task-smoke
 ```
 
-The installed toolkit creates tiny **synthetic** fixtures and runs all six public pipelines. Each task writes reports into its own directory. Use a fresh output directory.
+This builds small synthetic inputs and runs all six evaluators on them, writing each task's reports to its own subdirectory. The output directory must be new or empty.
 
 <div class="rpx-task-note" markdown="1">
-**What this checks:** adapter interfaces, scoring and report generation. Toy callables do not load pretrained models or establish paper accuracy. T5/T6 exercise the canonical VQA parser; T6 checks the ordered two-image interface.
+It checks the adapters, scoring and reports, including the VQA parser and T6's two-image input. The placeholder models load no weights, so the scores mean nothing.
 </div>
 
 ## Move to real data
 
-For T1–T4, provide a task-specific JSON manifest with its `root`, `task`, and `samples`. Modality paths are resolved against `root`. The [Hub downloader](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html#download_split) returns a resolved local manifest when downloading a supported task/split. For locally staged captures, the repository's [manifest tools](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/local_manifest.py) generate the appropriate records; pair tasks require their pairing protocol as well.
+The walkthrough commands download what they need. To work from files instead, T1–T4 take a JSON manifest with `root`, `task` and `samples`, where modality paths are relative to `root`. [`download_split`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html#download_split) returns such a manifest for a downloaded split. For captures you already have on disk, [`local_manifest.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/local_manifest.py) writes the records; T4 also needs its pairing protocol.
 
-### Download a small image-depth task manifest
+### Download a small T1 manifest
 
 ```python
 from rpx_benchmark.hub import download_split
@@ -63,13 +63,13 @@ manifest_path = download_split('monocular_depth', 'easy', max_samples=10)
 print(manifest_path)
 ```
 
-The same API accepts `video_depth`, `object_tracking`, and `relative_camera_pose` where the selected release contains the corresponding task manifest. For video, the limit counts clips. A small manifest can still require a large modality shard; downloading ten entries does not imply ten independent tiny files. Pass a pinned `revision` when reproducing a specific release.
+The same call takes `video_depth`, `object_tracking` and `relative_camera_pose` (T4 also needs `manifest_name="relative_pose"`). For video the limit counts clips. Files are stored in shards, so ten samples can still mean a sizeable download. Pass a `revision` to pin a specific release.
 
 ### Prepare canonical VQA samples
 
-For T5/T6, use canonical VQA JSONL generated from the released question Parquets. Ground truth, locators, question types, immutable reference revisions and crop hashes must survive conversion. An RGB path list or an ordinary `visual_grounding` task manifest is not a replacement for this contract. See the [VQA contract API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/contract.html).
+T5 and T6 read canonical VQA JSONL built from the released question Parquets. The conversion must keep the ground truth, image locators, question types, pinned reference revisions and crop hashes; a list of RGB paths or a plain `visual_grounding` manifest won't do. The format is defined in the [VQA contract API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/vqa/contract.html).
 
-From a repository checkout, the supplied acceptance tools build a deterministic subset spanning one- and two-image bbox questions:
+From a repository checkout, these scripts build a fixed subset with both one- and two-image box questions:
 
 ```bash
 python benchmark/scripts/fetch_vqa_smoke_parquets.py --out data/vqa-parquets
@@ -83,15 +83,15 @@ write_manifest([s for s in samples if s.is_in_context], 'manifests/T6/acceptance
 PYVQA
 ```
 
-Use those two paths in the T5/T6 callable commands. This is an acceptance subset, not the complete paper evaluation split. The fetcher pins its source revision and `write_manifest` preserves canonical crop/locator metadata. See the [source tool](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/build_vqa_acceptance_sample.py) for its selection protocol.
+Pass those paths with `--manifest` in the T5 and T6 commands. It is an acceptance subset, not the paper's full split. The fetcher pins its source revision and `write_manifest` keeps the crop and locator metadata; [`build_vqa_acceptance_sample.py`](https://github.com/IRVLUTD/RPX/blob/main/benchmark/scripts/build_vqa_acceptance_sample.py) documents how rows are selected.
 
-Keep train/test separation, dataset revisions, preprocessing, phase coverage, and metric settings identical across model comparisons. For a paper reproduction, use the task's reference scripts and model container dependencies; generic callable smoke results alone do not reproduce sequence-level tracking or the full pose-pair protocol.
+When comparing models, keep the dataset revision, preprocessing, phase coverage and metric settings identical. To reproduce the paper, use each task's reference scripts and model containers: the generic commands don't cover sequence-level tracking or the full pose-pair protocol.
 
-## Reference models and outputs
+## The paper's models
 
-The repository provides pretrained model runners and container recipes separately from the PyPI package. Start with the [reference model guide](https://github.com/IRVLUTD/RPX/blob/main/benchmark/README.md#tasks-and-reference-models) and [container guide](https://github.com/IRVLUTD/RPX/tree/main/docker). Model weights and licenses are managed by the upstream projects.
+Runners and Docker images for the models evaluated in the paper live in the repository, not the PyPI package; start with the [container guide](https://github.com/IRVLUTD/RPX/tree/main/docker). Weights and their licenses come from the upstream projects.
 
-Frame/clip runners return `(result, deployment_report, paths)` and write JSON, summaries and cell logs. VQA writes `run_config.json`, `predictions.jsonl`, and `result.json`; parsing/inference failures remain in the denominator. Check the number of requested and scored samples before aggregating.
+T1–T4 runners return `(result, deployment_report, paths)` and write JSON results, summaries and cell logs. VQA runs write `run_config.json`, `predictions.jsonl` and `result.json`, with parse and inference failures counted in the denominator. Either way, compare the number of requested and scored samples before aggregating.
 
 [Hardware measurements](../profiling/README.md) · [Φ/JEDI calculation](../analysis/README.md) · [Bring your own model](../models/README.md)
 

@@ -1,12 +1,12 @@
 # Add metrics
 
-<figure class="rpx-workflow-figure"><a href="../assets/add-metrics.svg"><img src="../assets/add-metrics.svg" alt="Metric registration, a scoring contract, and hand-computed validation." loading="lazy"></a><figcaption>Metric registration, a scoring contract, and hand-computed validation. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/add-metrics.svg"><img src="../assets/add-metrics.svg" alt="Metric registration, a scoring contract, and hand-computed validation." loading="lazy"></a><figcaption>Registering a metric, its scoring contract, and checking it by hand. Open the SVG to zoom.</figcaption></figure>
 
 ## Register a calculator
 
-A metric family subclasses `MetricCalculator`. Its `compute(prediction, ground_truth)` returns a dictionary of scalar values. Registration constructs the calculator with no arguments, so use default constructor settings.
+A metric is a subclass of `MetricCalculator` whose `compute(prediction, ground_truth)` returns a dict of scalars. Registration constructs it with no arguments, so put any settings in constructor defaults.
 
-The following example computes mean absolute depth error on finite pixels whose GT is within 0.3–5.0 metres. This is an example metric with an explicit validity rule, not a replacement for the paper's depth metrics.
+This example computes mean absolute depth error over finite pixels whose ground truth is between 0.3 and 5.0 m. It illustrates the mechanics; it isn't one of the paper's metrics.
 
 ```python
 import numpy as np
@@ -43,7 +43,7 @@ unregister_metric(TaskType.MONOCULAR_DEPTH, 'custom_depth_mae')
 
 ## Use it in a benchmark
 
-Place the calculator in your own module and import that module before constructing the runner configuration. Registration is process-local; it is not persisted across Python sessions, nor automatically discovered from installed third-party packages.
+Put the calculator in your own module and import it before you build the run configuration. Registration only lasts for the current process; nothing is saved, and installed packages aren't scanned for metrics.
 
 ```python
 import my_depth_metrics  # executes @register_metric in your module
@@ -53,31 +53,25 @@ print(available_metrics())
 # Run your normal depth configuration after importing the plugin.
 ```
 
-The shared task pipeline uses `MetricSuite.for_task(task)` by default. A task configuration can also supply `metric_suite`. The suite evaluates registered calculators and averages numeric per-sample values. Check model-specific standalone scripts separately; a script that bypasses the shared runner may use its own scoring path.
+The task pipeline uses `MetricSuite.for_task(task)` unless the configuration passes its own `metric_suite`. The suite runs every registered calculator and averages the per-sample values. Standalone per-model scripts that bypass the shared runner may score differently, so check those separately.
 
 ## Metric contracts
 
-- Use unique calculator names and output keys. Later calculators overwrite earlier values with the same output key.
-- Return scalar floats, keep units in documentation, and state whether higher or lower is better.
-- Raise `MetricError` for malformed inputs; do not silently convert missing predictions into perfect scores.
-- Define GT validity, empty-sample behavior, and whether aggregation is per image, scene, object, frame, pair, or question.
-- Do not call `clear_registry()` during a real benchmark: it removes built-in metrics too.
+Give each calculator a unique name and unique output keys; a later calculator silently overwrites an earlier one's key. Return plain floats, document units, and say whether higher or lower is better. Raise `MetricError` on malformed input rather than turning a missing prediction into a perfect score. Decide what counts as valid ground truth, what happens with an empty sample, and whether you aggregate per image, scene, object, frame, pair or question.
 
-There is no supported `MetricSuite(calculators=[...])` constructor or automatic `finalize()` hook. Stateful dataset-level metrics require an explicit aggregation implementation.
+Don't call `clear_registry()` in a real run: it removes the built-in metrics too. There is no `MetricSuite(calculators=[...])` constructor and no `finalize()` hook, so a dataset-level metric needs its own aggregation code.
 
 ## Primary score and paper summaries
 
-Adding a raw metric does not automatically change the primary score, J, or Φ. `TaskSpec.primary_metric` describes the task's primary metric; the task runner must pass a matching key to the pipeline. Paper analysis also has explicit metric vectors, directions, normalization windows, and statistical assumptions. Update those together only when defining a new protocol, and identify the protocol in your reports.
+A new metric doesn't change the primary score, 𝒥 or Φ. `TaskSpec.primary_metric` names the task's primary metric, and the runner has to pass a matching key to the pipeline. The paper's analysis also fixes metric vectors, directions, normalization windows and statistical assumptions. Change those only when you mean to define a new protocol, and name it in your reports.
 
 ## Tests to include
 
-Use hand-computed perfect and imperfect predictions, malformed shapes, invalid GT, non-finite predictions, and empty-validity cases. Confirm the metric appears in a normal run's per-sample and aggregate outputs. Test independence from registration order when output keys are unique.
+Cover a perfect and an imperfect prediction checked by hand, malformed shapes, invalid ground truth, non-finite predictions and samples with no valid pixels. Confirm the metric shows up in a normal run's per-sample and aggregate output, and that the result doesn't depend on registration order.
 
-[Metric registry API](../api/README.md) · [Add tasks](../tasks/README.md)
+## Add it to the robustness scores
 
-## Include a custom score in Φ/JEDI
-
-Register its normalization contract separately from the calculator:
+To use a metric in Φ and JEDI, register its normalization bounds separately from the calculator:
 
 ```python
 from rpx_benchmark.metrics.specs import MetricSpec, register_spec
@@ -88,4 +82,6 @@ register_spec(MetricSpec(
 ))
 ```
 
-The bounds above define an example protocol; they are not paper-calibrated bounds. Explicitly include the new key when calling the [raw-metric calculator](../analysis/README.md), and keep those bounds identical across models.
+These bounds are an example, not calibrated like the paper's. Pass the new key to the [Φ and JEDI calculator](../analysis/README.md) explicitly, and keep the bounds the same for every model.
+
+[Metric registry API](../api/README.md) · [Add tasks](../tasks/README.md)

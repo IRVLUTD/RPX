@@ -1,14 +1,14 @@
 # Add tasks
 
-<figure class="rpx-workflow-figure"><a href="../assets/add-tasks.svg"><img src="../assets/add-tasks.svg" alt="Task contracts connect loaders, adapters, scoring and reporting." loading="lazy"></a><figcaption>Task contracts connect loaders, adapters, scoring and reporting. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/add-tasks.svg"><img src="../assets/add-tasks.svg" alt="Task contracts connect loaders, adapters, scoring and reporting." loading="lazy"></a><figcaption>A task ties together a loader, an adapter, scoring and reports. Open the SVG to zoom.</figcaption></figure>
 
-## Runtime extension versus a new task identity
+## What you can change at runtime
 
-The current public task identities are members of `TaskType`, a fixed enum. You can register a new metric or replace the runner for an existing identity at runtime. A completely new identity requires a toolkit source change; an arbitrary string is not a supported replacement for `TaskType` in the metric registration API.
+Tasks are members of `TaskType`, a fixed enum. At runtime you can register a new metric or swap the runner of an existing task. A brand-new task needs a change to the toolkit source; the metric registry won't accept an arbitrary string in place of a `TaskType`.
 
 ## Register a runner for an existing task
 
-This runnable example temporarily replaces the image-depth runner with a wrapper, while preserving the existing metric, modalities, and hooks. It restores the original registration afterwards.
+This example swaps the image-depth runner for a wrapper, keeps the existing metrics, modalities and hooks, and restores the original afterwards.
 
 ```python
 from dataclasses import replace
@@ -35,37 +35,37 @@ finally:
     register_task(original)
 ```
 
-Registration rejects duplicate task identities. `get_task_spec(task).run(cfg)` dispatches through the registry; calling a named built-in function directly continues to invoke that function.
+Registering a task that is already registered raises an error, hence the `unregister_task` first. `get_task_spec(task).run(cfg)` goes through the registry; calling a built-in function such as `run_monocular_depth` directly still runs the built-in.
 
-## Implement a completely new task
+## Add a new task
 
-Work in a source checkout and install it with `pip install -e './benchmark[dev]'`.
+Work in a source checkout installed with `pip install -e './benchmark[dev]'`.
 
-1. **Define the contract in `rpx_benchmark/api.py`.** Add a `TaskType` member and prediction/GT dataclasses. Specify units, coordinates, shape, valid values, and sample identity.
-2. **Teach the loader the GT format.** Update `loader.py` or the relevant video loader and manifest validation. Keep modality selection and IDs consistent with the dataset release. Adding an enum member alone does not make manifests loadable.
-3. **Implement the adapter.** Add input preparation and prediction conversion under `adapters/`. Expose a `make_numpy_*_model` helper if a callable interface is useful.
-4. **Implement scoring.** Add a `MetricCalculator` under `metrics/`, register it with the new enum member, and import its module in `metrics/__init__.py` so it registers at import time.
-5. **Implement the runner.** Add a task config and a `run_*` callable under `tasks/`. Reuse `run_pipeline` where its input, output, and aggregation assumptions fit. Sequence or dataset-level tasks may need a specialized runner.
-6. **Register and expose it.** Create a `TaskSpec`, import the task module in `tasks/__init__.py`, and export the public config and runner from `rpx_benchmark/__init__.py`.
-7. **Update reports and protocol metadata.** Check task names, required modalities, primary metric direction, cell records, split handling, and any explicit dispatch in hub downloads or scripts. Register temporal/geometric hooks only when their assumptions hold.
-8. **Test and document it.** Add synthetic loader, adapter, metric, and end-to-end tests. Include the new task in task parity and public workflow coverage, then validate a small real-data run.
+1. **Define the contract in `rpx_benchmark/api.py`.** Add a `TaskType` member and prediction and ground-truth dataclasses, with units, coordinates, shapes, valid values and sample identity spelled out.
+2. **Teach the loader the ground-truth format.** Update `loader.py` (or the video loader) and the manifest validation, keeping modality names and IDs consistent with the dataset release. An enum member alone doesn't make manifests loadable.
+3. **Write the adapter.** Add input preparation and prediction conversion under `adapters/`, plus a `make_numpy_*_model` helper if a plain function interface makes sense.
+4. **Write the scoring.** Add a `MetricCalculator` under `metrics/`, register it for the new enum member, and import its module in `metrics/__init__.py` so it registers on import.
+5. **Write the runner.** Add a config and a `run_*` function under `tasks/`. Reuse `run_pipeline` where its input, output and aggregation assumptions fit; sequence- or dataset-level tasks may need their own.
+6. **Register and export it.** Create a `TaskSpec`, import the task module in `tasks/__init__.py`, and export the config and runner from `rpx_benchmark/__init__.py`.
+7. **Update reports and protocol metadata.** Check task names, required modalities, the primary metric's direction, cell records, split handling, and any task-specific branches in Hub downloads or scripts. Register the temporal and geometric hooks only if their assumptions hold.
+8. **Test and document it.** Add synthetic tests for the loader, adapter, metric and the whole run, add the task to the parity and workflow tests, then try a small real-data run.
 
 ## TaskSpec contract
 
 | Field | Requirement |
 | --- | --- |
 | `task` | The new `TaskType` enum member |
-| `display_name`, `description` | User-facing task definition |
+| `display_name`, `description` | What users see |
 | `primary_metric` | A scalar key emitted by scoring and used by your runner |
 | `higher_is_better` | Direction of the primary score |
 | `required_modalities` | Dataset modalities the task consumes |
 | `run` | `(cfg) → (BenchmarkResult, optional deployment report, paths)` |
 | Optional hooks | Explicit temporal stability and geometric coherence functions |
 
-Use `tasks/monocular_depth.py` as a small pipeline example and `tasks/video_depth.py` for sequence-specific behavior. These modules show how registration, scoring, and configuration connect; copying their names without adapting their assumptions is insufficient.
+`tasks/monocular_depth.py` is a small example of a pipeline task and `tasks/video_depth.py` of a sequence task. Both show how registration, scoring and configuration fit together; adapt their assumptions rather than copying them.
 
-## Acceptance checks
+## When it's done
 
-A new task is ready when its GT loader and prediction adapter agree, hand-computed scores match, the registered runner writes per-sample and aggregate outputs, sample IDs survive the entire pipeline, and the documented example runs from an installed wheel. Test missing modalities and invalid predictions as well as successful inference.
+A new task is ready when the loader and adapter agree, scores match a hand calculation, the registered runner writes per-sample and aggregate results, sample IDs survive the whole pipeline, and the documented example runs from an installed wheel. Test missing modalities and invalid predictions, not only the happy path.
 
 [Task registry API](../api/README.md) · [Add metrics](../metrics/README.md)

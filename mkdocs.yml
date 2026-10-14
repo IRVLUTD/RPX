@@ -1,5 +1,5 @@
 site_name: RPX Toolkit
-site_description: Benchmark robot perception. Compare pretrained models. Bring your own.
+site_description: Toolkit for the RPX benchmark of robot perception across scene phases.
 site_url: https://irvlutd.github.io/RPX/toolkit-docs/
 repo_url: https://github.com/IRVLUTD/RPX
 repo_name: IRVLUTD/RPX
@@ -53,10 +53,10 @@ nav:
   - Capabilities: capabilities/README.md
   - Get started: getting-started/README.md
   - Data and annotation:
-      - Data contracts: data/README.md
+      - Data: data/README.md
       - Mask annotation pipeline: annotation/README.md
   - Bring your own model: models/README.md
-  - Benchmark samples:
+  - Task walkthroughs:
       - All six tasks: benchmarks/README.md
       - T1 Image depth: benchmarks/t1/README.md
       - T2 Video depth: benchmarks/t2/README.md
