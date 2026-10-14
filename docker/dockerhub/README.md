@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/logo.png" alt="RPX" height="64"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/docker/dockerhub/logo.png" alt="RPX" width="195" height="64"></p>
 
 # RPX model environments
 
