@@ -263,3 +263,6 @@ CLAUDE.md
 *.md
 !README.md
 !**/README.md
+
+# Hugging Face dataset pages kept under version control
+!tools/dataset/hf_card/**/*.md
