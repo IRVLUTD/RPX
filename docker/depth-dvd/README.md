@@ -3,9 +3,13 @@
 Adds the official EnVision-Research/DVD source, at a pinned revision and in its own environment, to the cumulative
 video-depth image. Published as `irvlutd/rpx:depth-dvd-latest`.
 
+## How RPX runs DVD
+
 The adapter pins and verifies the DVD v1.1 checkpoint and pins the Wan2.1 base-model revision. DVD predicts relative
 inverse depth, so RPX fits one affine transform in disparity space over each full scene-phase clip. Inference uses the
 authors' 81-frame windows with 21-frame overlap and their Global Affine Coherence implementation.
+
+## Build
 
 ```bash
 docker build \
@@ -17,3 +21,9 @@ docker build \
 
 The DVD checkpoint (about 4.5 GB) and the Wan2.1 weights are not in the image. They download into the mounted Hugging
 Face cache on the first smoke run and are reused afterwards.
+
+---
+
+<sub>Part of <a href="../../README.md">RPX</a> ·
+<a href="../README.md">Model environments</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a></sub>

@@ -4,14 +4,27 @@ This is the pipeline we used to make RPX's per-frame instance masks. GroundingDI
 per phase, an annotator curates them, and SAM2 turns each box into a mask and propagates it through the rest of
 the phase. Frames that come out wrong are refined automatically and, if that fails, relabeled by hand.
 
-You only need this to annotate newly captured scenes. The published [dataset](https://huggingface.co/datasets/IRVLUTD/RPX)
-already includes the masks, and benchmarking a model only needs [`benchmark/`](../../benchmark/README.md).
+You only need this to annotate newly captured scenes. The published
+[dataset](https://huggingface.co/datasets/IRVLUTD/RPX) already includes the masks, and benchmarking a model
+only needs [`benchmark/`](../../benchmark/README.md).
 
 <p align="center">
-  <img src="assets/mask-annotation-pipeline.webp" width="100%" alt="Mask annotation pipeline. Automated: (1) generate initial bounding boxes, (3) SAM2 propagates masks through every frame, (5) automatic refinement of faulty masks, (7) final verified masks across all frames. Human in the loop: (2) verify or redraw masks for one frame, (4) verify masks frame by frame, (6) manually relabel faulty frames.">
+  <a href="#setup">Setup</a> ·
+  <a href="#annotating-a-scene">Annotating a scene</a> ·
+  <a href="#output">Output</a> ·
+  <a href="#scripts">Scripts</a> ·
+  <a href="#docker">Docker</a>
 </p>
 
-| Step in the figure | Command (module under `maskgen_pipeline/` unless noted) |
+<p align="center">
+  <img src="assets/mask-annotation-pipeline.webp" width="90%" alt="Mask annotation pipeline. Automated: (1) generate initial bounding boxes, (3) SAM2 propagates masks through every frame, (5) automatic refinement of faulty masks, (7) final verified masks across all frames. Human in the loop: (2) verify or redraw masks for one frame, (4) verify masks frame by frame, (6) manually relabel faulty frames.">
+  <br>
+  <sub>Automated steps (1, 3, 5, 7) alternate with human checks (2, 4, 6).</sub>
+</p>
+
+Each step in the figure maps to one command. Modules are under `maskgen_pipeline/` unless noted.
+
+| Step in the figure | Command |
 |:--|:--|
 | 1–3: boxes, one-frame check, SAM2 propagation | `interactive_gsam2` |
 | 4: verify frame by frame | `review_faulty_masks` |
@@ -19,8 +32,9 @@ already includes the masks, and benchmarking a model only needs [`benchmark/`](.
 | 6: manual relabel | `manual_label_faulty` |
 | 7: final masks, then object names | `visual_grounding_gt.mask_to_object` |
 
-Most scenes are done after one interactive pass, one review, one refinement round and a second review. Manual
-relabeling is only needed for the few frames where propagation keeps disagreeing with the verified neighbours.
+Most scenes are done after one interactive pass, one review, one refinement round and a second review.
+Manual relabeling is only needed for the few frames where propagation keeps disagreeing with the verified
+neighbours.
 
 ## Setup
 
@@ -38,7 +52,7 @@ directory holds one subdirectory per phase (`0`, `1`, `2`). All commands below r
 
 ## Annotating a scene
 
-### 1. Curate boxes and propagate (once per phase)
+### Curate boxes and propagate (once per phase)
 
 ```bash
 python -m maskgen_pipeline.interactive_gsam2 --scene_dir <scene_dir>/0
@@ -50,7 +64,7 @@ A window opens on the last frame of the phase with GroundingDINO's boxes drawn o
 detection with its color, `obj_NN` label and confidence, most confident first.
 
 | Input | Effect |
-|---|---|
+|:--|:--|
 | Click a sidebar row | Keep or drop that box (dropped rows are struck through) |
 | Right-click and drag in the image | Add a box |
 | Q / Enter | Accept the set and move on to resizing |
@@ -59,7 +73,7 @@ detection with its color, `obj_NN` label and confidence, most confident first.
 You then resize the kept boxes one at a time. The active box is highlighted and the others are dimmed.
 
 | Input | Effect |
-|---|---|
+|:--|:--|
 | Left-click and drag | Redraw the active box |
 | Q / Enter / N / → | Accept this box and go to the next |
 | ← / P | Go back one box |
@@ -68,7 +82,7 @@ You then resize the kept boxes one at a time. The active box is highlighted and 
 The window closes after the last box. SAM2 then propagates the boxes backward through every frame and writes one
 mask per frame to `sam2/masks/<frame>.png` (uint16, one ID per object).
 
-### 2. Review the masks
+### Review the masks
 
 ```bash
 python -m maskgen_pipeline.review_faulty_masks --base_dir <scene_dir>
@@ -80,7 +94,7 @@ Pointing `--base_dir` at the scene reviews all three phases; point it at `<scene
 (`<scene>/sam2/<phase>/contour_gt_masks/…`).
 
 | Key | Action |
-|---|---|
+|:--|:--|
 | S | Mark the frame verified and go to the next |
 | Q | Save the current frame and exit |
 | X | Remove the frame from the verified set and reload it |
@@ -92,13 +106,14 @@ Pointing `--base_dir` at the scene reviews all three phases; point it at `<scene
 Buttons along the bottom hide or show individual instances so you can check one object at a time. Any frame you
 don't verify is treated as faulty in the next step.
 
-### 3. Refine the faulty frames
+### Refine the faulty frames
 
 The reviewer records which frames are verified; the refiner needs the ones that aren't. Write that list for each
 phase, then refine:
 
 ```bash
-python -m maskgen_pipeline.gen_faulty_from_verified --scene_dir <scene_dir>/0 --iter 1
+python -m maskgen_pipeline.gen_faulty_from_verified \
+    --scene_dir <scene_dir>/0 --iter 1
 python -m maskgen_pipeline.refine_masks_flow --scene_dir <scene_dir>/0 --iter 1
 ```
 
@@ -118,20 +133,21 @@ python -m maskgen_pipeline.review_faulty_masks --scene_dir <scene_dir> --no_veri
 If frames are still wrong, repeat this step with `--iter 2`, `--iter 3` and so on. One or two rounds is usually
 enough.
 
-### 4. Relabel stubborn frames by hand
+### Relabel stubborn frames by hand
 
 Some frames never converge, typically because of motion blur, occlusion or an object entering the view. Fix those
 directly:
 
 ```bash
-python -m maskgen_pipeline.manual_label_faulty --scene_dir <scene_dir>/<phase> --iter 2
+python -m maskgen_pipeline.manual_label_faulty \
+    --scene_dir <scene_dir>/<phase> --iter 2
 ```
 
 `--iter N` reads `iter{N}_faulty.txt`. Without `--iter`, the tool visits every frame in `sam2/masks/` that isn't in
 `masks_verified/`. Boxes are seeded from the nearest verified frame, so object IDs stay consistent across the phase.
 
 | Input | Effect |
-|---|---|
+|:--|:--|
 | Left-click and drag | Redraw the active box |
 | Right-click and drag | Add a box with the next free object ID |
 | D / Delete / Backspace | Remove the active box |
@@ -143,13 +159,13 @@ Once a frame's boxes are accepted, SAM2's image predictor builds the mask and wr
 `rgb_and_mask/` and `contour_gt_masks/`, and to `masks_verified/`. Later reviews with `--no_verified` and
 `gen_faulty_from_verified` then skip it.
 
-### 5. Name the objects
+### Name the objects
 
 When all three phases look right, map each mask ID to its object name (one click per ID):
 
 ```bash
 python -m visual_grounding_gt.mask_to_object \
-        --scene_dir <scene_dir> --json visual_grounding_gt/scenes_test.json
+    --scene_dir <scene_dir> --json visual_grounding_gt/scenes_test.json
 ```
 
 Finally, zip the scene and upload it to the iteration-2 results folder on Box.
@@ -159,11 +175,11 @@ Finally, zip the scene and upload it to the iteration-2 results folder on Box.
 Everything for a phase is written under `<scene_dir>/<phase>/sam2/`:
 
 | Path | Contents |
-|---|---|
+|:--|:--|
 | `masks/<frame>.png` | uint16 instance-ID map, one ID per object |
-| `palette/`, `rgb_and_mask/`, `contour_gt_masks/` | Color, overlay and contour renderings of the same masks |
+| `palette/`, `rgb_and_mask/`, `contour_gt_masks/` | Renderings of the same masks |
 | `bbox_overlay/` | The prompt boxes drawn on each frame |
-| `usr_bbox_prompts.npy` | The boxes you curated in step 1 |
+| `usr_bbox_prompts.npy` | The boxes you curated before propagation |
 | `iter{N}_faulty.txt`, `mask_refinement/iter_{N}/` | Refinement inputs and outputs |
 | `masks_verified/` | Frames marked good |
 
@@ -171,29 +187,38 @@ The reviewer also keeps the list of verified frames in `<scene_dir>/<phase>/veri
 
 ## Scripts
 
+The five steps above use `interactive_gsam2`, `review_faulty_masks`, `gen_faulty_from_verified`,
+`refine_masks_flow`, `manual_label_faulty` and `visual_grounding_gt.mask_to_object`. The VQA ground truth
+built from the masks has its own [README](visual_grounding_gt/vqa_gt/README.md).
+
+<details>
+<summary>All scripts</summary>
+
 | Script | Purpose |
-|---|---|
-| `maskgen_pipeline/interactive_gsam2.py` | Step 1: box curation and SAM2 propagation |
-| `maskgen_pipeline/review_faulty_masks.py` | Step 2: frame-by-frame mask review |
-| `maskgen_pipeline/gen_faulty_from_verified.py` | Turns the reviewer's `verified_masks.txt` into `iter{N}_faulty.txt` |
-| `maskgen_pipeline/refine_masks.py`, `refine_masks_flow.py` | Step 3: automatic refinement of faulty frames |
-| `maskgen_pipeline/manual_label_faulty.py` | Step 4: manual per-frame box labeling, masks from SAM2's image predictor |
-| `maskgen_pipeline/interactive_gsam2_refine_pp_1.py` | Refinement variant that adds point prompts after the box |
+|:--|:--|
+| `maskgen_pipeline/interactive_gsam2.py` | Box curation and SAM2 propagation |
+| `maskgen_pipeline/review_faulty_masks.py` | Frame-by-frame mask review |
+| `maskgen_pipeline/gen_faulty_from_verified.py` | Writes `iter{N}_faulty.txt` from the review |
+| `maskgen_pipeline/refine_masks.py`, `refine_masks_flow.py` | Automatic refinement of faulty frames |
+| `maskgen_pipeline/manual_label_faulty.py` | Manual per-frame box labeling |
+| `maskgen_pipeline/interactive_gsam2_refine_pp_1.py` | Refinement with added point prompts |
 | `maskgen_pipeline/review_faulty_bboxes.py` | Review raw boxes before SAM2 |
 | `maskgen_pipeline/propagate_bboxes.py` | Box propagation used by the interactive tools |
-| `maskgen_pipeline/collect_faulty_and_gdino_bboxed_headless.py` | Lists faulty frames and precomputes GroundingDINO boxes without a display |
-| `maskgen_pipeline/run_sam2_from_verified_bboxes.py` | Reruns SAM2 from a verified box set, skipping curation |
+| `maskgen_pipeline/collect_faulty_and_gdino_bboxed_headless.py` | Headless faulty list and GroundingDINO boxes |
+| `maskgen_pipeline/run_sam2_from_verified_bboxes.py` | Reruns SAM2 from verified boxes |
 | `maskgen_pipeline/point_prompts_via_rdd.py` | Point prompts from RDD correspondences |
-| `maskgen_pipeline/pds_frames_filter.py` | Poisson-disk filter that thins a long capture to a representative subset |
+| `maskgen_pipeline/pds_frames_filter.py` | Poisson-disk thinning of long captures |
 | `maskgen_pipeline/test_sam2_point_prompts.py` | SAM2 point-prompt smoke test |
 | `maskgen_pipeline/bbox_prompts_overlay.py`, `collect_bbox_prompts.py` | Box helpers shared by the interactive tools |
 | `maskgen_pipeline/mask_refinement_tools/mask_to_bbox_refinement.py` | Refits boxes from a verified mask |
-| `visual_grounding_gt/mask_to_object.py` | Step 5: mask ID to object name mapping |
+| `visual_grounding_gt/mask_to_object.py` | Mask ID to object name mapping |
 | `visual_grounding_gt/correspondence_validation_viz.py` | Visual check of that mapping |
-| `visual_grounding_gt/vqa_gt/` | VQA ground truth built from the masks ([README](visual_grounding_gt/vqa_gt/README.md)) |
+| `visual_grounding_gt/vqa_gt/` | VQA ground truth built from the masks |
 
-`robokit/` is a vendored copy of [IRVLUTD/robokit](https://github.com/IRVLUTD/robokit), our perception library;
-the pipeline scripts import it as `from robokit.perception import …`.
+</details>
+
+`robokit/` is a vendored copy of [IRVLUTD/robokit](https://github.com/IRVLUTD/robokit), our perception
+library; the pipeline scripts import it as `from robokit.perception import …`.
 
 ## Docker
 
@@ -217,5 +242,11 @@ The pipeline builds on [SAM2](https://github.com/facebookresearch/sam2) for mask
 
 ## License
 
-MIT, like the rest of the repository. The upstream projects above have their own licenses; check them before
-redistributing.
+MIT, like the rest of the repository. The upstream projects above have their own licenses; check them
+before redistributing.
+
+---
+
+<sub>Part of <a href="../../README.md">RPX</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a> ·
+<a href="https://huggingface.co/datasets/IRVLUTD/RPX">Dataset</a></sub>

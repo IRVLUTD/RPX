@@ -8,6 +8,14 @@ and there are 400 clips: 100 scenes × 3 phases (MOS) plus 100 egocentric record
 one per object per clip. A prompt stays the same for the whole clip, including frames where the object is occluded.
 Rows join to the released masks on `scene_id`, `kind`, `phase` and `mask_index`.
 
+<p align="center">
+  <a href="#usage">Usage</a> ·
+  <a href="#files">Files</a> ·
+  <a href="#how-prompts-are-built">How prompts are built</a> ·
+  <a href="#known-limitations">Known limitations</a> ·
+  <a href="#reproducing">Reproducing</a>
+</p>
+
 ## Usage
 
 ```python
@@ -15,7 +23,9 @@ import pandas as pd
 
 vocab = pd.read_parquet("scene_condition_vocab.parquet")
 clip = vocab.query("scene_id == 'scene001' and kind == 'mos' and phase == 1")
-prompts = dict(zip(clip.mask_index, clip.prompt_text))   # {1: 'tan lion', 2: 'white boot', ...}
+
+# {1: 'tan lion', 2: 'white boot', ...}
+prompts = dict(zip(clip.mask_index, clip.prompt_text))
 ```
 
 `phase` is `0`, `1` or `2` (Clutter, Interaction, Clean) for MOS and empty for Ego. The `.jsonl` files hold the same
@@ -25,10 +35,14 @@ rows as the Parquet files.
 
 | File | Rows | Contents |
 |:--|--:|:--|
-| `scene_condition_vocab.parquet` / `.jsonl` | 2,739 | One row per object per clip: `mask_index`, `prompt_text`, the object's identity and the annotation it was joined from |
-| `object_catalog_vocab.parquet` / `.jsonl` | 70 | One row per object: name, all authored colors, materials, functions and categories, `primary_color`, `prompt_text` |
-| `manifest_summary.json` | | Counts, source revisions, validation results, known limitations and file hashes |
-| `SHA256SUMS` | | SHA-256 of every file in this directory |
+| `scene_condition_vocab.parquet` / `.jsonl` | 2,739 | One row per object per clip |
+| `object_catalog_vocab.parquet` / `.jsonl` | 70 | One row per object |
+| `manifest_summary.json` | | Counts, sources, validation, hashes |
+| `SHA256SUMS` | | SHA-256 of every file here |
+
+Clip rows hold `mask_index`, `prompt_text`, the object's identity and the annotation it was joined from.
+Object rows hold the name, all authored colors, materials, functions and categories, `primary_color` and
+`prompt_text`. `manifest_summary.json` also lists the known limitations below.
 
 ## How prompts are built
 
@@ -56,7 +70,8 @@ attribute table is only used as a cross-check.
 ```bash
 cd benchmark/scripts/tracking_text_vocab
 python3 build_tracking_text_vocab.py --out-dir /path/to/out
-python3 validate_tracking_text_vocab.py --bundle-dir /path/to/out --report /path/to/out/validation_report.json
+python3 validate_tracking_text_vocab.py --bundle-dir /path/to/out \
+    --report /path/to/out/validation_report.json
 ```
 
 The validator exits nonzero on this bundle because of the 252 occurrences above; every other check passes. To
@@ -65,7 +80,7 @@ The full coverage check streams every mask archive one clip at a time and delete
 bounded. `--skip-exhaustive-masks` skips it for quick iteration; don't use it for a release check.
 
 <details>
-<summary><b>Design notes</b></summary>
+<summary>Design notes</summary>
 
 ### Why not use the VQA color questions
 
@@ -84,12 +99,19 @@ only to cross-check the result and never fills in a missing attribute.
 
 Each input is read at a fixed commit of the dataset:
 
-| Purpose | Revision | Origin |
-|---|---|---|
-| Catalog and questionnaires | `93e31d378f1f98eca18a7aa01a2279c9f332440c` | The dataset's `main` branch when the bundle was built. The two tracking revisions below predate the color, material and function questions; their catalog copies only have category and name for all 70 objects, so they can't be the attribute source. |
-| MOS `sam2_meta` and `masks` tars | `2e2a387f7f93e98c177b2e039c141eacda94e5fc` | `PINNED_DATASET_REVISION` in `benchmark/scripts/run_tracking.py` on this repo's `docker/tracking-all-yoloe` branch, the revision the tracking runner pins for MOS |
-| Ego `sam2_meta` and `masks` tars | `f082723002bad5800dd85e583115b4ea05734d31` | `PINNED_EGO_DATASET_REVISION` in the same file |
-| VQA cross-check | `vqa` branch | `vqa/attribute.parquet`, read only |
+| Purpose | Revision |
+|:--|:--|
+| Catalog and questionnaires | `93e31d378f1f98eca18a7aa01a2279c9f332440c` |
+| MOS `sam2_meta` and `masks` tars | `2e2a387f7f93e98c177b2e039c141eacda94e5fc` |
+| Ego `sam2_meta` and `masks` tars | `f082723002bad5800dd85e583115b4ea05734d31` |
+| VQA cross-check | `vqa` branch |
+
+The catalog revision is the dataset's `main` branch when the bundle was built. The two tracking revisions
+predate the color, material and function questions; their catalog copies only have category and name for
+all 70 objects, so they can't be the attribute source. The MOS revision is `PINNED_DATASET_REVISION` in
+`benchmark/scripts/run_tracking.py` on this repo's `docker/tracking-all-yoloe` branch, the revision the
+tracking runner pins for MOS; the Ego revision is `PINNED_EGO_DATASET_REVISION` in the same file. The VQA
+cross-check reads `vqa/attribute.parquet` only.
 
 ### Join
 
@@ -164,3 +186,9 @@ prompts.
   appears.
 
 </details>
+
+---
+
+<sub>Part of <a href="../../../README.md">RPX</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a> ·
+<a href="https://huggingface.co/datasets/IRVLUTD/RPX">Dataset</a></sub>

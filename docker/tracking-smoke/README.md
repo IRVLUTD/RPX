@@ -3,8 +3,8 @@
 Most users only need the published images. See the [image table](../README.md#which-image-to-pull) for the full list.
 
 | Prompt | Image | Models |
-|---|---|---|
-| First-frame mask | `irvlutd/rpx:tracking-dam4sam-rpx-latest` | SAM 2, EdgeTAM, Cutie, SAM2Long, SAM 2++, MiTS, XMem, DAM4SAM |
+|:--|:--|:--|
+| First-frame mask | `irvlutd/rpx:tracking-dam4sam-rpx-latest` | 8, [listed below](#mask-initialized-trackers) |
 | Box | `irvlutd/rpx:tracking-sam3.1-bbox-rpx-latest` | SAM 3.1 |
 | Text | `irvlutd/rpx:tracking-sam3.1-text-rpx-latest` | SAM 3.1 |
 | Text | `irvlutd/rpx:tracking-grounded-sam2-text-rpx-latest` | Grounded SAM 2 |
@@ -13,6 +13,12 @@ The rest of this page is for building the images and running the acceptance gate
 dependency-locked, and no checkpoint is baked into any layer: mount `/cache/huggingface` and `/cache/torch` at run time.
 An image that builds has not necessarily passed RPX inference. The checkpoint and GPU smoke gate is a separate step.
 
+<p align="center">
+  <a href="#mask-initialized-trackers">Mask-initialized trackers</a> ·
+  <a href="#box--and-text-prompted-trackers">Box- and text-prompted trackers</a> ·
+  <a href="#other-build-files">Other build files</a>
+</p>
+
 ## Mask-initialized trackers
 
 These trackers form one cumulative chain. Each image extends the previous one and adds its model in its own Python
@@ -20,16 +26,16 @@ environment under `/opt/rpx-envs`, so packages that ship conflicting `sam2` modu
 Hub stores the shared layers once.
 
 | Order | Model | Build script | Notes |
-|---|---|---|---|
-| 1 | SAM 2 | `build_sam2_rpx.sh` | Base is pinned by digest (below) |
-| 2 | EdgeTAM | `build_edgetam_rpx.sh` | Uses `Dockerfile.edgetam-rpx`, which patches an invalid `expand(...).view(...)` to the equivalent `reshape(...)` for current PyTorch. Weights and math are unchanged |
-| 3 | Cutie | `build_cutie_rpx.sh` | Official `cutie-base-mega.pth` v1.0, checked against the publisher's MD5; its SHA-256 is recorded in the result metadata |
-| 4 | SAM2Long | `build_sam2long_rpx.sh` | Pinned source and SAM 2.1 Hiera Large revision; the paper's three-pathway defaults |
-| 5 | SAM 2++ | `build_sam2_plus_rpx.sh` | See below |
-| 6 | MiTS | `build_mits_rpx.sh` | Full official checkpoint, initialized from first-frame boxes |
-| 7 | XMem | `build_xmem_rpx.sh` | Official v1.0 `XMem.pth`, size and SHA-256 verified before loading |
-| 8 | OVTR | `build_ovtr_rpx.sh` | Open-vocabulary detector; see below |
-| 9 | DAM4SAM | `build_dam4sam_rpx.sh` | Source pinned at `9c954504b39ebca4c412f207be0787c26bfac85a`; this is the published final image |
+|:--|:--|:--|:--|
+| 1 | SAM 2 | `build_sam2_rpx.sh` | base pinned by digest |
+| 2 | EdgeTAM | `build_edgetam_rpx.sh` | PyTorch patch, see notes |
+| 3 | Cutie | `build_cutie_rpx.sh` | official v1.0 weights |
+| 4 | SAM2Long | `build_sam2long_rpx.sh` | paper defaults |
+| 5 | SAM 2++ | `build_sam2_plus_rpx.sh` | box-initialized |
+| 6 | MiTS | `build_mits_rpx.sh` | box-initialized |
+| 7 | XMem | `build_xmem_rpx.sh` | official v1.0 weights |
+| 8 | OVTR | `build_ovtr_rpx.sh` | open vocabulary |
+| 9 | DAM4SAM | `build_dam4sam_rpx.sh` | published final image |
 
 Build and push one stage with:
 
@@ -41,52 +47,64 @@ docker/tracking-smoke/build_sam2_rpx.sh --push
 The scripts refuse dirty checkouts and mutable base references. Each one resolves its parent tag to a repository digest,
 regenerates the environment manifest and pip freeze, and pushes an immutable `<model>-rpx-sha-<12-char-sha>` tag
 along with a moving `<model>-rpx-latest` tag. Override the parent with `--base-image` (or the script's
-`RPX_<MODEL>_BASE_IMAGE` variable). The SAM 2 base defaults to
+`RPX_<MODEL>_BASE_IMAGE` variable). The SAM 2 base defaults to this tag and digest:
 
-```text
-narendhiranv04/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b@sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa
-```
+| | |
+|:--|:--|
+| Tag | `narendhiranv04/rpx-tracking-smoke:sam2-sha-cc347e5a3b2b` |
+| Digest | `sha256:b3e0d935b6898049848a046e24d9b3cc4a451cb536081ca9a02a22ff841b98aa` |
 
 Acceptance gates render prediction overlays automatically. `package_acceptance_frames.sh` archives and checksums them
 for transfer.
 
 ### Model notes
 
-**SAM 2++.** RPX takes a tight XYXY box around each object in the first-frame instance mask and initializes the
+EdgeTAM builds from `Dockerfile.edgetam-rpx`, which patches an invalid `expand(...).view(...)` to the equivalent
+`reshape(...)` for current PyTorch. Weights and math are unchanged.
+
+Cutie uses the official `cutie-base-mega.pth` v1.0, checked against the publisher's MD5; its SHA-256 is recorded in the
+result metadata. SAM2Long uses a pinned source and SAM 2.1 Hiera Large revision with the paper's three-pathway
+defaults.
+
+For SAM 2++, RPX takes a tight XYXY box around each object in the first-frame instance mask and initializes the
 official box-granularity task with it. Every predicted mask is scored, including the first frame. SAM 2++ never sees the
 segmentation itself. The upstream wheel omits `sam2_plus/configs` and parts of `training.dataset_plus`, so the image
 prepends the pinned source tree and checks the box utility import at build time.
 
-**MiTS.** All objects are initialized together through MiTS's box-to-mask transformer, using each first-frame mask's
+MiTS uses the full official checkpoint. All objects are initialized together through MiTS's box-to-mask transformer, using each first-frame mask's
 bounding rectangle. The original instance IDs are restored in every saved prediction. The initialization frame is
 excluded from scoring, as under the common `box` prompt protocol.
 
-**XMem.** RPX passes the full multi-object instance mask on frame zero. It maps RPX IDs to XMem's contiguous labels and
+XMem uses the official v1.0 `XMem.pth`, size- and SHA-256-verified before loading. RPX passes the full multi-object instance mask on frame zero. It maps RPX IDs to XMem's contiguous labels and
 back, and keeps the official 480-pixel short-side resize and long-term memory defaults.
 
-**OVTR.** The image pins the full five-frame OVTR checkpoint, both published CLIP embedding assets, and OpenAI CLIP at
+OVTR is an open-vocabulary detector. The image pins the full five-frame OVTR checkpoint, both published CLIP embedding assets, and OpenAI CLIP at
 `d05afc436d78f1c48dc0dbf8e5980a9d471f35f6`. CLIP is installed without dependency resolution so it cannot replace the
 image's Torch/CUDA build. OVTR runs open-vocabulary MOT over the official 1,203-class LVIS/DetPro vocabulary. It gets
 no RPX prompt and is scored from frame zero. Tracked boxes are rasterized for the shared D3 metrics. Class IDs, names,
 scores, track IDs and boxes are saved under `open_vocabulary_predictions/` and included in acceptance archives.
 
+DAM4SAM's source is pinned at `9c954504b39ebca4c412f207be0787c26bfac85a`; its image is the published final stage.
+
 ### Excluded models
 
-- **SAMURAI** is excluded because its official benchmark is single-object.
-- **MOTIP** and **MASA** have build scripts (`build_motip_rpx.sh`, `build_masa_rpx.sh`) but are not in the active
+- SAMURAI is excluded because its official benchmark is single-object.
+- MOTIP and MASA have build scripts (`build_motip_rpx.sh`, `build_masa_rpx.sh`) but are not in the active
   chain; MiTS replaces them.
   - MOTIP's pinned DanceTrack checkpoint detects people, so weak results on household objects are a domain-transfer
     result, not a reason to add ground-truth prompts.
   - MASA runs MASA-Detic with the Detic-SwinB detector and a fixed LVIS vocabulary. Its runtime dependencies are
     pinned in `requirements-masa-runtime.lock`.
   - Both are detector-driven and scored from frame 0.
-- **TRACT** has no adapter. The authors' repository has no released checkpoint, no release assets and no end-to-end
+- TRACT has no adapter. The authors' repository has no released checkpoint, no release assets and no end-to-end
   inference command, so no reproducible gate is possible. Do not report an open-vocabulary detector combined with an
   unrelated association method as TRACT.
 
 ## Box- and text-prompted trackers
 
-**Box prompts (paper-comparable).** SAM 3.1 and Grounded SAM 2 start from tight boxes derived from the released
+### Box prompts
+
+These runs are comparable to the paper. SAM 3.1 and Grounded SAM 2 start from tight boxes derived from the released
 frame-zero GT instance mask, and frame zero is excluded from scoring.
 
 - SAM 3.1 encodes each normalized XYXY box as its native corner points (labels 2/3). It keeps the GT object ID, adds
@@ -104,7 +122,9 @@ docker/tracking-smoke/run_bbox_gate.sh sam3.1 smoke ego 1
 Use a new output root for box runs. Resume markers already include the code revision, but a separate root also keeps
 these runs from being compared with the text-prompted ones by accident.
 
-**Text prompts.** Both models get the released scene-condition vocabulary (`primary_color + canonical object name`)
+### Text prompts
+
+Both models get the released scene-condition vocabulary (`primary_color + canonical object name`)
 and no ground-truth mask or box, so they are scored from frame zero.
 
 - Grounded SAM 2 detects each prompt in frame zero with pinned GroundingDINO and starts SAM 2.1 from those boxes.
@@ -129,6 +149,9 @@ objects have no vocabulary row because of an upstream identity-map gap documente
 not invent prompts for them.
 
 ## Other build files
+
+<details>
+<summary>Legacy images, provenance files and patches</summary>
 
 - `Dockerfile` is the original YOLOE engineering smoke image plus the SAM 2 adapter.
 - `Dockerfile.rpx-adapter` is a thin code overlay that updates the benchmark package without rebuilding the upstream
@@ -162,3 +185,11 @@ docker build \
 
 It pins SAM 2 at `2b90b9f5ceec907a1c18123530e92e794ad901a4`, `facebook/sam2-hiera-large` at
 `e6a8e8809b8f1bfa2238b6d080f3d05cc76bd251` and TrackEval at `12c8791b303e0a0b50f753af204249e622d0281a`.
+
+</details>
+
+---
+
+<sub>Part of <a href="../../README.md">RPX</a> ·
+<a href="../README.md">Model environments</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a></sub>

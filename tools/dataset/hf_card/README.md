@@ -88,7 +88,7 @@ configs:
 
 **Jishnu Jaykumar P<sup>1\*</sup>, Itay Kadosh<sup>2\*</sup>, Narendhiran Vijayakumar<sup>3\*</sup>, Srinanditha Kamath<sup>4</sup>, Sai Haneesh Allu<sup>1</sup>,<br>
 Govind Tyagi Rangappa<sup>1</sup>, Animesh Maheshwari<sup>1</sup>, Jikai Wang<sup>1</sup>, Yu Xiang<sup>1</sup>**<br>
-<sub><sup>1</sup>UT Dallas · <sup>2</sup>UF · <sup>3</sup>IIIT Hyderabad · <sup>4</sup>UT Austin · \*equal contribution</sub>
+<sub><sup>1</sup>UT Dallas &nbsp; <sup>2</sup>UF &nbsp; <sup>3</sup>IIIT Hyderabad &nbsp; <sup>4</sup>UT Austin &nbsp; \*Equal contribution</sub>
 
 [Toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) |
 [Code](https://github.com/IRVLUTD/RPX) |
@@ -106,9 +106,11 @@ perception tasks on them with one pipeline. Two numbers put every model on a com
 which measures whether quality holds as the scene changes, and worst-phase quality 𝒥<sub>min</sub>, which
 measures how good the model is in its weakest phase.
 
-| 100 | 3 + 1 | 70 | 133,121 | 6 | 65 |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| real scenes<br><sub>50 indoor · 50 outdoor · 20 sites</sub> | phases + ego view<br><sub>Clutter · Interaction · Clean · Ego</sub> | everyday objects<br><sub>each scanned alone in 360°</sub> | frames<br><sub>RGB-D · stereo · pose · masks</sub> | tasks<br><sub>depth to grounding</sub> | zero-shot evaluations |
+| **100** real scenes | **3 + 1** views | **70** objects |
+|:---:|:---:|:---:|
+| <sub>50 indoor, 50 outdoor, 20 sites</sub> | <sub>Clutter, Interaction, Clean, plus Ego</sub> | <sub>each also scanned alone in 360°</sub> |
+| **133,121** frames | **6** tasks | **65** evaluations |
+| <sub>RGB-D, stereo, pose, masks</sub> | <sub>from depth to visual grounding</sub> | <sub>zero-shot, across 49 models</sub> |
 
 In the paper, depth and tracking quality change significantly across phases (p < 0.001), model rankings shift
 across tasks, prompting modes and input modalities on the same scenes, and no evaluation reaches both
@@ -118,18 +120,18 @@ across tasks, prompting modes and input modalities on the same scenes, and no ev
 
 ## Tasks
 
-| | Task | Scored on | Native metrics | Reference runtime |
-|---|---|---|---|---|
-| T1 | Image depth | 3 phases | AbsRel · RMSE · SILog · δ<sub>1</sub> | `irvlutd/rpx:depth-zipdepth-latest` |
-| T2 | Video depth | 3 phases | T1 metrics + TGM · TGSE | `irvlutd/rpx:depth-zipdepth-latest` |
-| T3 | Multi-object tracking | 3 phases + Ego | HOTA · MOTA · IDSW | `irvlutd/rpx:tracking-dam4sam-rpx-latest` |
-| T4 | Relative camera pose | Clutter · Clean | AUC@5° · @10° · @20° | `irvlutd/rpx:rcpe-monst3r-rpx-latest` |
-| T5 | VQA | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
-| T6 | In-context VQA | 3 phases + Ego | Acc@0.5 · GIoU · Center-in-GT | `irvlutd/rpx:vqa-vllm` |
+| Task | Scored on | Metrics | Image |
+|:--|:--|:--|:--|
+| T1 Image depth | 3 phases | AbsRel, RMSE, SILog, δ<sub>1</sub> | `depth-zipdepth-latest` |
+| T2 Video depth | 3 phases | T1's, plus TGM, TGSE | `depth-zipdepth-latest` |
+| T3 Object tracking | 3 phases + Ego | HOTA, MOTA, IDSW | `tracking-dam4sam-rpx-latest` |
+| T4 Relative camera pose | Clutter, Clean | AUC at 5°, 10°, 20° | `rcpe-monst3r-rpx-latest` |
+| T5 VQA | 3 phases + Ego | Acc@0.5, GIoU, center-in-GT | `vqa-vllm` |
+| T6 In-context VQA | 3 phases + Ego | Acc@0.5, GIoU, center-in-GT | `vqa-vllm` |
 
 Each task keeps its field's usual metrics. Results are mapped onto a common scene–phase scale, and Φ and
 𝒥<sub>min</sub> are computed from that. The [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull)
-lists which image holds which model.
+lists which model is in which image; every tag is under `irvlutd/rpx`.
 
 ## Benchmark your model
 
@@ -144,13 +146,14 @@ pip install 'rpx-benchmark[hub,schemas]'
 import numpy as np
 import rpx_benchmark as rpx
 
-# 1. Download one task's data: only its files, about 160 MB for this 6-frame trial
+# 1. Download the task's data
 manifest = rpx.download_split("monocular_depth", "easy", max_samples=6)
 
-# 2. Wrap your model in the task's adapter and run the benchmark
-def predict(rgb):                               # RPX passes an RGB image (H, W, 3)
-    return np.ones(rgb.shape[:2], np.float32)   # return depth (H, W) in metres; replace with your model
+# 2. Your model: RGB image (H, W, 3) in, depth (H, W) in metres out
+def predict(rgb):
+    return np.ones(rgb.shape[:2], np.float32)
 
+# 3. Wrap it in the task's adapter and run the benchmark
 model = rpx.make_numpy_depth_model(predict, name="my-model")
 result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
     model=model, manifest_path=str(manifest), output_dir="rpx_results/my-model",
@@ -169,7 +172,8 @@ To browse the data without the toolkit:
 ```python
 from datasets import load_dataset
 
-easy = load_dataset("IRVLUTD/RPX", "multi_object", split="easy")   # the paper's Easy tier: 33 scenes × 3 phases
+# The paper's Easy tier: 33 scenes × 3 phases
+easy = load_dataset("IRVLUTD/RPX", "multi_object", split="easy")
 objects = load_dataset("IRVLUTD/RPX", "single_object", split="objects")
 ```
 
@@ -277,9 +281,11 @@ ground truth to the model.
 
 ```bibtex
 @misc{rpx2026,
-  title  = {Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild},
-  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and Kamath, Srinanditha and
-            Allu, Sai Haneesh and Rangappa, Govind Tyagi and Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
+  title  = {Same Scene, Different Story: Evaluating Robot Perception Across
+            Scene Phases in the Wild},
+  author = {{Jishnu Jaykumar P} and Kadosh, Itay and Vijayakumar, Narendhiran and
+            Kamath, Srinanditha and Allu, Sai Haneesh and Rangappa, Govind Tyagi and
+            Maheshwari, Animesh and Wang, Jikai and Xiang, Yu},
   year   = {2026},
   note   = {Dataset: \url{https://huggingface.co/datasets/IRVLUTD/RPX}}
 }
