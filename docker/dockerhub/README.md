@@ -18,8 +18,7 @@ Ready-to-run Docker images for every model evaluated in **Same Scene, Different 
 
 Each task's image is built cumulatively, so one tag holds every model the paper evaluated on that task.
 
-> [!NOTE]
-> Always name a tag. A bare `docker pull irvlutd/rpx` fetches an old, unrelated capture environment, and tags not listed here are earlier build stages kept for provenance.
+> **Always name a tag.** A bare `docker pull irvlutd/rpx` fetches an old, unrelated capture environment, and tags not listed here are earlier build stages kept for provenance.
 
 ### T1 Image depth · 10 models
 
