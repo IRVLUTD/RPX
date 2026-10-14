@@ -10,6 +10,10 @@ on:
       - "tools/docs/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
+  # the project page lives in IRVLUTD/irvlutd.github.io; that repo can trigger a
+  # republish here with a repository_dispatch of this type
+  repository_dispatch:
+    types: [publish-project-page]
 
 permissions:
   contents: read
@@ -25,6 +29,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # This Pages site owns https://irvlutd.github.io/RPX/ in full: a project
+      # site shadows the same-named folder in the org site, so the org site's
+      # RPX/ page is unreachable and /RPX/ 404s unless we publish it here.
+      # The page's source stays in the website repo; we only copy it at deploy
+      # time. Its ../assets/... links resolve to the org site, same origin.
+      - name: Check out the project page
+        uses: actions/checkout@v4
+        with:
+          repository: IRVLUTD/irvlutd.github.io
+          ref: main
+          path: .website
+          sparse-checkout: RPX
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -33,6 +51,8 @@ jobs:
         run: python -m pip install -e './benchmark[hub,schemas,hf-datasets,docs]'
       - name: Build toolkit API pages
         run: python tools/docs/build_pages.py --output _site
+      - name: Add the project page at the site root
+        run: cp -R .website/RPX/. _site/
       - name: Verify published entry points
         run: |
           test -s _site/toolkit-docs/index.html
@@ -40,7 +60,8 @@ jobs:
           test -s _site/toolkit-docs/metrics/index.html
           test -s _site/toolkit-docs/tasks/index.html
           test -s _site/toolkit-docs/rpx_benchmark/hub.html
-          test ! -e _site/index.html
+          test -s _site/index.html
+          grep -q 'RPX' _site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
