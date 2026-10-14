@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="8 0 52 52" role="img" aria-label="RPX">
+  <defs>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/><stop offset="0.5" stop-color="#DB2777"/><stop offset="1" stop-color="#C2410C"/>
+    </linearGradient>
+    <radialGradient id="pupil" cx="0.42" cy="0.40" r="0.62">
+      <stop offset="0" stop-color="#3B2F7A"/><stop offset="1" stop-color="#14112E"/>
+    </radialGradient>
+  </defs>
+  <g stroke-linecap="round">
+    <path d="M19 12.5 L37.5 25.5" stroke="#4F46E5" stroke-width="2.2" fill="none"/>
+    <path d="M15.5 26 L37 26" stroke="#DB2777" stroke-width="2.2" fill="none"/>
+    <path d="M19 40 L37.5 27.5" stroke="#C2410C" stroke-width="2.2" fill="none"/>
+    <circle cx="19" cy="12.5" r="3.3" fill="#4F46E5"/>
+    <circle cx="15.5" cy="26" r="3.3" fill="#DB2777"/>
+    <circle cx="19" cy="40" r="3.3" fill="#C2410C"/>
+    <circle cx="46.0" cy="26.0" r="11.2" fill="url(#ring)"/>
+    <circle cx="46.0" cy="26.0" r="8.1" fill="#FFFFFF"/>
+    <circle cx="46.0" cy="26.0" r="6.9" fill="url(#pupil)"/>
+    <circle cx="46.0" cy="26.0" r="6.9" fill="none" stroke="#6D5BD0" stroke-width="0.7" opacity="0.8"/>
+    <circle cx="48.4" cy="23.4" r="1.75" fill="#FFFFFF"/>
+    <circle cx="43.7" cy="28.6" r="0.75" fill="#FFFFFF" opacity="0.85"/>
+  </g>
+</svg>

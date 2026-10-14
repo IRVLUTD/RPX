@@ -34,8 +34,31 @@ body { background: var(--rpx-paper); }
 }
 .md-typeset h1 { font-size: 2.25rem; }
 .md-typeset h2 { margin-top: 2.4rem; font-size: 1.45rem; }
-.md-header { background: #183b38; box-shadow: none; border-bottom: 1px solid #ffffff18; }
+/* Header: the RPX logo on a plain bar. The logo already says "RPX", so the title shows "Toolkit". */
+.md-header { background: #ffffff; color: #1e1b4b; box-shadow: none; border-bottom: 1px solid var(--rpx-line); }
+[data-md-color-scheme="slate"] .md-header { background: #0f1a19; color: #e9eee6; border-bottom-color: #ffffff18; }
+.md-header__button.md-logo { margin: .2rem .2rem .2rem .4rem; padding: .2rem; }
+.md-header__button.md-logo img { height: 1.75rem; width: auto; }
+[data-md-color-scheme="slate"] .md-header__button.md-logo img { content: url("../assets/logo-dark.svg"); }
+.md-nav__title .md-nav__button.md-logo img { height: 2.2rem; width: auto; }
+[data-md-color-scheme="slate"] .md-nav__title .md-nav__button.md-logo img { content: url("../assets/logo-dark.svg"); }
 .md-header__topic { font-weight: 600; letter-spacing: -.02em; }
+.md-header__title .md-header__topic:first-child .md-ellipsis { font-size: 0; }
+.md-header__title .md-header__topic:first-child .md-ellipsis::before { content: "Toolkit"; font-size: .9rem; color: #64748b; font-weight: 600; }
+[data-md-color-scheme="slate"] .md-header__title .md-header__topic:first-child .md-ellipsis::before { color: #bac6bd; }
+.md-header .md-search__input { background: #f1f5f4; color: #192e2b; }
+.md-header .md-search__input::placeholder, .md-header .md-search__icon { color: #566760; }
+[data-md-color-scheme="slate"] .md-header .md-search__input { background: #22322c; color: #e9eee6; }
+[data-md-color-scheme="slate"] .md-header .md-search__input::placeholder,
+[data-md-color-scheme="slate"] .md-header .md-search__icon { color: #bac6bd; }
+.md-header .md-header__source { color: inherit; }
+/* Sidebar: section headers stand out from the pages under them; a page's own headings nest beneath it. */
+.md-nav--primary > .md-nav__list > .md-nav__item--section > .md-nav__link {
+  margin-top: 1.1rem; color: var(--rpx-ink); font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.md-nav--primary .md-nav--secondary { border-left: 1px solid var(--rpx-line); margin-left: .6rem; }
+.md-nav--primary .md-nav--secondary .md-nav__link { font-size: .62rem; color: var(--rpx-muted); }
+.md-nav--primary .md-nav--secondary .md-nav__link--active { color: var(--md-accent-fg-color); }
 .md-nav__link { border-radius: 0; }
 .md-nav__link--active { font-weight: 650; }
 .md-typeset pre > code, .md-typeset table:not([class]), .md-typeset .admonition,
@@ -181,3 +204,8 @@ body { background: var(--rpx-paper); }
 .md-typeset figure.rpx-overview-figure { margin: 0 0 2rem; max-width: 100%; text-align: left; }
 .rpx-overview-figure img { display: block; width: 100%; height: auto; }
 .md-typeset .rpx-overview-figure figcaption { margin: .7rem 0 0; color: var(--rpx-muted); font-size: .65rem; font-style: normal; line-height: 1.6; max-width: none; }
+/* The header already names the site; on wide screens the sidebar's own title only repeats it. */
+@media screen and (min-width: 76.25em) {
+  .md-nav--primary > .md-nav__title { display: none; }
+  .md-nav--primary > .md-nav__list > .md-nav__item--section:first-child > .md-nav__link { margin-top: 0; }
+}

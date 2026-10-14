@@ -19,7 +19,7 @@ from the same code as the PyPI package.
 
 ## Public Python interface
 
-Most users only need the top-level [`rpx_benchmark`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark.html) package.
+Most users only need `import rpx_benchmark as rpx`; the table above shows where each piece lives.
 [`api`](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/api.html) defines samples, task identities, ground truths,
 and predictions. The modules below cover the rest.
 

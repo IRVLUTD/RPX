@@ -32,6 +32,10 @@ def main() -> None:
         if parts[-1] == "__init__":
             parts.pop()
         modules.append(".".join(parts))
+    # The package root re-exports most of the API, so its page duplicated every
+    # module page in one multi-megabyte file. Leave it out; the API guide is the
+    # entry point and links to each module.
+    modules.remove("rpx_benchmark")
     with tempfile.TemporaryDirectory(prefix="rpx-api-docs-") as tmp:
         subprocess.run(
             [

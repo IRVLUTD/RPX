@@ -9,6 +9,8 @@ theme:
   name: material
   language: en
   font: false
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
   palette:
     - media: '(prefers-color-scheme: light)'
       scheme: default
@@ -26,6 +28,10 @@ theme:
         name: Switch to light mode
   features:
     - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - toc.integrate
+    - toc.follow
     - navigation.top
     - navigation.footer
     - content.code.copy
@@ -49,14 +55,15 @@ markdown_extensions:
 extra_css:
   - stylesheets/extra.css
 nav:
-  - Overview: README.md
-  - Capabilities: capabilities/README.md
-  - Get started: getting-started/README.md
+  - Start here:
+      - Overview: README.md
+      - What the toolkit does: capabilities/README.md
+      - Get started: getting-started/README.md
   - Data and annotation:
       - Data: data/README.md
       - Mask annotation pipeline: annotation/README.md
-  - Bring your own model: models/README.md
-  - Task walkthroughs:
+  - Score your model:
+      - Bring your own model: models/README.md
       - All six tasks: benchmarks/README.md
       - T1 Image depth: benchmarks/t1/README.md
       - T2 Video depth: benchmarks/t2/README.md
@@ -64,10 +71,12 @@ nav:
       - T4 Camera pose: benchmarks/t4/README.md
       - T5 VQA: benchmarks/t5/README.md
       - T6 In-context VQA: benchmarks/t6/README.md
-  - Hardware profiler: profiling/README.md
-  - Φ and JEDI calculator: analysis/README.md
+  - Analyse results:
+      - Φ and JEDI calculator: analysis/README.md
+      - Hardware profiler: profiling/README.md
   - Extend the toolkit:
       - Add metrics: metrics/README.md
       - Add tasks: tasks/README.md
-  - API reference: api/README.md
-  - Citation and licenses: citation/README.md
+  - Reference:
+      - API reference: api/README.md
+      - Citation and licenses: citation/README.md
