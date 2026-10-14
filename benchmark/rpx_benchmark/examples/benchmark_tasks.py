@@ -313,6 +313,11 @@ def main() -> None:
     parser.add_argument("--depth-output-kind", choices=["metric", "relative"], default="metric")
     parser.add_argument("--image-cache", type=Path)
     parser.add_argument(
+        "--full",
+        action="store_true",
+        help="T5/T6: score the paper's full question list instead of the packaged quick start",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         help="results folder (default: rpx_results/<task>/<model>, numbered if taken)",
@@ -359,12 +364,14 @@ def main() -> None:
     else:
         if args.task == "all":
             parser.error("Real runs score one task at a time: pass --task T1 ... T6")
+        if args.full and (args.task not in {"T5", "T6"} or args.manifest):
+            parser.error("--full selects the full T5/T6 question list; drop it, or drop --manifest")
         output = args.output or default_output(args.task, args.model)
         manifest = args.manifest
         max_samples = args.max_samples
         image_cache = args.image_cache
         if manifest is None:
-            manifest = download(args.task, args.split, args.max_samples)
+            manifest = download(args.task, args.split, args.max_samples, full=args.full)
             max_samples = None  # the downloaded manifest already holds exactly these rows
             if args.task in {"T5", "T6"}:
                 image_cache = image_cache or manifest.parent / "vqa-images"

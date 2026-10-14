@@ -178,6 +178,14 @@ DEFAULT_REPO_ID = os.environ.get("RPX_HF_REPO", "IRVLUTD/RPX")
 DEFAULT_REVISION = os.environ.get(
     "RPX_HF_REVISION", "51432e5d48895bbafb490ae7c5e34e0f6b7da7d6"
 )
+# The VQA question lists live in a later commit than the images they point at:
+# a list pinned to DEFAULT_REVISION cannot also be stored at that revision, since
+# a commit can't contain its own hash. Lists are read from VQA_MANIFEST_REVISION;
+# every image inside them is read from DEFAULT_REVISION (IRVLUTD/RPX#96).
+VQA_MANIFEST_REVISION = os.environ.get(
+    "RPX_VQA_MANIFEST_REVISION", "4f5d13bf37ebf3e50a382e747e9ea63163f037b6"
+)
+VQA_BENCHMARK_LIST = "vqa/metadata/benchmark_subset_v1/benchmark_available_31500.jsonl"
 REPO_TYPE = "dataset"
 
 # ------------------------------------------------------------------ #

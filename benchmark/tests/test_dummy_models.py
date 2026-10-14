@@ -69,3 +69,49 @@ def test_benchmark_scores_dummy_model_offline(tmp_path, task: str) -> None:
     report = benchmark(task, manifest, output=tmp_path / "results")
     assert report["num_samples"] == 1
     assert report["metrics"]
+
+
+def test_vqa_lists_and_images_have_separate_pins() -> None:
+    from rpx_benchmark.hub import VQA_BENCHMARK_LIST, VQA_MANIFEST_REVISION
+
+    assert len(VQA_MANIFEST_REVISION) == 40 and VQA_MANIFEST_REVISION != DEFAULT_REVISION
+    assert VQA_BENCHMARK_LIST.endswith("benchmark_available_31500.jsonl")
+
+
+@pytest.mark.parametrize("task, in_context", [("T5", False), ("T6", True)])
+def test_full_download_reads_the_list_revision(
+    tmp_path, monkeypatch, task: str, in_context: bool
+) -> None:
+    import huggingface_hub
+
+    from rpx_benchmark import quickstart
+    from rpx_benchmark.hub import VQA_MANIFEST_REVISION
+    from rpx_benchmark.vqa import hub_rgb
+
+    rows = [
+        line
+        for name in ("t5", "t6")
+        for line in (benchmark_tasks.VQA_QUICKSTART / f"{name}.jsonl").read_text().splitlines()
+    ]
+    full_list = tmp_path / "benchmark_available_31500.jsonl"
+    full_list.write_text("\n".join(rows) + "\n")
+    seen = {}
+
+    def fake_download(repo_id, filename, *, repo_type, revision):
+        seen.update(filename=filename, revision=revision)
+        return str(full_list)
+
+    monkeypatch.setattr(huggingface_hub, "hf_hub_download", fake_download)
+    monkeypatch.setattr(hub_rgb, "fetch_images_many", lambda samples, root: None)
+    manifest = quickstart.download(task, cache_dir=tmp_path / "data", full=True)
+    assert seen["revision"] == VQA_MANIFEST_REVISION
+    samples = load_manifest(manifest)
+    assert samples and all(sample.is_in_context == in_context for sample in samples)
+
+
+def test_full_download_is_vqa_only(tmp_path) -> None:
+    from rpx_benchmark.exceptions import ConfigError
+    from rpx_benchmark.quickstart import download
+
+    with pytest.raises(ConfigError):
+        download("T1", full=True, cache_dir=tmp_path)

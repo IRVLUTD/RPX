@@ -37,13 +37,16 @@ def download(
     split: str = "easy",
     max_samples: int | None = None,
     cache_dir: str | Path | None = None,
+    full: bool = False,
 ) -> Path:
     """Download the data one paper task needs and return its local manifest.
 
     Only that task's files are fetched (a 6-sample T1 trial is about 160 MB).
     T5/T6 use the packaged, revision-pinned questions and fetch just their
-    images; ``split`` does not apply to them. ``cache_dir`` relocates the
-    T1-T4 dataset cache and the T5/T6 image folder (default ``rpx-data``).
+    images; ``split`` does not apply to them. ``full=True`` uses the paper's
+    complete T5/T6 list instead (21,000 / 10,500 questions), read from
+    ``hub.VQA_MANIFEST_REVISION``. ``cache_dir`` relocates the T1-T4 dataset
+    cache and the T5/T6 image folder (default ``rpx-data``).
     """
     from .examples import benchmark_tasks as bt
     from .hub import download_split
@@ -51,13 +54,31 @@ def download(
     from .vqa.hub_rgb import fetch_images_many
 
     task = _check_task(task)
+    if full and task not in _VQA:
+        raise ConfigError(
+            f"full=True applies to T5 and T6 only, not {task}",
+            hint="T1-T4 already download the full split when max_samples is None.",
+        )
     if task in _VQA:
-        samples = load_manifest(bt.VQA_QUICKSTART / f"{task.lower()}.jsonl")
+        if full:
+            from huggingface_hub import hf_hub_download
+
+            from .hub import DEFAULT_REPO_ID, VQA_BENCHMARK_LIST, VQA_MANIFEST_REVISION
+
+            source = hf_hub_download(
+                DEFAULT_REPO_ID,
+                VQA_BENCHMARK_LIST,
+                repo_type="dataset",
+                revision=VQA_MANIFEST_REVISION,
+            )
+            samples = [s for s in load_manifest(source) if s.is_in_context == (task == "T6")]
+        else:
+            samples = load_manifest(bt.VQA_QUICKSTART / f"{task.lower()}.jsonl")
         samples = samples[:max_samples] if max_samples else samples
         root = Path(cache_dir or "rpx-data")
         print(f"Downloading {bt.TASK_LABELS[task]} images ({len(samples)} questions) ...")
         fetch_images_many(samples, root / "vqa-images")
-        manifest = root / f"{task}_quickstart.jsonl"
+        manifest = root / f"{task}_{'full' if full else 'quickstart'}.jsonl"
         write_manifest(samples, manifest)
         return manifest
     name, hub_name = bt.HUB_MANIFESTS[task]
