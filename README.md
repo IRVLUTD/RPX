@@ -1,10 +1,8 @@
 <div align="center">
 
-# 🤖 RPX
+# RPX
 
 ### Same Scene, Different Story:<br> Evaluating Robot Perception Across Scene Phases in the Wild
-
-<br>
 
 <a href="https://jishnujayakumar.github.io">Jishnu Jaykumar P</a><sup>1&ast;</sup> &nbsp;·&nbsp;
 <a href="https://github.com/Optimax14">Itay Kadosh</a><sup>2&ast;</sup> &nbsp;·&nbsp;
@@ -35,24 +33,18 @@
 
 </div>
 
-<br>
+RPX measures how well robot perception models hold up while a robot changes the scene. We recorded 100 real
+scenes before, during and after manipulation, and score six tasks on the same frames, so a model's drop from
+one phase to the next is directly visible.
 
-**RPX** tells you which perception model **keeps working while a robot changes the scene**: the same 100 real scenes,
-recorded before, during and after manipulation, scored on six tasks.
+Across the 49 models we evaluated:
 
-<br>
+- None of the 65 evaluations is both accurate and robust across phases.
+- Video depth error at close range grows 2–4× while the scene is being manipulated.
+- Trackers switch identities 5–11× more often during interaction.
+- The best of 12 VLM configurations for in-context grounding reaches a worst-phase score of only 𝒥<sub>min</sub> = 0.23.
 
-<div align="center">
-
-| 🎯 Accurate *and* robust | 📉 Video depth while acting | 🔁 Tracker identity switches | 💬 Best in-context grounding |
-|:-:|:-:|:-:|:-:|
-| **0 / 65**<br><sub>evaluations in the golden zone</sub> | **2–4×**<br><sub>near-range error during Interaction</sub> | **5–11×**<br><sub>more during Interaction</sub> | **𝒥<sub>min</sub> = 0.23**<br><sub>across 12 VLM configurations</sub> |
-
-</div>
-
-<br>
-
-## 📝 Citation
+## Citation
 
 ```bibtex
 @misc{rpx2026,
@@ -64,31 +56,31 @@ recorded before, during and after manipulation, scored on six tasks.
 }
 ```
 
-<br>
+## What's in this repository
 
-## 🧰 What you get
+The `rpx-benchmark` package gives you the data, the benchmark and the metrics from the paper. You supply a
+function that runs your model; an adapter converts between it and RPX.
 
-| Piece | What it gives you | Function |
+| Component | Purpose | Entry point |
 |:--|:--|:--|
-| 📦 **Data** | 100 real scenes in three phases, downloaded per task | `rpx.download_split` |
-| 🔌 **Adapters** | connect your model's inputs and outputs to RPX | `rpx.make_numpy_*_model` |
-| 🧪 **Benchmark** | the six paper tasks with the paper's protocol and metrics | `rpx.run_*` |
-| 🧮 **Metrics calculator** | Φ (phase robustness) and 𝒥<sub>min</sub> (worst-phase quality) | `calculate` |
+| Data | 100 real scenes in three phases, downloaded per task | `rpx.download_split` |
+| Adapters | connect your model's inputs and outputs to RPX | `rpx.make_numpy_*_model` |
+| Benchmark | the six paper tasks with the paper's protocol and metrics | `rpx.run_*` |
+| Metrics | phase robustness Φ and worst-phase quality 𝒥<sub>min</sub> | `calculate` |
 
-**Your part is one function** that runs your model; the adapter handles RPX's inputs and outputs around it. Adding a
-new task or metric? See the toolkit docs on [tasks](https://irvlutd.github.io/RPX/toolkit-docs/tasks/) and [metrics](https://irvlutd.github.io/RPX/toolkit-docs/metrics/).
+To add a task or a metric, see the toolkit docs on [tasks](https://irvlutd.github.io/RPX/toolkit-docs/tasks/)
+and [metrics](https://irvlutd.github.io/RPX/toolkit-docs/metrics/).
 
-<br>
+## Getting started
 
-## 🚀 Get started
-
-**1 · Install**
+Install the package:
 
 ```bash
 pip install 'rpx-benchmark[hub,schemas]'
 ```
 
-**2 · Download one task's data** (only its files: about 160 MB for this 6-frame trial, no login)
+Download the data for one task. This fetches only that task's files, about 160 MB for a 6-frame trial, and
+needs no login:
 
 ```python
 import numpy as np
@@ -97,7 +89,7 @@ import rpx_benchmark as rpx
 manifest = rpx.download_split("monocular_depth", "easy", max_samples=6)
 ```
 
-**3 · Wrap your model in the task's adapter and run the benchmark**
+Wrap your model in the task's adapter and run the benchmark:
 
 ```python
 def predict(rgb):                               # RPX passes an RGB image (H, W, 3)
@@ -110,8 +102,8 @@ result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
 print(result.aggregated["absrel"], result.aggregated["delta1"])
 ```
 
-**4 · Calculate Φ and 𝒥<sub>min</sub>.** These need all three phases of many scenes: drop max_samples in step 2 to get
-the full tier, then
+Φ and 𝒥<sub>min</sub> compare phases, so they need all three phases of many scenes. Drop `max_samples` above to
+download the full tier, then:
 
 ```python
 from rpx_benchmark.examples.summarize_metrics import calculate, read_records
@@ -119,38 +111,34 @@ from rpx_benchmark.examples.summarize_metrics import calculate, read_records
 summary = calculate(read_records(paths["json"]), ["absrel", "rmse", "silog", "delta1"])
 ```
 
-| Task | Data: `download_split(…)` | Adapter | Benchmark | Paper metrics for the calculator |
+The other tasks follow the same pattern:
+
+| Task | Data: `download_split(…)` | Adapter | Benchmark | Paper metrics |
 |:--|:--|:--|:--|:--|
-| **T1** Image depth | `"monocular_depth"` | `make_numpy_depth_model` | `run_monocular_depth` | absrel · rmse · silog · delta1 |
-| **T2** Video depth | `"video_depth"` | `make_numpy_video_depth_model` | `run_video_depth` | T1's + tgm · tgse |
-| **T3** Tracking | `"object_tracking"` | `make_numpy_tracking_model` | `run_object_tracking` | HOTA · MOTA · IDSW |
-| **T4** Camera pose | `"relative_camera_pose"`, `manifest_name="relative_pose"` | `make_numpy_pose_model` | `run_relative_pose` | AUC @ 5° · 10° · 20° |
-| **T5** VQA | `rpx.download("T5")` (packaged questions) | none: your function returns text | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5 · GIoU · center-in-GT |
-| **T6** In-context VQA | `rpx.download("T6")` | none | `rpx_benchmark.vqa.evaluate_vqa` | same as T5 |
+| T1 Image depth | `"monocular_depth"` | `make_numpy_depth_model` | `run_monocular_depth` | AbsRel, RMSE, SILog, δ1 |
+| T2 Video depth | `"video_depth"` | `make_numpy_video_depth_model` | `run_video_depth` | T1's, plus TGM and TGSE |
+| T3 Tracking | `"object_tracking"` | `make_numpy_tracking_model` | `run_object_tracking` | HOTA, MOTA, IDSW |
+| T4 Camera pose | `"relative_camera_pose"`, `manifest_name="relative_pose"` | `make_numpy_pose_model` | `run_relative_pose` | AUC at 5°, 10°, 20° |
+| T5 VQA | `rpx.download("T5")` (packaged questions) | none; your function returns text | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5, GIoU, center-in-GT |
+| T6 In-context VQA | `rpx.download("T6")` | none | `rpx_benchmark.vqa.evaluate_vqa` | same as T5 |
 
-All functions are under `rpx` unless named in full. The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show what each task's function
-receives and returns. To try any task with a ready-made dummy model before writing
-code, `rpx.benchmark("T2", rpx.download("T2", max_samples=2))` runs steps 2–3 in one go.
+Functions are under `rpx` unless written out in full.
+[`dummy_models.py`](benchmark/rpx_benchmark/examples/dummy_models.py) shows what each task passes to your
+function and expects back. To try a task with a placeholder model before writing any code, run
+`rpx.benchmark("T2", rpx.download("T2", max_samples=2))`.
 
-<br>
+## Documentation
 
-## 📚 Learn more
+- [Toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/): per-task model contracts, the evaluation protocol, Φ and 𝒥<sub>min</sub>, and the annotation tools
+- [Dataset](https://huggingface.co/datasets/IRVLUTD/RPX) on Hugging Face: 100 scenes, 70 objects, 133K frames
+- [Docker images](docker/README.md) for the models evaluated in the paper
+- [Python package](benchmark/README.md), also on [PyPI](https://pypi.org/project/rpx-benchmark/)
 
-- 📘 [**Toolkit docs**](https://irvlutd.github.io/RPX/toolkit-docs/): what predict takes for each task, the full protocol, Φ and 𝒥<sub>min</sub>, metrics, annotation tools
-- 🤗 [**Dataset**](https://huggingface.co/datasets/IRVLUTD/RPX): 100 scenes, 70 objects, 133K frames, CC BY 4.0
-- 🐳 [**Paper's models**](docker/README.md): ready-to-run Docker images for the models evaluated in the paper
-- 🐍 [**Python API**](benchmark/README.md): the rpx-benchmark package, also on [PyPI](https://pypi.org/project/rpx-benchmark/)
+## License and contact
 
-<br>
+The code is released under the [MIT License](LICENSE) and the dataset under CC BY 4.0. For questions, open an
+[issue](https://github.com/IRVLUTD/RPX/issues) or contact [Jishnu](https://jishnujayakumar.github.io/),
+[Itay](https://github.com/Optimax14) or [Naren](https://narendhiranv04.github.io).
 
-<div align="center">
-<sub>
-Code: <a href="LICENSE">MIT</a> · Dataset: CC BY 4.0 ·
-Questions: <a href="https://github.com/IRVLUTD/RPX/issues">open an issue</a> or reach
-<a href="https://jishnujayakumar.github.io/">Jishnu</a>,
-<a href="https://github.com/Optimax14">Itay</a> or
-<a href="https://narendhiranv04.github.io">Naren</a>
-<br><br>
-Built at the <a href="https://labs.utdallas.edu/irvl/">Intelligent Robotics and Vision Lab</a>, The University of Texas at Dallas
-</sub>
-</div>
+RPX was built at the [Intelligent Robotics and Vision Lab](https://labs.utdallas.edu/irvl/), The University of
+Texas at Dallas.

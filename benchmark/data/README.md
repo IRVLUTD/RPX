@@ -1,22 +1,20 @@
 # Dataset metadata
 
-Large RGB-D assets and VQA Parquets are distributed through
-[IRVLUTD/RPX](https://huggingface.co/datasets/IRVLUTD/RPX), not Git.
+The RGB-D data and VQA Parquets live on [IRVLUTD/RPX](https://huggingface.co/datasets/IRVLUTD/RPX). This directory
+keeps the small metadata files the toolkit and its provenance depend on.
 
-- `splits/scene_splits.json` is the canonical scene-level easy/medium/hard
-  assignment: 33/33/34 scenes, using released `sceneNNN` identifiers. The text
-  files are loader-compatible exports of exactly those lists.
-- `release/manifest/` contains the retained dataset metadata snapshot: frame
-  indexes, old-to-released scene-name mapping, object catalog and mask/object
-  joins. The original dataset manifest records its schema and label versions.
-- `release/phase_splits/` retains the original per-phase ESD assignments. These
-  differ from the scene-level split and are provenance, not benchmark split inputs.
-- `release/objects_meta/` stores the selected objects' metadata and questionnaires.
-- Tracking's separately versioned vocabulary and its checksums live in
-  [`tracking/metadata/`](../../tracking/metadata/).
+| Path | Contents |
+|---|---|
+| `splits/scene_splits.json` | The easy, medium and hard scene tiers (33, 33 and 34 scenes) by released `sceneNNN` ID. The `.txt` files list the same scenes for loaders. |
+| `release/manifest/` | Metadata snapshot of the release: frame indexes, the mapping from old to released scene names, the object catalog, and mask-to-object joins. The dataset manifest records its schema and label versions. |
+| `release/phase_splits/` | The original per-phase splits. They differ from the scene tiers and are kept for provenance only; the benchmark doesn't read them. |
+| `release/objects_meta/` | Metadata and questionnaires for the selected objects. |
+| `vqa_smoke/v1/` | A small fixed VQA sample for mechanical tests ([details](vqa_smoke/v1/README.md)). |
 
-These metadata files describe the consolidated dataset snapshot; they do not
-replace the manifests downloaded at a run's pinned Hub revision. The benchmark
-records that revision with outputs. Generate new task manifests using
-`python -m rpx_benchmark.dataset_hub.cli manifest --help`; use explicit dataset
-and staging paths. Do not write prediction outputs into this directory.
+Tracking's text prompts are versioned separately, with their own checksums, in
+[`tracking/metadata/`](../../tracking/metadata/).
+
+These files describe the dataset snapshot. They don't replace the manifests a run downloads at its pinned Hub
+revision, which the benchmark records with every result. To generate new task manifests, see
+`python -m rpx_benchmark.dataset_hub.cli manifest --help` and pass explicit dataset and staging paths. Don't write
+predictions into this directory.

@@ -1,14 +1,13 @@
 # Data and annotations
 
-<figure class="rpx-workflow-figure"><a href="../assets/data-contract.svg"><img src="../assets/data-contract.svg" alt="The same scene012 input connects the modality and benchmark guides." loading="lazy"></a><figcaption>The same scene012 input connects the modality and benchmark guides. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/data-contract.svg"><img src="../assets/data-contract.svg" alt="The same scene012 input connects the modality and benchmark guides." loading="lazy"></a><figcaption>How one scene 012 capture feeds the modalities and the six tasks. Open the SVG to zoom.</figcaption></figure>
 
-RPX follows the same objects across scene phases. Its inputs and annotations support several perception tasks on shared captures, rather than unrelated task datasets.
+RPX follows the same objects through every phase of a scene, and all six tasks are scored on those same captures rather than on separate datasets.
 
-## Release inventory
+## What the release contains
 
-The canonical release contains **133,121 frame records**. Count one capture
-frame once; RGB, depth, masks and stereo files are modalities of that capture,
-not additional frames.
+The release has 133,121 frames. A frame is counted once: its RGB, depth, masks
+and stereo files are modalities of the same capture, not extra frames.
 
 | Stream | Captures | Frames |
 | --- | --- | ---: |
@@ -17,12 +16,11 @@ not additional frames.
 | Ego | 100 Interaction clips, variable length | 23,121 |
 | **Total** | MOS + SOS + Ego | **133,121** |
 
-Use the current release's `manifest/frames_v1.parquet` for frame discovery. The
-`hub.fetch_manifest` API loads task-level JSON manifests; download the frame
-inventory directly from the dataset Hub: Include the stream identity (`scene_type`) when checking
-uniqueness: exocentric and ego frames can share a scene, phase and frame index.
-Historical/local manifests can cover fewer ego clips and are not a substitute
-for the canonical release inventory.
+Every frame is listed in `manifest/frames_v1.parquet`. `hub.fetch_manifest`
+loads the per-task JSON manifests, not this inventory, so download it from the
+Hub directly. Include the stream (`scene_type`) when checking uniqueness:
+exocentric and ego frames can share a scene, phase and frame index. Older or
+local manifests may list fewer ego clips; the release inventory is the reference.
 
 ```python
 from huggingface_hub import HfApi, hf_hub_download
@@ -35,17 +33,17 @@ frames = pq.read_table(path)
 print(revision, frames.num_rows)
 ```
 
-Record that immutable revision with your benchmark outputs.
+Save the printed revision with your results.
 
 ## Capture views
 
-Exocentric Clutter, Interaction, and Clean provide RGB-D, masks, stereo, and pose. Egocentric RGB is captured during Interaction on an independent clock. Do not assume frame-level synchronization between the ego and exo streams.
+The exocentric Clutter, Interaction and Clean recordings have RGB-D, masks, stereo and pose. The egocentric RGB is recorded during Interaction on its own clock, so ego and exo frames are not synchronized.
 
-<figure class="rpx-wide-figure"><img src="../assets/interaction.jpg" width="640" height="480" alt="Exocentric scene 012 during interaction, with released instance-mask overlays." loading="lazy"><figcaption>Scene 012 / Interaction. Instance-mask overlays show the object identities that tracking and grounding rely on.</figcaption></figure>
+<figure class="rpx-wide-figure"><img src="../assets/interaction.jpg" width="640" height="480" alt="Exocentric scene 012 during interaction, with released instance-mask overlays." loading="lazy"><figcaption>Scene 012, Interaction, with the released instance masks overlaid. Tracking and grounding rely on these object identities.</figcaption></figure>
 
 ## Metric depth and instance masks
 
-The RGB, colorized depth and instance labels below are from scene012 Interaction frame00113. Colorized depth is a display aid (0.3–5.0 m display ramp; invalid depth is black); a benchmark must load the metric ground truth and honor its validity rules. Mask values encode instance identities, not depth or confidence.
+The images below are scene 012, Interaction, frame 00113. The depth is colorized over 0.3–5.0 m for display, with invalid pixels in black; benchmarks load the metric values and their validity mask. Mask values are instance IDs, not depth or confidence.
 
 <div class="rpx-modalities rpx-three">
 <figure><img src="../assets/rgb.jpg" width="640" height="480" loading="lazy" alt="RGB scene012 Interaction capture."><figcaption><span>RGB</span>Appearance</figcaption></figure>
@@ -53,13 +51,13 @@ The RGB, colorized depth and instance labels below are from scene012 Interaction
 <figure><img src="../assets/mask.png" width="640" height="480" loading="lazy" alt="Integer instance-mask labels visualized for the objects in scene012 Interaction frame00113."><figcaption><span>INSTANCE MASK</span>Object pixels and identity</figcaption></figure>
 </div>
 
-Masks connect local frame instances to persistent/global identities. The overlays on the [overview](../README.md) make these labels visible; the benchmark consumes the released mask IDs rather than rendered colors.
+Mask IDs map each object in a frame to its persistent, global identity. The benchmark reads the released IDs, not the overlay colors.
 
 ## How masks are annotated
 
-<figure class="rpx-wide-figure"><a href="../assets/mask-annotation.png"><img src="../assets/mask-annotation.png" width="3757" height="1519" loading="lazy" alt="Seven-stage mask annotation workflow: generate boxes, verify initial masks, propagate with SAM2, verify frame by frame, automatically refine, manually relabel, and release verified masks."></a><figcaption>RPX's automated and human-in-the-loop mask annotation workflow. Open the image for the full-resolution labels.</figcaption></figure>
+<figure class="rpx-wide-figure"><a href="../assets/mask-annotation.png"><img src="../assets/mask-annotation.png" width="3757" height="1519" loading="lazy" alt="Seven-stage mask annotation workflow: generate boxes, verify initial masks, propagate with SAM2, verify frame by frame, automatically refine, manually relabel, and release verified masks."></a><figcaption>The mask annotation workflow: automatic propagation with human review. Open the image at full resolution.</figcaption></figure>
 
-Automatic propagation is combined with human verification and correction. This archived annotation-process illustration uses a different scene; the current walkthrough diagrams use scene012. Follow the [mask annotation guide](../annotation/README.md) for tool names, commands, identity checks, and review steps. This figure describes dataset annotation, not the inference pipeline of every benchmark model.
+SAM2 propagates masks automatically; people verify every frame and correct the failures. The figure uses a different scene from the rest of these pages. The [mask annotation guide](../annotation/README.md) has the tools, commands and review steps.
 
 ## Stereo and pose
 
@@ -68,12 +66,12 @@ Automatic propagation is combined with human verification and correction. This a
 <figure><img src="../assets/stereo-right.jpg" width="848" height="800" loading="lazy" alt="Right calibrated T265 fisheye image."><figcaption><span>RIGHT</span>Fisheye stereo</figcaption></figure>
 </div>
 
-Relative-pose evaluation uses the task-specific image pairing and pose ground-truth protocol. Having a stereo or pose modality in a capture does not by itself define the evaluation split or eligible phase pairs.
+T4 uses its own image-pairing protocol and pose ground truth. Which phase pairs are evaluated is set by that protocol, not by which captures have stereo or pose.
 
 ## Check a dataset before benchmarking
 
-Verify modality paths, shape, depth units, camera-coordinate conventions, and joins between scene IDs, frame IDs, mask IDs, and object IDs. Use the same versioned split and validity rules across models. The dataset loader and task APIs define how those contracts enter a run.
+Check modality paths, shapes, depth units and camera conventions, and that scene, frame, mask and object IDs join up. Use the same versioned split and validity rules for every model. The loader and task APIs define how all of this enters a run.
 
 [Get started](../getting-started/README.md) · [Model integration](../models/README.md) · [Hub API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html)
 
-The images on these pages come from released scene012 captures and existing RPX appendix artwork. Their source files and hashes are recorded in [asset provenance](../assets/provenance.json).
+The images on these pages come from the released scene 012 captures and the paper's appendix figures; [provenance.json](../assets/provenance.json) lists their sources and hashes.

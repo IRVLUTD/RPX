@@ -1,6 +1,6 @@
 # Citation and licenses
 
-If you use RPX data, toolkit code, annotation tools or benchmark protocols, please cite the RPX paper:
+If you use the RPX data, toolkit, annotation tools or benchmark protocol, please cite:
 
 ```bibtex
 @misc{rpx2026,
@@ -16,6 +16,6 @@ The repository's [CITATION.cff](https://github.com/IRVLUTD/RPX/blob/main/CITATIO
 
 ## Licenses
 
-Toolkit code is **MIT**; see the [repository license](https://github.com/IRVLUTD/RPX/blob/main/LICENSE). Dataset terms are **CC BY 4.0** as specified in the [dataset card](https://huggingface.co/datasets/IRVLUTD/RPX). Pretrained model weights, annotation dependencies and upstream libraries retain their own licenses.
+The toolkit is [MIT](https://github.com/IRVLUTD/RPX/blob/main/LICENSE) and the dataset is CC BY 4.0 (see the [dataset card](https://huggingface.co/datasets/IRVLUTD/RPX)). Pretrained weights, annotation dependencies and other upstream libraries keep their own licenses.
 
-Keep model/checkpoint identifiers, toolkit version, dataset revision, sample protocol and metric settings with your results so readers can reproduce the comparison. The [asset provenance](../assets/provenance.json) identifies documentation images and vector workflow figures.
+When you publish results, include the model checkpoint, toolkit version, dataset revision, sampling and metric settings so others can reproduce them. Sources for the figures on these pages are in [provenance.json](../assets/provenance.json).

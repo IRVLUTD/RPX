@@ -1,10 +1,10 @@
-# Tracking (T3) assets
+# Tracking (T3)
 
-Released inputs for RPX's object-tracking task beyond the dataset itself.
+Released inputs for the object-tracking task that are not part of the dataset itself.
 
-| Folder | What it holds |
+| Folder | Contents |
 |:--|:--|
 | [`metadata/text_initialization_v1/`](metadata/text_initialization_v1/) | Fixed text prompts (`black hammer`, …) for text-prompted trackers, one per object per clip |
 
-The tracking evaluator and reference runners live in [`benchmark/`](../benchmark/README.md); the paper's tracker
-images are in the [Docker guide](../docker/README.md#which-image-to-pull).
+The tracking evaluator and reference runners are in [`benchmark/`](../benchmark/README.md). Docker images for the
+paper's trackers are listed in the [Docker guide](../docker/README.md#which-image-to-pull).

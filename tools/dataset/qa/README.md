@@ -1,96 +1,59 @@
-# RPX Rerun Visual Checks
+# Dataset QA
 
-This folder contains visual and structural QA helpers for the RPX release.
+Visual and structural checks for a downloaded or staged RPX dataset. Every script takes `--repo-root`, the dataset
+directory (not this source repository), and writes its outputs to `rerun_check/` under the current directory unless
+you pass `--out-dir`.
 
-## Quick RGB-D Segmentation Check
-
-`make_rerun_check.py` samples one representative middle frame from every scene phase in `preview/data_studio_preview.csv`.
-By default that is all 300 MOS entries: 100 scenes x 3 phases.
-
-It verifies:
-
-- RGB, depth, and mask shards exist.
-- RGB/depth/mask frame counts match.
-- RGB/depth/mask image sizes match.
-- Depth has nonzero values.
-- Masks contain foreground instance IDs.
-
-It writes:
-
-- `out/rpx_visual_check.rrd`: Rerun recording for interactive visual review.
-- `out/rpx_visual_contact_sheet.jpg`: contact sheet for a quick scan.
-- `out/visual_check_report.json`: machine-readable QA report.
-
-This is useful for a fast Data Studio / segmentation preview sanity check, but it is not the full release check.
-
-## Full All-Modality Release Check
-
-`check_all_modalities.py` checks the dataset contract across MOS and SOS:
-
-- 300 MOS scene-phases and 70 SOS selected objects.
-- RGB, depth, masks, fisheye left/right, camera pose, masks_aux, and SAM2 metadata shards.
-- Frame-count alignment and numbered filename sequences.
-- Decoded image samples from each visual stream.
-- Camera pose NPZ fields, finite values, and quaternion norms.
-- MOS mask-object joins against `manifest/mos_mask_object_map_v1.csv`.
-- SOS object metadata and questionnaires.
-- ESD split consistency, Data Studio preview images, release assets, and parquet row counts.
-
-By default it decodes first/middle/last frames for every aligned stream. Use `--sample-policy all` only when you want a much slower exhaustive decode pass.
-
-It writes:
-
-- `out_all/rpx_all_modalities_visual_check.rrd`: Rerun recording for scanning each scene/object unit.
-- `out_all/all_modalities_contact_sheet.jpg`: RGB/depth/mask/fisheye overview for all checked units.
-- `out_all/all_modalities_report.json`: machine-readable QA report.
-- `out_all/all_modalities_summary.md`: short human-readable summary.
-
-## Install
-
-From the repo root:
+## Setup
 
 ```bash
-python -m venv /tmp/rpx-rerun-venv
-/tmp/rpx-rerun-venv/bin/pip install -r rerun_check/requirements.txt
+python -m venv /tmp/rpx-qa
+/tmp/rpx-qa/bin/pip install -r tools/dataset/qa/requirements.txt "rpx-benchmark[hub]"
 ```
 
-If starting from a fresh machine, first use the published RPX Quick Start API:
+To fetch data to check, `download_rgbd_segmentation.py` pulls the RGB-D segmentation shards for all three tiers
+(`--splits` to choose), and `download_ego.py --local-dir DIR` pulls the egocentric shards.
+
+## Quick check
+
+`make_rerun_check.py` inspects the middle frame of every scene phase listed in `preview/data_studio_preview.csv`,
+300 in all (100 scenes × 3 phases). It confirms that the RGB, depth and mask shards exist with matching frame counts
+and image sizes, that depth has nonzero values, and that masks contain object instances.
 
 ```bash
-pip install "rpx-benchmark[hub]"
-hf auth login
-python rerun_check/download_rgbd_segmentation.py --repo-id IRVLUTD/RPX
+/tmp/rpx-qa/bin/python tools/dataset/qa/make_rerun_check.py --repo-root /data/rpx --limit 10
 ```
 
-## Run
+Drop `--limit` to check everything. It writes `rerun_check/out/rpx_visual_check.rrd` (a Rerun recording),
+`rpx_visual_contact_sheet.jpg` and `visual_check_report.json`. This is a fast preview check, not the release check.
 
-From the repo root:
+## Release check
+
+`check_all_modalities.py` checks the whole dataset contract for the 300 MOS scene phases and 70 SOS objects:
+
+- RGB, depth, mask, fisheye, camera pose, `masks_aux` and SAM2 metadata shards, with aligned frame counts and
+  consecutive file names
+- decoded samples from every image stream
+- camera pose fields, finite values and unit quaternions
+- MOS mask-to-object joins against `manifest/mos_mask_object_map_v1.csv`
+- SOS object metadata and questionnaires
+- split consistency, Data Studio preview images, release assets and Parquet row counts
 
 ```bash
-/tmp/rpx-rerun-venv/bin/python rerun_check/make_rerun_check.py
+/tmp/rpx-qa/bin/python tools/dataset/qa/check_all_modalities.py --repo-root /data/rpx
 ```
 
-Run the full all-modality release check:
+By default it decodes the first, middle and last frame of each stream; `--sample-policy all` decodes every frame and
+takes much longer. Outputs go to `rerun_check/out_all/`: a Rerun recording, a contact sheet, a JSON report and a
+Markdown summary.
+
+`check_depth_benchmark.py` audits depth shards on their own. Depth PNGs are uint16 millimetres; the script converts
+them to metres, treats 0 and 65535 as holes, and runs the benchmark's depth metrics on sampled ground-truth frames.
+Pass `--fail-on-warnings` to use it as a gate.
+
+## Viewing results
 
 ```bash
-/tmp/rpx-rerun-venv/bin/python rerun_check/check_all_modalities.py
-```
-
-Open the Rerun recording:
-
-```bash
-/tmp/rpx-rerun-venv/bin/rerun rerun_check/out/rpx_visual_check.rrd
-```
-
-Open the full all-modality Rerun recording:
-
-```bash
-/tmp/rpx-rerun-venv/bin/rerun rerun_check/out_all/rpx_all_modalities_visual_check.rrd
-```
-
-For a smaller smoke test:
-
-```bash
-/tmp/rpx-rerun-venv/bin/python rerun_check/make_rerun_check.py --limit 10
-/tmp/rpx-rerun-venv/bin/python rerun_check/check_all_modalities.py --limit 10
+/tmp/rpx-qa/bin/rerun rerun_check/out/rpx_visual_check.rrd
+/tmp/rpx-qa/bin/rerun rerun_check/out_all/rpx_all_modalities_visual_check.rrd
 ```

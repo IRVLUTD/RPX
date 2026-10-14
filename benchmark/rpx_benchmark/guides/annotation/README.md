@@ -1,10 +1,10 @@
 # Mask annotation pipeline
 
-Build ground-truth instance masks for new captures, then review and refine them. Released RPX masks can be used directly for benchmarking; annotation is a separate source-checkout workflow.
+These tools build ground-truth instance masks for new captures and let a person review and fix them. You don't need them to benchmark: the released RPX masks are ready to use. They run from a source checkout, not from the PyPI package.
 
-<figure class="rpx-workflow-figure"><a href="../assets/mask-pipeline.svg"><img src="../assets/mask-pipeline.svg" alt="RPX mask generation, human verification, refinement and release workflow using scene012 RGB." loading="lazy"></a><figcaption>Scene012 is the common walkthrough scene. This diagram explains the process; it does not claim that a new annotation release has been generated. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/mask-pipeline.svg"><img src="../assets/mask-pipeline.svg" alt="RPX mask generation, human verification, refinement and release workflow using scene012 RGB." loading="lazy"></a><figcaption>The mask pipeline, illustrated on scene 012. Open the SVG to zoom.</figcaption></figure>
 
-## What the pipeline does
+## Stages
 
 | Stage | Tool | Output |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ Build ground-truth instance masks for new captures, then review and refine them.
 
 ## Set up the annotation environment
 
-These tools live in [`data/mask_annotation/`](https://github.com/IRVLUTD/RPX/tree/main/data/mask_annotation), **outside the PyPI wheel**. Use a separate CUDA environment with compatible SAM2, GroundingDINO, [RoboKit](https://github.com/IRVLUTD/robokit), and a graphical display for human review. The annotation requirements and upstream model weights are separate from the lightweight benchmark install. Follow the [source setup guide](https://github.com/IRVLUTD/RPX/blob/main/data/mask_annotation/README.md#-quick-start).
+The tools live in [`data/mask_annotation/`](https://github.com/IRVLUTD/RPX/tree/main/data/mask_annotation) and are not part of the PyPI package. They need their own CUDA environment with SAM2, GroundingDINO and [RoboKit](https://github.com/IRVLUTD/robokit), plus a display for the review UI. See the [setup instructions](https://github.com/IRVLUTD/RPX/blob/main/data/mask_annotation/README.md#setup) in that folder.
 
 ```bash
 git clone https://github.com/IRVLUTD/RPX.git
@@ -30,7 +30,7 @@ python -m pip install -r requirements.txt
 
 ## Annotate one phase
 
-Use an unpacked capture tree with `rgb/` under each phase. Numeric directories `0`, `1`, `2` mean Clutter, Interaction, Clean. Work on a **copy** of a capture: the reverse-propagation tool reverses modality filenames and refinement updates masks in place.
+Start from an unpacked capture with an `rgb/` folder under each phase; the phase folders `0`, `1` and `2` are Clutter, Interaction and Clean. Work on a copy: reverse propagation renames modality files and refinement overwrites masks in place.
 
 ```bash
 # Run from RPX/data/mask_annotation, in the prepared annotation environment.
@@ -45,18 +45,18 @@ python -m maskgen_pipeline.review_faulty_masks --base_dir "$RPX_SCENE/1" --no_ve
 python -m maskgen_pipeline.manual_label_faulty --scene_dir "$RPX_SCENE/1" --iter 1
 ```
 
-Repeat for other phases as needed. A phase produces `sam2/masks/<frame>.png` with background `0` and nonzero instance IDs. An overlay image is only a visualization; the integer map is the annotation used for scoring.
+Repeat for the other phases. Each phase ends up with `sam2/masks/<frame>.png`: background is `0` and each object has its own nonzero instance ID. Overlays are only for viewing; the integer maps are the annotation.
 
 ## Verification and identity
 
-In the reviewer, **S** marks a frame verified; **X** removes verification; arrows navigate; **T** toggles contours; **Q** saves and exits. Refinement must be followed by another review. Check small, occluded, and newly visible objects as well as large foreground objects.
+In the reviewer, `S` marks a frame verified, `X` unmarks it, the arrow keys move between frames, `T` toggles contours and `Q` saves and exits. Review again after every refinement pass, and look at small, occluded and newly visible objects, not just the large ones in front.
 
-Keep mask IDs stable across phases and join them through the released object mapping when assigning global IDs. Never renumber objects separately in each frame. Distinguish an object outside the field of view from a visible object missing a mask. The availability of an overlay alone does not establish annotation completeness.
+Keep mask IDs stable across phases, and map them to global object IDs through the released object mapping; never renumber objects frame by frame. An object that has left the view is different from a visible object with a missing mask, so check which one you are looking at.
 
-Before packaging, verify frame coverage, integer labels, object mappings, and alignment of RGB/depth/mask filenames. Preserve capture order, calibration, mapping metadata, and version the corrected labels. Benchmark predictions must never replace GT.
+Before packaging, check frame coverage, the integer labels, the object mapping and that RGB, depth and mask filenames line up. Keep capture order, calibration and mapping metadata, and version the corrected labels. Model predictions never go into the ground truth.
 
 ## Related tools
 
-The repository also contains bounding-box review, verified-box SAM2 runs, egocentric extraction/annotation, mask visualization, spatial question generation, and VQA GT construction. Browse the [annotation source directory](https://github.com/IRVLUTD/RPX/tree/main/data/mask_annotation/maskgen_pipeline) and [VQA GT tooling](https://github.com/IRVLUTD/RPX/tree/main/data/mask_annotation/visual_grounding_gt/vqa_gt).
+The same folder has tools for box review, SAM2 runs from verified boxes, egocentric extraction and annotation, mask visualization, spatial question generation and VQA ground truth. See the [annotation source directory](https://github.com/IRVLUTD/RPX/tree/main/data/mask_annotation/maskgen_pipeline) and [VQA GT tooling](https://github.com/IRVLUTD/RPX/tree/main/data/mask_annotation/visual_grounding_gt/vqa_gt).
 
 [Data contracts](../data/README.md) · [T3 tracking](../benchmarks/t3/README.md) · [T5 grounding](../benchmarks/t5/README.md) · [Citation](../citation/README.md)

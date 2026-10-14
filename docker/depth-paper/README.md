@@ -1,8 +1,7 @@
-# DA-V2 Large RPX paper run
+# DA-V2 Large paper run
 
-This is a thin code overlay on the immutable cumulative HyDen image. It does
-not contain data, model weights or results. Keep both mounted directories on
-persistent server storage.
+A thin code overlay on the cumulative HyDen depth image for the full Depth Anything V2 Large run. It contains no data,
+weights or results, so keep both mounted directories on persistent storage.
 
 ```bash
 cd RPX
@@ -16,8 +15,8 @@ docker build --file docker/depth-paper/Dockerfile \
   --build-arg "RPX_GIT_SHA=$RPX_GIT_SHA" --tag "$IMAGE" .
 ```
 
-The preflight checks CUDA, imports and free space; it does not run a smoke
-inference. Start the complete 75,000-frame job in `tmux`:
+The preflight checks CUDA, imports and free disk; it does not run inference. Start the full 75,000-frame job in
+`tmux`:
 
 ```bash
 tmux new -s rpx-depth
@@ -30,15 +29,13 @@ docker run --rm --gpus all --ipc=host --shm-size=8g \
     --output-root /outputs/da-v2-large
 ```
 
-Detach with `Ctrl-b d`; reattach with `tmux attach -t rpx-depth`. If the run is
-interrupted, execute the identical Docker command. Every NPZ is CRC-loaded and
-validated before reuse; only missing or invalid entries are inferred.
+Detach with `Ctrl-b d` and reattach with `tmux attach -t rpx-depth`. If the run stops, rerun the same command. Saved
+NPZ files are CRC-checked and validated before reuse, and only missing or invalid ones are recomputed.
 
-After the cache has completed and been validated once, the same command can be
-made network-independent by adding `--offline` and omitting `HF_TOKEN`. This
-sets `HF_HUB_OFFLINE=1` for manifest resolution and all child runs.
+Once the cache is complete, you can run without network access by adding `--offline` and dropping `HF_TOKEN`. This sets
+`HF_HUB_OFFLINE=1` for manifest resolution and every child run.
 
-Final validation:
+To validate the finished run:
 
 ```bash
 find "$RPX_OUTPUT/da-v2-large"/easy/predictions \
@@ -62,7 +59,7 @@ print("validated", analysis["jedi"]["status"])
 PY
 ```
 
-To add JEDI later, mount a reviewed versioned bounds JSON and rerun only:
+To add JEDI later, mount a reviewed, versioned bounds file and rerun only the analysis:
 
 ```bash
 docker run --rm \

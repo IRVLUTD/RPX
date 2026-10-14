@@ -1,28 +1,28 @@
 # Φ and JEDI from raw metrics
 
-Separate **robustness to phase changes** from **prediction quality**. Φ summarizes phase robustness using repeated-measures analysis; JEDI combines direction-aware metric desirabilities; `Jmin` is the lowest phase-mean JEDI quality.
+RPX reports two separate things: how much a model's results change across phases (Φ), and how good they are (JEDI). Φ comes from a repeated-measures analysis; JEDI combines a task's metrics into one desirability score; 𝒥<sub>min</sub> is the JEDI of the model's worst phase.
 
-<figure class="rpx-workflow-figure"><a href="../assets/phi-jedi.svg"><img src="../assets/phi-jedi.svg" alt="Raw scene-phase metric rows become complete-case Phi and JEDI summaries with dropped-scene accounting." loading="lazy"></a><figcaption>Scene012 illustrates the data join; statistical analysis needs multiple complete scenes. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/phi-jedi.svg"><img src="../assets/phi-jedi.svg" alt="Raw scene-phase metric rows become complete-case Phi and JEDI summaries with dropped-scene accounting." loading="lazy"></a><figcaption>Scene 012 shows how records are joined; the statistics need many complete scenes. Open the SVG to zoom.</figcaption></figure>
 
 ## What the scores mean
 
 | Score | Computation | Interpretation |
 | --- | --- | --- |
-| **Φ** | `1 − effect size` from repeated-measures MANOVA; conservative minimum of Wilks/Pillai estimates | Higher means less phase-associated variation; it does not guarantee accurate predictions |
-| **JEDI / J** | Geometric mean of metric desirabilities per cell, then mean over retained scene/phase cells | Higher means better joint quality under the declared normalization windows |
-| **Jmin** | Minimum of the three phase-mean JEDI scores | Quality in the weakest phase; distinct from overall JEDI |
+| Φ | `1 − effect size` from repeated-measures MANOVA; conservative minimum of Wilks/Pillai estimates | Higher means less phase-associated variation; it does not guarantee accurate predictions |
+| JEDI (𝒥) | Geometric mean of metric desirabilities per cell, then mean over retained scene/phase cells | Higher means better joint quality under the declared normalization windows |
+| 𝒥<sub>min</sub> | Minimum of the three phase-mean JEDI scores | Quality in the weakest phase; distinct from overall JEDI |
 
-For a raw metric `x`, individual desirability is `clip((x − worst)/(best − worst), 0, 1)`. Bounds encode direction: lower-is-better metrics have `best < worst`. Strict JEDI uses no positive floor, so one zero desirability makes that cell's composite zero. Empirical bounds are part of the evaluation protocol; use the same frozen bounds for comparisons.
+For a raw metric `x`, its desirability is `clip((x − worst)/(best − worst), 0, 1)`. The bounds encode direction: lower-is-better metrics have `best < worst`. There is no positive floor, so a single zero desirability makes that cell's JEDI zero. The empirical bounds are part of the protocol; use the same frozen bounds for every model you compare.
 
 ## Prepare raw records
 
-Use CSV, JSONL, a JSON list, or runner JSON containing `per_sample`. Each row must include `scene` (or `scene_id`), `phase`, and the selected numeric metric columns. Optional `model` and `task` columns prevent independent runs from being combined. Use `clutter`, `interaction`, `clean` or `0`, `1`, `2` for phases. Values must be finite and in each metric's documented units; directions/bounds come from registered `MetricSpec` objects.
+The calculator reads CSV, JSONL, a JSON list, or a runner's `result.json` (its `per_sample` rows). Each row needs `scene` (or `scene_id`), `phase`, and the metric columns you select. Optional `model` and `task` columns keep separate runs from being mixed. Phases are `clutter`, `interaction`, `clean` or `0`, `1`, `2`. Values must be finite and in each metric's documented units; directions and bounds come from the registered `MetricSpec`s.
 
 ```json
 {"model":"my-depth-model","task":"T1","scene":"scene012","phase":"interaction","absrel":0.12,"rmse":0.36,"delta1":0.84}
 ```
 
-That is a **schema illustration**, not a reported model result. A single scene cannot support Φ. Multiple observations in one scene/phase are averaged into a cell; scenes missing any required phase are dropped and counted. Each run must contain all three phases overall. Keep the same sample policy and eligible scene set across models, and inspect dropped scenes before comparing scores.
+That row shows the format; it isn't a real result. Several rows for the same scene and phase are averaged into one cell. Scenes missing a phase are dropped and counted, and each run must cover all three phases overall. One scene is not enough for Φ. Use the same samples and scenes for every model, and look at the dropped scenes before comparing.
 
 ## Run the packaged calculator
 
@@ -32,13 +32,13 @@ python -m rpx_benchmark.examples.summarize_metrics \
   --output results/phi-jedi.json
 ```
 
-The output records the source SHA256, chosen metric specs, canonical phase order, independent model/task summaries, `n_eff`, `n_dropped`, per-phase means, transition tests, statistical notes and `j_min`. Insufficient or singular data can leave Φ unavailable while JEDI remains reported; do not interpret unavailable Φ as zero robustness. Φ needs more complete scenes than metric columns (`N_eff > K`) and adequate within-phase variation.
+The output records the input's SHA-256, the metric specs used, the phase order, a summary per model and task, `n_eff`, `n_dropped`, per-phase means, transition tests, statistical notes and `j_min`. Φ needs more complete scenes than metrics (`N_eff > K`) and some variation within each phase. With too little or singular data, Φ is reported as unavailable while JEDI is still computed; unavailable doesn't mean zero.
 
-The three-metric command is an **integration example**. Reproduce the paper using its task-specific frozen metric vector and bounds: image depth uses `(absrel, rmse, silog, delta1)` and video depth uses `(absrel, rmse, silog, delta1, tgm, tgse)`, as in the paper's Tables III and IV. Other task protocols require their corresponding metric vectors. A printed aggregate table cannot recover the paired raw observations needed for Φ.
+The three-metric command above is only an example. To reproduce the paper, use each task's frozen metric vector and bounds: image depth uses `(absrel, rmse, silog, delta1)` and video depth `(absrel, rmse, silog, delta1, tgm, tgse)` (Tables III and IV); the other tasks have their own. Φ needs the paired per-sample records, so it can't be recomputed from a table of averages.
 
-## A complete synthetic check
+## A synthetic example
 
-This fixture exercises the calculator; it is not empirical RPX performance.
+This runs the calculator on random numbers, so the scores mean nothing.
 
 ```python
 import json
@@ -60,6 +60,6 @@ print(json.dumps(summary, indent=2, allow_nan=False))
 
 ## Extend the analysis
 
-Adding a metric calculator does not automatically include it in Φ/JEDI. Register a `MetricSpec` with its unique name, direction, best/worst bounds and bound provenance, then explicitly select it. Do not tune bounds on each model's own results. A new vector is a new protocol and must be identified in reported comparisons.
+A new metric calculator isn't included in Φ or JEDI automatically. Register a `MetricSpec` with its name, direction, best and worst bounds and where the bounds come from, then select it explicitly ([example](../metrics/README.md#add-it-to-the-robustness-scores)). Don't fit bounds to each model's own results. A different metric vector is a different protocol; say so when you report it.
 
 [`summarize_phi_jedi` API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/phi_jedi_summary.html#summarize_phi_jedi) · [Φ API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/phi.html) · [JEDI API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/jedi.html) · [Metric specs](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/metrics/specs.html) · [Add metrics](../metrics/README.md)

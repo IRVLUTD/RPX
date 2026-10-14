@@ -1,118 +1,82 @@
-# RPX GPU depth smoke image
+# Depth images (T1 and T2)
 
-This directory builds the reproducible, GPU-only smoke environment for the
-canonical RPX image-depth and video-depth adapters. The image contains code,
-pinned Python environments, and pinned upstream source checkouts. It does not
-contain RPX data, model checkpoints, Hugging Face credentials, or test results;
-those remain in mounted host directories.
+Pull `irvlutd/rpx:depth-zipdepth-latest` for every T1 model and every T2 model except DVD
+(`irvlutd/rpx:depth-dvd-latest`) and GemDepth (build only). See the [image table](../README.md#which-image-to-pull).
+It contains the 16 models built by this directory's Dockerfile plus the [FE2E](../depth-fe2e/README.md) and
+[ZipDepth](../depth-zipdepth/README.md) overlays.
 
-> **Published image:** pull `irvlutd/rpx:depth-zipdepth-latest`. It is the final cumulative depth
-> image: the 16 models of this Dockerfile plus the FE2E and ZipDepth overlays,
-> i.e. all ten T1 models and every T2 model except DVD (`irvlutd/rpx:depth-dvd-latest`)
-> and GemDepth (build-only). See the [image table](../README.md#which-image-to-pull).
+The rest of this page covers building the image, the GPU smoke gates, and adding a model. The image holds code, pinned
+Python environments and pinned upstream checkouts. Data, checkpoints, credentials and results stay in mounted host
+directories.
 
-The Dockerfile is cumulative: every named stage extends the preceding stage.
-The current final stage, `depth_all_hyden`, contains runtimes for 16 models.
-"Present in the image" means that the dependencies and upstream imports build;
-it does not mean that the model has passed the data-backed acceptance gate.
+## Gates
 
-## 1. What the tests mean
+Run the gates in order. Passing one gate does not count as passing the next, and neither a successful build nor an
+import check counts as a micro pass.
 
-Run the gates in this order:
+1. `verify` checks the container and CUDA only.
+2. `micro` runs the smallest test with real data and a real checkpoint.
+3. `acceptance` runs a larger real-data test.
+4. `easy` runs the full Easy tier. Run it only after acceptance has passed and the adapter has been reviewed.
 
-1. `verify`: container and CUDA preflight only.
-2. `micro`: the smallest real-data, real-checkpoint inference test.
-3. `acceptance`: a larger real-data inference test.
-4. `easy`: the full Easy pilot, only after acceptance has passed and the
-   implementation has been reviewed.
+All gates run on CUDA on one idle NVIDIA GPU. They use `IRVLUTD/RPX` at revision
+`2e2a387f7f93e98c177b2e039c141eacda94e5fc`, the Easy split, the official checkpoint and batch size 1 for image models.
+Output stays local; gates never upload to Box or Hugging Face.
 
-An import check or successful image build is not a micro test. A micro pass is
-not an acceptance pass.
+| Task | Gate | Work | Passes when |
+|---|---|---|---|
+| Image | `micro` | 1 image, raw prediction saved, FLOP profiling skipped | 1 sample, 1 cell, finite metrics, valid GPU and precision fields in the SystemCard, exactly one finite, non-degenerate `.npz` |
+| Image | `acceptance` | 25 images | 25 samples, 1 cell, finite metrics, 25 finite saved predictions |
+| Image | `easy` | all 24,750 Easy images | 24,750 samples and predictions, and a complete `comprehensive_metrics.json` |
+| Video | `micro` | 1 clip, 8 frames by stride sampling | 1 sample, 1 cell, valid SystemCard, finite `absrel`, `rmse`, `delta1`, `delta2`, `delta3` |
+| Video | `acceptance` | 1 clip, 25 frames | as micro |
+| Video | `easy` | all 99 Easy clips, every frame (`sampling=all`) | 99 samples and cells with valid core metrics |
 
-All smoke gates are CUDA-only and use:
+The temporal metrics `tae`, `opw`, `tgm` and `tcc` can be non-finite on clips too short to support them. The five core
+metrics must always be finite.
 
-- dataset `IRVLUTD/RPX` at revision
-  `2e2a387f7f93e98c177b2e039c141eacda94e5fc`;
-- the Easy split;
-- batch size 1 for image models;
-- the official configured checkpoint;
-- standard Hugging Face HTTP transport by default;
-- one selected, idle NVIDIA GPU; and
-- local output only. The gate never uploads to Box or Hugging Face.
+Every gate writes `result.json`, `cells.parquet`, `summary.md`, `run_metadata.json`, `run.log` and `pip-freeze.txt`;
+image gates also save predictions. `run_metadata.json` records:
 
-### Image-model gates
+- the code identity and dataset revision;
+- the Python, PyTorch and GPU versions;
+- the upstream SHAs and the command;
+- the validation result and the failure class.
 
-| Gate | Work performed | Required validation |
-| --- | --- | --- |
-| `micro` | One Easy image, batch size 1, official adapter path, saved raw prediction, FLOP profiling skipped | `num_samples == 1`, one cell, finite aggregated metrics, valid GPU and precision SystemCard fields, exactly one finite and non-degenerate `.npz` depth prediction |
-| `acceptance` | 25 Easy images with the same settings | `num_samples == 25`, one cell, finite aggregated metrics, valid SystemCard fields, exactly 25 finite saved predictions |
-| `easy` | All 24,750 Easy images, saved predictions, comprehensive metrics | 24,750 samples and predictions, finite aggregate metrics, one cell, and a complete `comprehensive_metrics.json` with 24,750 per-sample rows |
+## Models
 
-### Video-model gates
+The roster has 20 models: 10 image and 10 video. The Dockerfile's final stage, `depth_all_hyden`, builds 16 of them;
+the FE2E, ZipDepth, DVD and GemDepth overlays add the rest. "Baked" means dependencies install and upstream imports
+succeed. It does not mean the model has passed acceptance, so run micro and acceptance on the exact image you build.
 
-| Gate | Work performed | Required validation |
-| --- | --- | --- |
-| `micro` | One Easy clip sampled to 8 frames with stride sampling | `num_samples == 1`, one cell, valid SystemCard fields, and finite `absrel`, `rmse`, `delta1`, `delta2`, and `delta3` |
-| `acceptance` | One Easy clip sampled to 25 frames with stride sampling | Same contract as micro, using the 25-frame clip |
-| `easy` | All 99 Easy clips using every frame (`sampling=all`) | 99 samples and 99 cells with valid core depth metrics and SystemCard fields |
+| Model | Task | Environment | Status in this image |
+|---|---|---|---|
+| `da-v2-large` | image | `transformers-image` | baked, matrix-ready, acceptance passed |
+| `da3-metric-l` | image | `da3` | baked, matrix-ready |
+| `depth-pro` | image | `transformers-image` | baked, matrix-ready, acceptance passed |
+| `fe2e` | image | [`depth-fe2e`](../depth-fe2e/README.md) | separate PyTorch 2.6 overlay |
+| `hyden` | image | `metadepth` (alias `hyden`) | baked, matrix-ready; checkpoint may need access approval |
+| `lotus-2` | image | `lotus2` | baked, matrix-ready |
+| `metric3d-v2` | image | `metric3d` | baked, matrix-ready |
+| `moge-2-vit-l` | image | `moge2` | baked, matrix-ready, acceptance passed |
+| `unidepth-v2` | image | `unidepth2` | baked, matrix-ready, acceptance passed |
+| `zipdepth` | image | [`depth-zipdepth`](../depth-zipdepth/README.md) | separate overlay |
+| `chrono-depth` | video | `chrono` | baked, import-checked; no readiness marker yet |
+| `da3-video` | video | `da3` | baked, matrix-ready |
+| `depth-crafter` | video | `depthcrafter` | baked, import-checked; no readiness marker yet |
+| `dvd` | video | [`depth-dvd`](../depth-dvd/README.md) | separate overlay (DVD v1.1 + Wan2.1) |
+| `gem-depth` | video | [`depth-gemdepth`](../depth-gemdepth/README.md) | separate overlay, build only |
+| `monst3r` | video | `monst3r` | baked, matrix-ready |
+| `rolling-depth` | video | `rolling` (backed by `rollingdepth`) | baked, matrix-ready |
+| `vggt-omega` | video | `vggt` (backed by `geometry-video`) | baked, matrix-ready |
+| `video-da` | video | `video_da` (backed by `video-depth-anything`) | baked, matrix-ready |
+| `vigeo` | video | `vigeo` (backed by `geometry-video`) | baked, matrix-ready |
 
-Video temporal metrics `tae`, `opw`, `tgm`, and `tcc` may be non-finite when a
-short clip cannot support the metric. The five core video depth metrics above
-must always be present and finite.
+The Dockerfile is cumulative, with each stage extending the previous one:
 
-Every gate requires these files:
-
-```text
-result.json
-cells.parquet
-summary.md
-run_metadata.json
-run.log
-pip-freeze.txt
-```
-
-The image gates also save predictions. `run_metadata.json` records the exact
-RPX code identity, dataset revision, Python and PyTorch versions, GPU, upstream
-SHAs, executed command, validation result, and failure classification.
-
-## 2. Model inventory
-
-The canonical roster contains 20 rows: 10 image and 10 video. The current final
-Docker stage bakes 16 of them. The dedicated FE2E, ZipDepth, DVD and GEMDepth overlays extend the cumulative
-image. Use their own READMEs and run acceptance for the exact image you build.
-
-| Model | Task | Environment | Current Docker status |
-| --- | --- | --- | --- |
-| `da-v2-large` | image | `transformers-image` | Baked, matrix-ready, acceptance passed |
-| `da3-metric-l` | image | `da3` | Baked and matrix-ready |
-| `depth-pro` | image | `transformers-image` | Baked, matrix-ready, acceptance passed |
-| `fe2e` | image | `docker/depth-fe2e` | Official release; use its dedicated PyTorch 2.6 overlay rather than this cumulative smoke image |
-| `hyden` | image | `metadepth` (`hyden` alias) | Baked and matrix-ready; checkpoint access may require approval |
-| `lotus-2` | image | `lotus2` | Baked and matrix-ready |
-| `metric3d-v2` | image | `metric3d` | Baked and matrix-ready |
-| `moge-2-vit-l` | image | `moge2` | Baked, matrix-ready, acceptance passed |
-| `unidepth-v2` | image | `unidepth2` | Baked, matrix-ready, acceptance passed |
-| `zipdepth` | image | `docker/depth-zipdepth` | Official release; replacement tenth image model uses its dedicated thin overlay |
-| `chrono-depth` | video | `chrono` | Baked and import-checked; matrix readiness marker still needs to be added |
-| `dvd` | video | `docker/depth-dvd/Dockerfile` | Official DVD v1.1 + Wan2.1; relative inverse depth |
-| `da3-video` | video | `da3` | Baked and matrix-ready |
-| `depth-crafter` | video | `depthcrafter` | Baked and import-checked; matrix readiness marker still needs to be added |
-| `gem-depth` | video | `docker/depth-gemdepth` | Dedicated pinned source/checkpoint overlay |
-| `monst3r` | video | `monst3r` | Baked and matrix-ready |
-| `rolling-depth` | video | `rolling` (`rollingdepth` backing env) | Baked and matrix-ready |
-| `vggt-omega` | video | `vggt` (`geometry-video` backing env) | Baked and matrix-ready |
-| `video-da` | video | `video_da` (`video-depth-anything` backing env) | Baked and matrix-ready |
-| `vigeo` | video | `vigeo` (`geometry-video` backing env) | Baked and matrix-ready |
-
-The four acceptance-passed rows are the previously validated image models.
-The later Docker stages prove dependency installation and imports only; run
-micro and acceptance before reporting those rows as accepted.
-
-The cumulative stages are:
-
-| Stage | Models added |
-| --- | --- |
-| Published four-model base | `da-v2-large`, `depth-pro`, `unidepth-v2`, `moge-2-vit-l` |
+| Stage | Adds |
+|---|---|
+| published four-model base | `da-v2-large`, `depth-pro`, `unidepth-v2`, `moge-2-vit-l` |
 | `depth_all_da3` | `da3-metric-l`, `da3-video` |
 | `depth_all_lotus2` | `lotus-2` |
 | `depth_all_metric3d` | `metric3d-v2` |
@@ -121,73 +85,41 @@ The cumulative stages are:
 | `depth_all_rolling_vda_video` | `rolling-depth`, `video-da` |
 | `depth_all_monst3r` | `monst3r` |
 | `depth_all_hyden` | `hyden` |
-| Dedicated ZipDepth overlay | `zipdepth` |
 
-Confirm the code-level roster at any time with:
+`python3 benchmark/scripts/run_depth_smoke_matrix.py --list-models` prints the roster from code.
 
-```bash
-python3 benchmark/scripts/run_depth_smoke_matrix.py --list-models
-```
+## Host setup
 
-## 3. Host prerequisites
+You need:
 
-Use a Linux x86-64 host with:
-
+- Linux x86-64;
 - Docker with BuildKit/buildx;
-- an NVIDIA GPU and a driver compatible with CUDA 12.8;
-- NVIDIA Container Toolkit configured for Docker;
-- enough free disk for the image layers, model weights, RPX cache, and outputs;
-  the complete working set can exceed 100 GB; and
-- a Hugging Face account/token for gated checkpoints.
-
-Verify GPU passthrough first:
+- an NVIDIA GPU with a driver that supports CUDA 12.8, plus the NVIDIA Container Toolkit;
+- a Hugging Face token for gated checkpoints;
+- more than 100 GB free for image layers, weights, the RPX cache and outputs.
 
 ```bash
-docker run --rm --gpus all \
-  nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi
-```
+docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu24.04 nvidia-smi
 
-If Docker cannot expose the GPU, configure the NVIDIA runtime and restart
-Docker:
-
-```bash
+# If the GPU is not visible:
 sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
-```
 
-Prepare persistent host directories. These mounts prevent repeated downloads
-and preserve outputs after the container exits:
-
-```bash
 export HF_HOME="$HOME/.cache/huggingface"
 export RPX_SMOKE_ROOT="$PWD/rpx-smoke"
+export HF_TOKEN="hf_..."            # keep it in the environment, never in the image
 mkdir -p "$HF_HOME" "$RPX_SMOKE_ROOT"
 ```
 
-Set `HF_TOKEN` in the host environment; do not bake it into the image:
+## Build
 
 ```bash
-export HF_TOKEN="hf_..."
-```
-
-## 4. Build the current branch
-
-Clone the extended Docker branch and record the exact source revision:
-
-```bash
-git clone --branch docker/depth-all-hyden --single-branch \
-  https://github.com/IRVLUTD/RPX.git rpx-depth-smoke
+git clone https://github.com/IRVLUTD/RPX.git rpx-depth-smoke
 cd rpx-depth-smoke
 
 export RPX_GIT_SHA="$(git rev-parse HEAD)"
 export METADEPTH_SHA="$(tr -d '[:space:]' < docker/depth-smoke/metadepth.sha)"
 export IMAGE="rpx-depth-smoke:sha-$(git rev-parse --short=12 HEAD)"
-```
-
-The final HyDen stage requires the pinned MetaDepth SHA explicitly. Build and
-load the final cumulative image into the local Docker engine:
-
-```bash
 mkdir -p ../depth-smoke-envs/.wheelhouse
 
 docker buildx build --load \
@@ -202,99 +134,50 @@ docker buildx build --load \
   .
 ```
 
-The first extended stage starts from the immutable published four-model digest.
-Each later stage creates a separate environment under `/opt/rpx-envs`, checks
-its pinned upstream imports, and passes its environment forward. Build a named
-intermediate stage while developing one family, for example:
+The first stage starts from the published four-model image, pinned by digest. Each later stage creates its own
+environment under `/opt/rpx-envs`, checks its pinned upstream imports during the build, and passes the environment
+forward. To work on one family, build its stage with `--target`, for example `--target depth_all_rolling_vda_video`.
+
+`build_and_push.sh` is the original four-model publishing helper. It refuses a dirty tree and does not yet forward
+`METADEPTH_SHA`, so use the command above for the final stage.
+
+Check the result:
 
 ```bash
-docker buildx build --load \
-  --file docker/depth-smoke/Dockerfile \
-  --target depth_all_rolling_vda_video \
-  --build-arg "RPX_GIT_SHA=$RPX_GIT_SHA" \
-  --tag rpx-depth-smoke:rolling-vda-dev \
-  .
-```
-
-`build_and_push.sh` is the original clean-tree four-model publishing helper.
-The extended final stage additionally requires `METADEPTH_SHA`; use the explicit
-build command above until the helper forwards that build argument. The helper
-also refuses a dirty Git tree by design.
-
-## 5. Verify the built image
-
-The inherited `verify` entrypoint checks CUDA plus the original four-model
-runtime without downloading weights:
-
-```bash
-docker run --rm --gpus all --ipc=host --shm-size=8g \
-  "$IMAGE" verify
-```
-
-Inspect the full canonical roster:
-
-```bash
-docker run --rm "$IMAGE" list
-```
-
-Check the immutable source label:
-
-```bash
+docker run --rm --gpus all --ipc=host --shm-size=8g "$IMAGE" verify   # CUDA and the original four runtimes
+docker run --rm "$IMAGE" list                                          # full roster
 docker image inspect "$IMAGE" \
   --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}'
 ```
 
-The Docker build itself performs import checks for every added environment.
-`verify` remains a preflight, not a smoke pass, because it does not download
-weights or run RPX samples.
+`verify` does not download weights or run samples, so it is a preflight, not a smoke pass.
 
-## 6. Run micro and acceptance
-
-Define a small shell helper for the common runtime options:
+## Run micro and acceptance
 
 ```bash
 rpx_docker_run() {
-  docker run --rm --gpus all --ipc=host --shm-size=8g "$@"
+  docker run --rm --gpus all --ipc=host --shm-size=8g \
+    -e HF_TOKEN \
+    -v "$HF_HOME:/cache/huggingface" \
+    -v "$RPX_SMOKE_ROOT:/outputs" \
+    "$@"
 }
 ```
 
-### Original four image models
-
-The `smoke` entrypoint defaults to the four previously accepted image models
-and runs micro followed by acceptance, sequentially:
+The `smoke` entrypoint runs micro and then acceptance for the four original image models. Set `RPX_MODELS` to pick
+one. It handles image models only.
 
 ```bash
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" smoke
+rpx_docker_run "$IMAGE" smoke
+rpx_docker_run -e RPX_MODELS=depth-pro "$IMAGE" smoke
 ```
 
-Run one of them by setting `RPX_MODELS`:
+To run one gate for any model, call the gate script with that model family's Python. Pass `--gate micro` first, then
+`--gate acceptance`. For a video model, use `--task video` with its own environment, for example
+`/opt/rpx-envs/video_da/bin/python`, `--model video-da` and `--upstream-dir /opt/rpx-envs/sources/video-depth-anything`.
 
 ```bash
-rpx_docker_run \
-  -e HF_TOKEN \
-  -e RPX_MODELS=depth-pro \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" smoke
-```
-
-The `smoke` entrypoint is currently image-only. Use the matrix command below
-for the extended image roster or video models.
-
-### One image model, explicit gates
-
-Select the Python executable for the model family. This example uses DA3:
-
-```bash
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" \
+rpx_docker_run "$IMAGE" \
   /opt/rpx-envs/da3/bin/python \
   scripts/run_depth_smoke_gate.py \
   --task image \
@@ -303,70 +186,13 @@ rpx_docker_run \
   --cache-dir /cache/huggingface \
   --output-root /outputs \
   --upstream-dir /opt/rpx-envs/sources/da3
-
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" \
-  /opt/rpx-envs/da3/bin/python \
-  scripts/run_depth_smoke_gate.py \
-  --task image \
-  --model da3-metric-l \
-  --gate acceptance \
-  --cache-dir /cache/huggingface \
-  --output-root /outputs \
-  --upstream-dir /opt/rpx-envs/sources/da3
 ```
 
-### One video model, explicit gates
-
-This example uses Video Depth Anything:
-
-```bash
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" \
-  /opt/rpx-envs/video_da/bin/python \
-  scripts/run_depth_smoke_gate.py \
-  --task video \
-  --model video-da \
-  --gate micro \
-  --cache-dir /cache/huggingface \
-  --output-root /outputs \
-  --upstream-dir /opt/rpx-envs/sources/video-depth-anything
-
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" \
-  /opt/rpx-envs/video_da/bin/python \
-  scripts/run_depth_smoke_gate.py \
-  --task video \
-  --model video-da \
-  --gate acceptance \
-  --cache-dir /cache/huggingface \
-  --output-root /outputs \
-  --upstream-dir /opt/rpx-envs/sources/video-depth-anything
-```
-
-### Resumable matrix
-
-The matrix is the preferred multi-model path. It runs one model at a time,
-enforces micro before acceptance, skips gates already passed for the exact same
-code identity, and writes a consolidated state file.
-
-Run the eight matrix-ready image environments baked into the final stage:
+The matrix is the usual way to run several models. It runs one model at a time and requires micro before acceptance.
+It skips gates that already passed for the same code identity and writes a single state file.
 
 ```bash
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" \
+rpx_docker_run "$IMAGE" \
   python scripts/run_depth_smoke_matrix.py \
   --task image \
   --models da-v2-large,da3-metric-l,depth-pro,hyden,lotus-2,metric3d-v2,moge-2-vit-l,unidepth-v2 \
@@ -374,16 +200,8 @@ rpx_docker_run \
   --env-root /opt/rpx-envs \
   --cache-dir /cache/huggingface \
   --output-root /outputs
-```
 
-Run the six currently matrix-ready video environments:
-
-```bash
-rpx_docker_run \
-  -e HF_TOKEN \
-  -v "$HF_HOME:/cache/huggingface" \
-  -v "$RPX_SMOKE_ROOT:/outputs" \
-  "$IMAGE" \
+rpx_docker_run "$IMAGE" \
   python scripts/run_depth_smoke_matrix.py \
   --task video \
   --models da3-video,monst3r,rolling-depth,vggt-omega,video-da,vigeo \
@@ -393,34 +211,25 @@ rpx_docker_run \
   --output-root /outputs
 ```
 
-ChronoDepth and DepthCrafter can be invoked with the explicit single-gate form
-using `/opt/rpx-envs/chrono/bin/python` and
-`/opt/rpx-envs/depthcrafter/bin/python`. They are not included in the matrix
-command until their Docker stages write `rpx-environment.json`, which is the
-matrix's readiness contract.
+ChronoDepth and DepthCrafter are not in the matrix yet. Their stages don't write `rpx-environment.json`, the marker the
+matrix requires. Run them with the single-gate command, using `/opt/rpx-envs/chrono/bin/python` and
+`/opt/rpx-envs/depthcrafter/bin/python`. FE2E and GemDepth use their own overlays.
 
-Use a different GPU with `--gpu-index N`. The selected GPU must be idle; do not
-use `--allow-busy-gpu` for acceptance or publishable runs.
+Pick a GPU with `--gpu-index N`. Don't use `--allow-busy-gpu` for acceptance or for any run you will publish.
 
-### Resume and retry rules
+### Resuming and retrying
 
-Matrix state is keyed by RPX code identity. Re-running the same command resumes
-passed work. A changed commit or dirty diff gets a different identity and does
-not inherit old passes.
+Matrix state is keyed by code identity, so rerunning a command resumes it, while a new commit or a dirty diff starts
+fresh.
 
-- Passed gates are skipped. Use `--rerun-passed` only for a deliberate repeat.
-- After correcting a dependency/API/code problem, use `--retry-failed`.
-- Code and dependency failures have a two-attempt ceiling.
-- Access, checkpoint-download, and CUDA OOM failures have a one-attempt ceiling.
-- A CUDA OOM is a hardware classification; rerun the unchanged command on a
-  higher-memory GPU rather than changing model semantics.
-- The generic launcher leaves FE2E and GemDepth to their dedicated
-  `docker/depth-fe2e` and `docker/depth-gemdepth` environments.
+- Passed gates are skipped unless you pass `--rerun-passed`.
+- After fixing a code or dependency problem, pass `--retry-failed`. Code and dependency failures get two attempts.
+  Access, download and out-of-memory failures get one.
+- A CUDA OOM is a hardware limit. Rerun the same command on a GPU with more memory rather than changing the model.
 
-## 7. Inspect and preserve results
+## Results
 
-Outputs are already exported to the host through the `/outputs` bind mount; no
-`docker cp` is needed. The layout is:
+Outputs land on the host through the `/outputs` mount:
 
 ```text
 $RPX_SMOKE_ROOT/
@@ -435,42 +244,28 @@ $RPX_SMOKE_ROOT/
     └── predictions/                 # image gates
 ```
 
-Check pass/fail state without guessing from console output:
+Read pass or fail from `run_metadata.json` and `matrix.json`, not from console output. Keep failed runs: their logs
+classify the failure as one of:
 
-```bash
-find "$RPX_SMOKE_ROOT" -name run_metadata.json -print
-find "$RPX_SMOKE_ROOT" -name matrix.json -print
-```
+- dependency;
+- access;
+- weight download;
+- upstream API;
+- shape or dtype;
+- data or manifest;
+- CUDA OOM;
+- unknown.
 
-Keep failed runs. `run.log` and `run_metadata.json` distinguish dependency,
-access, weight-download, upstream-API, shape/dtype, data/manifest, CUDA OOM, and
-unknown code failures.
-
-### Export the image to another machine
-
-Use `docker save`, not `docker export`. `docker save` preserves image layers,
-labels, the entrypoint, and the immutable tag:
+To move the image to another machine, use `docker save` rather than `docker export`, so that layers, labels and the
+entrypoint are kept:
 
 ```bash
 docker save "$IMAGE" | gzip > "rpx-depth-smoke-$(git rev-parse --short=12 HEAD).tar.gz"
-```
-
-Transfer the archive and load it on another NVIDIA Docker host:
-
-```bash
 gunzip -c rpx-depth-smoke-<sha>.tar.gz | docker load
-docker run --rm --gpus all <loaded-image-tag> verify
 ```
 
-Export the host-mounted results separately if needed:
-
-```bash
-tar -C "$RPX_SMOKE_ROOT" -czf rpx-smoke-results.tar.gz .
-```
-
-### Publish to a registry
-
-Tag both an immutable revision and, only after validation, a moving release tag:
+When publishing, push the immutable tag first. Move `latest` only after that image passes the gates, and point
+consumers at the `sha-…` tag:
 
 ```bash
 export REGISTRY_IMAGE="<registry>/<namespace>/rpx-depth-smoke"
@@ -479,148 +274,77 @@ export IMMUTABLE_TAG="sha-$(git rev-parse --short=12 HEAD)"
 docker tag "$IMAGE" "$REGISTRY_IMAGE:$IMMUTABLE_TAG"
 docker push "$REGISTRY_IMAGE:$IMMUTABLE_TAG"
 
-# Update latest only after the immutable image has passed the required gates.
 docker tag "$IMAGE" "$REGISTRY_IMAGE:latest"
 docker push "$REGISTRY_IMAGE:latest"
 ```
 
-Consumers should use the immutable `sha-...` tag for reproducible smoke runs.
+## Adding a model
 
-## 8. Add another model
+1. **Verify the official release.** Find the authors' source repository, weights, checkpoint name, license and load
+   procedure, and pin the source to a full Git SHA. Don't relax a safety check to accommodate an unverified community
+   upload.
 
-Add models in the following order so that adapter, local setup, Docker runtime,
-and smoke orchestration stay consistent.
+2. **Write the adapter.**
+   - An image model goes in `benchmark/scripts/depth_models/<model_name>.py`. It returns float32 depth for an RGB
+     `uint8` image and declares `native_alignment` (`none` for metric depth). Expose the Torch module for profiling if
+     you can, and register the model in `depth_models/__init__.py`.
+   - A video model goes in `benchmark/scripts/video_depth_models/<model_name>.py` with a `build(device=...)` factory.
+     It takes a whole clip, returns `(T, H, W)` at the input size, and says whether its output is metric or relative.
+     It must not fall back to per-frame inference unless the row is meant as a frame-as-video baseline.
+   - Add the name to `IMAGE_MODELS` or `VIDEO_MODELS` in `benchmark/scripts/run_depth_smoke_gate.py`. If the weights
+     are unverified, add it to `BLOCKED_MODELS` instead.
 
-### Step 1: verify the official release
+3. **Define the environment family.** In `benchmark/scripts/setup_depth_smoke_env.py`, fill in `MODEL_FAMILY`,
+   `UPSTREAMS` (repository and SHA), `FAMILY_PACKAGES` and `FAMILY_IMPORTS`, the last of which should exercise the
+   adapter's real load path. A host setup catches conflicts faster than a Docker rebuild:
 
-Identify the paper authors' official source repository, weight repository,
-checkpoint name, license, and load procedure. Pin the upstream repository to a
-full Git SHA. Do not remove a safety rail based on an unverified community
-upload.
+   ```bash
+   python3.11 benchmark/scripts/setup_depth_smoke_env.py \
+     --model <canonical-name> \
+     --env-root /data/rpx-envs
+   ```
 
-### Step 2: implement and register the adapter
+4. **Lock dependencies.** Add `requirements-<family>.in` with the direct versions and a reviewed
+   `requirements-<family>.lock`. Leave Torch, torchvision and CUDA to the base image unless the family must replace
+   them, and prefer `opencv-python-headless`. Check the lock for accidental upgrades to NumPy, Transformers, Diffusers,
+   OpenCV, xFormers or Hugging Face Hub, which are the packages most likely to break an upstream API or ABI.
 
-For an image model:
+5. **Add a Docker stage** after the current last one. The stage should:
+   - pin and fetch the upstream SHA;
+   - create `/opt/rpx-envs/<family>`, using `--system-site-packages` when sharing the base CUDA/PyTorch;
+   - install the lock and the source;
+   - add path aliases if the family and checkout names differ;
+   - write `/opt/rpx-envs/<family>/rpx-environment.json`;
+   - run the imports through `/opt/rpx-envs/<family>/bin/python`.
 
-1. Add `benchmark/scripts/depth_models/<model_name>.py`.
-2. Return a float32 depth array for an RGB `uint8` image.
-3. Declare the correct `native_alignment` (`none` for metric depth or the
-   appropriate alignment for relative depth).
-4. Expose the underlying Torch module when possible for profiling.
-5. Register the builder and canonical name in
-   `benchmark/scripts/depth_models/__init__.py`.
+   Without `rpx-environment.json` the matrix will not run the model. If the family changes benchmark code, copy
+   `benchmark` into the stage and reinstall the package so the image doesn't keep a stale adapter.
 
-For a video model:
+6. **Update the defaults** in `entrypoint.sh`, `compose.yaml` and the tables on this page once the model is
+   matrix-ready. Keep image and video selections separate, since `entrypoint.sh smoke` runs image models only.
 
-1. Add `benchmark/scripts/video_depth_models/<model_name>.py` with a
-   `build(device=...)` factory.
-2. Accept a whole clip and return depth shaped `(T, H, W)`.
-3. Declare whether output is metric or relative and restore output to the input
-   spatial and temporal dimensions.
-4. Do not silently fall back to per-frame inference unless the row is explicitly
-   a frame-as-video baseline.
+7. **Test in widening scope.** Start with `pytest -q benchmark/tests/test_depth_smoke_tools.py`. Then:
+   1. build the stage, which also runs its import check;
+   2. run `verify`;
+   3. run the micro gate;
+   4. run acceptance;
+   5. after review, run the Easy tier.
 
-Add the canonical name to `IMAGE_MODELS` or `VIDEO_MODELS` in
-`benchmark/scripts/run_depth_smoke_gate.py`. If weights are not verified, add
-the model to `BLOCKED_MODELS` instead of adding a bypass.
+   Installation, imports, CPU inference, an OOM, a quantized diagnostic run or a micro pass alone does not make a model
+   complete.
 
-### Step 3: define the isolated family
+## Troubleshooting
 
-Update `benchmark/scripts/setup_depth_smoke_env.py`:
+| Symptom | Cause and fix |
+|---|---|
+| `torch.cuda.is_available()` is false | GPU passthrough. Fix the driver or Container Toolkit; never fall back to CPU |
+| GPU already has processes | Pick an idle GPU with `--gpu-index`; don't overlap acceptance runs |
+| HTTP 401/403, gated repository | Request access with the same Hugging Face account; don't substitute checkpoints |
+| CUDA OOM | Rerun the same command on a larger GPU |
+| `No module named ...` | Add the dependency or source path to the family and rebuild |
+| `has no attribute`, `from_pretrained` fails | Align the adapter with the pinned upstream API and checkpoint |
+| Wrong shape or dtype | Return float32 `(H, W)` for images or `(T, H, W)` for video |
+| Matrix reports `missing_environment` | Check that `<family>/bin/python` and `<family>/rpx-environment.json` exist under `/opt/rpx-envs` |
+| A rebuilt image reruns passed gates | Expected: state is keyed by exact code identity |
 
-- `MODEL_FAMILY`: canonical model to environment family;
-- `UPSTREAMS`: official repository and full pinned SHA when source is needed;
-- `FAMILY_PACKAGES`: family-specific dependencies; and
-- `FAMILY_IMPORTS`: imports that exercise the adapter's actual load path.
-
-Run the host setup first. It catches dependency conflicts faster than a full
-Docker rebuild:
-
-```bash
-python3.11 benchmark/scripts/setup_depth_smoke_env.py \
-  --model <canonical-name> \
-  --env-root /data/rpx-envs
-```
-
-### Step 4: lock the Docker dependencies
-
-Create `requirements-<family>.in` with the intentional direct versions and a
-reviewed `requirements-<family>.lock` containing the exact resolved runtime
-set. Keep Torch, torchvision, CUDA, and other base-owned packages out of a
-family lock unless the family intentionally replaces them. Prefer
-`opencv-python-headless` in the container.
-
-Review the lock for accidental upgrades to NumPy, Transformers, Diffusers,
-OpenCV, xFormers, or Hugging Face Hub. These are the dependencies most likely to
-break an upstream model API or ABI.
-
-### Step 5: add a cumulative Docker stage
-
-Extend the current final stage and, in that new stage:
-
-1. declare the upstream SHA as a build argument;
-2. clone/fetch exactly that SHA;
-3. create `/opt/rpx-envs/<family>` with `--system-site-packages` when sharing the
-   base CUDA/PyTorch stack;
-4. install the reviewed lock and the pinned upstream source;
-5. add source-path aliases if `MODEL_FAMILY` and the checkout directory differ;
-6. write `/opt/rpx-envs/<family>/rpx-environment.json`;
-7. ensure `/opt/rpx-envs/<family>/bin/python` exists;
-8. run imports through that exact Python executable; and
-9. leave the new cumulative stage last, or select it explicitly with
-   `--target`.
-
-The readiness marker is mandatory for the matrix. A successful import without
-`rpx-environment.json` is only a Docker build check.
-
-If the new family changes benchmark code, `COPY benchmark /opt/rpx/benchmark`
-and reinstall the RPX package in the stage so the image does not retain an old
-adapter from the published base.
-
-### Step 6: update the runtime defaults
-
-After the model is genuinely matrix-ready, update the appropriate defaults in:
-
-- `docker/depth-smoke/entrypoint.sh`;
-- `docker/depth-smoke/compose.yaml`; and
-- the inventory and examples in this README.
-
-Keep image and video selections separate while `entrypoint.sh smoke` invokes
-the image task only.
-
-### Step 7: test in increasing scope
-
-Run fast offline tests first:
-
-```bash
-pytest -q benchmark/tests/test_depth_smoke_tools.py
-```
-
-Then run:
-
-1. the new named Docker stage build;
-2. its build-time import check;
-3. container CUDA `verify` or an equivalent family import check;
-4. the one-sample/8-frame micro gate;
-5. acceptance only after micro passes; and
-6. the full Easy pilot only after acceptance and review.
-
-Do not classify a model as complete from installation, import, CPU inference,
-an OOM, a diagnostic quantized configuration, or a micro pass alone.
-
-## 9. Common failures
-
-| Symptom | Classification and action |
-| --- | --- |
-| `torch.cuda.is_available()` is false | NVIDIA Container Toolkit/driver problem; fix GPU passthrough, never fall back to CPU |
-| GPU already has compute processes | Select an idle GPU with `--gpu-index`; do not overlap acceptance runs |
-| HTTP 401/403 or gated repository | Request access with the same Hugging Face account; do not substitute checkpoints |
-| CUDA OOM | Preserve the command and move it to a higher-memory GPU |
-| `No module named ...` | Add the missing dependency/source path to the isolated family and rebuild |
-| `has no attribute` or `from_pretrained` failure | Reconcile the adapter with the pinned upstream API/checkpoint |
-| Wrong shape, dimension, or dtype | Normalize the adapter output to the image `(H, W)` or video `(T, H, W)` contract and float32 |
-| Matrix says `missing_environment` | Confirm both `<family>/bin/python` and `<family>/rpx-environment.json` exist under `/opt/rpx-envs` |
-| A changed image reruns passed gates | Expected: matrix state is isolated by exact code identity |
-
-For custom models and test instructions, see the
-[benchmark README](../../benchmark/README.md).
+To benchmark your own model, see the [benchmark README](../../benchmark/README.md).

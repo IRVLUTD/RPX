@@ -1,10 +1,10 @@
 # Toolkit capabilities
 
-Choose the smallest tool that fits your workflow. Benchmark runners and analysis APIs are distributed through PyPI; capture annotation, pretrained model launchers, and model containers live in the source repository.
+Everything the toolkit can do, and where it lives. The benchmark runners and analysis APIs ship in the PyPI package; annotation tools, the paper's model runners and their containers are in the repository.
 
-<figure class="rpx-workflow-figure"><a href="../assets/toolkit-overview.svg"><img src="../assets/toolkit-overview.svg" alt="RPX toolkit capabilities from scene data and adapters through metrics, profiling and extensibility." loading="lazy"></a><figcaption>One scene ties the walkthrough together; all outputs retain their task and protocol context. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/toolkit-overview.svg"><img src="../assets/toolkit-overview.svg" alt="RPX toolkit capabilities from scene data and adapters through metrics, profiling and extensibility." loading="lazy"></a><figcaption>How the pieces fit together, illustrated with scene 012. Open the SVG to zoom.</figcaption></figure>
 
-| Capability | Where to start | Availability |
+| Capability | Where to start | Where it lives |
 | --- | --- | --- |
 | Discover, download and load data | [Data contracts](../data/README.md), [Hub API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html) | PyPI; Hub extra for downloads/Parquet |
 | Validate manifests and units | [Schemas API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/schemas.html) | PyPI `schemas` extra |
@@ -31,6 +31,6 @@ print([task.value for task in available_tasks()])
 print(available_metrics())
 ```
 
-Task identities describe reusable APIs; the six paper tables specify their own frozen evaluation protocols. A new callable or calculator does not automatically reproduce those protocols or add a new paper task.
+Registered tasks are reusable APIs; the paper's six tasks each add a frozen evaluation protocol on top. A new model function or metric doesn't change those protocols.
 
 [Get started](../getting-started/README.md) · [Full API reference](../api/README.md) · [Citation and licenses](../citation/README.md)

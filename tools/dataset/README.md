@@ -1,16 +1,12 @@
-# Dataset preparation and QA
+# Dataset tools
 
-These tools operate on a separately staged RPX dataset. Install the benchmark
-package and the tool's optional visualization dependencies first.
+Scripts for preparing and checking a staged copy of the RPX dataset. They operate on the dataset itself, so every
+script takes `--repo-root` pointing at the dataset directory rather than at this repository.
 
-```bash
-python tools/dataset/prepare_ego_release.py --help
-python tools/dataset/qa/check_all_modalities.py --help
-python tools/dataset/qa/check_depth_benchmark.py --help
-```
+- `prepare_ego_release.py` packs the egocentric captures and updates the dataset metadata. It also needs
+  `--ego-source-root`. Without `--apply` it only prints what it would change, so review that first.
+- [`qa/`](qa/README.md) holds the visual and structural checks run before a release.
+- [`hf_card/`](hf_card/README.md) is the source of the Hugging Face dataset card.
 
-`prepare_ego_release.py` packs egocentric captures and updates dataset metadata.
-It requires an explicit `--repo-root` and `--ego-source-root`; inspect its
-preview before choosing `--apply`. The QA tools also require `--repo-root`
-pointing at the dataset, not this source repository. See [QA usage](qa/README.md).
-Generated recordings, contact sheets and reports belong outside the Git tree.
+Run any script with `--help` for its options. Keep generated recordings, contact sheets and reports outside the Git
+tree.

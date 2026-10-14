@@ -1,10 +1,10 @@
 # Get started
 
-<figure class="rpx-workflow-figure"><a href="../assets/getting-started.svg"><img src="../assets/getting-started.svg" alt="Install, download one task's data, wrap your model in its adapter, run the benchmark, then compute Phi and Jmin." loading="lazy"></a><figcaption>Install, download, benchmark, diagnose. Open the vector figure to zoom or reuse it.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/getting-started.svg"><img src="../assets/getting-started.svg" alt="Install, download one task's data, wrap your model in its adapter, run the benchmark, then compute Phi and Jmin." loading="lazy"></a><figcaption>Install, download, benchmark, diagnose. Open the SVG to zoom.</figcaption></figure>
 
-RPX gives you the **data**, an **adapter** per task that connects your model's inputs and outputs to RPX, the
-**benchmark** with the paper's protocol and metrics, and a **metrics calculator** for Φ and 𝒥<sub>min</sub>. You write
-one function that runs your model.
+RPX gives you the data, an adapter per task that connects your model's inputs and outputs to RPX, the benchmark with
+the paper's protocol and metrics, and a calculator for Φ and 𝒥<sub>min</sub>. You write one function that runs your
+model.
 
 ## 1. Install
 
