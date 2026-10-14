@@ -82,7 +82,7 @@ configs:
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/logo.png" alt="RPX" height="72">
+<img src="https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/assets/logo.png" alt="RPX" width="195" height="64">
 
 ## Same Scene, Different Story
 
