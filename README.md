@@ -44,6 +44,14 @@ Across the 49 models we evaluated:
 - Trackers switch identities 5–11× more often during interaction.
 - The best of 12 VLM configurations for in-context grounding reaches a worst-phase score of only 𝒥<sub>min</sub> = 0.23.
 
+## Contents
+
+- [Citation](#citation)
+- [What's in this repository](#whats-in-this-repository): what the toolkit provides, and where each part of the project lives
+- [Getting started](#getting-started): install, download a task's data, score your model, compute Φ and 𝒥<sub>min</sub>
+- [Documentation](#documentation): toolkit docs, dataset, Docker images and the Python package
+- [License and contact](#license-and-contact)
+
 ## Citation
 
 ```bibtex
@@ -70,6 +78,17 @@ function that runs your model; an adapter converts between it and RPX.
 
 To add a task or a metric, see the toolkit docs on [tasks](https://irvlutd.github.io/RPX/toolkit-docs/tasks/)
 and [metrics](https://irvlutd.github.io/RPX/toolkit-docs/metrics/).
+
+The rest of the project is organized as follows:
+
+| Folder | Contents |
+|:--|:--|
+| [`benchmark/`](benchmark/README.md) | the `rpx-benchmark` package: data loading, adapters, task runners, metrics, tests and the toolkit docs source |
+| [`docker/`](docker/README.md) | Docker images with the models evaluated in the paper |
+| [`data/capture/`](data/capture/README.md) | scripts and rig used to record the scenes with a RealSense D435 and T265 |
+| [`data/mask_annotation/`](data/mask_annotation/README.md) | the pipeline that produced the instance masks |
+| [`tracking/`](tracking/README.md) | fixed text prompts for text-prompted trackers (T3) |
+| [`tools/`](tools/dataset/README.md) | dataset card, dataset QA checks, and the docs and figure builders |
 
 ## Getting started
 
