@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/logo.png" alt="RPX" height="64"></p>
+
 # RPX model environments
 
 Ready-to-run Docker images for every model evaluated in **Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild**, a real-world benchmark that scores robot perception on the same scenes before, during and after manipulation.

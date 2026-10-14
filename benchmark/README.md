@@ -1,7 +1,6 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires." width="100%"/>
+  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/logo.png" alt="RPX" height="72"/>
 </p>
-
 
 <h3 align="center">Same Scene, Different Story:<br>Evaluating Robot Perception Across Scene Phases in the Wild</h3>
 
@@ -18,6 +17,10 @@
   <a href="https://huggingface.co/datasets/IRVLUTD/RPX"><img alt="Dataset on Hugging Face" src="https://img.shields.io/badge/dataset-IRVLUTD%2FRPX-ffcc4d?logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAB4AAAAcCAMAAABBJv%2BbAAAAflBMVEXaqSf%2FuBRsWzxbSUCyly31xiDfND7%2FXDT%2FwheGUD3%2FgAD%2F%2FwBiPEP%2B0R0AAAD%2FnQv%2ByRv%2Fpg7%2FuBT%2Fpw7%2Fxhn%2FnQr%2FuRX%2FnAv%2FnQr%2FnAo6O0X%2FnQr%2FpQBMO0T%2FmQX%2FnQsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANINwJAAAAIHRSTlP%2FvP%2F%2F%2F%2Ff%2F%2F73%2FAgH%2F%2FgD3%2FPv7z8zLxJAzTf9zB%2F8PsGVhBvkAAAFYSURBVHjabZPbdoQgDEVx1NaZKU24o6L%2B%2F1%2F2oLjUqeeFhG0uK0Hxe1FKV18cZgyOIBfiDY6OTOWt9ZUhFz%2FweyRjZZE1FF5n%2FArk5UmelnTCgay8yFI4cP9JM%2B93PDsj%2F8lQKrgnhi%2FqRyuPk2kseEEw82MYmozXE9%2BbZcMzumZSzaMRa3RTC00a3acVR%2BRmxefC2WWKK%2B5J3ir3fsLikZOzqNt7PAzT8zkN0zV6Jq00Wpf1MEHDM9u4KrV%2FCVwp0mL6gn7QNylQemc8Y8sslWZi8Q21UjFsidVH4NFYpSRr5Ntq6uJZDAYY%2B9C6hKzTRK58Y1UAdsZ4Zs28Akwkt4lwbwzNwBWeB%2B9p9xKsrOwo5WhvZRlpzruZLK03G4ZVRn1gaa2s6CWwEVW1JSGh3s47g7FhLGnEG%2FZVVykKkFO%2Bq5CYwrw%2FxTguzi3jnO15s2P6%2BEvu9Afj%2BjHstmX3UAAAAABJRU5ErkJggg%3D%3D"></a>
   <a href="https://hub.docker.com/r/irvlutd/rpx"><img alt="Docker images" src="https://img.shields.io/badge/docker-irvlutd%2Frpx-2496ED?logo=docker&logoColor=2496ED"></a>
   <a href="https://github.com/IRVLUTD/RPX"><img alt="Source on GitHub" src="https://img.shields.io/badge/source-IRVLUTD%2FRPX-24292f?logo=github"></a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp" alt="RPX overview: today each perception task is benchmarked on its own data; RPX captures every real-world scene four ways (Clutter, Interaction, Clean and an egocentric view) and scores six tasks on them (image depth, video depth, tracking, relative camera pose, general VQA, in-context VQA) with two diagnostics, phase robustness and worst-phase quality; 100 multi-object scenes, 70 single objects scanned in 360 degrees, and a D435 RGB-D, T265 stereo and pose, and GoPro egocentric rig with masks and object questionnaires." width="100%"/>
 </p>
 
 ## Getting started
@@ -119,8 +122,8 @@ has a runnable placeholder for each row. Models that predict relative depth pass
 documents the full input contracts, and the [benchmark pages](https://irvlutd.github.io/RPX/toolkit-docs/benchmarks/)
 walk through each task with figures.
 
-For T5 and T6, `rpx.download("T5")` returns the packaged question list. Pass it, or your own list, to
-`evaluate_vqa`; [the next section](#custom-vqa-model-or-api) covers models behind an API.
+For T5 and T6, `rpx.download("T5")` returns a 58-question quick start and `rpx.download("T5", full=True)`
+the paper's full list (21,000 questions; 10,500 for T6). Pass either, or your own list, to `evaluate_vqa`; [the next section](#custom-vqa-model-or-api) covers models behind an API.
 
 Always pull a specific tag: the bare `irvlutd/rpx` image is an unrelated legacy image. The
 [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md#which-image-to-pull) also covers the
@@ -174,6 +177,9 @@ robust across phases.
 
 ## Testing
 
+<details>
+<summary>Run the test suite from a source checkout</summary>
+
 From `benchmark/` in a [source checkout](https://github.com/IRVLUTD/RPX):
 
 ```bash
@@ -193,6 +199,8 @@ python -m build
 
 The tests never download checkpoints. Real-model checks run through the per-image GPU gates in the
 [Docker guide](https://github.com/IRVLUTD/RPX/blob/main/docker/README.md).
+
+</details>
 
 ## Citation
 

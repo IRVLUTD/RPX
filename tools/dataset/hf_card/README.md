@@ -82,7 +82,9 @@ configs:
 
 <div align="center">
 
-# RPX: Same Scene, Different Story
+<img src="https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/logo.png" alt="RPX" height="72">
+
+## Same Scene, Different Story
 
 ### Evaluating Robot Perception Across Scene Phases in the Wild
 

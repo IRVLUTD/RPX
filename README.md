@@ -1,6 +1,11 @@
 <div align="center">
 
-# RPX
+<h1>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="benchmark/rpx_benchmark/guides/assets/logo-dark.svg">
+  <img src="benchmark/rpx_benchmark/guides/assets/logo.svg" alt="RPX" height="72">
+</picture>
+</h1>
 
 ### Same Scene, Different Story:<br>Evaluating Robot Perception Across Scene Phases in the Wild
 
@@ -133,7 +138,8 @@ Every task follows the steps above with its own download name, adapter and runne
 | T6 In-context VQA | `rpx.download("T6")` | `vqa.evaluate_vqa` | Acc@0.5, GIoU, center-in-GT |
 
 <sub>* Pass `manifest_name="relative_pose"` as well. Functions are under `rpx`; `vqa` is
-`rpx_benchmark.vqa`, and its models return text, so they need no adapter.
+`rpx_benchmark.vqa`, and its models return text, so they need no adapter. `rpx.download("T5")` is a
+58-question quick start; `full=True` gives the paper's 21,000 (10,500 for T6).
 [`dummy_models.py`](benchmark/rpx_benchmark/examples/dummy_models.py) shows the inputs and
 outputs of every task.</sub>
 
