@@ -84,9 +84,7 @@ configs:
 
 <img src="https://huggingface.co/datasets/IRVLUTD/RPX/resolve/main/assets/logo.png" alt="RPX" width="195" height="64">
 
-## Same Scene, Different Story
-
-### Evaluating Robot Perception Across Scene Phases in the Wild
+<h3 align="center">Same Scene, Different Story:<br>Evaluating Robot Perception Across Scene Phases in the Wild</h3>
 
 **Jishnu Jaykumar P<sup>1\*</sup>, Itay Kadosh<sup>2\*</sup>, Narendhiran Vijayakumar<sup>3\*</sup>, Srinanditha Kamath<sup>4</sup>, Sai Haneesh Allu<sup>1</sup>,<br>
 Govind Tyagi Rangappa<sup>1</sup>, Animesh Maheshwari<sup>1</sup>, Jikai Wang<sup>1</sup>, Yu Xiang<sup>1</sup>**<br>
