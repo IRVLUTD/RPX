@@ -2,7 +2,7 @@
 
 Everything the toolkit can do, and where it lives. The benchmark runners and analysis APIs ship in the PyPI package; annotation tools, the paper's model runners and their containers are in the repository.
 
-<figure class="rpx-workflow-figure"><a href="../assets/toolkit-overview.svg"><img src="../assets/toolkit-overview.svg" alt="RPX toolkit capabilities from scene data and adapters through metrics, profiling and extensibility." loading="lazy"></a><figcaption>How the pieces fit together, illustrated with scene 012. Open the SVG to zoom.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/toolkit-overview.svg"><img src="../assets/toolkit-overview.svg" alt="RPX toolkit capabilities from scene data and adapters through metrics, profiling and extensibility." loading="lazy"></a><figcaption>How the pieces fit together, illustrated with scene 049. Open the SVG to zoom.</figcaption></figure>
 
 | Capability | Where to start | Where it lives |
 | --- | --- | --- |

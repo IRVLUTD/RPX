@@ -20,10 +20,10 @@ Takes one `H × W × 3` RGB image and returns an `H × W` depth map in metres.
 <div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-rgb.png" alt="MODEL INPUT: RGB · frame 00113" width="640" height="480"><figcaption><span>MODEL INPUT</span>RGB · frame 00113</figcaption></figure>
-<figure><img src="../../assets/scene012-depth.png" alt="GROUND TRUTH: Measured depth · display ramp" width="640" height="480"><figcaption><span>GROUND TRUTH</span>Measured depth · display ramp</figcaption></figure>
+<figure><img src="../../assets/scene049-rgb.png" alt="MODEL INPUT: RGB · frame 00185" width="640" height="480"><figcaption><span>MODEL INPUT</span>RGB · frame 00185</figcaption></figure>
+<figure><img src="../../assets/scene049-depth.png" alt="GROUND TRUTH: Measured depth · display ramp" width="640" height="480"><figcaption><span>GROUND TRUTH</span>Measured depth · display ramp</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene 012, Interaction, frame 00113. The right image is the released ground-truth depth, colorized over 0.3–5.0 m; black pixels have no valid depth.</p>
+<p class="rpx-image-note">Scene 049, Interaction, frame 00185. The right image is the released ground-truth depth, colorized over 0.3–5.0 m; black pixels are invalid or beyond 5 m and are not scored.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>One RGB image</strong></div>

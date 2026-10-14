@@ -20,10 +20,10 @@ Takes a reference crop of the object (from its single-object capture), then the 
 <div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-sos-reference.png" alt="IMAGE 1 / REFERENCE: Teapot, global ID 65" width="108" height="139" class="rpx-reference-crop"><figcaption><span>IMAGE 1 / REFERENCE</span>Teapot, global ID 65</figcaption></figure>
-<figure><img src="../../assets/scene012-rgb.png" alt="IMAGE 2 / TARGET: Return coordinates in this image" width="640" height="480"><figcaption><span>IMAGE 2 / TARGET</span>Return coordinates in this image</figcaption></figure>
+<figure><img src="../../assets/scene049-sos-reference.png" alt="IMAGE 1 / REFERENCE: Lion, global ID 39" width="412" height="174" class="rpx-reference-crop"><figcaption><span>IMAGE 1 / REFERENCE</span>Lion, global ID 39</figcaption></figure>
+<figure><img src="../../assets/scene049-rgb.png" alt="IMAGE 2 / TARGET: Return coordinates in this image" width="640" height="480"><figcaption><span>IMAGE 2 / TARGET</span>Return coordinates in this image</figcaption></figure>
 </div>
-<p class="rpx-image-note">The same scene 012 target, with a reference crop of the teapot from its single-object capture. In a real run the crop comes from the manifest, with a pinned revision and hash.</p>
+<p class="rpx-image-note">The same scene 049 target, with a reference crop of the lion from its single-object capture. In a real run the crop comes from the manifest, with a pinned revision and hash.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Reference crop, target, question</strong></div>

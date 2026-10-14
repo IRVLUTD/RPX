@@ -38,11 +38,11 @@ This runs all six evaluators on synthetic inputs in a few seconds, on CPU, witho
 
 Each scene is recorded before manipulation (Clutter), while hands move objects (Interaction) and afterwards (Clean), plus an egocentric view of the interaction. Mean quality drops during Interaction, and none of the 65 evaluations is both accurate and robust.
 
-<figure class="rpx-workflow-figure rpx-finding"><img src="assets/rpx-finding-light.webp#only-light" width="2400" height="1482" alt="Scene 012 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."><img src="assets/rpx-finding-dark.webp#only-dark" width="2400" height="1482" alt="Scene 012 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."><figcaption>Bars: mean quality 𝒥 over all evaluated models, from the paper's Tables III–VI. Map: all 65 evaluations from the paper's Fig. 4. The four views of indoor scene 012 are not frame-synchronized.</figcaption></figure>
+<figure class="rpx-workflow-figure rpx-finding"><img src="assets/rpx-finding-light.webp#only-light" width="2400" height="1482" alt="Scene 049 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."><img src="assets/rpx-finding-dark.webp#only-dark" width="2400" height="1482" alt="Scene 049 in Clutter, Interaction, Clean and egocentric views with mean quality per view for video depth, tracking and VQA; Interaction is lowest. A map of all 65 evaluations by worst-phase quality and phase robustness shows none in the golden zone."><figcaption>Bars: mean quality 𝒥 over all evaluated models, from the paper's Tables III–VI. Map: all 65 evaluations from the paper's Fig. 4. The four views of indoor scene 049 are not frame-synchronized.</figcaption></figure>
 
 ## How the toolkit fits together
 
-<figure class="rpx-workflow-figure"><a href="assets/toolkit-overview.svg"><img src="assets/toolkit-overview.svg" alt="RPX data with scene012 feeds six task model interfaces, evaluation, Phi/JEDI calculation and hardware evidence."></a><figcaption>Your model plugs into each task through an adapter; scoring, Φ/JEDI, profiling and annotation tools sit around it. Open the SVG to zoom.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="assets/toolkit-overview.svg"><img src="assets/toolkit-overview.svg" alt="RPX data with scene049 feeds six task model interfaces, evaluation, Phi/JEDI calculation and hardware evidence."></a><figcaption>Your model plugs into each task through an adapter; scoring, Φ/JEDI, profiling and annotation tools sit around it. Open the SVG to zoom.</figcaption></figure>
 
 ## The six tasks
 
@@ -62,13 +62,13 @@ T5 and T6 share the visual-grounding evaluator but have separate protocols. The 
 Each exocentric capture has RGB, metric depth, instance masks, calibrated fisheye stereo and camera pose.
 
 <div class="rpx-modalities">
-<figure><img src="assets/rgb.jpg" width="640" height="480" loading="lazy" alt="Scene012 Interaction RGB frame00113."><figcaption><span>RGB</span>Appearance and model input</figcaption></figure>
-<figure><img src="assets/depth.png" width="640" height="480" loading="lazy" alt="Colorized metric-depth visualization of the same scene012 Interaction capture."><figcaption><span>METRIC DEPTH</span>Geometry and depth ground truth</figcaption></figure>
-<figure><img src="assets/stereo-left.jpg" width="848" height="800" loading="lazy" alt="Left T265 fisheye view of the scene012 Interaction capture."><figcaption><span>FISHEYE / LEFT</span>Calibrated stereo input</figcaption></figure>
+<figure><img src="assets/rgb.jpg" width="640" height="480" loading="lazy" alt="Scene049 Interaction RGB frame00185."><figcaption><span>RGB</span>Appearance and model input</figcaption></figure>
+<figure><img src="assets/depth.png" width="640" height="480" loading="lazy" alt="Colorized metric-depth visualization of the same scene049 Interaction capture."><figcaption><span>METRIC DEPTH</span>Geometry and depth ground truth</figcaption></figure>
+<figure><img src="assets/stereo-left.jpg" width="848" height="800" loading="lazy" alt="Left T265 fisheye view of the scene049 Interaction capture."><figcaption><span>FISHEYE / LEFT</span>Calibrated stereo input</figcaption></figure>
 <figure><img src="assets/stereo-right.jpg" width="848" height="800" loading="lazy" alt="Right T265 fisheye view paired with the left view."><figcaption><span>FISHEYE / RIGHT</span>Paired viewpoint</figcaption></figure>
 </div>
 
-<p class="rpx-image-note">Scene 012, Interaction, frame 00113. The depth image is colorized for display; scoring uses the metric values. The <a href="data/">data guide</a> covers each modality and the annotations.</p>
+<p class="rpx-image-note">Scene 049, Interaction, frame 00185. The depth image is colorized for display; scoring uses the metric values. The <a href="data/">data guide</a> covers each modality and the annotations.</p>
 
 ## Where to go next
 

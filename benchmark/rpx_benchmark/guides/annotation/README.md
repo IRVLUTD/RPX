@@ -2,7 +2,7 @@
 
 These tools build ground-truth instance masks for new captures and let a person review and fix them. You don't need them to benchmark: the released RPX masks are ready to use. They run from a source checkout, not from the PyPI package.
 
-<figure class="rpx-workflow-figure"><a href="../assets/mask-pipeline.svg"><img src="../assets/mask-pipeline.svg" alt="RPX mask generation, human verification, refinement and release workflow using scene012 RGB." loading="lazy"></a><figcaption>The mask pipeline, illustrated on scene 012. Open the SVG to zoom.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/mask-pipeline.svg"><img src="../assets/mask-pipeline.svg" alt="RPX mask generation, human verification, refinement and release workflow using scene049 RGB." loading="lazy"></a><figcaption>The mask pipeline, illustrated on scene 049. Open the SVG to zoom.</figcaption></figure>
 
 ## Stages
 
@@ -34,7 +34,7 @@ Start from an unpacked capture with an `rgb/` folder under each phase; the phase
 
 ```bash
 # Run from RPX/data/mask_annotation, in the prepared annotation environment.
-export RPX_SCENE=/path/to/working-copy/scene012
+export RPX_SCENE=/path/to/working-copy/scene049
 python -m maskgen_pipeline.interactive_gsam2 --scene_dir "$RPX_SCENE/1"
 python -m maskgen_pipeline.review_faulty_masks --base_dir "$RPX_SCENE/1"
 python -m maskgen_pipeline.gen_faulty_from_verified --scene_dir "$RPX_SCENE/1" --iter 1

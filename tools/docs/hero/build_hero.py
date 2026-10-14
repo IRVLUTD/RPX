@@ -2,7 +2,7 @@
 """Render the RPX hero image (same scene, four views; per-phase quality; Phi-Jmin map).
 
 Numbers come from the paper's Tables III-VI and Fig. 4 (hero_data.json); the photos
-are the scene012 guide assets. Variants: ``full`` (README/PyPI banner) and ``panel``
+are the scene049 guide assets (tools/docs/build_scene_media.py). Variants: ``full`` (README/PyPI banner) and ``panel``
 (docs home figure, no title or install strip). Themes: ``light`` and ``dark``.
 The image has rounded corners on a transparent background so it sits as a card on
 any page colour. Needs Playwright with Chromium:

@@ -20,10 +20,10 @@ Takes RGB frames in order, with sequence boundaries and an initialization, and r
 <div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-rgb.png" alt="MODEL INPUT: RGB · frame 00113" width="640" height="480"><figcaption><span>MODEL INPUT</span>RGB · frame 00113</figcaption></figure>
+<figure><img src="../../assets/scene049-rgb.png" alt="MODEL INPUT: RGB · frame 00185" width="640" height="480"><figcaption><span>MODEL INPUT</span>RGB · frame 00185</figcaption></figure>
 <figure><img src="../../assets/hero-interaction.jpg" alt="GROUND TRUTH: Released instance-mask overlay" width="640" height="480"><figcaption><span>GROUND TRUTH</span>Released instance-mask overlay</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene 012, Interaction, frame 00113. The overlay shows the released ground-truth masks, whose identities persist across the sequence.</p>
+<p class="rpx-image-note">Scene 049, Interaction, frame 00185. The overlay shows the released ground-truth masks, whose identities persist across the sequence.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Frames + initialization</strong></div>

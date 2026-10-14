@@ -1,0 +1,139 @@
+{
+  "scene": "scene049",
+  "revision": "51432e5d48895bbafb490ae7c5e34e0f6b7da7d6",
+  "shards": {
+    "rgb_0": "scenes/scene049/0/rgb.tar",
+    "rgb_1": "scenes/scene049/1/rgb.tar",
+    "rgb_2": "scenes/scene049/2/rgb.tar",
+    "rgb_ego": "scenes/scene049/ego/rgb.tar",
+    "mask_0": "scenes/scene049/0/labels/masks/v1.tar",
+    "mask_1": "scenes/scene049/1/labels/masks/v1.tar",
+    "mask_2": "scenes/scene049/2/labels/masks/v1.tar",
+    "mask_ego": "scenes/scene049/ego/labels/masks/v1.tar",
+    "depth_1": "scenes/scene049/1/depth.tar",
+    "fisheye_1": "scenes/scene049/1/fisheye.tar",
+    "sos_rgb": "objects/lion.2/0/rgb.tar",
+    "sos_mask": "objects/lion.2/0/labels/masks/v1.tar"
+  },
+  "files": [
+    {
+      "file": "clutter.jpg",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 67,
+      "phase": "0"
+    },
+    {
+      "file": "interaction.jpg",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185,
+      "phase": "1"
+    },
+    {
+      "file": "clean.jpg",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 80,
+      "phase": "2"
+    },
+    {
+      "file": "ego.jpg",
+      "size": [
+        960,
+        720
+      ],
+      "frame": 149,
+      "phase": "ego"
+    },
+    {
+      "file": "hero-interaction.jpg",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185,
+      "phase": "1"
+    },
+    {
+      "file": "rgb.jpg",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185
+    },
+    {
+      "file": "scene049-rgb.png",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185
+    },
+    {
+      "file": "scene049-next.png",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 186
+    },
+    {
+      "file": "depth.png",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185
+    },
+    {
+      "file": "scene049-depth.png",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185
+    },
+    {
+      "file": "mask.png",
+      "size": [
+        640,
+        480
+      ],
+      "frame": 185
+    },
+    {
+      "file": "stereo-left.jpg",
+      "size": [
+        848,
+        800
+      ],
+      "frame": 185
+    },
+    {
+      "file": "stereo-right.jpg",
+      "size": [
+        848,
+        800
+      ],
+      "frame": 185
+    },
+    {
+      "file": "scene049-sos-reference.png",
+      "size": [
+        412,
+        174
+      ],
+      "object": "lion.2",
+      "frame": 329,
+      "global_object_id": 39
+    }
+  ]
+}

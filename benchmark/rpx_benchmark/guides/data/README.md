@@ -1,6 +1,6 @@
 # Data and annotations
 
-<figure class="rpx-workflow-figure"><a href="../assets/data-contract.svg"><img src="../assets/data-contract.svg" alt="The same scene012 input connects the modality and benchmark guides." loading="lazy"></a><figcaption>How one scene 012 capture feeds the modalities and the six tasks. Open the SVG to zoom.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/data-contract.svg"><img src="../assets/data-contract.svg" alt="The same scene049 input connects the modality and benchmark guides." loading="lazy"></a><figcaption>How one scene 049 capture feeds the modalities and the six tasks. Open the SVG to zoom.</figcaption></figure>
 
 RPX follows the same objects through every phase of a scene, and all six tasks are scored on those same captures rather than on separate datasets.
 
@@ -39,16 +39,16 @@ Save the printed revision with your results.
 
 The exocentric Clutter, Interaction and Clean recordings have RGB-D, masks, stereo and pose. The egocentric RGB is recorded during Interaction on its own clock, so ego and exo frames are not synchronized.
 
-<figure class="rpx-wide-figure"><img src="../assets/interaction.jpg" width="640" height="480" alt="Exocentric scene 012 during interaction, with released instance-mask overlays." loading="lazy"><figcaption>Scene 012, Interaction, with the released instance masks overlaid. Tracking and grounding rely on these object identities.</figcaption></figure>
+<figure class="rpx-wide-figure"><img src="../assets/interaction.jpg" width="640" height="480" alt="Exocentric scene 049 during interaction, with released instance-mask overlays." loading="lazy"><figcaption>Scene 049, Interaction, with the released instance masks overlaid. Tracking and grounding rely on these object identities.</figcaption></figure>
 
 ## Metric depth and instance masks
 
-The images below are scene 012, Interaction, frame 00113. The depth is colorized over 0.3–5.0 m for display, with invalid pixels in black; benchmarks load the metric values and their validity mask. Mask values are instance IDs, not depth or confidence.
+The images below are scene 049, Interaction, frame 00185. The depth is colorized over 0.3–5.0 m for display, with invalid or out-of-range pixels in black; benchmarks load the metric values and their validity mask. Mask values are instance IDs, not depth or confidence.
 
 <div class="rpx-modalities rpx-three">
-<figure><img src="../assets/rgb.jpg" width="640" height="480" loading="lazy" alt="RGB scene012 Interaction capture."><figcaption><span>RGB</span>Appearance</figcaption></figure>
+<figure><img src="../assets/rgb.jpg" width="640" height="480" loading="lazy" alt="RGB scene049 Interaction capture."><figcaption><span>RGB</span>Appearance</figcaption></figure>
 <figure><img src="../assets/depth.png" width="640" height="480" loading="lazy" alt="Colorized metric-depth example."><figcaption><span>DEPTH</span>Metric geometry, visualized</figcaption></figure>
-<figure><img src="../assets/mask.png" width="640" height="480" loading="lazy" alt="Integer instance-mask labels visualized for the objects in scene012 Interaction frame00113."><figcaption><span>INSTANCE MASK</span>Object pixels and identity</figcaption></figure>
+<figure><img src="../assets/mask.png" width="640" height="480" loading="lazy" alt="Integer instance-mask labels visualized for the objects in scene049 Interaction frame00185."><figcaption><span>INSTANCE MASK</span>Object pixels and identity</figcaption></figure>
 </div>
 
 Mask IDs map each object in a frame to its persistent, global identity. The benchmark reads the released IDs, not the overlay colors.
@@ -74,4 +74,4 @@ Check modality paths, shapes, depth units and camera conventions, and that scene
 
 [Get started](../getting-started/README.md) · [Model integration](../models/README.md) · [Hub API](https://irvlutd.github.io/RPX/toolkit-docs/rpx_benchmark/hub.html)
 
-The images on these pages come from the released scene 012 captures and the paper's appendix figures; [provenance.json](../assets/provenance.json) lists their sources and hashes.
+The photos on these pages are scene 049's released captures, rebuilt by `tools/docs/build_scene_media.py`; [provenance.json](../assets/provenance.json) lists the source and hash of every image.

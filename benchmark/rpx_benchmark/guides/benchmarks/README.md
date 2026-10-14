@@ -5,16 +5,16 @@
 # The six tasks
 
 <div class="rpx-task-lead" markdown="1">
-Each walkthrough covers one paper task: what your model receives and returns, the command that scores it, and how it is scored. All six use scene 012 as the running example.
+Each walkthrough covers one paper task: what your model receives and returns, the command that scores it, and how it is scored. All six use scene 049 as the running example.
 </div>
 
 <div class="rpx-benchmark-gallery">
 <a class="rpx-task-preview" href="t1/">
-<img src="../assets/scene012-depth.png" alt="" width="640" height="480" loading="lazy">
+<img src="../assets/scene049-depth.png" alt="" width="640" height="480" loading="lazy">
 <div><span class="rpx-task-id">T1</span><strong>Image depth</strong><span class="rpx-task-description">One RGB image → depth map in metres</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t2/">
-<img src="../assets/scene012-next.png" alt="" width="640" height="480" loading="lazy">
+<img src="../assets/scene049-next.png" alt="" width="640" height="480" loading="lazy">
 <div><span class="rpx-task-id">T2</span><strong>Video depth</strong><span class="rpx-task-description">Ordered RGB clip → depth sequence</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t3/">
@@ -22,20 +22,20 @@ Each walkthrough covers one paper task: what your model receives and returns, th
 <div><span class="rpx-task-id">T3</span><strong>Object tracking</strong><span class="rpx-task-description">Frames + initialization → boxes with persistent IDs</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t4/">
-<img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
+<img src="../assets/clean.jpg" alt="" width="640" height="480" loading="lazy">
 <div><span class="rpx-task-id">T4</span><strong>Camera pose</strong><span class="rpx-task-description">Two RGB frames → relative rotation and translation</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t5/">
-<img src="../assets/scene012-rgb.png" alt="" width="640" height="480" loading="lazy">
+<img src="../assets/scene049-rgb.png" alt="" width="640" height="480" loading="lazy">
 <div><span class="rpx-task-id">T5</span><strong>VQA</strong><span class="rpx-task-description">Target image + question → box or yes/no answer</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 <a class="rpx-task-preview" href="t6/">
-<img src="../assets/scene012-sos-reference.png" alt="" width="640" height="480" loading="lazy">
+<img src="../assets/scene049-sos-reference.png" alt="" width="412" height="174" loading="lazy">
 <div><span class="rpx-task-id">T6</span><strong>In-context VQA</strong><span class="rpx-task-description">Reference crop, target and question → box or yes/no answer</span><span class="rpx-task-open">Open <span aria-hidden="true">↗</span></span></div>
 </a>
 </div>
 
-<p class="rpx-image-note">Thumbnails are real RPX inputs or released ground truth, not model predictions. The T6 thumbnail is the reference crop it pairs with the scene 012 target.</p>
+<p class="rpx-image-note">Thumbnails are real RPX inputs or released ground truth, not model predictions. T4 shows the Clean phase because pose is scored on Clutter and Clean only; the T6 thumbnail is the reference crop paired with the scene 049 target.</p>
 
 ## Check the install
 

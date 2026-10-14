@@ -56,14 +56,14 @@ def save(name, parts, caption):
 
 
 def workflow(name, title, subtitle, middle_title, middle, right_title, right,
-             *, photo="hero-interaction.jpg", input_label="Scene012 / Interaction", caption=None):
+             *, photo="hero-interaction.jpg", input_label="Scene049 / Interaction", caption=None):
     parts = frame(title, subtitle)
     parts += panel(40, 200, 370, 392, "01 / INPUT")
     if name in {"benchmark-t2.svg", "benchmark-t4.svg", "benchmark-t6.svg"}:
-        first = "scene012-sos-reference.png" if name == "benchmark-t6.svg" else "scene012-rgb.png"
-        second = "scene012-rgb.png" if name == "benchmark-t6.svg" else "scene012-next.png"
+        first = "scene049-sos-reference.png" if name == "benchmark-t6.svg" else "scene049-rgb.png"
+        second = "scene049-rgb.png" if name == "benchmark-t6.svg" else "scene049-next.png"
         parts += [image(first, 62, 282, 155, 156), image(second, 233, 282, 155, 156)]
-        labels = ("SOS reference", "Target / 00113") if name == "benchmark-t6.svg" else ("RGB / 00113", "RGB / 00114")
+        labels = ("SOS reference", "Target / 00185") if name == "benchmark-t6.svg" else ("RGB / 00185", "RGB / 00186")
         parts += [text(62, 471, labels[0], size=20), text(233, 471, labels[1], size=20)]
         parts += [text(62, 530, "Ordered inputs; same target scene", size=21)]
     else:
@@ -83,7 +83,7 @@ def main():
                   "Shared scenes → task adapters → raw metrics → robustness and deployment evidence.")
     parts += panel(40, 200, 370, 392, "RPX TASK DATA")
     parts += [image("hero-interaction.jpg", 62, 266, 326, 230),
-              text(62, 533, "Scene012 + released annotations", size=21),
+              text(62, 533, "Scene049 + released annotations", size=21),
               text(62, 565, "Manifest, phases, persistent IDs", size=21, color=MUTED)]
     parts += panel(455, 200, 415, 392, "YOUR MODEL / SIX TASKS", accent=PURPLE)
     for i, label in enumerate(["T1 Image depth · T2 Video depth", "T3 Tracking · T4 Camera pose",
@@ -108,7 +108,7 @@ def main():
              "Annotation creates persistent integer labels; benchmarking reads those labels.",
              "ANNOTATE", ["Suggest and curate bounding boxes", "SAM2: initialize and propagate", "Human: verify frame by frame", "Refine faulty runs from neighbors", "Redraw stubborn frames"],
              "RELEASE", ["Re-review every corrected frame", "Preserve per-scene instance IDs", "Map IDs to object identities", "Package masks with version metadata", "Tracking and grounding consume GT"],
-             photo="scene012-rgb.png", caption="Scene012 RGB is the walkthrough input. Right-hand labels describe the annotation workflow, not a new GT release.")
+             photo="scene049-rgb.png", caption="Scene049 RGB is the walkthrough input. Right-hand labels describe the annotation workflow, not a new GT release.")
     workflow("hardware-profiler.svg", "Measure the same inference boundary.",
              "Preload inputs. Exclude warmup. Synchronize CUDA. Record the complete configuration.",
              "TIME", ["Fixed inputs + explicit device", "Warmup calls, outside statistics", "One timed call per measurement", "Synchronize every visible GPU", "Keep batch size and scope fixed"],
@@ -118,20 +118,20 @@ def main():
              "Use paired scene/phase observations from one model and one task at a time.",
              "CALCULATE", ["Raw rows → scene/phase means", "Three phases in canonical order", "Explicit metric directions/bounds", "Complete-case Φ analysis", "JEDI geometric desirability"],
              "INTERPRET", ["Φ: stability across phase changes", "JEDI: mean cell desirability", "Jmin: minimum phase-mean JEDI", "Dropped scenes + statistical notes", "No Φ reconstruction from table means"],
-             caption="Scene012 illustrates a cell. Statistical Φ needs multiple complete scenes with N_eff > K.")
+             caption="Scene049 illustrates a cell. Statistical Φ needs multiple complete scenes with N_eff > K.")
     specifications = [
         ("T1", "Image depth", "One RGB image", ["RGB → your depth estimator", "Return H × W depth", "Metric metres or declared relative", "Preserve the sample identity"], ["RGB-D error metrics", "Validity rules + alignment policy", "Per-image scores → scene/phase cells", "Φ and JEDI from raw cells"]),
         ("T2", "Video depth", "A phase RGB sequence", ["T × H × W × 3 RGB clip", "Return T × H × W depth", "One prediction per input frame", "Declare metric/relative depth"], ["Framewise depth accuracy", "TGM / TGSE temporal errors", "Per-clip scene/phase cell records", "Use the same frame budget"]),
         ("T3", "Object tracking", "Frames + initialization", ["Track objects across frames", "Keep persistent track IDs", "Return boxes with frame identity", "Reset state at sequence boundaries"], ["Generic per-frame tracking scores", "Paper sequence evaluator separately", "MOTA / IDF1 / HOTA per protocol", "Coverage and ID consistency"]),
         ("T4", "Relative camera pose", "Two RGB frames", ["Image A + image B", "Return rotation + translation", "Honor the frame convention", "Use task-defined pose pairs"], ["Rotation / translation errors", "Threshold AUC under the protocol", "Pair IDs and phase eligibility", "Metrics → raw cell records"]),
         ("T5", "VQA", "Target RGB + question", ["One image + canonical prompt", "Return JSON label + bbox", "XYXY normalized to 0–1000", "No answer or target box in inputs"], ["Box IoU / localization accuracy", "Parser validity and question types", "Failures stay in the denominator", "Raw predictions + scored JSON"]),
-        ("T6", "In-context VQA", "Reference crop + target", ["Image 1: verified SOS crop", "Image 2: target scene012 frame", "Question → JSON label + bbox", "Box belongs to the TARGET image"], ["Reference hash and crop checks", "Ordered two-image requests", "Shared grounding metrics", "Distinct in-context protocol"]),
+        ("T6", "In-context VQA", "Reference crop + target", ["Image 1: verified SOS crop", "Image 2: target scene049 frame", "Question → JSON label + bbox", "Box belongs to the TARGET image"], ["Reference hash and crop checks", "Ordered two-image requests", "Shared grounding metrics", "Distinct in-context protocol"]),
     ]
     for task, title, input_kind, middle, right in specifications:
-        workflow(f"benchmark-{task.lower()}.svg", f"{task} / {title}", f"{input_kind}. Same scene012 walkthrough, task-specific inputs and scoring.",
+        workflow(f"benchmark-{task.lower()}.svg", f"{task} / {title}", f"{input_kind}. Same scene049 walkthrough, task-specific inputs and scoring.",
                  "MODEL CONTRACT", middle, "BENCHMARK", right,
-                 photo="scene012-rgb.png" if task != "T3" else "hero-interaction.jpg",
-                 caption="Matched SOS teapot (global ID65) + scene012 target. Illustration only; real requests use their own stored crop and hash."
+                 photo="scene049-rgb.png" if task != "T3" else "hero-interaction.jpg",
+                 caption="Matched SOS lion (global ID39) + scene049 target. Illustration only; real requests use their own stored crop and hash."
                  if task == "T6" else None)
     workflow("add-metrics.svg", "Add a metric. Specify what the score means.",
              "Extend a task's calculator registry and, when needed, its raw-metric analysis specs.",
@@ -142,10 +142,10 @@ def main():
              "IMPLEMENT", ["TaskType + prediction/GT contract", "Loader + task-specific manifest", "Input and output adapters", "Metric suite + public run config", "TaskSpec + public exports"],
              "TEST", ["Synthetic end-to-end pipeline", "Missing inputs and invalid outputs", "Per-sample IDs survive scoring", "A documented real-data smoke run", "A versioned, repeatable protocol"])
     workflow("data-contract.svg", "One capture. Multiple aligned modalities.",
-             "Scene012 / Interaction / frame00113. Metric depth shown here is ground truth.",
+             "Scene049 / Interaction / frame00185. Metric depth shown here is ground truth.",
              "LOAD", ["RGB for model input", "D435 metric depth as GT", "Instance masks and global IDs", "Calibrated stereo and camera pose", "Ego has an independent clock"],
              "JOIN", ["Stream + scene + phase + frame", "Task-specific validity rules", "Depth in metres; masks are IDs", "Pinned manifests and data revision", "Use eligible samples per task"],
-             photo="scene012-depth.png", input_label="Scene012 / measured depth", caption="Colorized ground truth: 0.3–5.0 m display ramp; invalid depth is black. Scoring uses metric values.")
+             photo="scene049-depth.png", input_label="Scene049 / measured depth", caption="Colorized ground truth: 0.3–5.0 m display ramp; invalid or out-of-range depth is black. Scoring uses metric values.")
     provenance = json.loads((ASSETS / "provenance.json").read_text())
     provenance["workflow_figures"] = [
         {"file": path.name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),

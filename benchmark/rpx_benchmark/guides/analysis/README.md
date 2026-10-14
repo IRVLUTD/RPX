@@ -2,7 +2,7 @@
 
 RPX reports two separate things: how much a model's results change across phases (Φ), and how good they are (JEDI). Φ comes from a repeated-measures analysis; JEDI combines a task's metrics into one desirability score; 𝒥<sub>min</sub> is the JEDI of the model's worst phase.
 
-<figure class="rpx-workflow-figure"><a href="../assets/phi-jedi.svg"><img src="../assets/phi-jedi.svg" alt="Raw scene-phase metric rows become complete-case Phi and JEDI summaries with dropped-scene accounting." loading="lazy"></a><figcaption>Scene 012 shows how records are joined; the statistics need many complete scenes. Open the SVG to zoom.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/phi-jedi.svg"><img src="../assets/phi-jedi.svg" alt="Raw scene-phase metric rows become complete-case Phi and JEDI summaries with dropped-scene accounting." loading="lazy"></a><figcaption>Scene 049 shows how records are joined; the statistics need many complete scenes. Open the SVG to zoom.</figcaption></figure>
 
 ## What the scores mean
 
@@ -19,7 +19,7 @@ For a raw metric `x`, its desirability is `clip((x − worst)/(best − worst), 
 The calculator reads CSV, JSONL, a JSON list, or a runner's `result.json` (its `per_sample` rows). Each row needs `scene` (or `scene_id`), `phase`, and the metric columns you select. Optional `model` and `task` columns keep separate runs from being mixed. Phases are `clutter`, `interaction`, `clean` or `0`, `1`, `2`. Values must be finite and in each metric's documented units; directions and bounds come from the registered `MetricSpec`s.
 
 ```json
-{"model":"my-depth-model","task":"T1","scene":"scene012","phase":"interaction","absrel":0.12,"rmse":0.36,"delta1":0.84}
+{"model":"my-depth-model","task":"T1","scene":"scene049","phase":"interaction","absrel":0.12,"rmse":0.36,"delta1":0.84}
 ```
 
 That row shows the format; it isn't a real result. Several rows for the same scene and phase are averaged into one cell. Scenes missing a phase are dropped and counted, and each run must cover all three phases overall. One scene is not enough for Φ. Use the same samples and scenes for every model, and look at the dropped scenes before comparing.

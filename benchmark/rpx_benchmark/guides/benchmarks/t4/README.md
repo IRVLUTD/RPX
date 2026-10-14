@@ -20,10 +20,10 @@ Takes two RGB frames and returns the relative pose: a `3 × 3` rotation and a tr
 <div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-rgb.png" alt="IMAGE A: RGB · frame 00113" width="640" height="480"><figcaption><span>IMAGE A</span>RGB · frame 00113</figcaption></figure>
-<figure><img src="../../assets/scene012-next.png" alt="IMAGE B: RGB · frame 00114" width="640" height="480"><figcaption><span>IMAGE B</span>RGB · frame 00114</figcaption></figure>
+<figure><img src="../../assets/scene049-rgb.png" alt="IMAGE A: RGB · frame 00185" width="640" height="480"><figcaption><span>IMAGE A</span>RGB · frame 00185</figcaption></figure>
+<figure><img src="../../assets/scene049-next.png" alt="IMAGE B: RGB · frame 00186" width="640" height="480"><figcaption><span>IMAGE B</span>RGB · frame 00186</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene 012, Interaction, two adjacent frames. The benchmark's actual pairs are chosen by the pose protocol.</p>
+<p class="rpx-image-note">Two adjacent frames from scene 049, shown only to illustrate the input. The benchmark scores pose pairs from Clutter and Clean, chosen by the pose protocol; Interaction is never used for T4.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Two RGB frames</strong></div>

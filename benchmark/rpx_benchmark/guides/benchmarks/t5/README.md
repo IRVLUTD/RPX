@@ -20,10 +20,10 @@ Takes one image and a question and returns the model's raw text, which should co
 <div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-rgb.png" alt="MODEL INPUT: Target RGB + canonical question" width="640" height="480"><figcaption><span>MODEL INPUT</span>Target RGB + canonical question</figcaption></figure>
+<figure><img src="../../assets/scene049-rgb.png" alt="MODEL INPUT: Target RGB + canonical question" width="640" height="480"><figcaption><span>MODEL INPUT</span>Target RGB + canonical question</figcaption></figure>
 <figure><img src="../../assets/hero-interaction.jpg" alt="ANNOTATION CONTEXT: Instance masks stay with the evaluator" width="640" height="480"><figcaption><span>ANNOTATION CONTEXT</span>Instance masks stay with the evaluator</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene 012, Interaction, frame 00113. The masks on the right are what the evaluator scores against; the model only gets the RGB image and the question.</p>
+<p class="rpx-image-note">Scene 049, Interaction, frame 00185. The masks on the right are what the evaluator scores against; the model only gets the RGB image and the question.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Target image + question</strong></div>
@@ -89,7 +89,7 @@ Check that the number of scored samples matches what you asked for. Keep the per
 
 ### Scoring and protocol
 
-The model sees only the image and the prompt; boxes and answers stay with the evaluator. Boxes are `[x1, y1, x2, y2]` normalized to 0–1000, for example `{"label":"cup","bbox":[100,200,600,800]}` (an illustration, not scene012's ground truth). Yes/no questions expect `yes` or `no`.
+The model sees only the image and the prompt; boxes and answers stay with the evaluator. Boxes are `[x1, y1, x2, y2]` normalized to 0–1000, for example `{"label":"cup","bbox":[100,200,600,800]}` (an illustration, not scene049's ground truth). Yes/no questions expect `yes` or `no`.
 
 Scores include box IoU, accuracy at IoU thresholds, parse validity and a breakdown by question type. Malformed responses and inference errors count as failures; an error fetching the dataset stops the run. Label accuracy is reported separately from localization. For API models, the recorded wall time includes network transport.
 

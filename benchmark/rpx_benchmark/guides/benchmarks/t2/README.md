@@ -20,10 +20,10 @@ Takes an ordered `T × H × W × 3` RGB clip from one phase and returns a `T × 
 <div class="rpx-task-shortcuts"><a href="#run-the-benchmark">Run it <span aria-hidden="true">↓</span></a><a href="../#move-to-real-data">Use local data <span aria-hidden="true">↗</span></a></div>
 
 <div class="rpx-task-visual">
-<figure><img src="../../assets/scene012-rgb.png" alt="FRAME 00113: RGB clip · preserve frame order" width="640" height="480"><figcaption><span>FRAME 00113</span>RGB clip · preserve frame order</figcaption></figure>
-<figure><img src="../../assets/scene012-next.png" alt="FRAME 00114: Adjacent frame · same capture" width="640" height="480"><figcaption><span>FRAME 00114</span>Adjacent frame · same capture</figcaption></figure>
+<figure><img src="../../assets/scene049-rgb.png" alt="FRAME 00185: RGB clip · preserve frame order" width="640" height="480"><figcaption><span>FRAME 00185</span>RGB clip · preserve frame order</figcaption></figure>
+<figure><img src="../../assets/scene049-next.png" alt="FRAME 00186: Adjacent frame · same capture" width="640" height="480"><figcaption><span>FRAME 00186</span>Adjacent frame · same capture</figcaption></figure>
 </div>
-<p class="rpx-image-note">Scene 012, Interaction, frames 00113 and 00114. Real clips are longer; their length comes from the manifest.</p>
+<p class="rpx-image-note">Scene 049, Interaction, frames 00185 and 00186. Real clips are longer; their length comes from the manifest.</p>
 
 <div class="rpx-task-contract">
 <div><span>INPUT</span><strong>Ordered RGB clip</strong></div>

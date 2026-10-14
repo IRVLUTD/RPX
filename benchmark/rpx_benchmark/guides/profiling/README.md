@@ -2,7 +2,7 @@
 
 The profiler times your prediction function and records its memory use, along with the hardware and software it ran on. It works the same way for frames, clips, image pairs and API calls.
 
-<figure class="rpx-workflow-figure"><a href="../assets/hardware-profiler.svg"><img src="../assets/hardware-profiler.svg" alt="Preloaded RPX inputs pass through warmup, synchronized timing and a latency/memory report." loading="lazy"></a><figcaption>The same scene 012 input, timed for each kind of task. Open the SVG to zoom.</figcaption></figure>
+<figure class="rpx-workflow-figure"><a href="../assets/hardware-profiler.svg"><img src="../assets/hardware-profiler.svg" alt="Preloaded RPX inputs pass through warmup, synchronized timing and a latency/memory report." loading="lazy"></a><figcaption>The same scene 049 input, timed for each kind of task. Open the SVG to zoom.</figcaption></figure>
 
 ## What it measures
 
