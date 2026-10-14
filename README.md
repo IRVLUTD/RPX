@@ -66,6 +66,20 @@ recorded before, during and after manipulation, scored on six tasks.
 
 <br>
 
+## 🧰 What you get
+
+| Piece | What it gives you | Function |
+|:--|:--|:--|
+| 📦 **Data** | 100 real scenes in three phases, downloaded per task | `rpx.download_split` |
+| 🔌 **Adapters** | connect your model's inputs and outputs to RPX | `rpx.make_numpy_*_model` |
+| 🧪 **Benchmark** | the six paper tasks with the paper's protocol and metrics | `rpx.run_*` |
+| 🧮 **Metrics calculator** | Φ (phase robustness) and 𝒥<sub>min</sub> (worst-phase quality) | `calculate` |
+
+**Your part is one function** that runs your model; the adapter handles RPX's inputs and outputs around it. Adding a
+new task or metric? See the toolkit docs on [tasks](https://irvlutd.github.io/RPX/toolkit-docs/tasks/) and [metrics](https://irvlutd.github.io/RPX/toolkit-docs/metrics/).
+
+<br>
+
 ## 🚀 Get started
 
 **1 · Install**
@@ -74,30 +88,49 @@ recorded before, during and after manipulation, scored on six tasks.
 pip install 'rpx-benchmark[hub,schemas]'
 ```
 
-**2 · Try a task.** This downloads the data for one task, then scores a dummy model on it. No GPU, login or code needed.
-
-```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6
-```
-
-Every paper task works the same way: **T1** image depth · **T2** video depth · **T3** tracking · **T4** camera pose ·
-**T5** VQA grounding · **T6** in-context VQA. Results are saved in rpx_results.
-
-**3 · Score your own model.** Save it as a predict function in my_model.py. The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show the
-inputs and outputs for every task; this one is T1:
+**2 · Download one task's data** (only its files: about 160 MB for this 6-frame trial, no login)
 
 ```python
 import numpy as np
+import rpx_benchmark as rpx
 
-def predict(rgb):                              # T1: RGB image -> depth in metres
-    return np.ones(rgb.shape[:2], np.float32)  # replace with your model
+manifest = rpx.download_split("monocular_depth", "easy", max_samples=6)
 ```
 
-Then run the same command with your model:
+**3 · Wrap your model in the task's adapter and run the benchmark**
 
-```bash
-python -m rpx_benchmark.examples.benchmark_tasks --task T1 --split easy --max-samples 6 --model my_model:predict
+```python
+def predict(rgb):                               # RPX passes an RGB image (H, W, 3)
+    return np.ones(rgb.shape[:2], np.float32)   # return depth (H, W) in metres; replace with your model
+
+model = rpx.make_numpy_depth_model(predict, name="my-model")
+result, report, paths = rpx.run_monocular_depth(rpx.MonocularDepthRunConfig(
+    model=model, manifest_path=str(manifest), output_dir="rpx_results/my-model",
+))
+print(result.aggregated["absrel"], result.aggregated["delta1"])
 ```
+
+**4 · Calculate Φ and 𝒥<sub>min</sub>.** These need all three phases of many scenes: drop max_samples in step 2 to get
+the full tier, then
+
+```python
+from rpx_benchmark.examples.summarize_metrics import calculate, read_records
+
+summary = calculate(read_records(paths["json"]), ["absrel", "rmse", "silog", "delta1"])
+```
+
+| Task | Data: `download_split(…)` | Adapter | Benchmark | Paper metrics for the calculator |
+|:--|:--|:--|:--|:--|
+| **T1** Image depth | `"monocular_depth"` | `make_numpy_depth_model` | `run_monocular_depth` | absrel · rmse · silog · delta1 |
+| **T2** Video depth | `"video_depth"` | `make_numpy_video_depth_model` | `run_video_depth` | T1's + tgm · tgse |
+| **T3** Tracking | `"object_tracking"` | `make_numpy_tracking_model` | `run_object_tracking` | HOTA · MOTA · IDSW |
+| **T4** Camera pose | `"relative_camera_pose"`, `manifest_name="relative_pose"` | `make_numpy_pose_model` | `run_relative_pose` | AUC @ 5° · 10° · 20° |
+| **T5** VQA | `rpx.download("T5")` (packaged questions) | none: your function returns text | `rpx_benchmark.vqa.evaluate_vqa` | Acc@0.5 · GIoU · center-in-GT |
+| **T6** In-context VQA | `rpx.download("T6")` | none | `rpx_benchmark.vqa.evaluate_vqa` | same as T5 |
+
+All functions are under `rpx` unless named in full. The [dummy models](https://github.com/IRVLUTD/RPX/blob/main/benchmark/rpx_benchmark/examples/dummy_models.py) show what each task's function
+receives and returns. To try any task with a ready-made dummy model before writing
+code, `rpx.benchmark("T2", rpx.download("T2", max_samples=2))` runs steps 2–3 in one go.
 
 <br>
 

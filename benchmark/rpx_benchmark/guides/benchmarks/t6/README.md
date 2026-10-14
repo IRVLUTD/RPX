@@ -5,13 +5,13 @@
 <a href="../t2/"><span>T2</span>Video depth</a>
 <a href="../t3/"><span>T3</span>Object tracking</a>
 <a href="../t4/"><span>T4</span>Camera pose</a>
-<a href="../t5/"><span>T5</span>Visual grounding</a>
-<a href="../t6/" aria-current="page"><span>T6</span>In-context grounding</a>
+<a href="../t5/"><span>T5</span>VQA</a>
+<a href="../t6/" aria-current="page"><span>T6</span>In-context VQA</a>
 </div>
 
 <p class="rpx-task-kicker">BENCHMARK WALKTHROUGH / T6</p>
 
-# In-context grounding
+# In-context VQA
 
 <div class="rpx-task-lead" markdown="1">
 Verified SOS reference crop **first**, target RGB **second**, plus a canonical question → a box in the target image.

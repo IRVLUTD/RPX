@@ -62,8 +62,8 @@ nav:
       - T2 Video depth: benchmarks/t2/README.md
       - T3 Object tracking: benchmarks/t3/README.md
       - T4 Camera pose: benchmarks/t4/README.md
-      - T5 Visual grounding: benchmarks/t5/README.md
-      - T6 In-context grounding: benchmarks/t6/README.md
+      - T5 VQA: benchmarks/t5/README.md
+      - T6 In-context VQA: benchmarks/t6/README.md
   - Hardware profiler: profiling/README.md
   - Φ and JEDI calculator: analysis/README.md
   - Extend the toolkit:

@@ -45,3 +45,27 @@ def test_packaged_vqa_quickstart_is_pinned(task: str, in_context: bool) -> None:
         assert sample.image["revision"] == DEFAULT_REVISION
         if sample.reference_image is not None:
             assert sample.reference_image["revision"] == DEFAULT_REVISION
+
+
+def test_quickstart_api_is_exported() -> None:
+    import rpx_benchmark as rpx
+
+    assert {"download", "benchmark", "dummy_models"} <= set(rpx.__all__)
+
+
+def test_benchmark_rejects_unknown_task(tmp_path) -> None:
+    from rpx_benchmark.exceptions import ConfigError
+    from rpx_benchmark.quickstart import benchmark
+
+    with pytest.raises(ConfigError):
+        benchmark("T9", tmp_path / "manifest.json")
+
+
+@pytest.mark.parametrize("task", ["T1", "T4"])
+def test_benchmark_scores_dummy_model_offline(tmp_path, task: str) -> None:
+    from rpx_benchmark.quickstart import benchmark
+
+    manifest, _ = benchmark_tasks.create_smoke(tmp_path / "inputs", task)
+    report = benchmark(task, manifest, output=tmp_path / "results")
+    assert report["num_samples"] == 1
+    assert report["metrics"]

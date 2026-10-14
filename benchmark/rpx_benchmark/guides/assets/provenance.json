@@ -186,13 +186,13 @@
     },
     {
       "file": "benchmark-t5.svg",
-      "sha256": "7e26950ea31b0f2a36164e46ae71f4c3cdee616d52fba8e39490f7a40ea48a37",
+      "sha256": "983478508350e2ce7bcebc86acf7c5c583be3ad862ca789da7d2502440cfa7a7",
       "generator": "tools/docs/build_figures.py",
       "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
     },
     {
       "file": "benchmark-t6.svg",
-      "sha256": "8aef4023442c6299b2d134266ab712af1740f5972e4e42e287b3deac8ad5fc39",
+      "sha256": "631da962b41a2bef655544c6976348b44cc48448623cbca3d170a3744c559d8a",
       "generator": "tools/docs/build_figures.py",
       "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
     },
@@ -210,7 +210,7 @@
     },
     {
       "file": "getting-started.svg",
-      "sha256": "126a8fb49d5ea11da7d778288c57f7b5f86fe144effcd7b65a388b1e3f04fdcc",
+      "sha256": "f407f1cca0a8b2394ea437139ff988fa31bdf24d9413d67938ec42508e88b3c2",
       "generator": "tools/docs/build_figures.py",
       "description": "Vector workflow with sourced RPX imagery; labels are contracts, not model predictions"
     },

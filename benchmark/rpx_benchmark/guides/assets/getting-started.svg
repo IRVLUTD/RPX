@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1440" height="670" viewBox="0 0 1440 670" role="img" aria-labelledby="title desc">
-<title id="title">A small run, from installation to evidence.</title><desc id="desc">Validate the interface on synthetic inputs, then run a pinned real-data subset.</desc>
+<title id="title">Install, download, benchmark, diagnose.</title><desc id="desc">Download one task&#x27;s data, wrap your model in its adapter, run the benchmark, then compute Φ and Jmin.</desc>
 <rect width="100%" height="100%" fill="#fff"/>
 <g font-family="Arial, Helvetica, sans-serif">
 <text x="40" y="49" font-size="17" fill="#50665f" font-weight="700">RPX / TOOLKIT WORKFLOWS</text>
-<text x="40" y="104" font-size="40" fill="#183b38" font-weight="700">A small run, from installation to evidence.</text>
-<text x="40" y="143" font-size="23" fill="#50665f" font-weight="400">Validate the interface on synthetic inputs, then run a pinned real-data subset.</text>
+<text x="40" y="104" font-size="40" fill="#183b38" font-weight="700">Install, download, benchmark, diagnose.</text>
+<text x="40" y="143" font-size="23" fill="#50665f" font-weight="400">Download one task&#x27;s data, wrap your model in its adapter, run the benchmark, then compute Φ and Jmin.</text>
 <path d="M40 168H1400" stroke="#d5dfd9"/>
 <rect x="40" y="200" width="370" height="392" fill="#f8faf8" stroke="#d5dfd9"/>
 <rect x="40" y="200" width="370" height="5" fill="#137f79"/>
@@ -15,18 +15,18 @@
 <rect x="455" y="200" width="415" height="5" fill="#6254ce"/>
 <text x="477" y="244" font-size="26" fill="#6254ce" font-weight="700">02 / RUN</text>
 <text x="477" y="288" font-size="24" fill="#183b38" font-weight="400">Install rpx-benchmark</text>
-<text x="477" y="342" font-size="24" fill="#183b38" font-weight="400">Discover tasks and metrics</text>
-<text x="477" y="396" font-size="24" fill="#183b38" font-weight="400">Run six offline smoke examples</text>
-<text x="477" y="450" font-size="24" fill="#183b38" font-weight="400">Connect your actual model</text>
-<text x="477" y="504" font-size="24" fill="#183b38" font-weight="400">Select a task-specific manifest</text>
+<text x="477" y="342" font-size="24" fill="#183b38" font-weight="400">Download one task&#x27;s data</text>
+<text x="477" y="396" font-size="24" fill="#183b38" font-weight="400">Write predict for your model</text>
+<text x="477" y="450" font-size="24" fill="#183b38" font-weight="400">Wrap it in the task&#x27;s adapter</text>
+<text x="477" y="504" font-size="24" fill="#183b38" font-weight="400">Run the task&#x27;s benchmark</text>
 <rect x="915" y="200" width="485" height="392" fill="#f8faf8" stroke="#d5dfd9"/>
 <rect x="915" y="200" width="485" height="5" fill="#137f79"/>
 <text x="937" y="244" font-size="26" fill="#137f79" font-weight="700">03 / CHECK</text>
 <text x="937" y="288" font-size="24" fill="#183b38" font-weight="400">Prediction shapes, units and IDs</text>
-<text x="937" y="342" font-size="24" fill="#183b38" font-weight="400">Every requested sample accounted for</text>
-<text x="937" y="396" font-size="24" fill="#183b38" font-weight="400">Per-sample + aggregate metrics</text>
-<text x="937" y="450" font-size="24" fill="#183b38" font-weight="400">Reports and cell records</text>
-<text x="937" y="504" font-size="24" fill="#183b38" font-weight="400">Expand to the full protocol</text>
+<text x="937" y="342" font-size="24" fill="#183b38" font-weight="400">Per-sample + aggregate metrics</text>
+<text x="937" y="396" font-size="24" fill="#183b38" font-weight="400">Reports and cell records</text>
+<text x="937" y="450" font-size="24" fill="#183b38" font-weight="400">Φ and Jmin on the full tier</text>
+<text x="937" y="504" font-size="24" fill="#183b38" font-weight="400">Repeat for all six tasks</text>
 <path d="M420 397H443l-10-7m10 7-10 7" fill="none" stroke="#6254ce" stroke-width="3"/>
 <path d="M880 397H903l-10-7m10 7-10 7" fill="none" stroke="#6254ce" stroke-width="3"/>
 <text x="40" y="640" font-size="18" fill="#50665f" font-weight="400">Real RPX imagery. Output labels describe contracts; no model predictions are fabricated.</text>

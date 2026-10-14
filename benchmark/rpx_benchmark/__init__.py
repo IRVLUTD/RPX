@@ -85,6 +85,7 @@ from .deployment import (
 )
 from .determinism import RPX_SEED, deterministic, seed_all
 from .evaluators import BenchmarkResult, MetricSuite
+from .examples import dummy_models
 from .exceptions import (
     AdapterError,
     ConfigError,
@@ -118,6 +119,7 @@ from .profiler import (
     estimate_memory_traffic_gb,
     profile_model,
 )
+from .quickstart import benchmark, download
 from .reports import format_markdown_summary, write_json
 from .runner import BenchmarkRunner
 from .tasks.detection import (
@@ -149,6 +151,10 @@ except ImportError:
     pass
 
 __all__ = [
+    # Two-call quick start: download a paper task's data, then benchmark a model on it
+    "download",
+    "benchmark",
+    "dummy_models",
     # Enums
     "TaskType",
     "Phase",
