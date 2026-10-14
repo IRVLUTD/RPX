@@ -2,13 +2,13 @@
 
 Ready-to-run Docker images for every model evaluated in **Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild**, a real-world benchmark that scores robot perception on the same scenes before, during and after manipulation.
 
-[![Dataset](https://img.shields.io/badge/dataset-IRVLUTD%2FRPX-ffcc4d?logo=huggingface&logoColor=white)](https://huggingface.co/datasets/IRVLUTD/RPX) [![Docs](https://img.shields.io/badge/docs-toolkit-0d9488?logo=materialformkdocs&logoColor=white)](https://irvlutd.github.io/RPX/toolkit-docs/) [![PyPI](https://img.shields.io/pypi/v/rpx-benchmark?label=pypi&color=4F46E5&logo=pypi&logoColor=white)](https://pypi.org/project/rpx-benchmark/) [![GitHub](https://img.shields.io/badge/source-IRVLUTD%2FRPX-24292f?logo=github)](https://github.com/IRVLUTD/RPX) [![License](https://img.shields.io/badge/license-MIT-3da639)](https://github.com/IRVLUTD/RPX/blob/main/LICENSE)
+[Dataset](https://huggingface.co/datasets/IRVLUTD/RPX) · [Toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) · [PyPI](https://pypi.org/project/rpx-benchmark/) · [GitHub](https://github.com/IRVLUTD/RPX) · [All tags](https://hub.docker.com/r/irvlutd/rpx/tags)
 
 ![RPX overview: six perception tasks scored on the same real scenes, captured before (Clutter), during (Interaction) and after (Clean) manipulation plus an egocentric view](https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp)
 
 *The same real scenes before, during and after manipulation, scored on six perception tasks. Each image below holds every model the paper evaluated on one task.*
 
-[Which image to pull](#which-image-to-pull) · [Quick start](#quick-start) · [Reproducibility](#reproducibility) · [Citation](#citation) · [All tags](https://hub.docker.com/r/irvlutd/rpx/tags)
+[Which image to pull](#which-image-to-pull) · [Quick start](#quick-start) · [Reproducibility](#reproducibility) · [Citation](#citation)
 
 ## Which image to pull
 
