@@ -82,9 +82,7 @@ configs:
 
 <div align="center">
 
-# RPX: Same Scene, Different Story
-
-### Evaluating Robot Perception Across Scene Phases in the Wild
+<h1>Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild</h1>
 
 **Jishnu Jaykumar P<sup>1\*</sup>, Itay Kadosh<sup>2\*</sup>, Narendhiran Vijayakumar<sup>3\*</sup>, Srinanditha Kamath<sup>4</sup>, Sai Haneesh Allu<sup>1</sup>,<br>
 Govind Tyagi Rangappa<sup>1</sup>, Animesh Maheshwari<sup>1</sup>, Jikai Wang<sup>1</sup>, Yu Xiang<sup>1</sup>**<br>
