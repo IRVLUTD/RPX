@@ -1,15 +1,26 @@
 # RPX model environments
 
-Docker environments for every model evaluated in RPX, a real-world benchmark that scores robot perception models on
-the same scenes before, during and after manipulation.
+Ready-to-run Docker images for every model evaluated in
+**Same Scene, Different Story: Evaluating Robot Perception Across Scene Phases in the Wild**,
+a real-world benchmark that scores robot perception on the same scenes before, during and after
+manipulation.
 
-[Toolkit docs](https://irvlutd.github.io/RPX/toolkit-docs/) ·
-[GitHub](https://github.com/IRVLUTD/RPX) ·
-[Dataset](https://huggingface.co/datasets/IRVLUTD/RPX) ·
-[PyPI](https://pypi.org/project/rpx-benchmark/) ·
-[All tags](https://hub.docker.com/r/irvlutd/rpx/tags)
+[![Dataset](https://img.shields.io/badge/dataset-IRVLUTD%2FRPX-ffcc4d?logo=huggingface&logoColor=white)](https://huggingface.co/datasets/IRVLUTD/RPX)
+[![Docs](https://img.shields.io/badge/docs-toolkit-0d9488?logo=materialformkdocs&logoColor=white)](https://irvlutd.github.io/RPX/toolkit-docs/)
+[![PyPI](https://img.shields.io/pypi/v/rpx-benchmark?label=pypi&color=4F46E5&logo=pypi&logoColor=white)](https://pypi.org/project/rpx-benchmark/)
+[![GitHub](https://img.shields.io/badge/source-IRVLUTD%2FRPX-24292f?logo=github)](https://github.com/IRVLUTD/RPX)
+[![License](https://img.shields.io/badge/license-MIT-3da639)](https://github.com/IRVLUTD/RPX/blob/main/LICENSE)
 
 ![RPX overview: six perception tasks scored on the same real scenes, captured before (Clutter), during (Interaction) and after (Clean) manipulation plus an egocentric view](https://raw.githubusercontent.com/IRVLUTD/RPX/main/benchmark/rpx_benchmark/guides/assets/rpx-overview.webp)
+
+*The same real scenes before, during and after manipulation, scored on six perception tasks.
+Each image below holds every model the paper evaluated on one task.*
+
+[Which image to pull](#which-image-to-pull) ·
+[Quick start](#quick-start) ·
+[Reproducibility](#reproducibility) ·
+[Citation](#citation) ·
+[All tags](https://hub.docker.com/r/irvlutd/rpx/tags)
 
 ## Which image to pull
 
@@ -27,17 +38,15 @@ Each task's images are built cumulatively, so one tag holds every model the pape
 | T4 Relative camera pose | `rcpe-monst3r-rpx-latest` | 10 |
 | T5 VQA, T6 In-context VQA | `vqa-vllm` | 12 configurations |
 
-The models in each image:
+Models in each image:
 
-- `depth-zipdepth-latest`, image depth: DA-V2 Large, DA3 Metric-L, Depth Pro, FE2E, HyDen,
-  Lotus-2, Metric3D V2, MoGe-2 ViT-L, UniDepth V2, ZipDepth
-- `depth-zipdepth-latest`, video depth: ChronoDepth, DA3 (video), DepthCrafter, MonST3R,
-  RollingDepth, VGGT, ViGeo, Video-DA
-- `tracking-dam4sam-rpx-latest`: SAM 2, EdgeTAM, Cutie, SAM2Long, SAM 2++, MiTS, XMem, DAM4SAM
-- `rcpe-monst3r-rpx-latest`: VGGT, DA3, CUT3R, DUSt3R, MASt3R, MUSt3R, Reloc3R, Pi3X, Fast3R,
-  MonST3R
-- `vqa-vllm`: 12 configurations of Cosmos Reason2, DeepSeek-VL2, Florence-2, InternVL 3.5,
-  PaliGemma 2 and Qwen3-VL
+| Image | Models |
+|:--|:--|
+| `depth-zipdepth-latest` (image depth) | DA-V2 Large, DA3 Metric-L, Depth Pro, FE2E, HyDen, Lotus-2, Metric3D V2, MoGe-2 ViT-L, UniDepth V2, ZipDepth |
+| `depth-zipdepth-latest` (video depth) | ChronoDepth, DA3 (video), DepthCrafter, MonST3R, RollingDepth, VGGT, ViGeo, Video-DA |
+| `tracking-dam4sam-rpx-latest` | SAM 2, EdgeTAM, Cutie, SAM2Long, SAM 2++, MiTS, XMem, DAM4SAM |
+| `rcpe-monst3r-rpx-latest` | VGGT, DA3, CUT3R, DUSt3R, MASt3R, MUSt3R, Reloc3R, Pi3X, Fast3R, MonST3R |
+| `vqa-vllm` | 12 configurations of Cosmos Reason2, DeepSeek-VL2, Florence-2, InternVL 3.5, PaliGemma 2 and Qwen3-VL |
 
 Always name a tag. A bare `docker pull irvlutd/rpx` fetches an old, unrelated capture environment, and tags not
 listed above are earlier build stages kept for provenance. DA3, MonST3R and VGGT appear in both the depth and pose
@@ -52,9 +61,11 @@ and disk space for the image, checkpoints and dataset cache. Weights and data do
 
 ```bash
 docker pull irvlutd/rpx:vqa-vllm
-# what this image can run
+
+# What this image can run
 docker run --rm irvlutd/rpx:vqa-vllm list-models
-# environment and GPU preflight
+
+# Environment and GPU preflight
 docker run --rm --gpus all irvlutd/rpx:vqa-vllm verify
 ```
 
