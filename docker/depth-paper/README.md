@@ -3,6 +3,8 @@
 A thin code overlay on the cumulative HyDen depth image for the full Depth Anything V2 Large run. It contains no data,
 weights or results, so keep both mounted directories on persistent storage.
 
+## Build
+
 ```bash
 cd RPX
 export RPX_GIT_SHA="$(git rev-parse HEAD)"
@@ -14,6 +16,8 @@ mkdir -p "$HF_HOME" "$RPX_OUTPUT"
 docker build --file docker/depth-paper/Dockerfile \
   --build-arg "RPX_GIT_SHA=$RPX_GIT_SHA" --tag "$IMAGE" .
 ```
+
+## Run
 
 The preflight checks CUDA, imports and free disk; it does not run inference. Start the full 75,000-frame job in
 `tmux`:
@@ -34,6 +38,8 @@ NPZ files are CRC-checked and validated before reuse, and only missing or invali
 
 Once the cache is complete, you can run without network access by adding `--offline` and dropping `HF_TOKEN`. This sets
 `HF_HUB_OFFLINE=1` for manifest resolution and every child run.
+
+## Validate
 
 To validate the finished run:
 
@@ -59,6 +65,8 @@ print("validated", analysis["jedi"]["status"])
 PY
 ```
 
+## Add JEDI later
+
 To add JEDI later, mount a reviewed, versioned bounds file and rerun only the analysis:
 
 ```bash
@@ -69,3 +77,9 @@ docker run --rm \
   --output-dir /outputs/da-v2-large/paper \
   --jedi-bounds /bounds/d1-jedi-v1.json
 ```
+
+---
+
+<sub>Part of <a href="../../README.md">RPX</a> ·
+<a href="../README.md">Model environments</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a></sub>

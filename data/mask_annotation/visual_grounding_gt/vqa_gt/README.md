@@ -10,6 +10,15 @@ single-image tasks:
 
 Each also has a two-image, in-context variant, described [below](#in-context-two-image-vqa).
 
+<p align="center">
+  <a href="#usage">Usage</a> ·
+  <a href="#attribute-vqa">Attribute VQA</a> ·
+  <a href="#spatial-questions">Spatial questions</a> ·
+  <a href="#output-schema">Output schema</a> ·
+  <a href="#in-context-two-image-vqa">In-context VQA</a> ·
+  <a href="#files">Files</a>
+</p>
+
 ## Usage
 
 ```bash
@@ -40,23 +49,29 @@ The output has one question per line.
 The other types have fixed counts:
 
 | Type | Per frame |
-|---|---|
+|:--|:--|
 | `attr_synonym` | 1 yes and 1 no, so the answers stay balanced |
 | `attr_count`, `attr_odd_one_out` | uncapped; the pools are already small |
 | `spatial_lr_extreme` | exactly 2 (leftmost and rightmost) |
 | `depth_closest` | exactly 1 |
 
-The cap works differently for the two families, on purpose:
+The cap works differently for the two families, on purpose: attribute questions are deduplicated across
+the phase, and spatial questions are sampled per frame.
 
-- **Attribute questions are deduplicated across the phase.** The objects don't move within a phase, so "the doll is
+<details>
+<summary>Why the two families are capped differently</summary>
+
+- Attribute questions are deduplicated across the phase. The objects don't move within a phase, so "the doll is
   red" is true in every frame, and sampling each frame independently mostly repeats the same facts (up to 96.7% of
   `attr_count` questions were repeats before this change). `_gen_attributes_for_phase()` in `generate_gt.py` gathers
   every candidate fact from the phase's frames first, then `distribute()` in `dedup.py` places each distinct fact
   once, in the valid frame with the lightest load so far, before anything repeats. Here `--max-per-type` limits
   distinct facts per frame.
-- **Spatial questions are sampled per frame.** "Is A left of B" depends on the viewpoint, not the arrangement: 90%
+- Spatial questions are sampled per frame. "Is A left of B" depends on the viewpoint, not the arrangement: 90%
   of object pairs flip their `spatial_lr_binary` answer at least once within a phase. Asking it again in another
   frame tests viewpoint robustness, so `--max-per-type` is a plain per-frame cap (`_cap()` in `gt_spatial.py`).
+
+</details>
 
 ## Attribute VQA
 
@@ -107,11 +122,16 @@ next fix.
 
 ## Depth loading
 
+<details>
+<summary>How depth PNGs are read, and the bug this replaced</summary>
+
 `imread_depth()` in `generate_spatial_gt.py` reads depth PNGs as millimetres. An earlier version divided the whole
 frame by 1000 whenever any pixel exceeded 5000, to catch frames stored in another unit. That pixel is usually the
 sensor's no-return value (65535), so the rule fired on 63% of ordinary frames in a 200-frame sample and corrupted
 their units. Ordering questions (closest, A closer than B) were unaffected because the whole frame scaled uniformly,
 but absolute thresholds were not. Out-of-range values are now filtered with `DEPTH_MAX_VALID_MM` instead.
+
+</details>
 
 ## Output schema
 
@@ -138,7 +158,9 @@ single-image task. The answer is always one box in image 2.
 Types: `inctx_attr_single_color`, `inctx_attr_single_material`, `inctx_attr_single_function`,
 `inctx_attr_composition`, `inctx_attr_odd_one_out`, `inctx_spatial_farthest`.
 
-**Attribute family.** Image 1 shows a *different* object that shares the relevant value (color, material, function,
+### Attribute family
+
+Image 1 shows a *different* object that shares the relevant value (color, material, function,
 material-function pair, or majority material) with the answer. It is never the answer object itself, since the model
 could then solve the task by re-identifying the instance instead of reasoning about the attribute. For odd-one-out the
 reference must hold the majority material, never the minority answer. The module docstrings of `sos_catalog.py` and
@@ -147,7 +169,12 @@ reference must hold the majority material, never the minority answer. The module
 Because the question says "same color" rather than naming the color, a reference with several values in that field
 could make a second visible object a valid answer. `gt_incontext.py` rejects such references (the multi-attribute
 ambiguity gate): composition checks the full material × function product, and odd-one-out requires every applicable
-material to agree on the answer. References come only from the 70 objects published on Hugging Face (`sos_catalog.py`);
+material to agree on the answer.
+
+<details>
+<summary>Where references come from and how identity is checked</summary>
+
+References come only from the 70 objects published on Hugging Face (`sos_catalog.py`);
 150 of the 220 objects in the local catalog that `lib.py` reads have no published images and can't be used.
 
 Every reference must satisfy `reference_global_object_id != target_global_object_id`, checked first in
@@ -158,7 +185,11 @@ because it equals `object_name` for all 70 objects. What it catches is a differe
 (`boot` and `boot.2`), which the id check alone allows. On a 7-scene sample it removed no candidates beyond the id
 check, so it is always on.
 
-**Spatial family.** Image 1 shows the exact object used as the anchor in `spatial_farthest`. The answer is never the
+</details>
+
+### Spatial family
+
+Image 1 shows the exact object used as the anchor in `spatial_farthest`. The answer is never the
 anchor, so there is no shortcut, and locating the anchor in image 2 is part of the task.
 
 Deduplication matches the single-image tasks: the attribute family is deduplicated across the phase
@@ -168,20 +199,35 @@ Deduplication matches the single-image tasks: the attribute family is deduplicat
 ## Files
 
 | File | Purpose |
-|---|---|
-| `generate_gt.py` | Command-line driver: scene selection, frame sampling, output; also has `gen_incontext_for_mos_phase` and `gen_incontext_for_ego_phase` |
-| `gt_attributes.py` | Attribute VQA; `collect_candidates()` returns the uncapped per-frame pool that `dedup.py` distributes |
-| `gt_spatial.py` | Spatial questions, capped per frame; `compute_farthest_candidates()` is reused by the in-context spatial task |
-| `dedup.py` | Phase-wide candidate distribution for attribute VQA and the in-context attribute family |
-| `lib.py` | Lookup in the local 220-object catalog (`fewsol_id` to parsed questionnaire attributes, cached); not used for in-context references |
-| `sos_catalog.py` | The published 70-object catalog (`manifest/object_catalog_v1.json` and `objects_meta/*/questionnaire.json` on Hugging Face) and the join from scene masks (`source_catalog_id`) to `object_id`/`global_object_id`; the only source of in-context references |
-| `sos_reference.py` | Deterministic reference crops: frame choice, quality check, padding, caching |
-| `gt_incontext.py` | In-context generator: both families, the ambiguity gate and reference selection |
+|:--|:--|
+| `generate_gt.py` | Command-line driver: scene selection, frame sampling, output |
+| `gt_attributes.py` | Attribute VQA |
+| `gt_spatial.py` | Spatial questions, capped per frame |
+| `dedup.py` | Phase-wide distribution of attribute candidates |
+| `lib.py` | Lookup in the local 220-object catalog |
+| `sos_catalog.py` | The published 70-object catalog and the mask-to-object join |
+| `sos_reference.py` | Deterministic reference crops |
+| `gt_incontext.py` | In-context generator, ambiguity gate and reference selection |
 | `../generate_spatial_gt.py` | Shared mask, instance and depth loading |
-| `tests/` | Unit and integration tests, checked against already published ground truth where possible |
+| `tests/` | Unit and integration tests |
+
+`generate_gt.py` also has `gen_incontext_for_mos_phase` and `gen_incontext_for_ego_phase`.
+`gt_attributes.collect_candidates()` returns the uncapped per-frame pool that `dedup.py` distributes, and
+`gt_spatial.compute_farthest_candidates()` is reused by the in-context spatial task. `lib.py` maps
+`fewsol_id` to parsed questionnaire attributes (cached) and is not used for in-context references.
+`sos_catalog.py` reads `manifest/object_catalog_v1.json` and `objects_meta/*/questionnaire.json` from
+Hugging Face, joins scene masks (`source_catalog_id`) to `object_id`/`global_object_id`, and is the only
+source of in-context references. `sos_reference.py` handles frame choice, quality check, padding and
+caching. The tests are checked against already published ground truth where possible.
 
 ## Tests
 
 Run `python -m pytest tests -q` from this directory. The unit tests use synthetic masks and catalogs and run offline.
 Integration tests read `RPX_TEST_STAGED_PHASE0`, `RPX_TEST_STAGED_EGO`, `RPX_TEST_REFERENCE_MANIFEST`,
 `RPX_TEST_SPATIAL_PARQUET` and `RPX_TEST_SOS_ROOT`, and are skipped when that data is not available.
+
+---
+
+<sub>Part of <a href="../../../../README.md">RPX</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a> ·
+<a href="https://huggingface.co/datasets/IRVLUTD/RPX">Dataset</a></sub>

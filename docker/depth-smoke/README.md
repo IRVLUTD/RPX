@@ -5,43 +5,19 @@ Pull `irvlutd/rpx:depth-zipdepth-latest` for every T1 model and every T2 model e
 It contains the 16 models built by this directory's Dockerfile plus the [FE2E](../depth-fe2e/README.md) and
 [ZipDepth](../depth-zipdepth/README.md) overlays.
 
-The rest of this page covers building the image, the GPU smoke gates, and adding a model. The image holds code, pinned
-Python environments and pinned upstream checkouts. Data, checkpoints, credentials and results stay in mounted host
-directories.
+The image holds code, pinned Python environments and pinned upstream checkouts. Data, checkpoints, credentials and
+results stay in mounted host directories.
 
-## Gates
-
-Run the gates in order. Passing one gate does not count as passing the next, and neither a successful build nor an
-import check counts as a micro pass.
-
-1. `verify` checks the container and CUDA only.
-2. `micro` runs the smallest test with real data and a real checkpoint.
-3. `acceptance` runs a larger real-data test.
-4. `easy` runs the full Easy tier. Run it only after acceptance has passed and the adapter has been reviewed.
-
-All gates run on CUDA on one idle NVIDIA GPU. They use `IRVLUTD/RPX` at revision
-`2e2a387f7f93e98c177b2e039c141eacda94e5fc`, the Easy split, the official checkpoint and batch size 1 for image models.
-Output stays local; gates never upload to Box or Hugging Face.
-
-| Task | Gate | Work | Passes when |
-|---|---|---|---|
-| Image | `micro` | 1 image, raw prediction saved, FLOP profiling skipped | 1 sample, 1 cell, finite metrics, valid GPU and precision fields in the SystemCard, exactly one finite, non-degenerate `.npz` |
-| Image | `acceptance` | 25 images | 25 samples, 1 cell, finite metrics, 25 finite saved predictions |
-| Image | `easy` | all 24,750 Easy images | 24,750 samples and predictions, and a complete `comprehensive_metrics.json` |
-| Video | `micro` | 1 clip, 8 frames by stride sampling | 1 sample, 1 cell, valid SystemCard, finite `absrel`, `rmse`, `delta1`, `delta2`, `delta3` |
-| Video | `acceptance` | 1 clip, 25 frames | as micro |
-| Video | `easy` | all 99 Easy clips, every frame (`sampling=all`) | 99 samples and cells with valid core metrics |
-
-The temporal metrics `tae`, `opw`, `tgm` and `tcc` can be non-finite on clips too short to support them. The five core
-metrics must always be finite.
-
-Every gate writes `result.json`, `cells.parquet`, `summary.md`, `run_metadata.json`, `run.log` and `pip-freeze.txt`;
-image gates also save predictions. `run_metadata.json` records:
-
-- the code identity and dataset revision;
-- the Python, PyTorch and GPU versions;
-- the upstream SHAs and the command;
-- the validation result and the failure class.
+<p align="center">
+  <a href="#models">Models</a> ·
+  <a href="#host-setup">Host setup</a> ·
+  <a href="#build">Build</a> ·
+  <a href="#gates">Gates</a> ·
+  <a href="#run-micro-and-acceptance">Run</a> ·
+  <a href="#results">Results</a> ·
+  <a href="#adding-a-model">Adding a model</a> ·
+  <a href="#troubleshooting">Troubleshooting</a>
+</p>
 
 ## Models
 
@@ -72,6 +48,9 @@ succeed. It does not mean the model has passed acceptance, so run micro and acce
 | `video-da` | video | `video_da` (backed by `video-depth-anything`) | baked, matrix-ready |
 | `vigeo` | video | `vigeo` (backed by `geometry-video`) | baked, matrix-ready |
 
+<details>
+<summary>Dockerfile stages</summary>
+
 The Dockerfile is cumulative, with each stage extending the previous one:
 
 | Stage | Adds |
@@ -85,6 +64,8 @@ The Dockerfile is cumulative, with each stage extending the previous one:
 | `depth_all_rolling_vda_video` | `rolling-depth`, `video-da` |
 | `depth_all_monst3r` | `monst3r` |
 | `depth_all_hyden` | `hyden` |
+
+</details>
 
 `python3 benchmark/scripts/run_depth_smoke_matrix.py --list-models` prints the roster from code.
 
@@ -144,13 +125,53 @@ forward. To work on one family, build its stage with `--target`, for example `--
 Check the result:
 
 ```bash
-docker run --rm --gpus all --ipc=host --shm-size=8g "$IMAGE" verify   # CUDA and the original four runtimes
-docker run --rm "$IMAGE" list                                          # full roster
+# CUDA and the original four runtimes
+docker run --rm --gpus all --ipc=host --shm-size=8g "$IMAGE" verify
+# full roster
+docker run --rm "$IMAGE" list
 docker image inspect "$IMAGE" \
   --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}'
 ```
 
 `verify` does not download weights or run samples, so it is a preflight, not a smoke pass.
+
+## Gates
+
+Run the gates in order. Passing one gate does not count as passing the next, and neither a successful build nor an
+import check counts as a micro pass.
+
+1. `verify` checks the container and CUDA only.
+2. `micro` runs the smallest test with real data and a real checkpoint.
+3. `acceptance` runs a larger real-data test.
+4. `easy` runs the full Easy tier. Run it only after acceptance has passed and the adapter has been reviewed.
+
+All gates run on CUDA on one idle NVIDIA GPU. They use `IRVLUTD/RPX` at revision
+`2e2a387f7f93e98c177b2e039c141eacda94e5fc`, the Easy split, the official checkpoint and batch size 1 for image models.
+Output stays local; gates never upload to Box or Hugging Face.
+
+| Gate | Image models | Video models |
+|:--|:--|:--|
+| `micro` | 1 image | 1 clip, 8 frames by stride sampling |
+| `acceptance` | 25 images | 1 clip, 25 frames |
+| `easy` | all 24,750 Easy images | all 99 Easy clips, every frame (`sampling=all`) |
+
+A gate passes when:
+
+- image `micro`: 1 sample and 1 cell with finite metrics, valid GPU and precision fields in the SystemCard, and
+  exactly one finite, non-degenerate `.npz` (the raw prediction is saved and FLOP profiling is skipped);
+- image `acceptance`: 25 samples, 1 cell, finite metrics and 25 finite saved predictions;
+- image `easy`: 24,750 samples and predictions, and a complete `comprehensive_metrics.json`;
+- video `micro` and `acceptance`: 1 sample and 1 cell, a valid SystemCard, and finite `absrel`, `rmse`, `delta1`,
+  `delta2` and `delta3`;
+- video `easy`: 99 samples and cells with valid core metrics.
+
+The temporal metrics `tae`, `opw`, `tgm` and `tcc` can be non-finite on clips too short to support them. The five core
+metrics must always be finite.
+
+Every gate writes `result.json`, `cells.parquet`, `summary.md`, `run_metadata.json`, `run.log` and `pip-freeze.txt`;
+image gates also save predictions. `run_metadata.json` records the code identity and dataset
+revision, the Python, PyTorch and GPU versions, the upstream SHAs, the command, the validation result and the failure
+class.
 
 ## Run micro and acceptance
 
@@ -192,10 +213,13 @@ The matrix is the usual way to run several models. It runs one model at a time a
 It skips gates that already passed for the same code identity and writes a single state file.
 
 ```bash
+IMAGE_MODELS=da-v2-large,da3-metric-l,depth-pro,hyden,lotus-2
+IMAGE_MODELS+=,metric3d-v2,moge-2-vit-l,unidepth-v2
+
 rpx_docker_run "$IMAGE" \
   python scripts/run_depth_smoke_matrix.py \
   --task image \
-  --models da-v2-large,da3-metric-l,depth-pro,hyden,lotus-2,metric3d-v2,moge-2-vit-l,unidepth-v2 \
+  --models "$IMAGE_MODELS" \
   --gates micro,acceptance \
   --env-root /opt/rpx-envs \
   --cache-dir /cache/huggingface \
@@ -245,24 +269,20 @@ $RPX_SMOKE_ROOT/
 ```
 
 Read pass or fail from `run_metadata.json` and `matrix.json`, not from console output. Keep failed runs: their logs
-classify the failure as one of:
-
-- dependency;
-- access;
-- weight download;
-- upstream API;
-- shape or dtype;
-- data or manifest;
-- CUDA OOM;
-- unknown.
+classify the failure as dependency, access, weight download, upstream API, shape or dtype, data or manifest, CUDA OOM,
+or unknown.
 
 To move the image to another machine, use `docker save` rather than `docker export`, so that layers, labels and the
 entrypoint are kept:
 
 ```bash
-docker save "$IMAGE" | gzip > "rpx-depth-smoke-$(git rev-parse --short=12 HEAD).tar.gz"
+docker save "$IMAGE" \
+  | gzip > "rpx-depth-smoke-$(git rev-parse --short=12 HEAD).tar.gz"
 gunzip -c rpx-depth-smoke-<sha>.tar.gz | docker load
 ```
+
+<details>
+<summary>Publishing an image</summary>
 
 When publishing, push the immutable tag first. Move `latest` only after that image passes the gates, and point
 consumers at the `sha-…` tag:
@@ -278,13 +298,15 @@ docker tag "$IMAGE" "$REGISTRY_IMAGE:latest"
 docker push "$REGISTRY_IMAGE:latest"
 ```
 
+</details>
+
 ## Adding a model
 
-1. **Verify the official release.** Find the authors' source repository, weights, checkpoint name, license and load
+1. Verify the official release. Find the authors' source repository, weights, checkpoint name, license and load
    procedure, and pin the source to a full Git SHA. Don't relax a safety check to accommodate an unverified community
    upload.
 
-2. **Write the adapter.**
+2. Write the adapter.
    - An image model goes in `benchmark/scripts/depth_models/<model_name>.py`. It returns float32 depth for an RGB
      `uint8` image and declares `native_alignment` (`none` for metric depth). Expose the Torch module for profiling if
      you can, and register the model in `depth_models/__init__.py`.
@@ -294,7 +316,7 @@ docker push "$REGISTRY_IMAGE:latest"
    - Add the name to `IMAGE_MODELS` or `VIDEO_MODELS` in `benchmark/scripts/run_depth_smoke_gate.py`. If the weights
      are unverified, add it to `BLOCKED_MODELS` instead.
 
-3. **Define the environment family.** In `benchmark/scripts/setup_depth_smoke_env.py`, fill in `MODEL_FAMILY`,
+3. Define the environment family. In `benchmark/scripts/setup_depth_smoke_env.py`, fill in `MODEL_FAMILY`,
    `UPSTREAMS` (repository and SHA), `FAMILY_PACKAGES` and `FAMILY_IMPORTS`, the last of which should exercise the
    adapter's real load path. A host setup catches conflicts faster than a Docker rebuild:
 
@@ -304,12 +326,12 @@ docker push "$REGISTRY_IMAGE:latest"
      --env-root /data/rpx-envs
    ```
 
-4. **Lock dependencies.** Add `requirements-<family>.in` with the direct versions and a reviewed
+4. Lock dependencies. Add `requirements-<family>.in` with the direct versions and a reviewed
    `requirements-<family>.lock`. Leave Torch, torchvision and CUDA to the base image unless the family must replace
    them, and prefer `opencv-python-headless`. Check the lock for accidental upgrades to NumPy, Transformers, Diffusers,
    OpenCV, xFormers or Hugging Face Hub, which are the packages most likely to break an upstream API or ABI.
 
-5. **Add a Docker stage** after the current last one. The stage should:
+5. Add a Docker stage after the current last one. The stage should:
    - pin and fetch the upstream SHA;
    - create `/opt/rpx-envs/<family>`, using `--system-site-packages` when sharing the base CUDA/PyTorch;
    - install the lock and the source;
@@ -320,10 +342,10 @@ docker push "$REGISTRY_IMAGE:latest"
    Without `rpx-environment.json` the matrix will not run the model. If the family changes benchmark code, copy
    `benchmark` into the stage and reinstall the package so the image doesn't keep a stale adapter.
 
-6. **Update the defaults** in `entrypoint.sh`, `compose.yaml` and the tables on this page once the model is
+6. Update the defaults in `entrypoint.sh`, `compose.yaml` and the tables on this page once the model is
    matrix-ready. Keep image and video selections separate, since `entrypoint.sh smoke` runs image models only.
 
-7. **Test in widening scope.** Start with `pytest -q benchmark/tests/test_depth_smoke_tools.py`. Then:
+7. Test in widening scope. Start with `pytest -q benchmark/tests/test_depth_smoke_tools.py`. Then:
    1. build the stage, which also runs its import check;
    2. run `verify`;
    3. run the micro gate;
@@ -348,3 +370,9 @@ docker push "$REGISTRY_IMAGE:latest"
 | A rebuilt image reruns passed gates | Expected: state is keyed by exact code identity |
 
 To benchmark your own model, see the [benchmark README](../../benchmark/README.md).
+
+---
+
+<sub>Part of <a href="../../README.md">RPX</a> ·
+<a href="../README.md">Model environments</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a></sub>

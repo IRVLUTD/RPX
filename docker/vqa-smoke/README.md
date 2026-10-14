@@ -18,6 +18,16 @@ qwen3-vl-2b         qwen3-vl-8b
 The image can run more models than these. `docker run --rm irvlutd/rpx:vqa-vllm list-models` prints the full roster
 from `model-matrix.json`.
 
+<p align="center">
+  <a href="#protocol">Protocol</a> ·
+  <a href="#question-sets">Question sets</a> ·
+  <a href="#build">Build</a> ·
+  <a href="#run-the-gates">Run the gates</a> ·
+  <a href="#run-the-benchmark">Run the benchmark</a> ·
+  <a href="#metrics">Metrics</a> ·
+  <a href="#failure-diagnostic">Failure diagnostic</a>
+</p>
+
 ## Protocol
 
 The score is based on the box alone. Each model gets one generation with the original question and every required image,
@@ -34,9 +44,10 @@ Each prediction records its backend and version, Hub repository and immutable mo
 vLLM, which is pinned as the `vllm/vllm-openai` 0.28.0 CUDA 12.9 image digest. Every engine is built with
 `limit_mm_per_prompt={"image": 2}`.
 
-### Per-model adapters
+<details>
+<summary>Per-model adapters</summary>
 
-**Florence-2** (`-ft` checkpoints) and **PaliGemma 2** run through their native Transformers interfaces.
+Florence-2 (`-ft` checkpoints) and PaliGemma 2 run through their native Transformers interfaces.
 
 - Florence-2 uses `<CAPTION_TO_PHRASE_GROUNDING>` and PaliGemma 2 uses `detect …`.
 - Both take a referring expression that is rewritten deterministically from the question, without the answer or
@@ -49,16 +60,16 @@ vLLM, which is pinned as the `vllm/vllm-openai` 0.28.0 CUDA 12.9 image digest. E
 - Florence-2 runs in an isolated environment on Transformers 4.49.0. The main environment stays on the newer version
   that Qwen3-VL and vLLM require.
 
-**DeepSeek-VL2** uses `<|ref|>expression<|/ref|>` for single-image rows. In-context rows use `<|grounding|>`, with the
+DeepSeek-VL2 uses `<|ref|>expression<|/ref|>` for single-image rows. In-context rows use `<|grounding|>`, with the
 hash-verified reference crop followed by the target. Its native 0–999 boxes are converted to the 0–1000 contract
 without changing their geometry. The full model runs on two GPUs (`tensor_parallel_size=2`); every other engine uses
 one.
 
-**Cosmos Reason2** uses NVIDIA's example system message (`You are a helpful assistant.`) and its 2D-grounding prompt.
+Cosmos Reason2 uses NVIDIA's example system message (`You are a helpful assistant.`) and its 2D-grounding prompt.
 NVIDIA does not define a complete output schema, so RPX makes it explicit: exactly one `bbox_2d` box, the same format
 Qwen3-VL uses. Reasoning mode is off because the benchmark scores the localization, not a reasoning trace.
 
-**InternVL 3.5** uses the official dynamic 448-pixel tiling and `model.chat`. It returns its native
+InternVL 3.5 uses the official dynamic 448-pixel tiling and `model.chat`. It returns its native
 `label[[x0,y0,x1,y1]]` box for a GT-free referring-expression rewrite of the question. In-context rows mark the images
 `Image-1` and `Image-2`.
 
@@ -66,13 +77,20 @@ Qwen3-VL uses. Reasoning mode is off because the benchmark scores the localizati
 - The 14B model (15.1B parameters) runs unquantized across two GPUs with `device_map="auto"` and must not share
   them with the 1B engine.
 
+</details>
+
 ## Question sets
 
-| Set | Questions | Contents |
-|---|---:|---|
-| Smoke | 14 | Single-image only. Two General questions for each of CLU, INT, CLN and EGO; two Spatial questions for each of CLU, INT and CLN |
-| Acceptance | 104 | Seed 20260908. VQA: General 5 types × 4 conditions × 2 = 40, Spatial 3 × 3 × 2 = 18. In-context: General 40, Spatial 1 × 3 × 2 = 6 |
-| Benchmark | 31,500 runnable | 27,000 MOS + 4,500 EGO, from `scripts/build_vqa_benchmark_plan.py` |
+| Set | Questions | Scope |
+|:--|--:|:--|
+| Smoke | 14 | single-image only |
+| Acceptance | 104 | VQA and in-context VQA, seed 20260908 |
+| Benchmark | 31,500 runnable | 27,000 MOS and 4,500 EGO |
+
+The smoke set has two General questions for each of CLU, INT, CLN and EGO, and two Spatial questions for each of CLU,
+INT and CLN. The acceptance set has, for VQA, 40 General questions (5 types × 4 conditions × 2) and 18 Spatial
+(3 × 3 × 2); for in-context VQA, 40 General and 6 Spatial (1 × 3 × 2). The benchmark set comes from
+`scripts/build_vqa_benchmark_plan.py`.
 
 "Conditions" are the three MOS phases plus EGO. Every acceptance answer box is centred in the middle 50% of the image
 on both axes, and no two rows reduce to the same question after alias normalization (`rpx_benchmark/vqa/canonical.py`).
@@ -129,9 +147,11 @@ docker rm rpx-vqa-gemma4-12b
 Reports are written to `$RPX_VQA_RUNTIME/outputs/<model>/sha-<rpx-git-sha>/<gate>/report.json`:
 
 ```bash
-report="$(find "$RPX_VQA_RUNTIME/outputs/gemma4-12b" -path '*/smoke/report.json' -print | sort | tail -1)"
+report="$(find "$RPX_VQA_RUNTIME/outputs/gemma4-12b" -path '*/smoke/report.json' \
+  -print | sort | tail -1)"
 jq 'del(.samples)' "$report"
-jq '.samples[] | {question,raw_output,predicted_bbox,ground_truth_bbox,iou,latency_ms,valid,parse_error}' "$report"
+jq '.samples[] | {question, raw_output, predicted_bbox, ground_truth_bbox,
+                  iou, latency_ms, valid, parse_error}' "$report"
 ```
 
 The gates check coverage, not accuracy: every question must get a request and a prediction. Parse failures, refusals,
@@ -145,9 +165,10 @@ To review an acceptance run visually, build a self-contained HTML gallery. It sh
 parsed box, ground truth, overlay and IoU for each row:
 
 ```bash
+RUN="$RPX_VQA_RUNTIME/outputs/gemma4-12b/sha-<sha>/acceptance"
 python3 scripts/build_vqa_acceptance_gallery.py \
-  --manifest "$RPX_VQA_RUNTIME/outputs/gemma4-12b/sha-<sha>/acceptance/manifest.jsonl" \
-  --predictions "$RPX_VQA_RUNTIME/outputs/gemma4-12b/sha-<sha>/acceptance/predictions.jsonl" \
+  --manifest "$RUN/manifest.jsonl" \
+  --predictions "$RUN/predictions.jsonl" \
   --model gemma4-12b \
   --image-cache "$RPX_VQA_CACHE/images" \
   --out gallery.html
@@ -216,14 +237,8 @@ bash docker/vqa-smoke/run_dual_gpu_persistent_benchmark.sh \
 
 ## Metrics
 
-Reports include:
-
-- box validity;
-- Acc@0.25/0.50/0.75 (IoU ≥ threshold);
-- mean IoU;
-- `bbox_mean_giou`;
-- center-in-GT accuracy;
-- `bbox_mean_accuracy_50_95`.
+Reports include box validity, Acc@0.25/0.50/0.75 (IoU ≥ threshold), mean IoU, `bbox_mean_giou`, center-in-GT
+accuracy and `bbox_mean_accuracy_50_95`.
 
 `bbox_mean_giou` averages over every row and gives a malformed, missing or out-of-image box the worst value, −1.0. Use
 it for comparisons. `bbox_mean_giou_valid`, over valid boxes only, is a diagnostic. Center-in-GT tests the predicted
@@ -269,3 +284,9 @@ conventions, using GT to spot convention mistakes. Florence-2 adds its native `<
 
 These calls are diagnostics, and some of them use GT. They are never merged into scored results, and oracle or
 best-convention numbers must not be reported as benchmark performance.
+
+---
+
+<sub>Part of <a href="../../README.md">RPX</a> ·
+<a href="../README.md">Model environments</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a></sub>

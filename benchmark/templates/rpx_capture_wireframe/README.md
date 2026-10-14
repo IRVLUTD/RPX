@@ -1,8 +1,15 @@
 # RPX capture layout
 
-This is the on-disk layout the raw RPX captures (about 890 GB) must follow before the
-[dataset hub](../../rpx_benchmark/dataset_hub/README.md) can scan, pack and upload them. The Hub layout those
-commands produce is documented there.
+The on-disk layout the raw RPX captures (about 890 GB) must follow before the
+[dataset hub](../../rpx_benchmark/dataset_hub/README.md) can scan, pack and upload them. The Hub
+layout those commands produce is documented there.
+
+<p align="center">
+  <a href="#multi-object-scenes">Multi-object scenes</a> ·
+  <a href="#single-object-scans">Single-object scans</a> ·
+  <a href="#rules">Rules</a> ·
+  <a href="#checking-a-tree">Checking a tree</a>
+</p>
 
 ```
 DATA/
@@ -34,29 +41,30 @@ mos/scene<N>/
         └── iter1_faulty.txt … iter4_faulty.txt
 ```
 
-Each phase has 250 frames. MOS scenes have no questionnaire of their own: each mask is mapped to an object through
-`mask_to_object.json`, and the object's questionnaire comes from its single-object scan.
+Each phase has 250 frames. MOS scenes have no questionnaire of their own: each mask is mapped to an
+object through `mask_to_object.json`, and the object's questionnaire comes from its single-object
+scan.
 
 ## Single-object scans
 
 ```
 sos/<object_name>/
-├── questionnaire.txt              FewSOL-style questions and answers about the object
+├── questionnaire.txt              FewSOL-style questions and answers
 └── 0/                             one 360° turntable sequence
     └── same modality directories as MOS; masks hold 0 and 1,
         and mask_to_object.json is {"1": "<object_name>"}
 ```
 
-The directory name is the object's canonical ID (`tape_and_holder`, `coffee_mug`, no numeric prefix). Use exactly
-the same string as the value in MOS `mask_to_object.json` files so the packer can write one
-`objects_meta/<object_id>/questionnaire.json` per object. Names must be unique. The local catalog holds 220 objects,
-of which 70 are in the public release.
+The directory name is the object's canonical ID (`tape_and_holder`, `coffee_mug`, no numeric
+prefix). Use exactly the same string as the value in MOS `mask_to_object.json` files so the packer
+can write one `objects_meta/<object_id>/questionnaire.json` per object. Names must be unique. The
+local catalog holds 220 objects, of which 70 are in the public release.
 
 ## Rules
 
 - Frames are named `00000.png` with five digits, so sorting by name sorts by time.
-- Frame indices line up across modalities: `rgb/00042.png`, `depth/00042.png` and `cam_pose/00042.npz` are one
-  sample.
+- Frame indices line up across modalities: `rgb/00042.png`, `depth/00042.png` and
+  `cam_pose/00042.npz` are one sample.
 - Mask value 0 is always background and never appears in `mask_to_object.json`.
 
 ## Checking a tree
@@ -65,6 +73,12 @@ of which 70 are in the public release.
 python -m rpx_benchmark.dataset_hub.cli scan /path/to/DATA
 ```
 
-`scan` lists every scene it found by ID, so a misnamed directory such as `scence1` shows up there. Top-level
-entries other than `mos/`, `sos/` and `ego/`, and loose files where a scene directory is expected, are listed as
-`skipped`.
+`scan` lists every scene it found by ID, so a misnamed directory such as `scence1` shows up there.
+Top-level entries other than `mos/`, `sos/` and `ego/`, and loose files where a scene directory is
+expected, are listed as `skipped`.
+
+---
+
+<sub>Part of <a href="../../../README.md">RPX</a> ·
+<a href="https://irvlutd.github.io/RPX/toolkit-docs/">Toolkit docs</a> ·
+<a href="https://huggingface.co/datasets/IRVLUTD/RPX">Dataset</a></sub>
