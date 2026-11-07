@@ -71,8 +71,6 @@ FEATURE_CATEGORIES: Dict[str, Tuple[str, ...]] = {
     "occlusion": ("occ_mean", "occ_p90", "occ_heavy"),
     "depth_quality": ("depth_invalid", "depth_invalid_mask", "depth_std", "depth_std_mask"),
     "photometric_conflict": ("specular", "dark"),
-    "image_quality": ("rgb_blur", "rgb_texture"),
-    "object_size": ("mask_area_mean", "mask_area_std"),
     "temporal_stability": ("area_cv", "area_drop", "vis_instability"),
     "camera_motion": ("trans_mean", "trans_p90", "rot_mean", "rot_p90", "jerk"),
     "fisheye_stereo": (
@@ -182,9 +180,9 @@ def effort_stratified_weights(
         iter_mean = iter_max = α / |effort_features|
         other features       = (1 − α) / (F − |effort_features|)
 
-    With ``alpha = 0.25`` (default) and 31 features (2 effort + 29 other),
+    With ``alpha = 0.25`` (default) and 27 features (2 effort + 25 other),
     iter features each carry 12.5 % of the score (25 % combined); each of the
-    29 perception features carries ~2.6 % (75 % combined). At ``alpha = 0`` the
+    25 scene features carries 3 % (75 % combined). At ``alpha = 0`` the
     weighting reduces to uniform over the perception features only; at
     ``alpha = 1`` the score depends only on annotation effort.
     """

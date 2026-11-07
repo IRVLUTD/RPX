@@ -69,7 +69,9 @@ except ImportError:  # pragma: no cover
     _HAS_CV2 = False
 
 
-# Names of the 31 features, in the order they appear in the appendix.
+# Names of the 27 features, in the order they appear in the paper appendix
+# (2 annotation-effort + 25 scene descriptors). These are the descriptors
+# behind the published difficulty splits.
 # Tests should diff against this list to catch silent additions / renames.
 FEATURE_NAMES: Tuple[str, ...] = (
     # Annotation effort
@@ -91,12 +93,6 @@ FEATURE_NAMES: Tuple[str, ...] = (
     # Photometric--depth conflict (D435 RGB + invalid depth)
     "specular",
     "dark",
-    # Image quality (D435 RGB) — grounded in CEMS (Zhao et al. 2024)
-    "rgb_blur",
-    "rgb_texture",
-    # Object size distribution
-    "mask_area_mean",
-    "mask_area_std",
     # Temporal annotation stability
     "area_cv",
     "area_drop",
@@ -703,8 +699,6 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     depth_std_mask_per_frame = np.full(T, np.nan, dtype=np.float64)  # NaN → no valid depth in mask
     spec_frac = np.zeros(T, dtype=np.float64)
     dark_frac = np.zeros(T, dtype=np.float64)
-    rgb_blur_per_frame = np.zeros(T, dtype=np.float64)  # Laplacian variance
-    rgb_tex_per_frame = np.zeros(T, dtype=np.float64)  # gradient magnitude mean
     bboxes_per_frame: List[Dict[int, Tuple[int, int, int, int]]] = []
     # Per-frame dense bincount of mask values (length varies by frame max ID);
     # zipped at the end into a (T, max_id) matrix for area_cv / vis_instability.
@@ -740,10 +734,6 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
         # ── Photometric-conflict features ─────────────────────────────────
         spec_frac[t] = float(((rgb_luma > _SPECULAR_LUMA_MIN) & invalid).mean())
         dark_frac[t] = float(((rgb_luma < _DARK_LUMA_MAX) & invalid).mean())
-
-        # ── Image quality (D435 RGB) — grounded in CEMS (Zhao et al. 2024) ──
-        rgb_blur_per_frame[t] = _laplacian_var(rgb_luma)
-        rgb_tex_per_frame[t] = _gradient_magnitude_mean(rgb_luma)
 
         # ── Mask-derived features (one bincount per frame, reused 3×) ─────
         flat = mask.ravel()
@@ -813,38 +803,8 @@ def extract_phase_features(phase_dir: Path) -> PhaseFeatures:
     feats["specular"] = float(spec_frac.mean())
     feats["dark"] = float(dark_frac.mean())
 
-    # ── Image quality (D435 RGB) ─────────────────────────────────────
-    feats["rgb_blur"] = float(rgb_blur_per_frame.mean())
-    feats["rgb_texture"] = float(rgb_tex_per_frame.mean())
-
-    # ── Compute max_id once for reuse by object-size and temporal-stability ─
+    # ── Compute max_id once for temporal-stability ─────────────────────
     max_id = max((int(c.size - 1) for c in bincount_per_frame if c.size > 1), default=0)
-
-    # ── Object size distribution ────────────────────────────────────
-    # Per-instance mean mask area fraction (over frames where visible),
-    # then mean/std across instances. Small objects are universally harder.
-    if max_id >= 1 and T > 0:
-        _frame_pixels = bincount_per_frame[0].sum() if bincount_per_frame else 1
-        _areas_for_size = np.zeros((T, max_id), dtype=np.int64)
-        for _t, _c in enumerate(bincount_per_frame):
-            _n = min(int(_c.size) - 1, max_id)
-            if _n > 0:
-                _areas_for_size[_t, :_n] = _c[1 : 1 + _n]
-        _present = _areas_for_size > 0
-        _per_inst_mean = []
-        for _j in range(max_id):
-            _vis = _areas_for_size[:, _j][_present[:, _j]]
-            if _vis.size > 0:
-                _per_inst_mean.append(float(_vis.mean()) / max(_frame_pixels, 1))
-        if _per_inst_mean:
-            feats["mask_area_mean"] = float(np.mean(_per_inst_mean))
-            feats["mask_area_std"] = float(np.std(_per_inst_mean))
-        else:
-            feats["mask_area_mean"] = 0.0
-            feats["mask_area_std"] = 0.0
-    else:
-        feats["mask_area_mean"] = 0.0
-        feats["mask_area_std"] = 0.0
 
     # ── Temporal stability: build dense (T, max_id) area matrix ──────────
     if max_id >= 1:

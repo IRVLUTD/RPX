@@ -138,8 +138,8 @@ def test_feature_names_count_matches_appendix():
     # 19 from the new paper + 8 resurrected from old draft (RPX-overleaf.bak.pdf):
     # area_drop (§3.4 eq 15), trans_p90/rot_p90 (§3.5 eqs 20,22), and the 5
     # fisheye/stereo features (§3.7 eqs 25-29).
-    assert len(FEATURE_NAMES) == 31
-    assert len(set(FEATURE_NAMES)) == 31  # no duplicates
+    assert len(FEATURE_NAMES) == 27
+    assert len(set(FEATURE_NAMES)) == 27  # no duplicates
 
 
 def test_extract_returns_all_18_features(tmp_path):

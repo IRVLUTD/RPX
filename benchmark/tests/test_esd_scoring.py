@@ -122,18 +122,36 @@ def test_effort_stratified_weights_rejects_missing_effort_feature():
         effort_stratified_weights(["a", "b", "c"], alpha=0.5)
 
 
-def test_effort_stratified_weights_on_real_31_feature_set():
-    """The default for the 31-feature production set."""
+def test_effort_stratified_weights_on_real_27_feature_set():
+    """Default weights for the 27-descriptor set used in the paper (alpha = 0.25)."""
     from rpx_benchmark.data.esd import FEATURE_NAMES
     from rpx_benchmark.data.esd_scoring import effort_stratified_weights
 
-    w = effort_stratified_weights(list(FEATURE_NAMES), alpha=0.5)
-    # 2 effort features × 0.25 + 29 other features × (0.5/29 ≈ 0.01724) = 1.0
-    assert w["iter_mean"] == pytest.approx(0.25)
-    assert w["iter_max"] == pytest.approx(0.25)
-    assert w["depth_invalid"] == pytest.approx(0.5 / 29, abs=1e-6)
-    assert w["rgb_blur"] == pytest.approx(0.5 / 29, abs=1e-6)
+    w = effort_stratified_weights(list(FEATURE_NAMES))
+    # 2 effort features x 0.125 + 25 scene features x 0.03 = 1.0
+    assert w["iter_mean"] == pytest.approx(0.125)
+    assert w["iter_max"] == pytest.approx(0.125)
+    assert w["depth_invalid"] == pytest.approx(0.03)
     assert sum(w.values()) == pytest.approx(1.0)
+
+
+def test_feature_set_matches_published_splits():
+    """FEATURE_NAMES and default weights must reproduce the provenance of the
+    published difficulty splits (data/splits/scene_splits.json)."""
+    import json
+    from pathlib import Path
+
+    from rpx_benchmark.data.esd import FEATURE_NAMES
+    from rpx_benchmark.data.esd_scoring import effort_stratified_weights
+
+    path = Path(__file__).resolve().parents[1] / "data" / "splits" / "scene_splits.json"
+    if not path.exists():
+        pytest.skip("published splits not present in this checkout")
+    prov = json.loads(path.read_text())["provenance"]
+    assert list(FEATURE_NAMES) == list(prov["feature_names"])
+    w = effort_stratified_weights(list(FEATURE_NAMES))
+    for name, weight in prov["weights"].items():
+        assert w[name] == pytest.approx(weight)
 
 
 # --------------------------------------------------------------------------- #
